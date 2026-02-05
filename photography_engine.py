@@ -36,7 +36,9 @@ BASE_DIR = Path(__file__).resolve().parent
 IMAGE_DIR = BASE_DIR / "rendered" / "originals" / "gemini" / "jpeg"
 MANIFEST_PATH = BASE_DIR / "rendered" / "manifest.json"
 
-API_KEY = os.environ.get("GOOGLE_API_KEY", "REDACTED_API_KEY")
+API_KEY = os.environ.get("GOOGLE_API_KEY")
+if not API_KEY:
+    raise RuntimeError("GOOGLE_API_KEY environment variable is required")
 MODEL_ID = "gemini-2.5-pro"
 MAX_CONCURRENT = 5
 MAX_RETRIES = 5
