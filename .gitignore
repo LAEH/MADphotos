@@ -1,0 +1,31 @@
+# Image data (too large for git)
+originals/
+rendered/
+ai_variants/
+
+# Database files
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Exports
+mad_photos_export.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Claude
+.claude/
