@@ -724,3 +724,15 @@ Replaced the 8 plain white stat cards with a dramatic two-section layout inspire
 ### 19:18 — Static Site: All 6 Pages Generated
 
 Ran `generate_static()` — successfully output all 6 pages to `docs/`: state.html (75KB), journal.html (36KB), instructions.html (18KB), drift.html (44KB), blind-test.html (112KB), mosaics.html (24KB). All sidebar links properly rewritten from server routes (`/journal`) to static paths (`journal.html`). Every page has the collapsible sidebar, theme toggle, and hamburger menu.
+
+### 19:30 — GCS Bucket Architecture: Versioned Image Hosting
+
+Designed and implemented a clean versioned structure for the GCS bucket. All images now live under `v/{version}/{tier}/{format}/{uuid}.ext`. The "version" dimension covers: `original` (base photographs), `enhanced` (camera-aware enhancement v1), `enhanced_v2` (signal-aware enhancement), and future AI variants. Each version has its own tier pyramid (display, mobile, thumb, micro). URL pattern is fully programmatic — any web app can construct image URLs from just a UUID and version name. Rewrote `gcs_sync.py` completely to support the new layout with `--version` and `--tiers` flags.
+
+### 19:34 — Enhanced v1 Tier Rendering + GCS Upload Begins
+
+Started rendering the enhanced v1 tier pyramid — the enhanced images existed only as 2048px JPEGs. Now generating mobile (1280px), thumb (480px), micro (64px) in JPEG + WebP for all 9,011 images. Original serving tiers (thumb JPEG/WebP: 132MB) already uploaded to GCS. Blind test images (300 files, 169MB) uploaded to `v/blind/` on GCS. Static pages updated to reference GCS URLs directly — no more local `docs/blind/` directory (saved 169MB from the repo).
+
+### 19:35 — Blind Test Verdict: Enhanced v1 and v2 Are Nearly Identical
+
+Investigation confirmed the user's observation: enhanced v1 and v2 differ by a mean of only 0.50 pixels (max 12). The v2 enhancement (signal-aware) adds subtle depth, scene, and style corrections on top of v1's base camera-aware processing — but the perceptual difference is negligible. For the "Show" web app, we'll focus on enhanced v1 as the primary improved version. All enhancement parameters are fully saved in `enhancement_plans` and `enhancement_plans_v2` tables for future recipe tuning.

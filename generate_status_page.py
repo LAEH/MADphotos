@@ -564,6 +564,13 @@ def get_stats():
         analyzed,
     ])
 
+    # ── Sample UUIDs for image strip ─────────────────────────
+    sample_uuids = [
+        r[0] for r in conn.execute(
+            "SELECT uuid FROM images ORDER BY RANDOM() LIMIT 40"
+        ).fetchall()
+    ]
+
     # ── Disk usage ───────────────────────────────────────────
     db_size = os.path.getsize(str(DB_PATH)) if DB_PATH.exists() else 0
     web_json_path = Path(__file__).resolve().parent / "web" / "data" / "photos.json"
@@ -656,6 +663,7 @@ def get_stats():
         "emotion_count": emotion_count,
         "models_complete": models_complete,
         "total_signals": total_signals,
+        "sample_uuids": sample_uuids,
     }
 
 
@@ -1185,6 +1193,45 @@ PAGE_HTML = r"""<!DOCTYPE html>
   .el-badge.active { background: var(--hover-overlay); color: var(--muted); }
   .el-badge.pending { background: var(--hover-overlay); color: var(--muted); }
 
+  /* ═══ FILMSTRIP (GCS image showcase) ═══ */
+  .filmstrip {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    padding: var(--space-2) 0 var(--space-6);
+    margin: 0 calc(var(--space-3) * -1);
+    scrollbar-width: none;
+  }
+  .filmstrip::-webkit-scrollbar { display: none; }
+  .filmstrip .fs-img {
+    flex: 0 0 auto;
+    width: 120px; height: 80px;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--hover-overlay);
+    position: relative;
+  }
+  .filmstrip .fs-img img {
+    width: 100%; height: 100%; object-fit: cover;
+    opacity: 0;
+    transform: scale(1.08);
+    transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .filmstrip .fs-img img.loaded {
+    opacity: 1;
+    transform: scale(1);
+  }
+  .filmstrip .fs-img:hover img.loaded {
+    transform: scale(1.05);
+    transition-duration: 0.3s;
+  }
+  @media (max-width: 700px) {
+    .filmstrip .fs-img { width: 90px; height: 60px; }
+  }
+
   /* ═══ PROGRESS BARS ═══ */
   .progress-wrap {
     background: var(--bar-bg);
@@ -1580,6 +1627,8 @@ PAGE_HTML = r"""<!DOCTYPE html>
 <p class="subtitle" id="subtitle">System Dashboard</p>
 <p class="manifesto">We started with 9,011 raw images and zero metadata.<br>We will create the best UX UIs on photos.<br>Game ON.</p>
 
+<div class="filmstrip" id="filmstrip"></div>
+
 <!-- ═══ MODEL INTELLIGENCE GRID ═══ -->
 <div style="margin-bottom:var(--space-8);">
   <div class="el-section-title">Signal Extraction</div>
@@ -1940,6 +1989,21 @@ PAGE_HTML = r"""<!DOCTYPE html>
     el("subtitle").innerHTML =
       '<span class="live-dot"></span>' + d.timestamp;
     el("footer-ts").textContent = d.timestamp;
+
+    /* ── Filmstrip (GCS images) ── */
+    var GCS = 'https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v';
+    var strip = el("filmstrip");
+    if (d.sample_uuids && strip && !strip.dataset.loaded) {
+      strip.dataset.loaded = '1';
+      var html = d.sample_uuids.map(function(uuid, i) {
+        return '<div class="fs-img" style="animation-delay:' + (i * 60) + 'ms">' +
+          '<img src="' + GCS + '/original/thumb/jpeg/' + uuid + '.jpg" ' +
+          'alt="" loading="lazy" onload="this.classList.add(\'loaded\')" ' +
+          'onerror="this.parentElement.style.display=\'none\'">' +
+          '</div>';
+      }).join('');
+      strip.innerHTML = html;
+    }
 
     /* ── Model intelligence grid ── */
     var mc = d.models_complete || 0;
@@ -3219,7 +3283,7 @@ def render_drift():
                 dist = nb_row["_distance"]
                 neighbor_cells.append(
                     f'<div class="drift-cell">'
-                    f'<img src="/thumb/{nb_uuid}" loading="lazy" alt="{nb_uuid[:8]}">'
+                    f'<img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/{nb_uuid}.jpg" loading="lazy" alt="{nb_uuid[:8]}" onload="this.classList.add(\'loaded\')" class="drift-img">'
                     f'<div class="drift-dist">{dist:.3f}</div>'
                     f'</div>'
                 )
@@ -3231,7 +3295,7 @@ def render_drift():
                 f'<span class="drift-model-desc">{model_desc}</span>'
                 f'</div>'
                 f'<div class="drift-cell drift-cell-query">'
-                f'<img src="/thumb/{query_uuid}" loading="lazy" alt="{query_uuid[:8]}">'
+                f'<img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/{query_uuid}.jpg" loading="lazy" alt="{query_uuid[:8]}" onload="this.classList.add(\'loaded\')" class="drift-img">'
                 f'<div class="drift-dist">query</div>'
                 f'</div>'
                 + "".join(neighbor_cells) +
@@ -3317,6 +3381,14 @@ def render_drift():
     object-fit: cover;
     display: block;
     min-height: 120px;
+    opacity: 0;
+    transform: scale(1.05);
+    transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  }}
+  .drift-cell img.loaded {{
+    opacity: 1;
+    transform: scale(1);
   }}
   .drift-cell-query {{
     flex: 1;
@@ -3395,7 +3467,7 @@ def render_blind_test():
             letter = chr(65 + j)  # A, B, C
             cells.append(
                 f'<div class="bt-cell" data-row="{i}" data-method="{method}" onclick="pick(this)">'
-                f'<img src="/blind/{uid}_{method}.jpg" loading="lazy" alt="Option {letter}">'
+                f'<img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/blind/{uid}_{method}.jpg" loading="lazy" alt="Option {letter}">'
                 f'<div class="bt-letter">{letter}</div>'
                 f'<div class="bt-reveal-label"></div>'
                 f'</div>'
@@ -3730,34 +3802,12 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "text/html")
             self.end_headers()
             self.wfile.write(html)
-        elif self.path.startswith("/thumb/"):
-            uuid = self.path[7:]
-            fpath = RENDERED_DIR / "thumb" / "jpeg" / f"{uuid}.jpg"
-            if fpath.exists():
-                self.send_response(200)
-                self.send_header("Content-Type", "image/jpeg")
-                self.send_header("Cache-Control", "public, max-age=3600")
-                self.end_headers()
-                self.wfile.write(fpath.read_bytes())
-            else:
-                self.send_error(404)
         elif self.path == "/blind-test":
             html = render_blind_test().encode()
             self.send_response(200)
             self.send_header("Content-Type", "text/html")
             self.end_headers()
             self.wfile.write(html)
-        elif self.path.startswith("/blind/"):
-            fname = self.path[7:]
-            fpath = BLIND_TEST_DIR / fname
-            if fpath.exists() and fpath.suffix in (".jpg", ".jpeg", ".png"):
-                self.send_response(200)
-                self.send_header("Content-Type", "image/jpeg")
-                self.send_header("Cache-Control", "public, max-age=3600")
-                self.end_headers()
-                self.wfile.write(fpath.read_bytes())
-            else:
-                self.send_error(404)
         else:
             html = PAGE_HTML.replace("%%POLL_MS%%", "5000")
             html = html.replace("%%API_URL%%", "/api/stats")
@@ -3801,12 +3851,11 @@ def _static_links(html):
     html = html.replace('href="/drift"', 'href="drift.html"')
     html = html.replace('href="/blind-test"', 'href="blind-test.html"')
     html = html.replace('src="/mosaic-hero"', 'src="hero-mosaic.jpg"')
-    # Rewrite /thumb/ and /mosaics/ and /blind/ paths for images
-    html = html.replace('src="/thumb/', 'src="thumbs/')
+    # Thumb and blind test images use absolute GCS URLs — no rewriting needed
     # Mosaic images: inline path
     import re
     html = re.sub(r'src="/mosaics/([^"]+)"', r'src="mosaics/\1"', html)
-    html = re.sub(r'src="/blind/([^"]+)"', r'src="blind/\1"', html)
+    # Blind test images use absolute GCS URLs — no rewriting needed
     return html
 
 
