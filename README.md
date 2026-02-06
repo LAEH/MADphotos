@@ -27,19 +27,17 @@ The private power tool. A native macOS SwiftUI app for exploring, curating, and 
 
 See is where the human decides what's worth showing to the world.
 
-### Show
+### [Show](https://madphotos-efbfb.web.app)
 
-The public experience. Three web-based viewing modes designed for discovery and storytelling:
+The public experience. 14 web-based experiments — each a different answer to *"what happens when you give a creative mind 9,011 images with every possible signal?"*
 
-- **La Grille** — Filterable photo grid. Camera, vibe, time, setting, color.
-- **La Derive** — Semantic drift. Click an image, follow where the vectors lead. DINOv2 finds texture, SigLIP finds meaning, CLIP finds subjects.
-- **Les Couleurs** — Color space exploration. Navigate the collection by what it looks like.
+**La Grille** (filterable grid) · **Le Bento** (Mondrian mosaic with chromatic harmony) · **La Similarité** (semantic neighbors) · **La Dérive** (structural drift) · **Les Couleurs** (color space) · **Le Terrain de Jeu** (connection game) · **Le Flot** (curated infinite stream) · **La Chambre Noire** (signal layers) · **Les Visages** (face wall with emotions) · **La Boussole** (4-axis compass navigation) · **L'Observatoire** (6-panel data dashboard) · **La Carte** (GPS map) · **La Machine à Écrire** (text search) · **Le Pendule** (aesthetic taste test)
 
-Show only displays images that passed through See. Accepted and validated. The curated experience.
+Show only displays images that passed through See. The curated experience.
 
-### State
+### [State](https://laeh.github.io/MADphotos/)
 
-The system dashboard. Real-time view of every pipeline, every signal, every model. Gemini analysis progress, camera fleet statistics, depth estimation, scene classification, enhancement metrics, vector store health. Plus sub-pages: Journal de Bord (the project narrative), system instructions, and experiments (Drift visualization, blind tests, mosaics).
+The system dashboard. Real-time view of every pipeline, every signal, every model. Camera fleet statistics, signal completion, enhancement metrics. Plus sub-pages: Journal de Bord (the project narrative), system instructions.
 
 State is the control room.
 

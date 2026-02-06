@@ -824,3 +824,11 @@ Added a horizontal filmstrip of 40 randomly sampled photographs below the manife
 **Intent.** Mission statement needed to stand out. Changed "on different screens" to "on screens". Added "GAME IS ON." tagline.
 
 > Mission text now bold black (weight 700) at base font size. Added uppercase "GAME IS ON." below in muted gray with caps tracking. Deployed to GitHub Pages.
+
+---
+
+### 00:30 — Signals Progressing Overnight
+
+**Intent.** Check-in on all background analysis processes running since the previous session.
+
+> Five processes still alive: 3 OCR shards (28%, 2,543/9,011), photography_engine for Gemini (68.9%, 6,210/9,011), facial emotions (79.7%, 2,541/3,187 faces). Face detections jumped from 1,676 to 3,187 — more faces discovered as analysis expanded. Emotions climbed from 1,367 to 2,541. BLIP captions stuck at 9,006/9,011 — 5 images blocked by SQLite locks from concurrent OCR shards. Will retry once OCR finishes.

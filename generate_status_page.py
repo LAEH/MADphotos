@@ -4112,8 +4112,9 @@ def generate_static():
     html = html.replace("%%API_URL%%", "inline")
     html = html.replace("%%INLINE_DATA%%", json.dumps(stats))
     html = html.replace('animation: blink 2s infinite;', 'display: none;')
+    ts_pretty = datetime.now(timezone.utc).strftime("%B %-d, %Y at %H:%M UTC")
     html = html.replace('System Dashboard</p>',
-                         f'Snapshot &mdash; {ts}</p>')
+                         f'As of {ts_pretty}</p>')
     html = _static_links(html)
     OUT_PATH.write_text(html)
     print(f"  state.html ({len(html):,} bytes)")
