@@ -193,10 +193,14 @@ body.sb-collapsed .sb-expand { display: flex; }
 }
 .hero-tagline em { color: var(--fg); font-style: normal; font-weight: 600; }
 .hero-mission {
-  font-size: var(--text-sm); line-height: var(--leading-relaxed);
-  color: var(--muted); max-width: 540px;
+  font-size: var(--text-base); line-height: var(--leading-relaxed);
+  color: var(--fg); max-width: 540px; font-weight: 700;
 }
 .hero-mission em { color: var(--fg-secondary); font-style: italic; }
+.hero-game-on {
+  font-size: var(--text-sm); color: var(--muted); margin-top: var(--space-2);
+  letter-spacing: var(--tracking-caps); text-transform: uppercase; font-weight: 600;
+}
 .hero-mosaic {
   width: 300px; flex-shrink: 0; border-radius: var(--radius-xl);
   overflow: hidden; box-shadow: var(--shadow-lg);
@@ -375,7 +379,9 @@ body.sb-collapsed .sb-expand { display: flex; }
       Shot over a decade on <em>Leica rangefinders</em>, a monochrome sensor with no Bayer filter, scanned analog film, and pocket action cameras. Most have never been seen by anyone.
     </p>
     <p class="hero-mission">
-      Leverage all AIs &mdash; Claude Code, CV models, Gemini APIs &mdash; to create engaging, playful, elegant, smart, teasing, revealing, exciting experiences on different screens.
+      Leverage all AIs &mdash; Claude Code, CV models, Gemini APIs &mdash; to create engaging, playful, elegant, smart, teasing, revealing, exciting experiences on screens.
+    </p>
+    <p class="hero-game-on">Game is ON.
     </p>
   </div>
   <div class="hero-mosaic">
