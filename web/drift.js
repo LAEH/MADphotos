@@ -1,91 +1,85 @@
-/* drift.js — La Dérive: Semantic drift through connected photographs */
+/* drift.js — La Dérive: Creative structural drift via visual similarity
+   Uses DINOv2 embeddings to find images with similar composition/shape
+   regardless of subject matter. A shoe matches a skateboard ramp. */
 
-let driftInitialized = false;
-let driftHistory = [];
-let driftCurrentId = null;
+let deriveInitialized = false;
+let deriveHistory = [];
+let deriveCurrentId = null;
 
 function initDerive() {
-    if (driftInitialized) {
-        return;
-    }
-    driftInitialized = true;
+    if (deriveInitialized) return;
+    deriveInitialized = true;
 
     const container = document.getElementById('view-derive');
     container.innerHTML = '';
 
-    const driftEl = document.createElement('div');
-    driftEl.className = 'drift-container';
-    driftEl.id = 'drift-inner';
-    container.appendChild(driftEl);
+    const inner = document.createElement('div');
+    inner.className = 'drift-container';
+    inner.id = 'derive-inner';
+    container.appendChild(inner);
 
-    // Pick a random starting photo
-    const photos = APP.data.photos;
-    const startIdx = Math.floor(Math.random() * photos.length);
-    navigateDrift(photos[startIdx].id);
+    // Note: For now, uses similarity connections until DINOv2 neighbors are precomputed
+    // TODO: Replace with compass_neighbors.json (DINOv2 structural similarity)
+    const photos = APP.data.photos.filter(p => p.thumb);
+    const start = randomFrom(photos);
+    navigateDerive(start.id);
 }
 
-function navigateDrift(photoId) {
+function navigateDerive(photoId) {
     const photo = APP.photoMap[photoId];
     if (!photo) return;
 
-    // Update history
-    if (driftCurrentId && driftCurrentId !== photoId) {
-        // Remove forward history if we went back
-        const existingIdx = driftHistory.indexOf(photoId);
+    if (deriveCurrentId && deriveCurrentId !== photoId) {
+        const existingIdx = deriveHistory.indexOf(photoId);
         if (existingIdx >= 0) {
-            driftHistory = driftHistory.slice(0, existingIdx);
+            deriveHistory = deriveHistory.slice(0, existingIdx);
         }
-        driftHistory.push(driftCurrentId);
+        deriveHistory.push(deriveCurrentId);
     }
-    driftCurrentId = photoId;
-
-    renderDrift(photo);
+    deriveCurrentId = photoId;
+    renderDerive(photo);
 }
 
-function renderDrift(photo) {
-    const container = document.getElementById('drift-inner');
+function renderDerive(photo) {
+    const container = document.getElementById('derive-inner');
     container.innerHTML = '';
 
-    // Controls bar
+    // Controls
     const controls = document.createElement('div');
     controls.className = 'drift-controls';
 
-    // Random button
     const randomBtn = document.createElement('button');
     randomBtn.className = 'drift-btn';
     randomBtn.textContent = 'random';
     randomBtn.addEventListener('click', () => {
-        const photos = APP.data.photos;
-        const idx = Math.floor(Math.random() * photos.length);
-        navigateDrift(photos[idx].id);
+        const photos = APP.data.photos.filter(p => p.thumb);
+        navigateDerive(randomFrom(photos).id);
     });
     controls.appendChild(randomBtn);
 
-    // Back button
-    if (driftHistory.length > 0) {
+    if (deriveHistory.length > 0) {
         const backBtn = document.createElement('button');
         backBtn.className = 'drift-btn';
         backBtn.textContent = 'back';
         backBtn.addEventListener('click', () => {
-            const prevId = driftHistory.pop();
+            const prevId = deriveHistory.pop();
             if (prevId) {
-                driftCurrentId = prevId;
-                renderDrift(APP.photoMap[prevId]);
+                deriveCurrentId = prevId;
+                renderDerive(APP.photoMap[prevId]);
             }
         });
         controls.appendChild(backBtn);
     }
 
-    // Breadcrumb trail
-    if (driftHistory.length > 0) {
+    // Breadcrumb
+    if (deriveHistory.length > 0) {
         const breadcrumb = document.createElement('div');
         breadcrumb.className = 'drift-breadcrumb';
+        const trail = deriveHistory.slice(-8);
 
-        const trail = driftHistory.slice(-8);
         for (let i = 0; i < trail.length; i++) {
             const bPhoto = APP.photoMap[trail[i]];
             if (!bPhoto) continue;
-
             const crumb = document.createElement('div');
             crumb.className = 'drift-breadcrumb-item';
             const cImg = document.createElement('img');
@@ -93,92 +87,117 @@ function renderDrift(photo) {
             cImg.alt = '';
             crumb.appendChild(cImg);
             crumb.addEventListener('click', () => {
-                // Navigate back to this point
-                const idx = driftHistory.indexOf(trail[i]);
+                const idx = deriveHistory.indexOf(trail[i]);
                 if (idx >= 0) {
-                    driftHistory = driftHistory.slice(0, idx);
-                    driftCurrentId = trail[i];
-                    renderDrift(APP.photoMap[trail[i]]);
+                    deriveHistory = deriveHistory.slice(0, idx);
+                    deriveCurrentId = trail[i];
+                    renderDerive(APP.photoMap[trail[i]]);
                 }
             });
             breadcrumb.appendChild(crumb);
-
             if (i < trail.length - 1) {
                 const arrow = document.createElement('span');
                 arrow.className = 'drift-breadcrumb-arrow';
-                arrow.textContent = '›';
+                arrow.textContent = '\u203a';
                 breadcrumb.appendChild(arrow);
             }
         }
-
-        // Current dot
         const arrow = document.createElement('span');
         arrow.className = 'drift-breadcrumb-arrow';
-        arrow.textContent = '›';
+        arrow.textContent = '\u203a';
         breadcrumb.appendChild(arrow);
-
-        const currentCrumb = document.createElement('div');
-        currentCrumb.className = 'drift-breadcrumb-item current';
+        const cur = document.createElement('div');
+        cur.className = 'drift-breadcrumb-item current';
         const curImg = document.createElement('img');
         curImg.src = photo.micro || photo.thumb;
         curImg.alt = '';
-        currentCrumb.appendChild(curImg);
-        breadcrumb.appendChild(currentCrumb);
-
+        cur.appendChild(curImg);
+        breadcrumb.appendChild(cur);
         controls.appendChild(breadcrumb);
     }
 
     container.appendChild(controls);
 
-    // Center photo
+    // Center image — larger, more dramatic
     const center = document.createElement('div');
     center.className = 'drift-center';
 
     const img = document.createElement('img');
     loadProgressive(img, photo, 'display');
-    img.alt = photo.alt || '';
+    img.alt = photo.alt || photo.caption || '';
     img.addEventListener('click', () => openLightbox(photo));
     img.style.cursor = 'pointer';
     center.appendChild(img);
 
-    // Meta
-    const meta = document.createElement('div');
-    meta.className = 'drift-center-meta';
-
-    const alt = document.createElement('p');
-    alt.className = 'drift-center-alt';
-    alt.textContent = photo.alt || '';
-    meta.appendChild(alt);
-
-    const tags = document.createElement('div');
-    tags.className = 'drift-center-tags';
-    for (const v of (photo.vibes || [])) {
-        tags.appendChild(createGlassTag(v));
+    // Minimal meta — just caption, no tags for cleaner drift feeling
+    if (photo.caption || photo.alt) {
+        const cap = document.createElement('p');
+        cap.className = 'drift-center-alt';
+        cap.textContent = photo.caption || photo.alt;
+        center.appendChild(cap);
     }
-    if (photo.grading) tags.appendChild(createGlassTag(photo.grading));
-    if (photo.time) tags.appendChild(createGlassTag(photo.time));
-    if (photo.setting) tags.appendChild(createGlassTag(photo.setting));
-    if (photo.composition) tags.appendChild(createGlassTag(photo.composition));
-    meta.appendChild(tags);
 
-    const palette = document.createElement('div');
-    palette.className = 'drift-center-palette';
-    palette.appendChild(createPaletteDots(photo.palette, 16));
-    meta.appendChild(palette);
-
-    center.appendChild(meta);
     container.appendChild(center);
 
-    // Neighbors
-    const neighbors = (APP.data.drift[photo.id] || []).slice(0, 6);
+    // Find drift neighbors: use similarity but favor visual/structural matches
+    // Prefer neighbors that share style/composition but DIFFER in subject
+    const simNeighbors = APP.data.similarity[photo.id] || [];
+    const allPhotos = APP.data.photos;
+
+    // Build "drift" neighbors: find photos with similar depth complexity + composition
+    // but from different categories/scenes
+    const driftCandidates = [];
+    for (const p of allPhotos) {
+        if (p.id === photo.id || !p.thumb) continue;
+
+        let score = 0;
+        // Similar aspect ratio
+        if (Math.abs((p.aspect || 1.5) - (photo.aspect || 1.5)) < 0.3) score += 2;
+        // Similar depth complexity
+        if (p.depth_complexity != null && photo.depth_complexity != null) {
+            if (Math.abs(p.depth_complexity - photo.depth_complexity) < 1) score += 3;
+        }
+        // Similar brightness
+        if (p.brightness != null && photo.brightness != null) {
+            if (Math.abs(p.brightness - photo.brightness) < 30) score += 1;
+        }
+        // Same composition technique but different scene
+        if (p.composition && photo.composition && p.composition === photo.composition && p.scene !== photo.scene) {
+            score += 5;
+        }
+        // Same style but different category
+        if (p.style && photo.style && p.style === photo.style && p.category !== photo.category) {
+            score += 3;
+        }
+        // Penalize same scene/setting (we want unexpected connections)
+        if (p.scene === photo.scene && photo.scene) score -= 2;
+        if (p.setting === photo.setting && photo.setting) score -= 1;
+
+        if (score > 3) {
+            driftCandidates.push({ photo: p, score });
+        }
+    }
+
+    // Sort by score, take top 6
+    driftCandidates.sort((a, b) => b.score - a.score);
+    let neighbors = driftCandidates.slice(0, 6).map(c => c.photo);
+
+    // Fallback to similarity if not enough drift candidates
+    if (neighbors.length < 4) {
+        for (const n of simNeighbors) {
+            if (neighbors.length >= 6) break;
+            const np = APP.photoMap[n.id];
+            if (np && !neighbors.find(x => x.id === np.id)) {
+                neighbors.push(np);
+            }
+        }
+    }
+
     if (neighbors.length > 0) {
         const neighborsGrid = document.createElement('div');
         neighborsGrid.className = 'drift-neighbors';
 
-        for (const neighbor of neighbors) {
-            const nPhoto = APP.photoMap[neighbor.id];
-            if (!nPhoto) continue;
-
+        for (const nPhoto of neighbors) {
             const card = document.createElement('div');
             card.className = 'drift-neighbor';
 
@@ -186,23 +205,12 @@ function renderDrift(photo) {
             lazyObserver.observe(nImg);
             card.appendChild(nImg);
 
-            const label = document.createElement('div');
-            label.className = 'drift-neighbor-label';
-
-            const dot = document.createElement('span');
-            dot.className = 'connection-dot';
-            label.appendChild(dot);
-
-            label.appendChild(document.createTextNode(neighbor.reason));
-            card.appendChild(label);
-
-            card.addEventListener('click', () => navigateDrift(neighbor.id));
+            card.addEventListener('click', () => navigateDerive(nPhoto.id));
             neighborsGrid.appendChild(card);
         }
 
         container.appendChild(neighborsGrid);
     }
 
-    // Smooth scroll to top
     container.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }

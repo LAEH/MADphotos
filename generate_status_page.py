@@ -564,13 +564,6 @@ def get_stats():
         analyzed,
     ])
 
-    # ── Sample UUIDs for image strip ─────────────────────────
-    sample_uuids = [
-        r[0] for r in conn.execute(
-            "SELECT uuid FROM images ORDER BY RANDOM() LIMIT 40"
-        ).fetchall()
-    ]
-
     # ── Disk usage ───────────────────────────────────────────
     db_size = os.path.getsize(str(DB_PATH)) if DB_PATH.exists() else 0
     web_json_path = Path(__file__).resolve().parent / "web" / "data" / "photos.json"
@@ -663,7 +656,6 @@ def get_stats():
         "emotion_count": emotion_count,
         "models_complete": models_complete,
         "total_signals": total_signals,
-        "sample_uuids": sample_uuids,
     }
 
 
@@ -1089,10 +1081,15 @@ PAGE_HTML = r"""<!DOCTYPE html>
     font-size: var(--text-sm);
     line-height: var(--leading-relaxed);
     color: var(--fg-secondary);
-    margin-bottom: var(--space-8);
-    max-width: 680px;
+    margin-bottom: 0;
   }
   .manifesto strong { color: var(--fg); font-weight: 700; }
+
+  /* ═══ HERO HEADER ═══ */
+  .state-hero {
+    margin-bottom: var(--space-8);
+  }
+  .state-hero h1 { margin-bottom: var(--space-1); }
   .live-dot {
     display: inline-block;
     width: 7px; height: 7px;
@@ -1127,110 +1124,86 @@ PAGE_HTML = r"""<!DOCTYPE html>
   }
   .subsection-title:first-child { margin-top: 0; }
 
-  /* ═══ ELEMENT GRID (model intelligence) ═══ */
+  /* ═══ ELEMENT GRID (model intelligence — compact) ═══ */
   .el-section-title {
     font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700;
     letter-spacing: var(--tracking-tight); margin-bottom: var(--space-1);
   }
   .el-section-sub {
-    font-size: var(--text-sm); color: var(--muted); margin-bottom: var(--space-4);
+    font-size: var(--text-sm); color: var(--muted); margin-bottom: var(--space-3);
   }
   .el-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: var(--space-3);
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 6px;
+  }
+  .el-card.status-done {
+    border-color: var(--apple-green);
+    border-left: 3px solid var(--apple-green);
+  }
+  .el-card.status-active {
+    border-color: var(--apple-blue);
+    border-left: 3px solid var(--apple-blue);
+    background: color-mix(in srgb, var(--apple-blue) 4%, var(--card-bg));
+  }
+  .el-card.status-pending {
+    opacity: 0.5;
   }
   .el-card {
     background: var(--card-bg);
     border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    padding: var(--space-4);
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
     position: relative;
     transition: transform var(--duration-fast), box-shadow var(--duration-fast);
   }
-  .el-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+  .el-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
   .el-card .el-num {
-    position: absolute; top: var(--space-2); right: var(--space-3);
-    font-family: var(--font-mono); font-size: 10px;
-    color: var(--muted); font-weight: 600;
+    position: absolute; top: 4px; right: 6px;
+    font-family: var(--font-mono); font-size: 8px;
+    color: var(--muted); font-weight: 600; opacity: 0.6;
   }
   .el-card .el-model {
-    font-family: var(--font-display); font-size: var(--text-sm); font-weight: 700;
-    color: var(--fg); margin-bottom: 1px; padding-right: var(--space-6);
+    font-family: var(--font-display); font-size: 11px; font-weight: 700;
+    color: var(--fg); margin-bottom: 0; padding-right: var(--space-4);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .el-card .el-tech {
-    font-family: var(--font-mono); font-size: 9px; color: var(--muted);
-    margin-bottom: var(--space-1); letter-spacing: 0.02em;
+    font-family: var(--font-mono); font-size: 8px; color: var(--muted);
+    letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .el-card .el-desc {
-    font-size: 10px; color: var(--fg-secondary); margin-bottom: var(--space-2);
-    line-height: var(--leading-relaxed);
-  }
+  .el-card .el-desc { display: none; }
   .el-card .el-count {
-    font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 800;
+    font-family: var(--font-display); font-size: var(--text-base); font-weight: 800;
     color: var(--fg); line-height: 1; font-variant-numeric: tabular-nums;
+    margin-top: 4px;
   }
   .el-card .el-bar {
-    height: 3px; background: var(--border);
-    border-radius: 2px; margin-top: var(--space-2); overflow: hidden;
+    height: 2px; background: var(--border);
+    border-radius: 1px; margin-top: 4px; overflow: hidden;
   }
   .el-card .el-fill {
-    height: 100%; border-radius: 2px;
+    height: 100%; border-radius: 1px;
     background: var(--fg);
     transition: width 1s var(--ease-default);
   }
-  .el-card .el-pct {
-    font-family: var(--font-mono); font-size: 10px;
-    color: var(--muted); margin-top: 2px;
-  }
+  .el-card.status-done .el-fill { background: var(--apple-green); }
+  .el-card.status-active .el-fill { background: var(--apple-blue); }
+  .el-card .el-pct { display: none; }
   .el-badge {
-    display: inline-block; font-size: 9px; font-weight: 700;
+    display: inline-block; font-size: 8px; font-weight: 700;
     text-transform: uppercase; letter-spacing: 0.04em;
-    padding: 1px 5px; border-radius: 3px;
-    vertical-align: middle; margin-left: var(--space-1);
+    padding: 0 4px; border-radius: 2px;
+    vertical-align: middle; margin-left: 3px;
   }
-  .el-badge.done { background: var(--hover-overlay); color: var(--fg); }
-  .el-badge.active { background: var(--hover-overlay); color: var(--muted); }
+  .el-badge.done { background: color-mix(in srgb, var(--apple-green) 15%, transparent); color: var(--apple-green); font-weight: 700; }
+  .el-badge.active { background: color-mix(in srgb, var(--apple-blue) 15%, transparent); color: var(--apple-blue); font-weight: 700; animation: pulse-badge 2s ease-in-out infinite; }
   .el-badge.pending { background: var(--hover-overlay); color: var(--muted); }
+  @keyframes pulse-badge { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+  @media (max-width: 600px) {
+    .el-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+  }
 
-  /* ═══ FILMSTRIP (GCS image showcase) ═══ */
-  .filmstrip {
-    display: flex;
-    gap: 6px;
-    overflow-x: auto;
-    scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch;
-    padding: var(--space-2) 0 var(--space-6);
-    margin: 0 calc(var(--space-3) * -1);
-    scrollbar-width: none;
-  }
-  .filmstrip::-webkit-scrollbar { display: none; }
-  .filmstrip .fs-img {
-    flex: 0 0 auto;
-    width: 120px; height: 80px;
-    border-radius: var(--radius-md);
-    overflow: hidden;
-    background: var(--hover-overlay);
-    position: relative;
-  }
-  .filmstrip .fs-img img {
-    width: 100%; height: 100%; object-fit: cover;
-    opacity: 0;
-    transform: scale(1.08);
-    transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
-                transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  .filmstrip .fs-img img.loaded {
-    opacity: 1;
-    transform: scale(1);
-  }
-  .filmstrip .fs-img:hover img.loaded {
-    transform: scale(1.05);
-    transition-duration: 0.3s;
-  }
-  @media (max-width: 700px) {
-    .filmstrip .fs-img { width: 90px; height: 60px; }
-  }
 
   /* ═══ PROGRESS BARS ═══ */
   .progress-wrap {
@@ -1390,40 +1363,6 @@ PAGE_HTML = r"""<!DOCTYPE html>
     flex-shrink: 0;
   }
 
-  /* ═══ VARIANT CARDS ═══ */
-  .variant-card {
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    padding: var(--space-4) var(--space-5);
-    margin-bottom: var(--space-3);
-    box-shadow: var(--shadow-sm);
-  }
-  .variant-card .variant-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    margin-bottom: var(--space-2);
-  }
-  .variant-card .variant-name {
-    font-weight: 600;
-    font-size: var(--text-sm);
-  }
-  .variant-card .variant-counts {
-    font-size: var(--text-xs);
-    color: var(--muted);
-    font-variant-numeric: tabular-nums;
-  }
-  .variant-bar {
-    height: 6px;
-    background: var(--bar-bg);
-    border-radius: var(--radius-full);
-    display: flex;
-    overflow: hidden;
-  }
-  .variant-bar .seg-ok { background: var(--apple-green); transition: width 1s; border-radius: var(--radius-full) 0 0 var(--radius-full); }
-  .variant-bar .seg-fail { background: var(--apple-red); transition: width 1s; }
-  .variant-bar .seg-filtered { background: var(--muted); transition: width 1s; }
   .mini-legend {
     display: flex;
     gap: var(--space-4);
@@ -1601,14 +1540,12 @@ PAGE_HTML = r"""<!DOCTYPE html>
   <div class="sb-collapsible sb-collapsed">
     <a href="#sec-gemini">Gemini Progress</a>
     <a href="#sec-cameras">Camera Fleet</a>
-    <a href="#sec-signals">Signal Extraction</a>
     <a href="#sec-advanced">Advanced Signals</a>
     <a href="#sec-pixel">Pixel Analysis</a>
     <a href="#sec-vectors">Vector Store</a>
     <a href="#sec-insights">Gemini Insights</a>
     <a href="#sec-categories">Categories</a>
     <a href="#sec-tiers">Render Tiers</a>
-    <a href="#sec-variants">Imagen Variants</a>
     <a href="#sec-storage">Storage</a>
     <a href="#sec-runs">Pipeline Runs</a>
     <a href="#sec-sample">Sample Output</a>
@@ -1623,16 +1560,15 @@ PAGE_HTML = r"""<!DOCTYPE html>
 
 <div class="main-content">
 
-<h1>System State</h1>
-<p class="subtitle" id="subtitle">System Dashboard</p>
-<p class="manifesto">We started with 9,011 raw images and zero metadata.<br>We will create the best UX UIs on photos.<br>Game ON.</p>
-
-<div class="filmstrip" id="filmstrip"></div>
+<div class="state-hero">
+  <h1>System State</h1>
+  <p class="subtitle" id="subtitle">System Dashboard</p>
+  <p class="manifesto">We started with 9,011 raw images and zero metadata.<br>We will create the best UX UIs on photos.<br>Game ON.</p>
+</div>
 
 <!-- ═══ MODEL INTELLIGENCE GRID ═══ -->
 <div style="margin-bottom:var(--space-8);">
-  <div class="el-section-title">Signal Extraction</div>
-  <div class="el-section-sub" id="el-sub">17 models applied to every image</div>
+  <div class="el-section-sub" id="el-sub">17 models &middot; every image</div>
   <div class="el-grid" id="el-grid"></div>
 </div>
 
@@ -1657,24 +1593,7 @@ PAGE_HTML = r"""<!DOCTYPE html>
   </table></div>
 </div>
 
-<!-- ═══ SIGNAL EXTRACTION ═══ -->
-<div class="section" id="sec-signals">
-  <div class="section-title">Signal Extraction</div>
-  <div class="table-wrap"><table>
-    <thead><tr><th>Phase</th><th class="num">Rows</th><th class="num">Images</th><th>Status</th></tr></thead>
-    <tbody id="tbl-signals"></tbody>
-  </table></div>
-  <div class="two-col" style="margin-top:var(--space-4);">
-    <div>
-      <div class="subsection-title">Top Detected Objects</div>
-      <div id="pills-objects" class="tag-row"></div>
-    </div>
-    <div>
-      <div class="subsection-title">Dominant Colors</div>
-      <div id="pills-domcolors" class="tag-row"></div>
-    </div>
-  </div>
-</div>
+<!-- Signal Extraction section removed — redundant with model cards above -->
 
 <!-- ═══ ADVANCED SIGNALS (NEW) ═══ -->
 <div class="section" id="sec-advanced">
@@ -1830,17 +1749,6 @@ PAGE_HTML = r"""<!DOCTYPE html>
   </table></div>
 </div>
 
-<!-- ═══ IMAGEN VARIANTS ═══ -->
-<div class="section" id="sec-variants">
-  <div class="section-title">Imagen Variant Generation</div>
-  <div id="variant-cards"></div>
-  <div class="mini-legend">
-    <span class="l-ok">Success</span>
-    <span class="l-fail">Failed</span>
-    <span class="l-filtered">Filtered</span>
-  </div>
-</div>
-
 <!-- ═══ DISK USAGE ═══ -->
 <div class="section" id="sec-storage">
   <div class="section-title">Storage</div>
@@ -1990,21 +1898,6 @@ PAGE_HTML = r"""<!DOCTYPE html>
       '<span class="live-dot"></span>' + d.timestamp;
     el("footer-ts").textContent = d.timestamp;
 
-    /* ── Filmstrip (GCS images) ── */
-    var GCS = 'https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v';
-    var strip = el("filmstrip");
-    if (d.sample_uuids && strip && !strip.dataset.loaded) {
-      strip.dataset.loaded = '1';
-      var html = d.sample_uuids.map(function(uuid, i) {
-        return '<div class="fs-img" style="animation-delay:' + (i * 60) + 'ms">' +
-          '<img src="' + GCS + '/original/thumb/jpeg/' + uuid + '.jpg" ' +
-          'alt="" loading="lazy" onload="this.classList.add(\'loaded\')" ' +
-          'onerror="this.parentElement.style.display=\'none\'">' +
-          '</div>';
-      }).join('');
-      strip.innerHTML = html;
-    }
-
     /* ── Model intelligence grid ── */
     var mc = d.models_complete || 0;
     el("el-sub").textContent = fmt(d.total) + " images \u00D7 17 models = " + fmt(d.total_signals || 0) + " signals \u2014 " + mc + " complete";
@@ -2037,7 +1930,7 @@ PAGE_HTML = r"""<!DOCTYPE html>
       var bdg = status === 'done' ? '<span class="el-badge done">\u2713</span>' :
                 status === 'active' ? '<span class="el-badge active">' + pctVal.toFixed(0) + '%</span>' :
                 '<span class="el-badge pending">\u2014</span>';
-      return '<div class="el-card">' +
+      return '<div class="el-card status-' + status + '">' +
         '<div class="el-num">' + m.n + '</div>' +
         '<div class="el-model">' + m.name + '</div>' +
         '<div class="el-tech">' + m.tech + '</div>' +
@@ -2068,35 +1961,7 @@ PAGE_HTML = r"""<!DOCTYPE html>
       {fn: function(r) { return r.shadow.toFixed(1) + "%"; }, cls: "num"}
     ]);
 
-    /* ── Signal extraction ── */
-    if (d.signals) {
-      var sigNames = {
-        'exif_metadata': 'EXIF Metadata',
-        'dominant_colors': 'Dominant Colors (K-means LAB)',
-        'face_detections': 'Face Detection (YuNet)',
-        'object_detections': 'Object Detection (YOLOv8)',
-        'image_hashes': 'Hashes + Quality'
-      };
-      var sigOrder = ['exif_metadata', 'dominant_colors', 'face_detections', 'object_detections', 'image_hashes'];
-      var sigHtml = sigOrder.map(function(key) {
-        var s = d.signals[key] || {rows: 0, images: 0};
-        var completed = s.processed || s.images;
-        var pctVal = d.total > 0 ? (completed / d.total * 100) : 0;
-        var statusBadge = completed >= d.total ? '<span class="badge done">complete</span>' :
-                          completed > 0 ? '<span class="badge partial">' + pctVal.toFixed(0) + '%</span>' :
-                          '<span class="badge empty">pending</span>';
-        var extra = '';
-        if (key === 'exif_metadata' && d.exif_gps) extra = ' (' + fmt(d.exif_gps) + ' with GPS)';
-        if (key === 'face_detections') extra = ' \u2014 ' + fmt(d.face_total) + ' faces in ' + fmt(s.images) + ' images';
-        if (key === 'object_detections') extra = ' \u2014 ' + fmt(s.images) + ' images with objects';
-        return '<tr><td>' + sigNames[key] + '</td><td class="num">' + fmt(s.rows) + '</td><td class="num">' + fmt(completed) + extra + '</td><td>' + statusBadge + '</td></tr>';
-      }).join('');
-      el('tbl-signals').innerHTML = sigHtml;
-    }
-
-    /* Objects & dominant colors */
-    tags(d.top_objects, 'pills-objects', 'box');
-    colorTags(d.top_color_names, 'pills-domcolors');
+    /* Signal extraction table removed — data shown in model cards */
 
     /* ── Advanced Signals ── */
     /* Depth */
@@ -2153,29 +2018,6 @@ PAGE_HTML = r"""<!DOCTYPE html>
     el("tbl-tiers").innerHTML = d.tiers.map(function(t) {
       return "<tr><td>" + t.name + "</td><td class='num'>" + fmt(t.count) + "</td><td class='num'>" + t.size_human + "</td></tr>";
     }).join("\n");
-
-    /* ── Variant cards ── */
-    var vcHtml = "";
-    if (d.variant_summary && d.variant_summary.length) {
-      d.variant_summary.forEach(function(v) {
-        var okW = d.total > 0 ? (v.ok / d.total * 100) : 0;
-        var failW = d.total > 0 ? (v.fail / d.total * 100) : 0;
-        var filtW = d.total > 0 ? (v.filtered / d.total * 100) : 0;
-        vcHtml += '<div class="variant-card">' +
-          '<div class="variant-header">' +
-          '<span class="variant-name">' + v.type + '</span>' +
-          '<span class="variant-counts">' + fmt(v.ok) + ' ok / ' + fmt(v.fail) + ' fail / ' + fmt(v.filtered) + ' filtered \u2014 ' + v.pct.toFixed(1) + '%</span>' +
-          '</div>' +
-          '<div class="variant-bar">' +
-          '<div class="seg-ok" style="width:' + okW + '%"></div>' +
-          '<div class="seg-fail" style="width:' + failW + '%"></div>' +
-          '<div class="seg-filtered" style="width:' + filtW + '%"></div>' +
-          '</div></div>';
-      });
-    } else {
-      vcHtml = '<span style="color:var(--muted);font-size:var(--text-sm)">No variants generated yet</span>';
-    }
-    el("variant-cards").innerHTML = vcHtml;
 
     /* ── Disk / Storage ── */
     var diskHtml = '';
@@ -2660,10 +2502,128 @@ def render_instructions():
     # type: () -> str
     content = """<h1>System Instructions</h1>
 <p style="font-size:var(--text-sm);color:var(--muted);margin-bottom:var(--space-6);">
-  Development principles and operational guidelines for MADphotos.
+  Everything an AI assistant needs to know to work on this project effectively.
 </p>
 
-<h2>Vision</h2>
+<div style="background: linear-gradient(135deg, var(--card-bg) 0%, rgba(88,86,214,0.06) 100%);
+            border: 1px solid var(--apple-indigo); border-radius: var(--radius-lg);
+            padding: var(--space-6); margin-bottom: var(--space-8);">
+
+<h2 style="margin-top:0;">Project Briefing</h2>
+<p>This is <strong>MADphotos</strong> &mdash; a solo art project by <strong>LAEH</strong> to take 9,011 unedited photographs
+shot over a decade with five cameras and turn them into the most richly-understood image collection ever built.
+Every image gets every possible signal (AI analysis, pixel metrics, vector embeddings, depth, scenes, objects, faces, emotions, captions, OCR, colors, hashes, aesthetic scores). Then camera-aware enhancement. Then human curation. Then a public gallery that only shows the accepted best.</p>
+
+<h3>The Three Apps</h3>
+<ul>
+  <li><strong>See</strong> (MADCurator) &mdash; Native SwiftUI macOS app. The private power tool. 55 data fields per image, 18 filter dimensions, faceted search with boolean logic, Keep/Reject workflow. The human decides what&rsquo;s worth showing.</li>
+  <li><strong>Show</strong> &mdash; Public web gallery. 14 experiences: La Grille (filter grid), Le Bento (algorithmic mosaic), La Similarit&eacute; (semantic neighbors), La D&eacute;rive (structural drift), Les Couleurs (color space), Le Terrain de Jeu (connection game), Le Flot (curated stream), La Chambre Noire (signal layers), Les Visages (face exploration), La Boussole (4-axis compass), L&rsquo;Observatoire (data panels), La Carte (GPS map), La Machine &agrave; &Eacute;crire (text search), Le Pendule (taste test).</li>
+  <li><strong>State</strong> &mdash; This dashboard. Live system monitoring, Journal de Bord, signal inventory. The control room.</li>
+</ul>
+
+<h3>The Five Cameras</h3>
+<table>
+  <thead><tr><th>Camera</th><th>Type</th><th>Count</th><th>Key Characteristics</th></tr></thead>
+  <tbody>
+    <tr><td>Leica M8</td><td>Digital CCD</td><td>3,533</td><td>Known IR sensitivity &mdash; adds magenta to dark fabrics. Some warmth is CCD character, preserve it.</td></tr>
+    <tr><td>DJI Osmo Pro</td><td>Action camera</td><td>3,032</td><td>Wide lens, helmet-mounted. 1,459 have GPS. Best auto WB of the set.</td></tr>
+    <tr><td>Leica MP</td><td>Analog (Portra 400 VC)</td><td>1,126</td><td>Film grain (noise=4.3) is real silver halide &mdash; preserve, don&rsquo;t denoise. Warm shifts are film character.</td></tr>
+    <tr><td>Leica Monochrom</td><td>B&amp;W sensor</td><td>1,099</td><td><strong>NEVER color-correct.</strong> No Bayer filter = pure luminance. Only tone curves. Zero saturation always.</td></tr>
+    <tr><td>Canon G12 / DJI Memo</td><td>Compact</td><td>221</td><td>Worst auto WB (+0.167 red shift). Gets most aggressive correction (70%).</td></tr>
+  </tbody>
+</table>
+
+<h3>Architecture: 9 Python Scripts</h3>
+<table>
+  <thead><tr><th>Script</th><th>Purpose</th><th>Key Detail</th></tr></thead>
+  <tbody>
+    <tr><td><code>mad_pipeline.py</code></td><td>Orchestrator</td><td>Runs phases in order. Entry point for full pipeline.</td></tr>
+    <tr><td><code>render_pipeline.py</code></td><td>6-tier resolution pyramid</td><td>Output: <code>rendered/{tier}/{format}/{uuid}.ext</code>. FLAT layout, no category subdirs.</td></tr>
+    <tr><td><code>photography_engine.py</code></td><td>Gemini 2.5 Pro analysis</td><td>Structured JSON: vibes, exposure, composition, grading, edit prompt. Uses Vertex AI + ADC.</td></tr>
+    <tr><td><code>imagen_engine.py</code></td><td>4 AI variants via Imagen 3</td><td>Two-stage: edits from original (gemini_edit, pro_edit), styles from gemini_edit (nano_feel, cartoon).</td></tr>
+    <tr><td><code>gcs_sync.py</code></td><td>Upload to GCS</td><td>Versioned: <code>v/{version}/{tier}/{format}/</code>. Supports original, enhanced, future variants.</td></tr>
+    <tr><td><code>mad_database.py</code></td><td>SQLite schema</td><td>23 tables, single source of truth. Deterministic UUID5 from DNS namespace + relative path.</td></tr>
+    <tr><td><code>enhance_engine.py</code></td><td>Camera-aware enhancement</td><td>6 steps: WB, exposure, shadow/highlight, contrast, saturation, sharpening. Per-camera profiles.</td></tr>
+    <tr><td><code>advanced_signals.py</code></td><td>11 ML models</td><td>Depth, scenes, style, aesthetic, faces, objects, colors, hashes, OCR, captions, emotions.</td></tr>
+    <tr><td><code>generate_status_page.py</code></td><td>Dashboard + Journal</td><td>This file. ~4,000 lines. Live server (<code>--serve</code>) + static generator.</td></tr>
+  </tbody>
+</table>
+
+<h3>Critical Technical Rules</h3>
+<ul>
+  <li><strong>Python 3.9.6</strong> &mdash; Must use <code>from __future__ import annotations</code> and <code>Optional[X]</code>, NOT <code>X | None</code>.</li>
+  <li><strong>Vertex AI only</strong> &mdash; Both Gemini and Imagen use Application Default Credentials (ADC). NEVER use API keys (one was committed and had to be scrubbed from git history).</li>
+  <li><strong>Flat rendered layout</strong> &mdash; <code>rendered/{tier}/{format}/{uuid}.ext</code>. NEVER create <code>rendered/originals/</code> (plural) &mdash; this bug caused hours of cleanup.</li>
+  <li><strong>DNG color space</strong> &mdash; <code>sips</code> must convert with <code>-m sRGB Profile.icc</code> to avoid Display P3 purple cast on DNG/RAW files.</li>
+  <li><strong>GCS bucket structure</strong> &mdash; <code>v/{version}/{tier}/{format}/{uuid}.ext</code>. Public root: <code>https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/</code></li>
+  <li><strong>UUID namespace</strong> &mdash; DNS (6ba7b810-...), deterministic from relative path to <code>originals/</code>.</li>
+  <li><strong>google-genai 1.47.0</strong> &mdash; <code>edit_image()</code> requires <code>vertexai=True</code> client.</li>
+  <li><strong>Tiers</strong>: full (3840px), display (2048px), mobile (1280px), thumb (480px), micro (64px), gemini (2048px). Formats: JPEG always, WebP for display/mobile/thumb/micro.</li>
+  <li><strong>JPEGmini Pro</strong> &mdash; User runs it manually (GUI app) on serving tiers ONLY (display, mobile, thumb, micro). NOT on full/gemini/original.</li>
+</ul>
+
+<h3>Hard-Won Lessons</h3>
+<ul>
+  <li><strong>Monochrome sensor is sacred.</strong> The Leica Monochrom has no Bayer filter. Zero saturation, zero color correction, ever. Only tone curves (brightness, contrast, shadow/highlight).</li>
+  <li><strong>Film grain is an asset.</strong> Portra 400 VC has noise=4.3 (3&times; digital). That&rsquo;s real silver halide texture. Preserve it &mdash; never denoise film.</li>
+  <li><strong>CCD warmth is character.</strong> The Leica M8&rsquo;s CCD gives warm tones. Correct WB only 50% &mdash; too aggressive kills the look.</li>
+  <li><strong>Enhanced v1 &cong; v2.</strong> Signal-aware v2 enhancement adds negligible perceptual difference (mean pixel diff 0.50). V1 is the primary enhanced version.</li>
+  <li><strong>TensorFlow + PyTorch don&rsquo;t mix.</strong> Installing TF for DeepFace caused C++ mutex crashes in all PyTorch models. Solution: ViT emotion classifier on pure PyTorch.</li>
+  <li><strong>LAION aesthetic scores are useless.</strong> 91% of 9,011 images scored &ldquo;excellent&rdquo; (8.22&ndash;10.0). Needs recalibration or a different model.</li>
+  <li><strong>EasyOCR is CPU-bound and slow.</strong> 0.2 img/s single-threaded. Use <code>--shard N/M</code> for parallel workers (3&times; throughput).</li>
+  <li><strong>SQLite contention.</strong> Multiple writers need <code>PRAGMA busy_timeout=120000</code> and retry loops with exponential backoff.</li>
+  <li><strong>Vibe field is JSON array.</strong> In SwiftUI, parse with <code>JSONSerialization</code>, NOT comma-split. Otherwise you get bracket artifacts.</li>
+  <li><strong>gsutil rsync &ne; cp.</strong> The <code>-j</code> flag (content compression) works with <code>cp</code> but NOT with <code>rsync</code>.</li>
+</ul>
+
+<h3>GCS Bucket &amp; Hosting</h3>
+<ul>
+  <li><strong>Project</strong>: madbox-e4a35, account: laeh@madbits.ai</li>
+  <li><strong>Bucket</strong>: <code>gs://myproject-public-assets/art/MADphotos/</code></li>
+  <li><strong>Versions uploaded</strong>: <code>original</code> (all serving tiers), <code>enhanced</code> (all serving tiers), <code>blind</code> (test images)</li>
+  <li><strong>Serving tiers on GCS</strong>: display, mobile, thumb, micro &times; JPEG + WebP = 8 directories per version</li>
+  <li><strong>Public URL pattern</strong>: <code>https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/{version}/{tier}/{format}/{uuid}.ext</code></li>
+  <li><strong>GitHub Pages</strong>: <code>docs/</code> folder, auto-deploy via GitHub Actions</li>
+</ul>
+
+<h3>MADCurator (SwiftUI App)</h3>
+<ul>
+  <li>Located at <code>MADCurator/</code> in the project root. Uses Swift Package Manager (<code>Package.swift</code>).</li>
+  <li>SQLite3 C API directly (no ORM). Reads from <code>mad_photos.db</code>.</li>
+  <li>55 data fields per PhotoItem, loaded via 9-table JOIN query.</li>
+  <li>18 filter dimensions: camera, category, vibe, grading, time, setting, composition, exposure, rotation, color, location, style, aesthetic, hasText, plus custom search.</li>
+  <li>Keyboard shortcuts: K (keep), R (reject), &larr;/&rarr; (navigate), E (toggle enhanced), Space (fullscreen), I (info panel), Y/N (accept/reject location).</li>
+  <li>Thumbnail cache: NSCache with 2,000 image limit.</li>
+  <li>Build: <code>cd MADCurator && swift build</code></li>
+</ul>
+
+<h3>Web Gallery (Show)</h3>
+<ul>
+  <li><code>export_gallery_data.py</code> &rarr; <code>web/data/photos.json</code></li>
+  <li><code>serve_gallery.py</code> &rarr; <code>http://localhost:3000</code></li>
+  <li>16 web files: index.html, style.css, app.js + 13 experience modules (grid, similarity, drift, colors, bento, game, stream, darkroom, faces, compass, observatory, map, typewriter, pendulum)</li>
+  <li>Dark (#0a0a0a), monospace, glassmorphism. No framework &mdash; vanilla HTML/CSS/JS.</li>
+  <li>Progressive loading: micro &rarr; thumb &rarr; display. Lazy via IntersectionObserver.</li>
+</ul>
+
+<h3>Journal de Bord</h3>
+<ul>
+  <li>File: <code>docs/journal.md</code>. Write to it after EVERY significant action. Not optional.</li>
+  <li>Format: <code>### HH:MM &mdash; Title *(&ldquo;user quote&rdquo;)*</code> with <code>**Intent.**</code> paragraphs, <code>&gt; blockquote</code> actions, <code>**Discovered.**</code> insights.</li>
+  <li>Group entries under <code>## YYYY-MM-DD</code> date headers.</li>
+  <li>The <code>/journal</code> page renders it as a timeline with auto-classified event type labels (Pipeline, AI, UI/UX, Deploy, etc.).</li>
+</ul>
+
+<h3>What&rsquo;s Done vs. What&rsquo;s Next</h3>
+<p><strong>Done:</strong> Full pipeline built and running. 16/16 signals extracted for all 9,011 images. Enhancement v1 complete. GCS hosting live (original + enhanced tiers). Dashboard with 17-element intelligence grid. MADCurator native app with 55 fields, 18 filters. Journal de Bord with event labels. Blind test system. Vector similarity search (DINOv2 + SigLIP + CLIP). Web gallery with 14 experiences: launcher, filter grid, bento mosaic, similarity, creative drift, color space, connection game, curated stream, signal darkroom, face wall, compass navigation, data observatory, GPS map, text search, taste test.</p>
+<p><strong>In progress:</strong> Gemini analysis (6,203/9,011). 78 BLIP captions need retry. 309 faces without emotion labels.</p>
+<p><strong>Next:</strong> Curate images in MADCurator (accept/reject). Precompute DINOv2 structural neighbors for creative drift. SigLIP text&rarr;image search API. Location intelligence (GPS propagation from 1,820 tagged images).</p>
+
+</div>
+
+<h2>Development Principles</h2>
+
+<h3>Vision</h3>
 <p>9,011 photographs. Every one should carry the richest possible set of reliable, valuable signals &mdash;
 extracted from every available open-source model and programmatic method. The goal is not just
 to organize images but to <strong>deeply understand</strong> each one: its technical properties,
@@ -2671,6 +2631,14 @@ its semantic content, its emotional resonance, its relationship to every other i
 <p>Three apps serve three purposes: <strong>See</strong> (native macOS curator &mdash; the human decides),
 <strong>Show</strong> (public web gallery &mdash; the curated experience),
 <strong>State</strong> (this dashboard &mdash; the control room).</p>
+
+<h2>Creative Direction for Show</h2>
+<p><strong>Show is not just a gallery &mdash; it is an art experience.</strong> Every experience must be designed by someone who is simultaneously the best developer, architect, ML engineer, Apple-level minimalist designer, and most importantly, a deeply creative, emotionally intelligent curator.</p>
+<ul>
+  <li><strong>Signal-aware storytelling.</strong> Two laughing faces side by side IS funny. A rose-themed image next to rose-accent colors IS pretty. Two grumpy people together IS a statement. Use signals not just for filtering but for creating emotional moments &mdash; surprise, beauty, humor, mystery, melancholy.</li>
+  <li><strong>Minimalist UI, maximally expressive content.</strong> Dark, sparse, no chrome. Let the images do the talking. Quality over quantity &mdash; fewer images shown beautifully beats more images shown generically.</li>
+  <li><strong>Every experience should feel designed by someone who LOVES photography.</strong> Not a tech demo. Not a data visualization. An experience that makes you want to look at every single image.</li>
+</ul>
 
 <h2>Signal Completeness</h2>
 <ul>
@@ -2729,14 +2697,14 @@ its semantic content, its emotional resonance, its relationship to every other i
     <tr><td>Object Detection</td><td>YOLOv8n</td><td>9,011 / 9,011</td><td>80 COCO classes, bounding boxes, confidence</td></tr>
     <tr><td>Perceptual Hashes</td><td>imagehash</td><td>9,011 / 9,011</td><td>pHash, aHash, dHash, wHash, blur, sharpness, entropy</td></tr>
     <tr><td>Vectors</td><td>DINOv2 + SigLIP + CLIP</td><td>9,011 / 9,011</td><td>768d + 768d + 512d = 2,048 dimensions per image</td></tr>
-    <tr><td>Gemini Analysis</td><td>Gemini 2.5 Pro</td><td>5,635 / 9,011</td><td>Alt text, vibes, exposure, composition, grading, time, setting, pops, edit prompt</td></tr>
+    <tr><td>Gemini Analysis</td><td>Gemini 2.5 Pro</td><td>6,203 / 9,011</td><td>Alt text, vibes, exposure, composition, grading, time, setting, pops, edit prompt</td></tr>
     <tr><td>Aesthetic Scoring</td><td>LAION aesthetic (CLIP MLP)</td><td>9,011 / 9,011</td><td>Score 1&ndash;10, label (excellent/good/average/poor)</td></tr>
     <tr><td>Depth Estimation</td><td>Depth Anything v2</td><td>9,011 / 9,011</td><td>Near/mid/far percentages, complexity bucket</td></tr>
     <tr><td>Scene Classification</td><td>Places365 (ResNet50)</td><td>9,011 / 9,011</td><td>Top 3 scene labels, environment (indoor/outdoor)</td></tr>
     <tr><td>Style Classification</td><td>Scene + composition derived</td><td>9,011 / 9,011</td><td>Style label (street, portrait, landscape, etc.)</td></tr>
-    <tr><td>OCR / Text Detection</td><td>EasyOCR</td><td>in progress</td><td>Detected text regions, language, confidence</td></tr>
-    <tr><td>Image Captions</td><td>BLIP (Salesforce)</td><td>in progress</td><td>Natural language caption per image</td></tr>
-    <tr><td>Facial Emotions</td><td>ViT face expression</td><td>in progress</td><td>Dominant emotion, 7-class scores per face</td></tr>
+    <tr><td>OCR / Text Detection</td><td>EasyOCR</td><td>9,011 / 9,011</td><td>Detected text regions, language, confidence</td></tr>
+    <tr><td>Image Captions</td><td>BLIP (Salesforce)</td><td>8,933 / 9,011</td><td>Natural language caption per image (78 retrying)</td></tr>
+    <tr><td>Facial Emotions</td><td>ViT face expression</td><td>1,367 / 1,676 faces</td><td>Dominant emotion, 7-class scores per face</td></tr>
     <tr><td>Enhancement Plans</td><td>Camera-aware engine</td><td>9,011 / 9,011</td><td>WB correction, gamma, shadows, highlights, contrast, saturation, sharpening</td></tr>
   </tbody>
 </table>
@@ -3036,129 +3004,243 @@ JOURNAL_PATH = Path(__file__).resolve().parent / "docs" / "journal.md"
 
 
 def render_journal():
-    """Read journal.md and render a compact B&W HTML page."""
+    """Read journal.md and render a rich timeline with event type labels."""
     if not JOURNAL_PATH.exists():
         return "<p>No journal found.</p>"
     raw = JOURNAL_PATH.read_text()
 
     import re
 
+    # -- Event type classification ----------------------------------------
+    LABEL_RULES = [
+        ("Deploy",       re.compile(r'GCS|GCP|bucket|upload|push|deploy|GitHub Pages|sync', re.I)),
+        ("Infrastructure", re.compile(r'database|schema|table|migration|SQLite|column|UUID', re.I)),
+        ("Pipeline",     re.compile(r'pipeline|engine|render|tier|enhancement|enhance|batch|process|worker|shard', re.I)),
+        ("AI",           re.compile(r'Gemini|Imagen|BLIP|CLIP|DINO|SigLIP|YOLO|YuNet|OCR|emotion|vector|embedding|model|Places365|Depth|NIMA|aesthetic|caption', re.I)),
+        ("Investigation", re.compile(r'discovered|blind test|audit|bug|broke|fix|root cause|debug|purple cast|crash', re.I)),
+        ("UI/UX",        re.compile(r'dashboard|sidebar|card|design|CSS|layout|landing|hero|mosaic|responsive|mobile|pill|tag|icon|SVG|page|README|gallery|curator|app|SwiftUI', re.I)),
+        ("Security",     re.compile(r'secret|API key|credential|redact|git-filter', re.I)),
+        ("Architecture", re.compile(r'architecture|two-stage|vision|endgame|three experience|faceted|curation', re.I)),
+        ("Signal",       re.compile(r'signal|pixel.level|analysis|extraction|EXIF|color|face|object|hash|depth|scene|style', re.I)),
+    ]
+    LABEL_COLORS = {
+        "Deploy": "var(--apple-green)",
+        "Infrastructure": "var(--apple-brown, #a2845e)",
+        "Pipeline": "var(--apple-blue)",
+        "AI": "var(--apple-purple)",
+        "Investigation": "var(--apple-orange)",
+        "UI/UX": "var(--apple-pink)",
+        "Security": "var(--apple-red)",
+        "Architecture": "var(--apple-indigo)",
+        "Signal": "var(--apple-teal)",
+    }
+
+    def classify_event(title, body_text):
+        """Return up to 2 labels for an event based on title + body content."""
+        combined = title + " " + body_text
+        labels = []
+        for label, pattern in LABEL_RULES:
+            if pattern.search(combined):
+                labels.append(label)
+                if len(labels) >= 2:
+                    break
+        return labels if labels else ["Note"]
+
+    def label_html(labels):
+        parts = []
+        for lb in labels:
+            color = LABEL_COLORS.get(lb, "var(--muted)")
+            parts.append(
+                f'<span class="ev-label" style="--label-color:{color}">{lb}</span>'
+            )
+        return "".join(parts)
+
+    # -- Markdown inline formatting ---------------------------------------
     def md_inline(text):
         text = re.sub(r'`(.+?)`', r'<code>\1</code>', text)
         text = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
+        text = re.sub(r'\*(.+?)\*', r'<em>\1</em>', text)
         return text
 
-    def first_sentence(text):
-        m = re.match(r'([^.!?]+[.!?])', text)
-        return m.group(1).strip() if m else text[:120]
-
-    def parse_event_line(stripped, event_lines):
-        if stripped.startswith("> "):
-            event_lines.append(f'<blockquote>{md_inline(stripped[2:])}</blockquote>')
-        elif stripped.startswith("**Intent.**"):
-            text = stripped.replace("**Intent.**", "").strip()
-            event_lines.append(f'<p class="intent">{md_inline(first_sentence(text))}</p>')
-        elif stripped.startswith("**Discovered.**"):
-            text = stripped.replace("**Discovered.**", "").strip()
-            event_lines.append(f'<p class="discovered">{md_inline(first_sentence(text))}</p>')
-
+    # -- Parse journal.md -------------------------------------------------
     lines = raw.split("\n")
-    intro_html = []
-    date_sections = []
-    current_date = None  # type: Optional[dict]
-    current_event_lines = []  # type: list
-    current_event_heading = ""
+    date_sections = []          # type: list[dict]
+    current_date = None         # type: Optional[dict]
+    current_event = None        # type: Optional[dict]
     in_intro = True
+    in_table = False
+    in_code = False
     in_list = False
-    in_event = False
-    skip_rest = False
+
+    def flush_event():
+        nonlocal current_event
+        if current_event and current_date is not None:
+            current_date["events"].append(current_event)
+        current_event = None
 
     for line in lines:
         stripped = line.strip()
+
+        # Code fence toggle
+        if stripped.startswith("```"):
+            if current_event is not None:
+                if not in_code:
+                    in_code = True
+                    current_event["body"].append("<pre><code>")
+                else:
+                    in_code = False
+                    current_event["body"].append("</code></pre>")
+            continue
+
+        if in_code:
+            if current_event is not None:
+                from html import escape as html_escape
+                current_event["body"].append(html_escape(line))
+            continue
+
+        # Blank line
         if not stripped:
-            if in_list:
-                intro_html.append("</ul>")
+            if in_list and current_event is not None:
+                current_event["body"].append("</ul>")
                 in_list = False
-            skip_rest = False
+            if in_table and current_event is not None:
+                current_event["body"].append("</tbody></table></div>")
+                in_table = False
             continue
 
-        if stripped.startswith("# "):
-            intro_html.append(f'<h1>{stripped[2:]}</h1>')
+        # Top-level heading — skip
+        if stripped.startswith("# ") and not stripped.startswith("## "):
             continue
 
+        # Date heading (## 2026-02-06) or named section (## The Beginning)
         if stripped.startswith("## "):
-            if in_event and current_date is not None:
-                current_date["events"].append(
-                    {"html": current_event_heading + "\n".join(current_event_lines) + "</div>"}
-                )
-                in_event = False
+            flush_event()
             header_text = stripped[3:]
             if re.match(r'\d{4}-\d{2}-\d{2}', header_text):
                 in_intro = False
                 current_date = {"header": header_text, "events": []}
                 date_sections.append(current_date)
-            else:
-                if in_intro:
-                    intro_html.append(f'<h2 class="date-header">{header_text}</h2>')
+            # Skip intro sections entirely (The Beginning, The Numbers, etc.)
             continue
 
+        # Intro content — skip entirely (user requested removal)
+        if in_intro:
+            continue
+
+        # Horizontal rule
+        if stripped.startswith("---"):
+            flush_event()
+            continue
+
+        # Event heading (### HH:MM — Title)
         if stripped.startswith("### "):
-            if in_event and current_date is not None:
-                current_date["events"].append(
-                    {"html": current_event_heading + "\n".join(current_event_lines) + "</div>"}
-                )
-            in_event = True
-            skip_rest = False
-            current_event_lines = []
+            flush_event()
             heading = stripped[4:]
             m = re.match(r'(.+?)\s*\*\((.+?)\)\*\s*$', heading)
             if m:
-                current_event_heading = (
-                    f'<div class="event">'
-                    f'<h3>{m.group(1).rstrip()}</h3>'
-                    f'<span class="quote">({m.group(2)})</span>'
-                )
+                title = m.group(1).rstrip()
+                quote = m.group(2)
             else:
-                current_event_heading = f'<div class="event"><h3>{heading}</h3>'
+                title = heading
+                quote = None
+            current_event = {
+                "title": title,
+                "quote": quote,
+                "body": [],
+                "raw_text": "",
+            }
             continue
 
-        if stripped.startswith("---"):
-            if in_event and current_date is not None:
-                current_date["events"].append(
-                    {"html": current_event_heading + "\n".join(current_event_lines) + "</div>"}
-                )
-                in_event = False
+        # Table rows
+        if stripped.startswith("|") and current_event is not None:
+            cells = [c.strip() for c in stripped.split("|")[1:-1]]
+            # Separator row (|---|---|)
+            if all(re.match(r'^[-:]+$', c) for c in cells):
+                if not in_table:
+                    # Previous row was the header — rewrite it
+                    if current_event["body"] and current_event["body"][-1].startswith("<tr class=\"thead\">"):
+                        header_row = current_event["body"].pop()
+                        current_event["body"].append(
+                            f'<div class="table-wrap"><table><thead>{header_row}</thead><tbody>'
+                        )
+                        in_table = True
+                continue
+            row_cls = "thead" if not in_table else ""
+            tag = "th" if not in_table else "td"
+            row_html = f'<tr class="{row_cls}">' + "".join(
+                f"<{tag}>{md_inline(c)}</{tag}>" for c in cells
+            ) + "</tr>"
+            current_event["body"].append(row_html)
             continue
 
-        if in_event and not in_intro:
-            if not skip_rest:
-                if stripped.startswith("> ") or stripped.startswith("**Intent.**") or stripped.startswith("**Discovered.**"):
-                    parse_event_line(stripped, current_event_lines)
-                    if stripped.startswith("**Intent.**") or stripped.startswith("**Discovered.**"):
-                        skip_rest = True
+        # List items
+        if stripped.startswith("- ") and current_event is not None:
+            if not in_list:
+                current_event["body"].append("<ul>")
+                in_list = True
+            current_event["body"].append(f"<li>{md_inline(stripped[2:])}</li>")
+            current_event["raw_text"] += " " + stripped
             continue
 
-        if in_intro:
-            if stripped.startswith("- "):
-                if not in_list:
-                    intro_html.append("<ul>")
-                    in_list = True
-                intro_html.append(f"<li>{md_inline(stripped[2:])}</li>")
-            elif not skip_rest:
-                intro_html.append(f"<p>{md_inline(stripped)}</p>")
+        # Regular content lines inside an event
+        if current_event is not None:
+            if stripped.startswith("> "):
+                if in_list:
+                    current_event["body"].append("</ul>")
+                    in_list = False
+                current_event["body"].append(f'<blockquote>{md_inline(stripped[2:])}</blockquote>')
+            elif stripped.startswith("**Intent.**"):
+                text = stripped.replace("**Intent.**", "").strip()
+                current_event["body"].append(f'<p class="intent">{md_inline(text)}</p>')
+            elif stripped.startswith("**Discovered.**"):
+                text = stripped.replace("**Discovered.**", "").strip()
+                current_event["body"].append(f'<p class="discovered">{md_inline(text)}</p>')
+            elif stripped.startswith("**Solution.**"):
+                text = stripped.replace("**Solution.**", "").strip()
+                current_event["body"].append(f'<p class="solution">{md_inline(text)}</p>')
+            elif stripped.startswith("**"):
+                # Any other bold-prefixed paragraph (e.g. **What changed.**, **Results.**)
+                current_event["body"].append(f'<p class="detail">{md_inline(stripped)}</p>')
+            else:
+                current_event["body"].append(f'<p>{md_inline(stripped)}</p>')
+            current_event["raw_text"] += " " + stripped
 
-    if in_event and current_date is not None:
-        current_date["events"].append(
-            {"html": current_event_heading + "\n".join(current_event_lines) + "</div>"}
-        )
-    if in_list:
-        intro_html.append("</ul>")
+    flush_event()
+    if in_list and current_event:
+        current_event["body"].append("</ul>")
+    if in_table and current_event:
+        current_event["body"].append("</tbody></table></div>")
 
-    html_parts = intro_html[:]
+    # -- Genesis event (special card at the bottom) -----------------------
+    genesis_html = """<div class="event event-genesis">
+<div class="ev-labels"><span class="ev-label" style="--label-color:var(--apple-indigo)">Genesis</span></div>
+<h3>The Vision</h3>
+<p class="intent">9,011 unedited photographs taken over a decade with five cameras. The mission: augment every single image with every possible signal — AI analysis, pixel metrics, vector embeddings, depth maps, scene classification, object detection, face emotions, captions, color palettes. Then enhance each frame with camera-aware, signal-driven corrections. Then curate: a human eye decides what's worth showing. Only the accepted images reach the public gallery.</p>
+<p>Three apps, one pipeline. <strong>See</strong> (MADCurator) — the native SwiftUI app where every image is examined, filtered across 18 dimensions, and accepted or rejected. <strong>Show</strong> — the web gallery with three experiences: La Grille (filter grid), La Dérive (semantic drift through vector space), Les Couleurs (color exploration). <strong>State</strong> — the live dashboard tracking every signal, every model, every image.</p>
+<p>The goal is not a photo dump. It's storytelling, exploration, discovery. Every photograph that reaches the public has been looked at, considered, and chosen.</p>
+<blockquote>We started with 9,011 raw images and zero metadata. We will create the best experience on photos. Game ON.</blockquote>
+</div>"""
+
+    # -- Build HTML -------------------------------------------------------
+    html_parts = []
     for date_sec in reversed(date_sections):
         html_parts.append(f'<h2 class="date-header">{date_sec["header"]}</h2>')
         for ev in reversed(date_sec["events"]):
-            html_parts.append(ev["html"])
+            labels = classify_event(ev["title"], ev["raw_text"])
+            body_html = "\n".join(ev["body"])
+            quote_html = f'<span class="quote">({ev["quote"]})</span>' if ev.get("quote") else ""
+            html_parts.append(
+                f'<div class="event">'
+                f'<div class="ev-labels">{label_html(labels)}</div>'
+                f'<h3>{ev["title"]}</h3>'
+                f'{quote_html}'
+                f'{body_html}'
+                f'</div>'
+            )
+
+    # Append genesis at the very bottom
+    html_parts.append('<h2 class="date-header">Origin</h2>')
+    html_parts.append(genesis_html)
 
     body = "\n".join(html_parts)
 
@@ -3181,6 +3263,14 @@ def render_journal():
   .event:hover {{
     border-color: var(--border-strong);
   }}
+  .event-genesis {{
+    border-color: var(--apple-indigo);
+    background: linear-gradient(135deg, var(--card-bg) 0%, rgba(88,86,214,0.06) 100%);
+  }}
+  .event-genesis h3 {{
+    font-size: var(--text-base) !important; font-weight: 800;
+    letter-spacing: -0.01em;
+  }}
   /* Thread connector line */
   .event + .event::before {{
     content: "";
@@ -3190,6 +3280,19 @@ def render_journal():
     width: 2px;
     height: var(--space-3);
     background: var(--border);
+  }}
+  /* Event type labels */
+  .ev-labels {{
+    display: flex; gap: 6px; margin-bottom: 6px; flex-wrap: wrap;
+  }}
+  .ev-label {{
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 2px 8px; border-radius: var(--radius-full);
+    color: var(--label-color);
+    background: color-mix(in srgb, var(--label-color) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--label-color) 25%, transparent);
+    line-height: 1.4;
   }}
   .main-content h3 {{
     font-size: var(--text-sm); font-weight: 700; margin: 0;
@@ -3201,21 +3304,57 @@ def render_journal():
   }}
   .intent {{
     font-size: var(--text-sm); color: var(--fg-secondary);
-    margin: var(--space-2) 0 0; line-height: var(--leading-relaxed);
+    margin: var(--space-2) 0 var(--space-1); line-height: var(--leading-relaxed);
   }}
   .discovered {{
     font-size: var(--text-sm); color: var(--muted);
-    margin: var(--space-2) 0 0; font-style: italic; line-height: var(--leading-relaxed);
+    margin: var(--space-2) 0 var(--space-1); font-style: italic; line-height: var(--leading-relaxed);
     padding-left: var(--space-3);
     border-left: 2px solid var(--border-strong);
   }}
+  .solution {{
+    font-size: var(--text-sm); color: var(--fg-secondary);
+    margin: var(--space-2) 0 var(--space-1); line-height: var(--leading-relaxed);
+    padding-left: var(--space-3);
+    border-left: 2px solid var(--apple-green);
+  }}
+  .detail {{
+    font-size: var(--text-sm); color: var(--fg-secondary);
+    margin: var(--space-2) 0 var(--space-1); line-height: var(--leading-relaxed);
+  }}
   .event blockquote {{
     font-size: var(--text-sm); color: var(--fg-secondary);
-    margin: var(--space-2) 0 0; line-height: var(--leading-relaxed);
+    margin: var(--space-2) 0 var(--space-1); line-height: var(--leading-relaxed);
     padding-left: var(--space-3);
     border-left: 2px solid var(--apple-blue);
     font-style: italic;
   }}
+  .event p {{
+    font-size: var(--text-sm); color: var(--fg-secondary);
+    margin: var(--space-1) 0; line-height: var(--leading-relaxed);
+  }}
+  .event ul {{ list-style: none; margin: var(--space-2) 0; padding: 0; }}
+  .event li {{
+    font-size: var(--text-sm); color: var(--fg-secondary);
+    padding: var(--space-1) 0 var(--space-1) var(--space-5); position: relative;
+    line-height: var(--leading-relaxed);
+  }}
+  .event li::before {{ content: "\u2014"; position: absolute; left: 0; color: var(--muted); }}
+  .event pre {{
+    background: var(--hover-overlay); border-radius: var(--radius-sm);
+    padding: var(--space-3); margin: var(--space-2) 0; overflow-x: auto;
+    font-size: 11px; line-height: 1.5;
+  }}
+  .event code {{ font-family: var(--font-mono); font-size: 0.9em; }}
+  .event .table-wrap {{ overflow-x: auto; margin: var(--space-2) 0; }}
+  .event table {{
+    width: 100%; border-collapse: collapse; font-size: var(--text-xs);
+  }}
+  .event th, .event td {{
+    padding: var(--space-1) var(--space-2); text-align: left;
+    border-bottom: 1px solid var(--border);
+  }}
+  .event th {{ font-weight: 600; color: var(--fg); }}
   .main-content p {{ font-size: var(--text-sm); color: var(--fg-secondary); margin-bottom: var(--space-2); line-height: var(--leading-relaxed); }}
   .main-content ul {{ list-style: none; margin: var(--space-3) 0; }}
   .main-content li {{

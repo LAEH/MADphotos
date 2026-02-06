@@ -3,26 +3,147 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MADphotos</title>
+    <title>MADphotos — Show</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <header id="header">
         <div class="header-left">
-            <h1 class="logo">MADphotos</h1>
+            <a href="#" class="logo" id="logo-home">MADphotos</a>
             <span class="photo-count" id="photo-count"></span>
         </div>
-        <nav class="tabs">
-            <button class="tab active" data-view="grille">La Grille</button>
-            <button class="tab" data-view="derive">La Dérive</button>
-            <button class="tab" data-view="couleurs">Les Couleurs</button>
+        <nav class="tabs" id="tabs">
+            <!-- Tabs are dynamically created by the router -->
         </nav>
     </header>
 
     <main id="main">
-        <section id="view-grille" class="view active"></section>
+        <!-- Launcher: experience card grid -->
+        <section id="view-launcher" class="view active">
+            <div class="launcher">
+                <div class="launcher-header">
+                    <h2 class="launcher-title">Show</h2>
+                    <p class="launcher-subtitle">14 ways to experience 9,011 photographs</p>
+                </div>
+                <div class="launcher-grid">
+
+                    <div class="exp-card" data-view="grille">
+                        <div class="exp-card-badge">Filter</div>
+                        <h3 class="exp-card-title">La Grille</h3>
+                        <p class="exp-card-desc">Justified grid with glass tags. Filter by vibe, grading, time, setting.</p>
+                        <div class="exp-card-devices">Desktop + Mobile</div>
+                    </div>
+
+                    <div class="exp-card" data-view="bento">
+                        <div class="exp-card-badge exp-badge-gold">Contemplate</div>
+                        <h3 class="exp-card-title">Le Bento</h3>
+                        <p class="exp-card-desc">Algorithmic Mondrian mosaic. Chromatic harmony. Crossfade. No UI.</p>
+                        <div class="exp-card-devices">Desktop</div>
+                    </div>
+
+                    <div class="exp-card" data-view="similarity">
+                        <div class="exp-card-badge exp-badge-teal">Explore</div>
+                        <h3 class="exp-card-title">La Similarit&eacute;</h3>
+                        <p class="exp-card-desc">Navigate through semantically connected photographs. Shared vibes, objects, scenes.</p>
+                        <div class="exp-card-devices">Desktop + Mobile</div>
+                    </div>
+
+                    <div class="exp-card" data-view="derive">
+                        <div class="exp-card-badge exp-badge-purple">Drift</div>
+                        <h3 class="exp-card-title">La D&eacute;rive</h3>
+                        <p class="exp-card-desc">Visual drift through structural similarity. Same shapes, different worlds.</p>
+                        <div class="exp-card-devices">Desktop + Mobile</div>
+                    </div>
+
+                    <div class="exp-card" data-view="couleurs">
+                        <div class="exp-card-badge exp-badge-spectrum">Color</div>
+                        <h3 class="exp-card-title">Les Couleurs</h3>
+                        <p class="exp-card-desc">Color space exploration. Interactive spectrum. Semantic pop labels.</p>
+                        <div class="exp-card-devices">Desktop + Mobile</div>
+                    </div>
+
+                    <div class="exp-card" data-view="game">
+                        <div class="exp-card-badge exp-badge-red">Play</div>
+                        <h3 class="exp-card-title">Le Terrain de Jeu</h3>
+                        <p class="exp-card-desc">Two images, one hidden connection. Six choices. Timer. Score. Addictive.</p>
+                        <div class="exp-card-devices">Desktop + Mobile</div>
+                    </div>
+
+                    <div class="exp-card" data-view="darkroom">
+                        <div class="exp-card-badge exp-badge-dark">Analyze</div>
+                        <h3 class="exp-card-title">La Chambre Noire</h3>
+                        <p class="exp-card-desc">One image, all signals. Toggle layers: depth, objects, faces, colors, OCR.</p>
+                        <div class="exp-card-devices">Desktop</div>
+                    </div>
+
+                    <div class="exp-card" data-view="stream">
+                        <div class="exp-card-badge exp-badge-blue">Flow</div>
+                        <h3 class="exp-card-title">Le Flot</h3>
+                        <p class="exp-card-desc">Infinite scroll curated for visual continuity. Monochrome breathers. No UI.</p>
+                        <div class="exp-card-devices">Mobile</div>
+                    </div>
+
+                    <div class="exp-card" data-view="faces">
+                        <div class="exp-card-badge exp-badge-pink">Emotion</div>
+                        <h3 class="exp-card-title">Les Visages</h3>
+                        <p class="exp-card-desc">1,676 detected faces. Emotion-colored borders. Mood distribution.</p>
+                        <div class="exp-card-devices">Desktop + Mobile</div>
+                    </div>
+
+                    <div class="exp-card" data-view="compass">
+                        <div class="exp-card-badge exp-badge-green">Navigate</div>
+                        <h3 class="exp-card-title">La Boussole</h3>
+                        <p class="exp-card-desc">Four-axis compass: composition, color, mood, meaning. Infinite exploration.</p>
+                        <div class="exp-card-devices">Desktop + Mobile</div>
+                    </div>
+
+                    <div class="exp-card" data-view="observatory">
+                        <div class="exp-card-badge exp-badge-indigo">Data</div>
+                        <h3 class="exp-card-title">L'Observatoire</h3>
+                        <p class="exp-card-desc">Six interactive panels. Scatter, treemap, time wheel, camera distributions.</p>
+                        <div class="exp-card-devices">Desktop</div>
+                    </div>
+
+                    <div class="exp-card" data-view="map">
+                        <div class="exp-card-badge exp-badge-green">Wander</div>
+                        <h3 class="exp-card-title">La Carte</h3>
+                        <p class="exp-card-desc">1,820 GPS-tagged photos as luminous dots on a dark world map.</p>
+                        <div class="exp-card-devices">Desktop + Mobile</div>
+                    </div>
+
+                    <div class="exp-card" data-view="typewriter">
+                        <div class="exp-card-badge exp-badge-gold">Search</div>
+                        <h3 class="exp-card-title">La Machine &agrave; &Eacute;crire</h3>
+                        <p class="exp-card-desc">Type anything. Words dissolve into matching photographs. Semantic search.</p>
+                        <div class="exp-card-devices">Desktop</div>
+                    </div>
+
+                    <div class="exp-card" data-view="pendulum">
+                        <div class="exp-card-badge exp-badge-amber">Taste</div>
+                        <h3 class="exp-card-title">Le Pendule</h3>
+                        <p class="exp-card-desc">Original vs enhanced, side by side. Pick your preference. Reveal your taste.</p>
+                        <div class="exp-card-devices">Desktop + Mobile</div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- Experience views (populated by JS) -->
+        <section id="view-grille" class="view"></section>
+        <section id="view-bento" class="view"></section>
+        <section id="view-similarity" class="view"></section>
         <section id="view-derive" class="view"></section>
         <section id="view-couleurs" class="view"></section>
+        <section id="view-game" class="view"></section>
+        <section id="view-darkroom" class="view"></section>
+        <section id="view-stream" class="view"></section>
+        <section id="view-faces" class="view"></section>
+        <section id="view-compass" class="view"></section>
+        <section id="view-observatory" class="view"></section>
+        <section id="view-map" class="view"></section>
+        <section id="view-typewriter" class="view"></section>
+        <section id="view-pendulum" class="view"></section>
     </main>
 
     <!-- Lightbox overlay -->
@@ -41,7 +162,18 @@
 
     <script src="app.js"></script>
     <script src="grid.js"></script>
-    <script src="drift.js"></script>
+    <script src="similarity.js"></script>
     <script src="colors.js"></script>
+    <script src="bento.js"></script>
+    <script src="game.js"></script>
+    <script src="stream.js"></script>
+    <script src="darkroom.js"></script>
+    <script src="faces.js"></script>
+    <script src="compass.js"></script>
+    <script src="observatory.js"></script>
+    <script src="map.js"></script>
+    <script src="typewriter.js"></script>
+    <script src="pendulum.js"></script>
+    <script src="drift.js"></script>
 </body>
 </html>

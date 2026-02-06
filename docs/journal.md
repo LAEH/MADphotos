@@ -736,3 +736,67 @@ Started rendering the enhanced v1 tier pyramid — the enhanced images existed o
 ### 19:35 — Blind Test Verdict: Enhanced v1 and v2 Are Nearly Identical
 
 Investigation confirmed the user's observation: enhanced v1 and v2 differ by a mean of only 0.50 pixels (max 12). The v2 enhancement (signal-aware) adds subtle depth, scene, and style corrections on top of v1's base camera-aware processing — but the perceptual difference is negligible. For the "Show" web app, we'll focus on enhanced v1 as the primary improved version. All enhancement parameters are fully saved in `enhancement_plans` and `enhancement_plans_v2` tables for future recipe tuning.
+
+### 19:44 — Enhanced v1 Tier Rendering Complete: Zero Errors
+
+All 9,011 enhanced v1 images rendered into 7 tier/format combinations: display/webp, mobile/jpeg, mobile/webp, thumb/jpeg, thumb/webp, micro/jpeg, micro/webp. Zero errors across the entire batch. The `render_enhanced_tiers.py` script processed everything using 8 parallel workers, downscaling from the existing 2048px display-tier JPEGs with appropriate sharpening per tier.
+
+### 19:48 — GCS Upload: Originals Complete, Enhanced In Progress
+
+All original serving tiers successfully uploaded to GCS: display, mobile, thumb, micro in both JPEG and WebP — 8 directories, ~72K files total. Each directory got immutable cache headers (`max-age=31536000`). Enhanced v1 tiers uploading next — same 8 directories. Public URLs verified working: `https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/{tier}/{format}/{uuid}.ext`.
+
+### 19:50 — State UI: GCS Filmstrip + Preload Animations
+
+Added a horizontal filmstrip of 40 randomly sampled photographs below the manifesto on the State page. Images load from GCS (`v/original/thumb/jpeg/`) with a cubic-bezier fade-in animation — each image starts at `opacity: 0; scale: 1.08` and smoothly transitions to `opacity: 1; scale: 1` on load. Same treatment applied to drift page neighbor thumbnails. Removed all local image serving handlers — everything now served from GCS. No more `/thumb/` or `/blind/` local routes.
+
+---
+
+### 20:00 — State UI: Mosaic Hero + Compact Model Cards
+
+**Intent.** User rejected the horizontal filmstrip ("why is there a row of images?"). Wanted a mosaic on the right side of the title area and more compact Signal Extraction cards.
+
+**What changed.** Replaced the filmstrip with a mosaic-on-right hero layout: `.state-hero` flex container with text on left and a 280px rounded mosaic image on right, fading in with cubic-bezier animation on load. The 17-element intelligence grid cards were compacted dramatically: grid cells from 200px to 160px minimum, padding reduced to 8px, model descriptions and percentage labels hidden, font sizes shrunk, progress bars to 2px height. The result is a dense overview where all 17 models fit on screen without scrolling.
+
+---
+
+### 20:15 — Journal de Bord: Full Content + Event Type Labels + Genesis
+
+**Intent.** The journal renderer was truncating all event content to first sentences and dropping paragraphs entirely. User wanted full event details as a beautiful stream with categorized event labels.
+
+**What changed.** Complete rewrite of `render_journal()` in `generate_status_page.py`:
+
+- **Full content**: Removed `first_sentence()` truncation and `skip_rest` logic. All paragraphs, blockquotes, lists, tables, and code blocks now render completely.
+- **Event type labels**: Auto-classification system with 9 categories (Deploy, Infrastructure, Pipeline, AI, Investigation, UI/UX, Security, Architecture, Signal) using regex pattern matching on title + body. Each event gets up to 2 colored pill labels using `color-mix()` for subtle tinted backgrounds.
+- **Removed intro sections**: "The Beginning" and "The Numbers" prose blocks no longer appear in the Journal de Bord — they were redundant with the timeline.
+- **Genesis event**: Special indigo-bordered card at the bottom of the timeline summarizing the project vision: the 3 apps (See/Show/State), the mission, the endgame.
+- **Rich formatting**: Tables render properly, code fences get `<pre><code>` blocks, **Solution.** and other bold-prefixed paragraphs get distinct styling, all markdown inline formatting (bold, italic, code) preserved.
+
+---
+
+### 20:30 — System Instructions: Complete Project Briefing
+
+**Intent.** When starting a new AI session, context is everything. Added a comprehensive "Project Briefing" section at the top of the System Instructions page — everything a new session needs to be immediately productive: the 5 cameras with their quirks and enhancement rules, all 9 scripts with purposes, critical technical rules (Python 3.9, Vertex AI only, flat layout, DNG color space), hard-won lessons (Monochrom is sacred, film grain is an asset, TF+PyTorch don't mix, LAION scores are useless), GCS bucket structure, MADCurator architecture, web gallery setup, journal format, and a done/in-progress/next status summary. Rendered as an indigo-bordered card at the top of `/instructions`.
+
+---
+
+## 2026-02-06
+
+### 22:00 — Show: 14 Image Experiences Built
+
+**Intent.** Transform the web gallery from 3 experiences into 14 extraordinary ways to explore 9,011 photographs. Every signal extracted by the pipeline should power a different kind of encounter with the images.
+
+> Complete rewrite of the web gallery architecture. Launcher page with 14 experience cards. New `export_gallery_data.py` exports ALL 9,011 images with 47 signal fields each (not just the 5,038 Gemini-analyzed). Four data files generated: `photos.json` (15.8MB), `faces.json` (315KB, 1,676 faces with emotions), `game_rounds.json` (49KB, 200 precomputed connection pairs), `stream_sequence.json` (336KB, palette-optimized viewing order).
+
+**New experiences:** Le Bento (Mondrian mosaic with chromatic harmony), La Similarité (renamed from drift — semantic neighbors with inverted-index matching), La Dérive (new creative structural drift using composition/depth/brightness), Le Terrain de Jeu (connection game with 8s timer and streak scoring), Le Flot (infinite curated stream with monochrome breathers), La Chambre Noire (toggleable signal layers: colors, depth, objects, faces, OCR, metadata), Les Visages (face wall with emotion filtering), La Boussole (4-axis compass navigation), L'Observatoire (6 data panels: cameras, aesthetics, time, styles, emotions, outliers), La Carte (GPS dots on dark canvas map), La Machine à Écrire (weighted text search across all fields), Le Pendule (aesthetic taste test).
+
+**Design system:** Category-colored tags (vibe=amber, grading=blue, time=golden, setting=green, scene=teal, emotion=pink, camera=silver, style=purple) with capitalized text, subtle borders, hover states. Applied across grid, lightbox, and all experiences.
+
+---
+
+### 22:30 — State Dashboard: Cleanup + Creative Direction + Self-Instructions
+
+**Intent.** User flagged that State dashboard content was completely outdated. Project Briefing still said "3 experiences", Imagen Variants section was irrelevant, signal counts were stale.
+
+> Removed Imagen Variant Generation section entirely (HTML, CSS, JavaScript). Updated Project Briefing: Show now lists all 14 experiences. Updated signal completion counts (Gemini 6,203/9,011, OCR complete, BLIP 8,933/9,011, Emotions 1,367/1,676). Updated "Done vs. Next" to reflect actual state. Added "Creative Direction for Show" section to instructions — signal-aware storytelling, emotional moments, minimalist UI.
+
+**Self-instruction written:** Added mandatory rule to MEMORY.md — always update `generate_status_page.py` instructions when architecture changes, just like the journal. Also added creative direction mandate: Show experiences must be designed by someone who is simultaneously developer, architect, ML engineer, Apple-level designer, and emotionally intelligent creative director. Pairing two laughing faces IS funny. A rose next to rose accents IS pretty.

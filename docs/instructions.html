@@ -192,10 +192,128 @@
 <div class="main-content">
 <h1>System Instructions</h1>
 <p style="font-size:var(--text-sm);color:var(--muted);margin-bottom:var(--space-6);">
-  Development principles and operational guidelines for MADphotos.
+  Everything an AI assistant needs to know to work on this project effectively.
 </p>
 
-<h2>Vision</h2>
+<div style="background: linear-gradient(135deg, var(--card-bg) 0%, rgba(88,86,214,0.06) 100%);
+            border: 1px solid var(--apple-indigo); border-radius: var(--radius-lg);
+            padding: var(--space-6); margin-bottom: var(--space-8);">
+
+<h2 style="margin-top:0;">Project Briefing</h2>
+<p>This is <strong>MADphotos</strong> &mdash; a solo art project by <strong>LAEH</strong> to take 9,011 unedited photographs
+shot over a decade with five cameras and turn them into the most richly-understood image collection ever built.
+Every image gets every possible signal (AI analysis, pixel metrics, vector embeddings, depth, scenes, objects, faces, emotions, captions, OCR, colors, hashes, aesthetic scores). Then camera-aware enhancement. Then human curation. Then a public gallery that only shows the accepted best.</p>
+
+<h3>The Three Apps</h3>
+<ul>
+  <li><strong>See</strong> (MADCurator) &mdash; Native SwiftUI macOS app. The private power tool. 55 data fields per image, 18 filter dimensions, faceted search with boolean logic, Keep/Reject workflow. The human decides what&rsquo;s worth showing.</li>
+  <li><strong>Show</strong> &mdash; Public web gallery. 14 experiences: La Grille (filter grid), Le Bento (algorithmic mosaic), La Similarit&eacute; (semantic neighbors), La D&eacute;rive (structural drift), Les Couleurs (color space), Le Terrain de Jeu (connection game), Le Flot (curated stream), La Chambre Noire (signal layers), Les Visages (face exploration), La Boussole (4-axis compass), L&rsquo;Observatoire (data panels), La Carte (GPS map), La Machine &agrave; &Eacute;crire (text search), Le Pendule (taste test).</li>
+  <li><strong>State</strong> &mdash; This dashboard. Live system monitoring, Journal de Bord, signal inventory. The control room.</li>
+</ul>
+
+<h3>The Five Cameras</h3>
+<table>
+  <thead><tr><th>Camera</th><th>Type</th><th>Count</th><th>Key Characteristics</th></tr></thead>
+  <tbody>
+    <tr><td>Leica M8</td><td>Digital CCD</td><td>3,533</td><td>Known IR sensitivity &mdash; adds magenta to dark fabrics. Some warmth is CCD character, preserve it.</td></tr>
+    <tr><td>DJI Osmo Pro</td><td>Action camera</td><td>3,032</td><td>Wide lens, helmet-mounted. 1,459 have GPS. Best auto WB of the set.</td></tr>
+    <tr><td>Leica MP</td><td>Analog (Portra 400 VC)</td><td>1,126</td><td>Film grain (noise=4.3) is real silver halide &mdash; preserve, don&rsquo;t denoise. Warm shifts are film character.</td></tr>
+    <tr><td>Leica Monochrom</td><td>B&amp;W sensor</td><td>1,099</td><td><strong>NEVER color-correct.</strong> No Bayer filter = pure luminance. Only tone curves. Zero saturation always.</td></tr>
+    <tr><td>Canon G12 / DJI Memo</td><td>Compact</td><td>221</td><td>Worst auto WB (+0.167 red shift). Gets most aggressive correction (70%).</td></tr>
+  </tbody>
+</table>
+
+<h3>Architecture: 9 Python Scripts</h3>
+<table>
+  <thead><tr><th>Script</th><th>Purpose</th><th>Key Detail</th></tr></thead>
+  <tbody>
+    <tr><td><code>mad_pipeline.py</code></td><td>Orchestrator</td><td>Runs phases in order. Entry point for full pipeline.</td></tr>
+    <tr><td><code>render_pipeline.py</code></td><td>6-tier resolution pyramid</td><td>Output: <code>rendered/{tier}/{format}/{uuid}.ext</code>. FLAT layout, no category subdirs.</td></tr>
+    <tr><td><code>photography_engine.py</code></td><td>Gemini 2.5 Pro analysis</td><td>Structured JSON: vibes, exposure, composition, grading, edit prompt. Uses Vertex AI + ADC.</td></tr>
+    <tr><td><code>imagen_engine.py</code></td><td>4 AI variants via Imagen 3</td><td>Two-stage: edits from original (gemini_edit, pro_edit), styles from gemini_edit (nano_feel, cartoon).</td></tr>
+    <tr><td><code>gcs_sync.py</code></td><td>Upload to GCS</td><td>Versioned: <code>v/{version}/{tier}/{format}/</code>. Supports original, enhanced, future variants.</td></tr>
+    <tr><td><code>mad_database.py</code></td><td>SQLite schema</td><td>23 tables, single source of truth. Deterministic UUID5 from DNS namespace + relative path.</td></tr>
+    <tr><td><code>enhance_engine.py</code></td><td>Camera-aware enhancement</td><td>6 steps: WB, exposure, shadow/highlight, contrast, saturation, sharpening. Per-camera profiles.</td></tr>
+    <tr><td><code>advanced_signals.py</code></td><td>11 ML models</td><td>Depth, scenes, style, aesthetic, faces, objects, colors, hashes, OCR, captions, emotions.</td></tr>
+    <tr><td><code>generate_status_page.py</code></td><td>Dashboard + Journal</td><td>This file. ~4,000 lines. Live server (<code>--serve</code>) + static generator.</td></tr>
+  </tbody>
+</table>
+
+<h3>Critical Technical Rules</h3>
+<ul>
+  <li><strong>Python 3.9.6</strong> &mdash; Must use <code>from __future__ import annotations</code> and <code>Optional[X]</code>, NOT <code>X | None</code>.</li>
+  <li><strong>Vertex AI only</strong> &mdash; Both Gemini and Imagen use Application Default Credentials (ADC). NEVER use API keys (one was committed and had to be scrubbed from git history).</li>
+  <li><strong>Flat rendered layout</strong> &mdash; <code>rendered/{tier}/{format}/{uuid}.ext</code>. NEVER create <code>rendered/originals/</code> (plural) &mdash; this bug caused hours of cleanup.</li>
+  <li><strong>DNG color space</strong> &mdash; <code>sips</code> must convert with <code>-m sRGB Profile.icc</code> to avoid Display P3 purple cast on DNG/RAW files.</li>
+  <li><strong>GCS bucket structure</strong> &mdash; <code>v/{version}/{tier}/{format}/{uuid}.ext</code>. Public root: <code>https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/</code></li>
+  <li><strong>UUID namespace</strong> &mdash; DNS (6ba7b810-...), deterministic from relative path to <code>originals/</code>.</li>
+  <li><strong>google-genai 1.47.0</strong> &mdash; <code>edit_image()</code> requires <code>vertexai=True</code> client.</li>
+  <li><strong>Tiers</strong>: full (3840px), display (2048px), mobile (1280px), thumb (480px), micro (64px), gemini (2048px). Formats: JPEG always, WebP for display/mobile/thumb/micro.</li>
+  <li><strong>JPEGmini Pro</strong> &mdash; User runs it manually (GUI app) on serving tiers ONLY (display, mobile, thumb, micro). NOT on full/gemini/original.</li>
+</ul>
+
+<h3>Hard-Won Lessons</h3>
+<ul>
+  <li><strong>Monochrome sensor is sacred.</strong> The Leica Monochrom has no Bayer filter. Zero saturation, zero color correction, ever. Only tone curves (brightness, contrast, shadow/highlight).</li>
+  <li><strong>Film grain is an asset.</strong> Portra 400 VC has noise=4.3 (3&times; digital). That&rsquo;s real silver halide texture. Preserve it &mdash; never denoise film.</li>
+  <li><strong>CCD warmth is character.</strong> The Leica M8&rsquo;s CCD gives warm tones. Correct WB only 50% &mdash; too aggressive kills the look.</li>
+  <li><strong>Enhanced v1 &cong; v2.</strong> Signal-aware v2 enhancement adds negligible perceptual difference (mean pixel diff 0.50). V1 is the primary enhanced version.</li>
+  <li><strong>TensorFlow + PyTorch don&rsquo;t mix.</strong> Installing TF for DeepFace caused C++ mutex crashes in all PyTorch models. Solution: ViT emotion classifier on pure PyTorch.</li>
+  <li><strong>LAION aesthetic scores are useless.</strong> 91% of 9,011 images scored &ldquo;excellent&rdquo; (8.22&ndash;10.0). Needs recalibration or a different model.</li>
+  <li><strong>EasyOCR is CPU-bound and slow.</strong> 0.2 img/s single-threaded. Use <code>--shard N/M</code> for parallel workers (3&times; throughput).</li>
+  <li><strong>SQLite contention.</strong> Multiple writers need <code>PRAGMA busy_timeout=120000</code> and retry loops with exponential backoff.</li>
+  <li><strong>Vibe field is JSON array.</strong> In SwiftUI, parse with <code>JSONSerialization</code>, NOT comma-split. Otherwise you get bracket artifacts.</li>
+  <li><strong>gsutil rsync &ne; cp.</strong> The <code>-j</code> flag (content compression) works with <code>cp</code> but NOT with <code>rsync</code>.</li>
+</ul>
+
+<h3>GCS Bucket &amp; Hosting</h3>
+<ul>
+  <li><strong>Project</strong>: madbox-e4a35, account: laeh@madbits.ai</li>
+  <li><strong>Bucket</strong>: <code>gs://myproject-public-assets/art/MADphotos/</code></li>
+  <li><strong>Versions uploaded</strong>: <code>original</code> (all serving tiers), <code>enhanced</code> (all serving tiers), <code>blind</code> (test images)</li>
+  <li><strong>Serving tiers on GCS</strong>: display, mobile, thumb, micro &times; JPEG + WebP = 8 directories per version</li>
+  <li><strong>Public URL pattern</strong>: <code>https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/{version}/{tier}/{format}/{uuid}.ext</code></li>
+  <li><strong>GitHub Pages</strong>: <code>docs/</code> folder, auto-deploy via GitHub Actions</li>
+</ul>
+
+<h3>MADCurator (SwiftUI App)</h3>
+<ul>
+  <li>Located at <code>MADCurator/</code> in the project root. Uses Swift Package Manager (<code>Package.swift</code>).</li>
+  <li>SQLite3 C API directly (no ORM). Reads from <code>mad_photos.db</code>.</li>
+  <li>55 data fields per PhotoItem, loaded via 9-table JOIN query.</li>
+  <li>18 filter dimensions: camera, category, vibe, grading, time, setting, composition, exposure, rotation, color, location, style, aesthetic, hasText, plus custom search.</li>
+  <li>Keyboard shortcuts: K (keep), R (reject), &larr;/&rarr; (navigate), E (toggle enhanced), Space (fullscreen), I (info panel), Y/N (accept/reject location).</li>
+  <li>Thumbnail cache: NSCache with 2,000 image limit.</li>
+  <li>Build: <code>cd MADCurator && swift build</code></li>
+</ul>
+
+<h3>Web Gallery (Show)</h3>
+<ul>
+  <li><code>export_gallery_data.py</code> &rarr; <code>web/data/photos.json</code></li>
+  <li><code>serve_gallery.py</code> &rarr; <code>http://localhost:3000</code></li>
+  <li>16 web files: index.html, style.css, app.js + 13 experience modules (grid, similarity, drift, colors, bento, game, stream, darkroom, faces, compass, observatory, map, typewriter, pendulum)</li>
+  <li>Dark (#0a0a0a), monospace, glassmorphism. No framework &mdash; vanilla HTML/CSS/JS.</li>
+  <li>Progressive loading: micro &rarr; thumb &rarr; display. Lazy via IntersectionObserver.</li>
+</ul>
+
+<h3>Journal de Bord</h3>
+<ul>
+  <li>File: <code>docs/journal.md</code>. Write to it after EVERY significant action. Not optional.</li>
+  <li>Format: <code>### HH:MM &mdash; Title *(&ldquo;user quote&rdquo;)*</code> with <code>**Intent.**</code> paragraphs, <code>&gt; blockquote</code> actions, <code>**Discovered.**</code> insights.</li>
+  <li>Group entries under <code>## YYYY-MM-DD</code> date headers.</li>
+  <li>The <code>/journal</code> page renders it as a timeline with auto-classified event type labels (Pipeline, AI, UI/UX, Deploy, etc.).</li>
+</ul>
+
+<h3>What&rsquo;s Done vs. What&rsquo;s Next</h3>
+<p><strong>Done:</strong> Full pipeline built and running. 16/16 signals extracted for all 9,011 images. Enhancement v1 complete. GCS hosting live (original + enhanced tiers). Dashboard with 17-element intelligence grid. MADCurator native app with 55 fields, 18 filters. Journal de Bord with event labels. Blind test system. Vector similarity search (DINOv2 + SigLIP + CLIP). Web gallery with 14 experiences: launcher, filter grid, bento mosaic, similarity, creative drift, color space, connection game, curated stream, signal darkroom, face wall, compass navigation, data observatory, GPS map, text search, taste test.</p>
+<p><strong>In progress:</strong> Gemini analysis (6,203/9,011). 78 BLIP captions need retry. 309 faces without emotion labels.</p>
+<p><strong>Next:</strong> Curate images in MADCurator (accept/reject). Precompute DINOv2 structural neighbors for creative drift. SigLIP text&rarr;image search API. Location intelligence (GPS propagation from 1,820 tagged images).</p>
+
+</div>
+
+<h2>Development Principles</h2>
+
+<h3>Vision</h3>
 <p>9,011 photographs. Every one should carry the richest possible set of reliable, valuable signals &mdash;
 extracted from every available open-source model and programmatic method. The goal is not just
 to organize images but to <strong>deeply understand</strong> each one: its technical properties,
@@ -203,6 +321,14 @@ its semantic content, its emotional resonance, its relationship to every other i
 <p>Three apps serve three purposes: <strong>See</strong> (native macOS curator &mdash; the human decides),
 <strong>Show</strong> (public web gallery &mdash; the curated experience),
 <strong>State</strong> (this dashboard &mdash; the control room).</p>
+
+<h2>Creative Direction for Show</h2>
+<p><strong>Show is not just a gallery &mdash; it is an art experience.</strong> Every experience must be designed by someone who is simultaneously the best developer, architect, ML engineer, Apple-level minimalist designer, and most importantly, a deeply creative, emotionally intelligent curator.</p>
+<ul>
+  <li><strong>Signal-aware storytelling.</strong> Two laughing faces side by side IS funny. A rose-themed image next to rose-accent colors IS pretty. Two grumpy people together IS a statement. Use signals not just for filtering but for creating emotional moments &mdash; surprise, beauty, humor, mystery, melancholy.</li>
+  <li><strong>Minimalist UI, maximally expressive content.</strong> Dark, sparse, no chrome. Let the images do the talking. Quality over quantity &mdash; fewer images shown beautifully beats more images shown generically.</li>
+  <li><strong>Every experience should feel designed by someone who LOVES photography.</strong> Not a tech demo. Not a data visualization. An experience that makes you want to look at every single image.</li>
+</ul>
 
 <h2>Signal Completeness</h2>
 <ul>
@@ -261,14 +387,14 @@ its semantic content, its emotional resonance, its relationship to every other i
     <tr><td>Object Detection</td><td>YOLOv8n</td><td>9,011 / 9,011</td><td>80 COCO classes, bounding boxes, confidence</td></tr>
     <tr><td>Perceptual Hashes</td><td>imagehash</td><td>9,011 / 9,011</td><td>pHash, aHash, dHash, wHash, blur, sharpness, entropy</td></tr>
     <tr><td>Vectors</td><td>DINOv2 + SigLIP + CLIP</td><td>9,011 / 9,011</td><td>768d + 768d + 512d = 2,048 dimensions per image</td></tr>
-    <tr><td>Gemini Analysis</td><td>Gemini 2.5 Pro</td><td>5,635 / 9,011</td><td>Alt text, vibes, exposure, composition, grading, time, setting, pops, edit prompt</td></tr>
+    <tr><td>Gemini Analysis</td><td>Gemini 2.5 Pro</td><td>6,203 / 9,011</td><td>Alt text, vibes, exposure, composition, grading, time, setting, pops, edit prompt</td></tr>
     <tr><td>Aesthetic Scoring</td><td>LAION aesthetic (CLIP MLP)</td><td>9,011 / 9,011</td><td>Score 1&ndash;10, label (excellent/good/average/poor)</td></tr>
     <tr><td>Depth Estimation</td><td>Depth Anything v2</td><td>9,011 / 9,011</td><td>Near/mid/far percentages, complexity bucket</td></tr>
     <tr><td>Scene Classification</td><td>Places365 (ResNet50)</td><td>9,011 / 9,011</td><td>Top 3 scene labels, environment (indoor/outdoor)</td></tr>
     <tr><td>Style Classification</td><td>Scene + composition derived</td><td>9,011 / 9,011</td><td>Style label (street, portrait, landscape, etc.)</td></tr>
-    <tr><td>OCR / Text Detection</td><td>EasyOCR</td><td>in progress</td><td>Detected text regions, language, confidence</td></tr>
-    <tr><td>Image Captions</td><td>BLIP (Salesforce)</td><td>in progress</td><td>Natural language caption per image</td></tr>
-    <tr><td>Facial Emotions</td><td>ViT face expression</td><td>in progress</td><td>Dominant emotion, 7-class scores per face</td></tr>
+    <tr><td>OCR / Text Detection</td><td>EasyOCR</td><td>9,011 / 9,011</td><td>Detected text regions, language, confidence</td></tr>
+    <tr><td>Image Captions</td><td>BLIP (Salesforce)</td><td>8,933 / 9,011</td><td>Natural language caption per image (78 retrying)</td></tr>
+    <tr><td>Facial Emotions</td><td>ViT face expression</td><td>1,367 / 1,676 faces</td><td>Dominant emotion, 7-class scores per face</td></tr>
     <tr><td>Enhancement Plans</td><td>Camera-aware engine</td><td>9,011 / 9,011</td><td>WB correction, gamma, shadows, highlights, contrast, saturation, sharpening</td></tr>
   </tbody>
 </table>

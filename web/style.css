@@ -19,6 +19,16 @@
     --radius-sm: 4px;
     --transition: 250ms ease;
     --font: 'SF Mono', 'Fira Code', 'JetBrains Mono', 'Cascadia Code', monospace;
+    --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', system-ui, sans-serif;
+    /* Category colors */
+    --c-vibe: #e8a24e;
+    --c-grading: #5b9bd5;
+    --c-time: #d4a843;
+    --c-setting: #4caf84;
+    --c-scene: #4db6ac;
+    --c-emotion: #e06090;
+    --c-camera: #a0a0a0;
+    --c-style: #9575cd;
 }
 
 html {
@@ -60,6 +70,13 @@ body {
     font-size: 16px;
     font-weight: 600;
     letter-spacing: 0.5px;
+    color: var(--text);
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.logo:hover {
+    opacity: 0.8;
 }
 
 .photo-count {
@@ -110,7 +127,113 @@ body {
     display: block;
 }
 
-/* ===== Glass Tags ===== */
+/* ===== Launcher ===== */
+.launcher {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+}
+
+.launcher-header {
+    margin-bottom: 40px;
+}
+
+.launcher-title {
+    font-family: var(--font-display);
+    font-size: 48px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    margin-bottom: 8px;
+}
+
+.launcher-subtitle {
+    font-size: 14px;
+    color: var(--text-dim);
+}
+
+.launcher-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+}
+
+.exp-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius);
+    padding: 20px;
+    cursor: pointer;
+    transition: all var(--transition);
+    position: relative;
+    overflow: hidden;
+}
+
+.exp-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--glass-border);
+    transition: background var(--transition);
+}
+
+.exp-card:hover {
+    border-color: var(--glass-border-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+
+.exp-card:hover::before {
+    background: var(--text-dim);
+}
+
+.exp-card-badge {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+}
+
+.exp-badge-gold { color: #e8a24e; }
+.exp-badge-teal { color: #4db6ac; }
+.exp-badge-purple { color: #9575cd; }
+.exp-badge-spectrum { color: #e06090; }
+.exp-badge-red { color: #ef5350; }
+.exp-badge-dark { color: #78909c; }
+.exp-badge-blue { color: #5b9bd5; }
+.exp-badge-pink { color: #e06090; }
+.exp-badge-green { color: #4caf84; }
+.exp-badge-indigo { color: #7986cb; }
+.exp-badge-amber { color: #d4a843; }
+
+.exp-card-title {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    letter-spacing: -0.01em;
+}
+
+.exp-card-desc {
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    margin-bottom: 12px;
+}
+
+.exp-card-devices {
+    font-size: 9px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* ===== Glass Tags — Category Colors ===== */
 .glass-tag {
     display: inline-flex;
     align-items: center;
@@ -127,6 +250,7 @@ body {
     transition: all var(--transition);
     white-space: nowrap;
     user-select: none;
+    text-transform: capitalize;
 }
 
 .glass-tag:hover {
@@ -139,6 +263,61 @@ body {
     background: rgba(255, 255, 255, 0.18);
     border-color: rgba(255, 255, 255, 0.35);
 }
+
+/* Category-specific tag styling — elegant subtle tints */
+.glass-tag.tag-vibe {
+    border-color: rgba(232, 162, 78, 0.35);
+    color: #f0c886;
+}
+.glass-tag.tag-vibe:hover { border-color: rgba(232, 162, 78, 0.6); }
+.glass-tag.tag-vibe.active { background: rgba(232, 162, 78, 0.15); border-color: rgba(232, 162, 78, 0.5); }
+
+.glass-tag.tag-grading {
+    border-color: rgba(91, 155, 213, 0.35);
+    color: #8cc0e8;
+}
+.glass-tag.tag-grading:hover { border-color: rgba(91, 155, 213, 0.6); }
+.glass-tag.tag-grading.active { background: rgba(91, 155, 213, 0.15); border-color: rgba(91, 155, 213, 0.5); }
+
+.glass-tag.tag-time {
+    border-color: rgba(212, 168, 67, 0.35);
+    color: #e8ca7a;
+}
+.glass-tag.tag-time:hover { border-color: rgba(212, 168, 67, 0.6); }
+.glass-tag.tag-time.active { background: rgba(212, 168, 67, 0.15); border-color: rgba(212, 168, 67, 0.5); }
+
+.glass-tag.tag-setting {
+    border-color: rgba(76, 175, 132, 0.35);
+    color: #7ad4aa;
+}
+.glass-tag.tag-setting:hover { border-color: rgba(76, 175, 132, 0.6); }
+.glass-tag.tag-setting.active { background: rgba(76, 175, 132, 0.15); border-color: rgba(76, 175, 132, 0.5); }
+
+.glass-tag.tag-scene {
+    border-color: rgba(77, 182, 172, 0.35);
+    color: #7dd4cc;
+}
+.glass-tag.tag-scene:hover { border-color: rgba(77, 182, 172, 0.6); }
+.glass-tag.tag-scene.active { background: rgba(77, 182, 172, 0.15); border-color: rgba(77, 182, 172, 0.5); }
+
+.glass-tag.tag-emotion {
+    border-color: rgba(224, 96, 144, 0.35);
+    color: #ef90b0;
+}
+.glass-tag.tag-emotion:hover { border-color: rgba(224, 96, 144, 0.6); }
+.glass-tag.tag-emotion.active { background: rgba(224, 96, 144, 0.15); border-color: rgba(224, 96, 144, 0.5); }
+
+.glass-tag.tag-camera {
+    border-color: rgba(160, 160, 160, 0.35);
+    color: #c0c0c0;
+}
+.glass-tag.tag-camera:hover { border-color: rgba(160, 160, 160, 0.6); }
+
+.glass-tag.tag-style {
+    border-color: rgba(149, 117, 205, 0.35);
+    color: #b8a0e0;
+}
+.glass-tag.tag-style:hover { border-color: rgba(149, 117, 205, 0.6); }
 
 .glass-tag .dot {
     width: 6px;
@@ -267,7 +446,7 @@ body {
     flex-shrink: 0;
 }
 
-/* ===== Drift (La Dérive) ===== */
+/* ===== Similarity / Drift shared ===== */
 .drift-container {
     display: flex;
     flex-direction: column;
@@ -354,17 +533,7 @@ body {
     padding: 8px 10px;
     font-size: 10px;
     color: var(--text-dim);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.drift-neighbor-label .connection-dot {
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    background: var(--text-muted);
-    flex-shrink: 0;
+    text-transform: capitalize;
 }
 
 .drift-controls {
@@ -433,9 +602,7 @@ body {
 }
 
 /* ===== Colors (Les Couleurs) ===== */
-.colors-container {
-    padding: 0;
-}
+.colors-container { padding: 0; }
 
 .color-spectrum {
     display: flex;
@@ -454,9 +621,7 @@ body {
     min-width: 2px;
 }
 
-.color-band:hover {
-    flex: 3;
-}
+.color-band:hover { flex: 3; }
 
 .color-band.active {
     flex: 4;
@@ -477,25 +642,15 @@ body {
 }
 
 .color-band:hover .color-band-count,
-.color-band.active .color-band-count {
-    opacity: 1;
-}
+.color-band.active .color-band-count { opacity: 1; }
 
-.colors-grid-wrapper {
-    padding: 16px;
-}
+.colors-grid-wrapper { padding: 16px; }
 
 .colors-section-title {
     font-size: 12px;
     color: var(--text-dim);
     padding: 8px 12px;
     margin-bottom: 8px;
-}
-
-.colors-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
 }
 
 .colors-grid-item {
@@ -530,8 +685,837 @@ body {
     transition: opacity var(--transition);
 }
 
-.colors-grid-item:hover .colors-pop-label {
-    opacity: 1;
+.colors-grid-item:hover .colors-pop-label { opacity: 1; }
+
+/* ===== Bento (Le Bento) ===== */
+.bento-view {
+    overflow: hidden;
+}
+
+.bento-grid {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100vw;
+    min-height: calc(100vh - 52px);
+}
+
+.bento-tile {
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    transition: opacity 800ms ease;
+}
+
+.bento-tile img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.bento-caption {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 12px 16px;
+    background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
+    color: var(--text);
+    font-size: 11px;
+    font-style: italic;
+    opacity: 0;
+    transition: opacity var(--transition);
+}
+
+.bento-tile:hover .bento-caption { opacity: 1; }
+
+.bento-hint {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    color: var(--text-muted);
+    transition: opacity 1s ease;
+    pointer-events: none;
+}
+
+/* ===== Game (Le Terrain de Jeu) ===== */
+.game-container {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 48px 24px;
+    text-align: center;
+}
+
+.game-title {
+    font-family: var(--font-display);
+    font-size: 32px;
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+
+.game-desc {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-bottom: 32px;
+}
+
+.game-start-btn {
+    font-family: var(--font);
+    font-size: 14px;
+    color: var(--text);
+    background: var(--glass-bg-hover);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius);
+    padding: 12px 32px;
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.game-start-btn:hover {
+    background: rgba(255,255,255,0.18);
+    border-color: var(--glass-border-hover);
+}
+
+.game-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.game-round-num { font-size: 12px; color: var(--text-dim); }
+.game-score { font-size: 14px; color: var(--text); font-weight: 600; }
+.game-streak { font-size: 12px; color: var(--c-vibe); }
+
+.game-timer-bar {
+    width: 100%;
+    height: 3px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 2px;
+    margin-bottom: 24px;
+    overflow: hidden;
+}
+
+.game-timer-fill {
+    height: 100%;
+    background: var(--text-dim);
+    border-radius: 2px;
+    transition: width 50ms linear;
+}
+
+.game-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.game-photo-card {
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1px solid var(--glass-border);
+}
+
+.game-photo-card img {
+    width: 100%;
+    aspect-ratio: 3/2;
+    object-fit: cover;
+    display: block;
+}
+
+.game-question {
+    font-size: 14px;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+}
+
+.game-answers {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.game-answer-btn {
+    font-family: var(--font);
+    font-size: 11px;
+    color: var(--text);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: all var(--transition);
+    text-align: left;
+}
+
+.game-answer-btn:hover:not(:disabled) {
+    background: var(--glass-bg-hover);
+    border-color: var(--glass-border-hover);
+}
+
+.game-answer-btn.correct {
+    border-color: #34C759;
+    background: rgba(52, 199, 89, 0.15);
+    color: #34C759;
+}
+
+.game-answer-btn.wrong {
+    border-color: #FF3B30;
+    background: rgba(255, 59, 48, 0.15);
+    color: #FF3B30;
+}
+
+.game-answer-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+}
+
+.game-end {
+    padding: 48px 0;
+    text-align: center;
+}
+
+.game-final-score {
+    font-family: var(--font-display);
+    font-size: 64px;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.game-final-label {
+    font-size: 14px;
+    color: var(--text-dim);
+    margin-bottom: 24px;
+}
+
+.game-stats {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 32px;
+}
+
+.game-stats div { margin-bottom: 4px; }
+
+/* ===== Stream (Le Flot) ===== */
+.stream-container {
+    max-width: 100%;
+}
+
+.stream-item {
+    width: 100%;
+    cursor: pointer;
+    position: relative;
+}
+
+.stream-img {
+    width: 100%;
+    display: block;
+}
+
+.stream-breather {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.stream-breather .stream-img {
+    width: 100%;
+    height: 100vh;
+    object-fit: cover;
+}
+
+.stream-breather-text {
+    position: absolute;
+    bottom: 15%;
+    left: 10%;
+    right: 10%;
+    font-family: var(--font-display);
+    font-size: 20px;
+    color: rgba(255,255,255,0.85);
+    font-style: italic;
+    line-height: 1.6;
+    text-align: center;
+    text-shadow: 0 2px 20px rgba(0,0,0,0.8);
+}
+
+/* ===== Darkroom (La Chambre Noire) ===== */
+.darkroom-view { overflow: hidden; }
+
+.darkroom-container {
+    display: flex;
+    height: calc(100vh - 52px);
+}
+
+.darkroom-image-area {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+    overflow: hidden;
+}
+
+.darkroom-main-img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.darkroom-layer {
+    position: absolute;
+    pointer-events: none;
+}
+
+.darkroom-colors {
+    bottom: 16px;
+    left: 16px;
+    display: flex;
+    gap: 8px;
+}
+
+.darkroom-swatch {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.3);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+
+.darkroom-depth-overlay {
+    bottom: 60px;
+    left: 16px;
+    right: 16px;
+}
+
+.darkroom-depth-bar {
+    display: flex;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.darkroom-depth-bar .dd {
+    font-size: 8px;
+    line-height: 8px;
+    text-align: center;
+    color: rgba(255,255,255,0.6);
+}
+
+.darkroom-objects {
+    top: 16px;
+    left: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.darkroom-faces {
+    top: 16px;
+    right: 16px;
+}
+
+.darkroom-console {
+    width: 320px;
+    background: rgba(17,17,17,0.95);
+    border-left: 1px solid var(--glass-border);
+    padding: 16px;
+    overflow-y: auto;
+}
+
+.darkroom-toggles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 20px;
+}
+
+.darkroom-toggle {
+    font-family: var(--font);
+    font-size: 10px;
+    color: var(--text-dim);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-sm);
+    padding: 5px 10px;
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.darkroom-toggle:hover {
+    color: var(--text);
+    background: var(--glass-bg-hover);
+}
+
+.darkroom-toggle.active {
+    color: var(--text);
+    background: rgba(255,255,255,0.15);
+    border-color: rgba(255,255,255,0.3);
+}
+
+.darkroom-key {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    line-height: 16px;
+    text-align: center;
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px;
+    font-size: 9px;
+    margin-right: 3px;
+}
+
+.darkroom-meta-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.darkroom-meta-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 10px;
+}
+
+.darkroom-meta-label { color: var(--text-muted); }
+.darkroom-meta-value { color: var(--text-dim); text-align: right; max-width: 180px; }
+
+/* ===== Faces (Les Visages) ===== */
+.faces-container {
+    padding: 16px 24px;
+}
+
+.faces-mood-bar {
+    display: flex;
+    height: 32px;
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 16px;
+}
+
+.faces-mood-segment {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    transition: flex var(--transition);
+}
+
+.faces-mood-label {
+    font-size: 9px;
+    color: rgba(255,255,255,0.8);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.faces-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 20px;
+}
+
+.faces-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.face-card {
+    width: 80px;
+    height: 96px;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    border: 2px solid var(--glass-border);
+    cursor: pointer;
+    transition: all var(--transition);
+    display: flex;
+    flex-direction: column;
+}
+
+.face-card:hover {
+    transform: scale(1.08);
+    z-index: 2;
+}
+
+.face-crop {
+    flex: 1;
+    overflow: hidden;
+}
+
+.face-crop img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.face-label {
+    font-size: 8px;
+    text-align: center;
+    padding: 2px;
+    background: var(--bg-elevated);
+    text-transform: capitalize;
+}
+
+/* ===== Compass (La Boussole) ===== */
+.compass-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 24px;
+    min-height: calc(100vh - 52px);
+}
+
+.compass-center {
+    max-width: 600px;
+    width: 100%;
+    margin-bottom: 32px;
+}
+
+.compass-center img {
+    width: 100%;
+    border-radius: var(--radius);
+    display: block;
+    cursor: pointer;
+}
+
+.compass-caption {
+    font-size: 13px;
+    color: var(--text-dim);
+    font-style: italic;
+    margin-top: 12px;
+    text-align: center;
+}
+
+.compass-axes {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    max-width: 600px;
+    width: 100%;
+}
+
+.compass-card {
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1px solid var(--glass-border);
+    cursor: pointer;
+    transition: all var(--transition);
+    background: var(--bg-elevated);
+}
+
+.compass-card:hover {
+    border-color: var(--glass-border-hover);
+    transform: translateY(-2px);
+}
+
+.compass-card img {
+    width: 100%;
+    aspect-ratio: 16/9;
+    object-fit: cover;
+    display: block;
+}
+
+.compass-label {
+    padding: 8px 12px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-dim);
+}
+
+.compass-north .compass-label { color: var(--c-style); }
+.compass-east .compass-label { color: var(--c-vibe); }
+.compass-south .compass-label { color: var(--c-emotion); }
+.compass-west .compass-label { color: var(--c-scene); }
+
+/* ===== Observatory (L'Observatoire) ===== */
+.observatory-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 16px;
+    padding: 24px;
+}
+
+.obs-panel {
+    background: var(--bg-elevated);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius);
+    padding: 20px;
+}
+
+.obs-panel-title {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+}
+
+.obs-panel-content {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.obs-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+}
+
+.obs-bar-label {
+    color: var(--text);
+    min-width: 100px;
+    font-size: 11px;
+}
+
+.obs-bar {
+    height: 8px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 4px;
+    flex: 1;
+    max-width: 200px;
+}
+
+.obs-bar-style { background: rgba(149, 117, 205, 0.3); }
+
+.obs-bar-count {
+    font-size: 10px;
+    color: var(--text-muted);
+    min-width: 30px;
+    text-align: right;
+}
+
+.obs-histogram {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 100px;
+}
+
+.obs-hist-bar {
+    flex: 1;
+    background: rgba(255,255,255,0.12);
+    border-radius: 2px 2px 0 0;
+    min-height: 1px;
+    transition: background var(--transition);
+}
+
+.obs-hist-bar:hover { background: rgba(255,255,255,0.3); }
+
+.obs-inline-count {
+    font-size: 9px;
+    color: var(--text-muted);
+    margin-left: 2px;
+}
+
+.obs-outlier-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+}
+
+.obs-outlier-thumb {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-sm);
+    object-fit: cover;
+}
+
+.obs-outlier-label {
+    font-size: 11px;
+    color: var(--text-dim);
+}
+
+/* ===== Map (La Carte) ===== */
+.map-container {
+    padding: 24px;
+}
+
+.map-header {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+}
+
+.map-canvas {
+    width: 100%;
+    max-width: 1200px;
+    border-radius: var(--radius);
+    border: 1px solid var(--glass-border);
+    cursor: crosshair;
+}
+
+.map-strip {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+}
+
+.map-strip-card {
+    flex-shrink: 0;
+    width: 120px;
+    height: 80px;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    border: 1px solid var(--glass-border);
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.map-strip-card:hover { border-color: var(--glass-border-hover); }
+
+.map-strip-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* ===== Typewriter (La Machine à Écrire) ===== */
+.typewriter-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 48px 24px;
+}
+
+.typewriter-input-area {
+    display: flex;
+    align-items: center;
+    margin-bottom: 32px;
+}
+
+.typewriter-input {
+    flex: 1;
+    font-family: var(--font);
+    font-size: 24px;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--glass-border);
+    color: var(--text);
+    padding: 12px 0;
+    outline: none;
+    transition: border-color var(--transition);
+}
+
+.typewriter-input:focus {
+    border-color: var(--text-dim);
+}
+
+.typewriter-input::placeholder {
+    color: var(--text-muted);
+}
+
+.typewriter-cursor {
+    width: 2px;
+    height: 24px;
+    background: var(--text);
+    animation: blink 1s step-end infinite;
+    margin-left: 4px;
+}
+
+@keyframes blink {
+    50% { opacity: 0; }
+}
+
+.typewriter-count {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+}
+
+.typewriter-empty {
+    font-size: 13px;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 48px 0;
+}
+
+.typewriter-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.typewriter-card {
+    flex: 1 0 200px;
+    max-width: 300px;
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1px solid var(--glass-border);
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.typewriter-card:hover {
+    border-color: var(--glass-border-hover);
+    transform: translateY(-2px);
+}
+
+.typewriter-card img {
+    width: 100%;
+    aspect-ratio: 3/2;
+    object-fit: cover;
+    display: block;
+}
+
+.typewriter-card-caption {
+    padding: 8px 12px;
+    font-size: 10px;
+    color: var(--text-dim);
+    line-height: 1.4;
+}
+
+/* ===== Pendulum (Le Pendule) ===== */
+.pendulum-container {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 48px 24px;
+    text-align: center;
+}
+
+.pendulum-question {
+    font-size: 16px;
+    color: var(--text-dim);
+    margin-bottom: 24px;
+}
+
+.pendulum-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 32px;
+}
+
+.pendulum-choice {
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 2px solid var(--glass-border);
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.pendulum-choice:hover {
+    border-color: var(--text-dim);
+    transform: scale(1.02);
+}
+
+.pendulum-choice img {
+    width: 100%;
+    aspect-ratio: 3/2;
+    object-fit: cover;
+    display: block;
 }
 
 /* ===== Lightbox ===== */
@@ -580,9 +1564,7 @@ body {
     transition: color var(--transition);
 }
 
-.lightbox-close:hover {
-    color: var(--text);
-}
+.lightbox-close:hover { color: var(--text); }
 
 .lightbox-img {
     max-width: 90vw;
@@ -645,22 +1627,10 @@ body {
 }
 
 /* ===== Scrollbar ===== */
-::-webkit-scrollbar {
-    width: 6px;
-}
-
-::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-    background: rgba(255,255,255,0.1);
-    border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: rgba(255,255,255,0.2);
-}
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
 
 /* ===== Responsive ===== */
 @media (max-width: 768px) {
@@ -670,11 +1640,21 @@ body {
         padding: 10px 16px;
     }
 
-    .drift-neighbors {
-        grid-template-columns: repeat(2, 1fr);
-    }
+    .launcher-title { font-size: 32px; }
+    .launcher-grid { grid-template-columns: 1fr; }
 
-    .grid-container {
-        padding: 8px;
-    }
+    .drift-neighbors { grid-template-columns: repeat(2, 1fr); }
+    .grid-container { padding: 8px; }
+
+    .game-pair { grid-template-columns: 1fr; }
+    .game-answers { grid-template-columns: 1fr; }
+
+    .darkroom-container { flex-direction: column; }
+    .darkroom-console { width: 100%; border-left: none; border-top: 1px solid var(--glass-border); }
+
+    .compass-axes { grid-template-columns: 1fr; }
+
+    .observatory-container { grid-template-columns: 1fr; }
+
+    .pendulum-pair { gap: 8px; }
 }

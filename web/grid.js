@@ -96,12 +96,14 @@ function renderRow(container, items, height, gap) {
 
         for (const vibe of (photo.vibes || []).slice(0, 3)) {
             tagRow.appendChild(createGlassTag(vibe, {
+                category: 'vibe',
                 active: gridFilters.has('vibe:' + vibe),
                 onClick: () => toggleFilter('vibe', vibe),
             }));
         }
         if (photo.grading) {
             tagRow.appendChild(createGlassTag(photo.grading, {
+                category: 'grading',
                 active: gridFilters.has('grading:' + photo.grading),
                 onClick: () => toggleFilter('grading', photo.grading),
             }));
@@ -178,6 +180,7 @@ function updateFilterBar() {
         for (const f of gridFilters) {
             const [dim, val] = f.split(':');
             activeSection.appendChild(createGlassTag(val, {
+                category: dim,
                 active: true,
                 onClick: () => toggleFilter(dim, val),
             }));
@@ -213,6 +216,7 @@ function updateFilterBar() {
 
         for (const val of group.values) {
             bar.appendChild(createGlassTag(val, {
+                category: group.label,
                 onClick: () => toggleFilter(group.label, val),
             }));
         }

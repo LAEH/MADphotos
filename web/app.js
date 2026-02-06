@@ -3,16 +3,35 @@
 const APP = {
     data: null,
     photoMap: {},
-    currentView: 'grille',
-    activeFilters: [],
+    currentView: 'launcher',
+    faces: null,
+    gameRounds: null,
+    streamSequence: null,
 };
+
+/* Experience registry */
+const EXPERIENCES = [
+    { id: 'grille',      name: 'La Grille',       init: 'initGrille' },
+    { id: 'bento',       name: 'Le Bento',        init: 'initBento' },
+    { id: 'similarity',  name: 'La Similarit\u00e9', init: 'initSimilarity' },
+    { id: 'derive',      name: 'La D\u00e9rive',  init: 'initDerive' },
+    { id: 'couleurs',    name: 'Les Couleurs',    init: 'initCouleurs' },
+    { id: 'game',        name: 'Le Jeu',          init: 'initGame' },
+    { id: 'darkroom',    name: 'Chambre Noire',   init: 'initDarkroom' },
+    { id: 'stream',      name: 'Le Flot',         init: 'initStream' },
+    { id: 'faces',       name: 'Les Visages',     init: 'initFaces' },
+    { id: 'compass',     name: 'La Boussole',     init: 'initCompass' },
+    { id: 'observatory', name: 'L\'Observatoire', init: 'initObservatory' },
+    { id: 'map',         name: 'La Carte',        init: 'initMap' },
+    { id: 'typewriter',  name: 'Machine \u00c0 \u00c9crire', init: 'initTypewriter' },
+    { id: 'pendulum',    name: 'Le Pendule',      init: 'initPendulum' },
+];
 
 /* ===== Data Loading ===== */
 async function loadData() {
     const resp = await fetch('/data/photos.json');
     APP.data = await resp.json();
 
-    // Build lookup map
     for (const photo of APP.data.photos) {
         APP.photoMap[photo.id] = photo;
     }
@@ -21,38 +40,100 @@ async function loadData() {
     return APP.data;
 }
 
+async function loadFaces() {
+    if (APP.faces) return APP.faces;
+    try {
+        const resp = await fetch('/data/faces.json');
+        APP.faces = await resp.json();
+    } catch (e) {
+        APP.faces = {};
+    }
+    return APP.faces;
+}
+
+async function loadGameRounds() {
+    if (APP.gameRounds) return APP.gameRounds;
+    try {
+        const resp = await fetch('/data/game_rounds.json');
+        APP.gameRounds = await resp.json();
+    } catch (e) {
+        APP.gameRounds = [];
+    }
+    return APP.gameRounds;
+}
+
+async function loadStreamSequence() {
+    if (APP.streamSequence) return APP.streamSequence;
+    try {
+        const resp = await fetch('/data/stream_sequence.json');
+        APP.streamSequence = await resp.json();
+    } catch (e) {
+        APP.streamSequence = [];
+    }
+    return APP.streamSequence;
+}
+
 /* ===== Router ===== */
 function initRouter() {
-    const tabs = document.querySelectorAll('.tab');
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            const view = tab.dataset.view;
-            switchView(view);
+    // Logo goes home
+    document.getElementById('logo-home').addEventListener('click', (e) => {
+        e.preventDefault();
+        switchView('launcher');
+    });
+
+    // Experience cards on launcher
+    document.querySelectorAll('.exp-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const view = card.dataset.view;
+            if (view) switchView(view);
         });
     });
 
     // Hash routing
     const hash = location.hash.slice(1);
-    if (['grille', 'derive', 'couleurs'].includes(hash)) {
+    const validViews = ['launcher', ...EXPERIENCES.map(e => e.id)];
+    if (validViews.includes(hash)) {
         switchView(hash);
     }
 }
 
 function switchView(name) {
     APP.currentView = name;
-    location.hash = name;
+    location.hash = name === 'launcher' ? '' : name;
 
-    document.querySelectorAll('.tab').forEach(t => {
-        t.classList.toggle('active', t.dataset.view === name);
-    });
+    // Update tabs
+    const tabsContainer = document.getElementById('tabs');
+    if (name === 'launcher') {
+        tabsContainer.innerHTML = '';
+    } else {
+        // Show a back button + current experience name
+        const exp = EXPERIENCES.find(e => e.id === name);
+        tabsContainer.innerHTML = '';
+
+        const backBtn = document.createElement('button');
+        backBtn.className = 'tab';
+        backBtn.textContent = 'All';
+        backBtn.addEventListener('click', () => switchView('launcher'));
+        tabsContainer.appendChild(backBtn);
+
+        if (exp) {
+            const current = document.createElement('button');
+            current.className = 'tab active';
+            current.textContent = exp.name;
+            tabsContainer.appendChild(current);
+        }
+    }
+
+    // Toggle views
     document.querySelectorAll('.view').forEach(v => {
         v.classList.toggle('active', v.id === 'view-' + name);
     });
 
-    // Trigger view activation
-    if (name === 'grille' && typeof initGrille === 'function') initGrille();
-    if (name === 'derive' && typeof initDerive === 'function') initDerive();
-    if (name === 'couleurs' && typeof initCouleurs === 'function') initCouleurs();
+    // Trigger init
+    const exp = EXPERIENCES.find(e => e.id === name);
+    if (exp && typeof window[exp.init] === 'function') {
+        window[exp.init]();
+    }
 }
 
 /* ===== Glass Tag Component ===== */
@@ -60,6 +141,7 @@ function createGlassTag(text, opts = {}) {
     const tag = document.createElement('span');
     tag.className = 'glass-tag';
     if (opts.active) tag.classList.add('active');
+    if (opts.category) tag.classList.add('tag-' + opts.category);
 
     if (opts.color) {
         const dot = document.createElement('span');
@@ -68,7 +150,9 @@ function createGlassTag(text, opts = {}) {
         tag.appendChild(dot);
     }
 
-    tag.appendChild(document.createTextNode(text));
+    // Capitalize first letter of each word
+    const displayText = titleCase(text);
+    tag.appendChild(document.createTextNode(displayText));
 
     if (opts.onClick) {
         tag.addEventListener('click', (e) => {
@@ -78,6 +162,11 @@ function createGlassTag(text, opts = {}) {
     }
 
     return tag;
+}
+
+function titleCase(str) {
+    if (!str) return '';
+    return str.replace(/\b\w/g, c => c.toUpperCase());
 }
 
 /* ===== Palette Dots ===== */
@@ -121,15 +210,18 @@ function openLightbox(photo) {
     const palette = lb.querySelector('.lightbox-palette');
 
     img.src = photo.display || photo.mobile || photo.thumb;
-    img.alt = photo.alt;
-    alt.textContent = photo.alt;
+    img.alt = photo.alt || photo.caption || '';
+    alt.textContent = photo.caption || photo.alt || '';
 
     tags.innerHTML = '';
     for (const v of (photo.vibes || [])) {
-        tags.appendChild(createGlassTag(v));
+        tags.appendChild(createGlassTag(v, { category: 'vibe' }));
     }
-    if (photo.grading) tags.appendChild(createGlassTag(photo.grading));
-    if (photo.time) tags.appendChild(createGlassTag(photo.time));
+    if (photo.grading) tags.appendChild(createGlassTag(photo.grading, { category: 'grading' }));
+    if (photo.time) tags.appendChild(createGlassTag(photo.time, { category: 'time' }));
+    if (photo.scene) tags.appendChild(createGlassTag(photo.scene, { category: 'scene' }));
+    if (photo.emotion) tags.appendChild(createGlassTag(photo.emotion, { category: 'emotion' }));
+    if (photo.camera) tags.appendChild(createGlassTag(photo.camera, { category: 'camera' }));
 
     palette.innerHTML = '';
     palette.appendChild(createPaletteDots(photo.palette, 20));
@@ -139,17 +231,13 @@ function openLightbox(photo) {
 
 /* ===== Progressive Image Loading ===== */
 function loadProgressive(img, photo, targetTier) {
-    // Start with micro (tiny, instant), then load target
     if (photo.micro) {
         img.src = photo.micro;
     }
-
     const target = photo[targetTier] || photo.thumb;
     if (target && target !== photo.micro) {
         const full = new Image();
-        full.onload = () => {
-            img.src = target;
-        };
+        full.onload = () => { img.src = target; };
         full.src = target;
     }
 }
@@ -157,9 +245,8 @@ function loadProgressive(img, photo, targetTier) {
 /* ===== Lazy Loading with IntersectionObserver ===== */
 function createLazyImg(photo, targetTier) {
     const img = document.createElement('img');
-    img.alt = photo.alt || '';
+    img.alt = photo.alt || photo.caption || '';
     img.loading = 'lazy';
-    // Set micro as immediate placeholder
     if (photo.micro) {
         img.src = photo.micro;
     }
@@ -183,17 +270,32 @@ const lazyObserver = new IntersectionObserver((entries) => {
     }
 }, { rootMargin: '200px' });
 
+/* ===== Utility: Random from Array ===== */
+function randomFrom(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function shuffleArray(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+}
+
 /* ===== Init ===== */
 async function init() {
-    // Show loading
     document.getElementById('view-grille').innerHTML = '<div class="loading">Loading photographs</div>';
-
     await loadData();
     initRouter();
     initLightbox();
 
-    // Start with the active view
-    switchView(APP.currentView);
+    // Start with hash or launcher
+    const hash = location.hash.slice(1);
+    const validViews = ['launcher', ...EXPERIENCES.map(e => e.id)];
+    if (hash && validViews.includes(hash)) {
+        switchView(hash);
+    }
 }
 
 document.addEventListener('DOMContentLoaded', init);
