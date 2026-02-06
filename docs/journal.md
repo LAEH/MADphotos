@@ -670,3 +670,17 @@ Rewrote the blind test page for a proper A/B/C comparison. New design:
 - `prep_blind_test.py` script handles diverse sampling across cameras and styles
 
 Stopped OCR process temporarily (12+ hours ETA, 0.2/s) to reduce DB contention — was causing lock failures across all processes. Captions and emotions continue running.
+
+### 18:30 — V2 Enhancement Complete: 9,276 Images, Zero Errors
+
+Enhancement Engine V2 completed in 427.7 seconds (21.7 images/s). All 9,276 images processed with zero errors. The signal-aware recipes work — each image now has a second enhanced version that was computed using depth, scene, style, Gemini vibes, and face detection data. Output lives in `rendered/enhanced_v2/jpeg/`.
+
+Blind test generated: 100 diverse images sampled across all 6 cameras (41 M8, 33 Osmo Pro, 12 Monochrom, 12 MP, 1 G12, 1 Memo). Each row has 3 versions (original, v1, v2) in random order — all 6 permutations represented. The moment of truth: http://localhost:8080/blind-test
+
+### 18:35 — Hero Landing on State Dashboard
+
+Added a hero section to the State dashboard. Full-bleed brightness-sorted mosaic (9,011 tiny images) as background with dark gradient overlay. Title: "MADphotos / 9,011 photographs". Mission statement explains the per-image intelligence philosophy. Responsive down to 440px. Hero mosaic resized to 1200px (513KB) for GitHub Pages. Pushed and deployed.
+
+### 18:40 — Git Push: The Big One
+
+37 files, 16,564 insertions. The full pipeline code, all 3 apps (See/Show/State), 16 analysis signals, dual enhancement engines, blind test system, web gallery, GitHub Pages deployment workflow. OCR restarted after the v2 enhancement freed up DB locks.
