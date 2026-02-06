@@ -911,31 +911,42 @@ def run_emotions(conn, limit=0, force=False, shard=None):
             faces = face_data.get(item["uuid"], [])
 
             for face in faces:
-                # Crop face region with padding
-                x, y, w, h = face["x"], face["y"], face["w"], face["h"]
-                pad = int(max(w, h) * 0.2)
-                left = max(0, x - pad)
-                top = max(0, y - pad)
-                right = min(img.width, x + w + pad)
-                bottom = min(img.height, y + h + pad)
-                face_crop = img.crop((left, top, right, bottom))
+                try:
+                    # Crop face region with padding
+                    # Coordinates are normalized (0-1) — convert to pixels
+                    fx = face["x"] * img.width
+                    fy = face["y"] * img.height
+                    fw = face["w"] * img.width
+                    fh = face["h"] * img.height
+                    pad = int(max(fw, fh) * 0.2)
+                    left = max(0, int(fx - pad))
+                    top = max(0, int(fy - pad))
+                    right = min(img.width, int(fx + fw + pad))
+                    bottom = min(img.height, int(fy + fh + pad))
+                    face_crop = img.crop((left, top, right, bottom))
 
-                # Classify emotion
-                with torch.no_grad():
-                    preds = classifier(face_crop)
+                    # Skip face crops that are too small for the classifier
+                    if face_crop.width < 10 or face_crop.height < 10:
+                        continue
 
-                scores = {p["label"]: round(p["score"] * 100, 2) for p in preds}
-                dominant = preds[0]["label"] if preds else "unknown"
-                confidence = preds[0]["score"] if preds else 0.0
+                    # Classify emotion
+                    with torch.no_grad():
+                        preds = classifier(face_crop)
 
-                _db_retry(conn, """
-                    INSERT INTO facial_emotions
-                        (image_uuid, face_index, dominant_emotion,
-                         emotion_scores, confidence, analyzed_at)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                """, (item["uuid"], face["face_index"], dominant,
-                      json.dumps(scores), round(confidence, 3), now_str))
-                total_emotions += 1
+                    scores = {p["label"]: round(p["score"] * 100, 2) for p in preds}
+                    dominant = preds[0]["label"] if preds else "unknown"
+                    confidence = preds[0]["score"] if preds else 0.0
+
+                    _db_retry(conn, """
+                        INSERT INTO facial_emotions
+                            (image_uuid, face_index, dominant_emotion,
+                             emotion_scores, confidence, analyzed_at)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    """, (item["uuid"], face["face_index"], dominant,
+                          json.dumps(scores), round(confidence, 3), now_str))
+                    total_emotions += 1
+                except Exception as e:
+                    print(f"    Error {item['uuid'][:8]} face {face['face_index']}: {e}", file=sys.stderr)
 
             completed += 1
         except Exception as e:

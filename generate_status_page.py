@@ -2555,6 +2555,7 @@ def render_instructions():
   .inst-card th, .inst-card td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--border); }
   .inst-card th { font-weight: 600; color: var(--fg); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
   .inst-card code { font-family: var(--font-mono); font-size: 0.88em; color: var(--apple-blue); }
+  .inst-card td.done { color: var(--apple-green); font-weight: 600; }
   .inst-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
   @media (max-width: 900px) { .inst-grid { grid-template-columns: 1fr; } }
   .inst-pill {
@@ -2618,9 +2619,9 @@ def render_instructions():
 <div class="inst-card inst-status">
   <span class="inst-pill inst-pill-green">Status</span>
   <h2>What&rsquo;s Done vs. What&rsquo;s Next</h2>
-  <p><strong>Done:</strong> Full pipeline. 16/16 signals extracted for 9,011 images. Enhancement v1 complete. GCS hosting live. Dashboard + Journal. MADCurator with 55 fields. Vector search (DINOv2 + SigLIP + CLIP). Web gallery with 14 experiences.</p>
-  <p><strong>In progress:</strong> Gemini analysis (6,203/9,011). 78 BLIP captions need retry. 309 faces without emotion labels.</p>
-  <p><strong>Next:</strong> Curate in MADCurator. Precompute DINOv2 structural neighbors. SigLIP text&rarr;image API. Location intelligence. Juicy cartoon experiences with Imagen variants.</p>
+  <p><strong>Done (12/18):</strong> EXIF. Pixel Analysis. Dominant Colors. Face Detection. Object Detection. Perceptual Hashes. Vectors (DINOv2+SigLIP+CLIP). Aesthetic Scoring. Depth Estimation. Scene Classification. Style Classification. Enhancement Plans. &mdash; GCS hosting live. Dashboard + Journal. MADCurator. 14 web experiences.</p>
+  <p><strong>In progress (6/18):</strong> Gemini analysis (6,211/9,011 &mdash; 69%). OCR (2,796/9,011 &mdash; 31%). BLIP Captions (9,006/9,011 &mdash; 5 retrying). Facial Emotions (re-running with fixed coordinate conversion).</p>
+  <p><strong>Next:</strong> Finish all signals to 100%. Curate in MADCurator. Precompute DINOv2 visual neighbors for Drift. SigLIP text&rarr;image API. Location intelligence. Juicy cartoon experiences with Imagen variants.</p>
 </div>
 
 <!-- ═══ CAMERAS + ARCHITECTURE ═══ -->
@@ -2735,26 +2736,28 @@ def render_instructions():
 <!-- ═══ SIGNAL INVENTORY ═══ -->
 <div class="inst-card">
   <span class="inst-pill inst-pill-teal">Signals</span>
-  <h2>Signal Inventory &mdash; 16 Signals per Image</h2>
+  <h2>Signal Inventory &mdash; 18 Signals per Image</h2>
   <table>
     <thead><tr><th>Signal</th><th>Source</th><th>Status</th><th>Key Fields</th></tr></thead>
     <tbody>
-      <tr><td>EXIF</td><td>Pillow</td><td>9,011</td><td>Camera, lens, focal, aperture, shutter, ISO, GPS</td></tr>
-      <tr><td>Pixel Analysis</td><td>NumPy/OpenCV</td><td>9,011</td><td>Brightness, saturation, contrast, noise, WB shifts</td></tr>
-      <tr><td>Dominant Colors</td><td>K-means (LAB)</td><td>9,011</td><td>5 clusters: hex, RGB, LAB, percentage</td></tr>
-      <tr><td>Faces</td><td>YuNet</td><td>9,011</td><td>Boxes, landmarks, confidence, area %</td></tr>
-      <tr><td>Objects</td><td>YOLOv8n</td><td>9,011</td><td>80 COCO classes, boxes, confidence</td></tr>
-      <tr><td>Hashes</td><td>imagehash</td><td>9,011</td><td>pHash, aHash, dHash, wHash, blur, sharpness</td></tr>
-      <tr><td>Vectors</td><td>DINOv2+SigLIP+CLIP</td><td>9,011</td><td>768d+768d+512d = 2,048 dims</td></tr>
-      <tr><td>Gemini</td><td>Gemini 2.5 Pro</td><td>6,203</td><td>Alt, vibes, exposure, composition, grading, edit prompt</td></tr>
-      <tr><td>Aesthetic</td><td>LAION (CLIP MLP)</td><td>9,011</td><td>Score 1&ndash;10 (91% &ldquo;excellent&rdquo; &mdash; needs better model)</td></tr>
-      <tr><td>Depth</td><td>Depth Anything v2</td><td>9,011</td><td>Near/mid/far %, complexity bucket</td></tr>
-      <tr><td>Scenes</td><td>Places365</td><td>9,011</td><td>Top 3 labels, indoor/outdoor</td></tr>
-      <tr><td>Style</td><td>Derived</td><td>9,011</td><td>street, portrait, landscape, macro, etc.</td></tr>
-      <tr><td>OCR</td><td>EasyOCR</td><td>9,011</td><td>Text regions, language, confidence</td></tr>
-      <tr><td>Captions</td><td>BLIP (Salesforce)</td><td>8,933</td><td>Natural language (78 retrying)</td></tr>
-      <tr><td>Emotions</td><td>ViT expression</td><td>1,367 faces</td><td>7-class scores per face</td></tr>
-      <tr><td>Enhancement</td><td>Camera engine</td><td>9,011</td><td>WB, gamma, shadows, contrast, saturation, sharpening</td></tr>
+      <tr><td>EXIF</td><td>Pillow</td><td class="done">9,011 &check;</td><td>Camera, lens, focal, aperture, shutter, ISO, GPS</td></tr>
+      <tr><td>Pixel Analysis</td><td>NumPy/OpenCV</td><td class="done">9,011 &check;</td><td>Brightness, saturation, contrast, noise, WB shifts</td></tr>
+      <tr><td>Dominant Colors</td><td>K-means (LAB)</td><td class="done">9,011 &check;</td><td>5 clusters: hex, RGB, LAB, percentage</td></tr>
+      <tr><td>Faces</td><td>YuNet</td><td class="done">1,676 images &check;</td><td>3,187 faces: boxes, landmarks, confidence, area %</td></tr>
+      <tr><td>Objects</td><td>YOLOv8n</td><td class="done">5,363 images &check;</td><td>14,534 detections, 80 COCO classes</td></tr>
+      <tr><td>Hashes</td><td>imagehash</td><td class="done">9,011 &check;</td><td>pHash, aHash, dHash, wHash, blur, sharpness</td></tr>
+      <tr><td>Vectors</td><td>DINOv2+SigLIP+CLIP</td><td class="done">9,011 &check;</td><td>768d+768d+512d = 2,048 dims (LanceDB)</td></tr>
+      <tr><td>Gemini</td><td>Gemini 2.5 Pro</td><td>6,211/9,011</td><td>Alt, vibes, exposure, composition, grading, edit prompt</td></tr>
+      <tr><td>Aesthetic</td><td>LAION (CLIP MLP)</td><td class="done">9,011 &check;</td><td>Score 1&ndash;10</td></tr>
+      <tr><td>Depth</td><td>Depth Anything v2</td><td class="done">9,011 &check;</td><td>Near/mid/far %, complexity bucket</td></tr>
+      <tr><td>Scenes</td><td>Places365</td><td class="done">9,011 &check;</td><td>Top 3 labels, indoor/outdoor</td></tr>
+      <tr><td>Style</td><td>Derived</td><td class="done">9,011 &check;</td><td>street, portrait, landscape, macro, etc.</td></tr>
+      <tr><td>OCR</td><td>EasyOCR</td><td>2,796/9,011</td><td>Text regions, language, confidence (3 shards running)</td></tr>
+      <tr><td>Captions</td><td>BLIP (Salesforce)</td><td>9,006/9,011</td><td>Natural language (5 retrying)</td></tr>
+      <tr><td>Emotions</td><td>ViT expression</td><td>re-running</td><td>7-class scores per face (fixed coord bug)</td></tr>
+      <tr><td>Enhancement</td><td>Camera engine</td><td class="done">9,011 &check;</td><td>WB, gamma, shadows, contrast, saturation, sharpening</td></tr>
+      <tr><td>Enhancement v2</td><td>Camera engine v2</td><td class="done">9,011 &check;</td><td>Updated parameters</td></tr>
+      <tr><td>AI Variants</td><td>Imagen 3</td><td>216/9,011</td><td>gemini_edit, pro_edit, nano_feel, cartoon</td></tr>
     </tbody>
   </table>
 </div>
