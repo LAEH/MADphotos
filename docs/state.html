@@ -466,25 +466,21 @@
     font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700;
     letter-spacing: var(--tracking-tight); margin-bottom: var(--space-1);
   }
-  .el-section-sub {
-    font-size: var(--text-sm); color: var(--muted); margin-bottom: var(--space-3);
-  }
+  .el-section-sub { display: none; }
   .el-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: 6px;
   }
   .el-card.status-done {
-    border-color: var(--apple-green);
-    border-left: 3px solid var(--apple-green);
+    border-color: var(--border);
   }
   .el-card.status-active {
     border-color: var(--apple-blue);
-    border-left: 3px solid var(--apple-blue);
     background: color-mix(in srgb, var(--apple-blue) 4%, var(--card-bg));
   }
   .el-card.status-pending {
-    opacity: 0.5;
+    opacity: 0.35;
   }
   .el-card {
     background: var(--card-bg);
@@ -524,7 +520,7 @@
     background: var(--fg);
     transition: width 1s var(--ease-default);
   }
-  .el-card.status-done .el-fill { background: var(--apple-green); }
+  .el-card.status-done .el-fill { background: var(--muted); }
   .el-card.status-active .el-fill { background: var(--apple-blue); }
   .el-card .el-pct { display: none; }
   .el-badge {
@@ -685,75 +681,74 @@
   }
   .tag .tag-label { font-weight: 500; color: var(--fg-secondary); text-transform: capitalize; }
   .tag .tag-count {
-    font-weight: 400;
+    font-weight: 700;
     font-size: 10px;
     font-variant-numeric: tabular-nums;
+    color: var(--fg);
   }
-  /* Category-themed tags — icon, label, AND count all tinted */
-  .tag-cat-vibe { border-color: color-mix(in srgb, var(--apple-orange) 30%, transparent); }
-  .tag-cat-vibe .tag-label { color: var(--apple-orange); }
-  .tag-cat-vibe .tag-icon svg { color: var(--apple-orange); }
-  .tag-cat-vibe .tag-count { color: color-mix(in srgb, var(--apple-orange) 60%, var(--muted)); }
-
-  .tag-cat-grading { border-color: color-mix(in srgb, var(--apple-blue) 30%, transparent); }
-  .tag-cat-grading .tag-label { color: var(--apple-blue); }
-  .tag-cat-grading .tag-icon svg { color: var(--apple-blue); }
-  .tag-cat-grading .tag-count { color: color-mix(in srgb, var(--apple-blue) 60%, var(--muted)); }
-
-  .tag-cat-time { border-color: color-mix(in srgb, #d4a017 30%, transparent); }
-  .tag-cat-time .tag-label { color: #d4a017; }
-  .tag-cat-time .tag-icon svg { color: #d4a017; }
-  .tag-cat-time .tag-count { color: color-mix(in srgb, #d4a017 60%, var(--muted)); }
-
-  .tag-cat-setting { border-color: color-mix(in srgb, var(--apple-green) 30%, transparent); }
-  .tag-cat-setting .tag-label { color: var(--apple-green); }
-  .tag-cat-setting .tag-icon svg { color: var(--apple-green); }
-  .tag-cat-setting .tag-count { color: color-mix(in srgb, var(--apple-green) 60%, var(--muted)); }
-
-  .tag-cat-exposure { border-color: color-mix(in srgb, var(--apple-teal) 25%, transparent); }
-  .tag-cat-exposure .tag-label { color: var(--apple-teal); }
-  .tag-cat-exposure .tag-icon svg { color: var(--apple-teal); }
-  .tag-cat-exposure .tag-count { color: color-mix(in srgb, var(--apple-teal) 60%, var(--muted)); }
-
-  .tag-cat-composition { border-color: color-mix(in srgb, var(--apple-purple) 25%, transparent); }
-  .tag-cat-composition .tag-label { color: var(--apple-purple); }
-  .tag-cat-composition .tag-icon svg { color: var(--apple-purple); }
-  .tag-cat-composition .tag-count { color: color-mix(in srgb, var(--apple-purple) 60%, var(--muted)); }
-
-  .tag-cat-camera { border-color: color-mix(in srgb, #98989d 30%, transparent); }
-  .tag-cat-camera .tag-label { color: #98989d; }
-  .tag-cat-camera .tag-icon svg { color: #98989d; }
-  .tag-cat-camera .tag-count { color: color-mix(in srgb, #98989d 60%, var(--muted)); }
-
-  .tag-cat-depth { border-color: color-mix(in srgb, var(--apple-indigo) 30%, transparent); }
-  .tag-cat-depth .tag-label { color: var(--apple-indigo); }
-  .tag-cat-depth .tag-icon svg { color: var(--apple-indigo); }
-  .tag-cat-depth .tag-count { color: color-mix(in srgb, var(--apple-indigo) 60%, var(--muted)); }
-
-  .tag-cat-scene { border-color: color-mix(in srgb, var(--apple-teal) 25%, transparent); }
-  .tag-cat-scene .tag-label { color: var(--apple-teal); }
+  .signal-group {
+    margin-bottom: var(--space-6);
+  }
+  .signal-group:last-child { margin-bottom: 0; }
+  .signal-group-label {
+    font-size: var(--text-lg);
+    font-weight: 700;
+    color: var(--fg);
+    margin-bottom: var(--space-3);
+    padding-bottom: var(--space-1);
+    border-bottom: 1px solid var(--border);
+  }
+  .signal-flow {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .signal-sub {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+  }
+  .signal-sub .tag-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    margin: 0;
+    flex: 1;
+    min-width: 0;
+  }
+  .signal-sub-label {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+    min-width: 100px;
+    flex-shrink: 0;
+  }
+  /* Only icon gets group color — border stays default, count stays black */
   .tag-cat-scene .tag-icon svg { color: var(--apple-teal); }
-  .tag-cat-scene .tag-count { color: color-mix(in srgb, var(--apple-teal) 60%, var(--muted)); }
+  .tag-cat-scene-env .tag-icon svg { color: color-mix(in srgb, var(--apple-teal) 70%, var(--apple-green)); }
+  .tag-cat-scene-set .tag-icon svg { color: color-mix(in srgb, var(--apple-teal) 60%, var(--apple-blue)); }
+  .tag-cat-scene-obj .tag-icon svg { color: color-mix(in srgb, var(--apple-teal) 50%, var(--apple-green)); }
+  .tag-cat-scene-loc .tag-icon svg { color: color-mix(in srgb, var(--apple-teal) 40%, var(--apple-blue)); }
 
-  .tag-cat-style { border-color: color-mix(in srgb, var(--apple-purple) 25%, transparent); }
-  .tag-cat-style .tag-label { color: var(--apple-purple); }
   .tag-cat-style .tag-icon svg { color: var(--apple-purple); }
-  .tag-cat-style .tag-count { color: color-mix(in srgb, var(--apple-purple) 60%, var(--muted)); }
+  .tag-cat-style-emo .tag-icon svg { color: var(--apple-pink); }
+  .tag-cat-style-grad .tag-icon svg { color: color-mix(in srgb, var(--apple-purple) 70%, var(--apple-blue)); }
+  .tag-cat-style-cls .tag-icon svg { color: color-mix(in srgb, var(--apple-purple) 60%, var(--apple-pink)); }
+  .tag-cat-style-cast .tag-icon svg { color: color-mix(in srgb, var(--apple-purple) 50%, var(--apple-orange)); }
+  .tag-cat-style-temp .tag-icon svg { color: color-mix(in srgb, var(--apple-purple) 40%, var(--apple-orange)); }
+  .tag-cat-style-exp .tag-icon svg { color: color-mix(in srgb, var(--apple-purple) 50%, var(--apple-blue)); }
 
-  .tag-cat-emotion { border-color: color-mix(in srgb, var(--apple-pink) 25%, transparent); }
-  .tag-cat-emotion .tag-label { color: var(--apple-pink); }
-  .tag-cat-emotion .tag-icon svg { color: var(--apple-pink); }
-  .tag-cat-emotion .tag-count { color: color-mix(in srgb, var(--apple-pink) 60%, var(--muted)); }
+  .tag-cat-depth .tag-icon svg { color: var(--apple-indigo); }
+  .tag-cat-depth-comp .tag-icon svg { color: color-mix(in srgb, var(--apple-indigo) 70%, var(--apple-blue)); }
+  .tag-cat-depth-ratio .tag-icon svg { color: color-mix(in srgb, var(--apple-indigo) 50%, var(--apple-teal)); }
 
-  .tag-cat-object { border-color: color-mix(in srgb, var(--apple-green) 25%, transparent); }
-  .tag-cat-object .tag-label { color: var(--apple-green); }
-  .tag-cat-object .tag-icon svg { color: var(--apple-green); }
-  .tag-cat-object .tag-count { color: color-mix(in srgb, var(--apple-green) 60%, var(--muted)); }
-
-  .tag-cat-enhance { border-color: color-mix(in srgb, var(--apple-blue) 25%, transparent); }
-  .tag-cat-enhance .tag-label { color: var(--apple-blue); }
-  .tag-cat-enhance .tag-icon svg { color: var(--apple-blue); }
-  .tag-cat-enhance .tag-count { color: color-mix(in srgb, var(--apple-blue) 60%, var(--muted)); }
+  .tag-cat-camera .tag-icon svg { color: #86868b; }
+  .tag-cat-camera-time .tag-icon svg { color: #a1a1a6; }
+  .tag-cat-camera-enh .tag-icon svg { color: #6e6e73; }
+  .tag-cat-camera-rot .tag-icon svg { color: #98989d; }
 
   /* Color dot inside tags (for dominant colors) */
   .tag .tag-cdot {
@@ -925,13 +920,13 @@
 <nav class="sidebar" id="sidebar">
   <div class="sb-title">MADphotos</div>
   <button class="sb-hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')" aria-label="Menu">&#9776;</button>
-  <a href="index.html">README</a>
   <a href="state.html" class="active">State</a>
   <a href="journal.html">Journal de Bord</a>
   <a href="instructions.html">System Instructions</a>
   <div class="sb-sep"></div>
   <div class="sb-group">Experiments</div>
-  <a href="drift.html">Drift</a>
+  <a href="drift.html">Similarity</a>
+  <a href="creative-drift.html">Drift</a>
   <a href="blind-test.html">Blind Test</a>
   <a href="mosaics.html">Mosaics</a>
   <div class="sb-sep"></div>
@@ -940,13 +935,9 @@
   </div>
   <div class="sb-collapsible sb-collapsed">
     <a href="#sec-gemini">Gemini Progress</a>
-    <a href="#sec-cameras">Camera Fleet</a>
-    <a href="#sec-advanced">Advanced Signals</a>
-    <a href="#sec-pixel">Pixel Analysis</a>
-    <a href="#sec-insights">Gemini Insights</a>
+    <a href="#sec-signals">Signals</a>
     <a href="#sec-vectors">Vector Store</a>
-    <a href="#sec-all-signals">All Signals</a>
-    <a href="#sec-categories">Categories</a>
+    <a href="#sec-cameras">Camera Fleet</a>
     <a href="#sec-tiers">Render Tiers</a>
     <a href="#sec-storage">Storage</a>
     <a href="#sec-runs">Pipeline Runs</a>
@@ -964,137 +955,68 @@
 
 <div class="state-hero">
   <h1>System State</h1>
-  <p class="subtitle" id="subtitle">As of February 6, 2026 at 22:38 UTC</p>
+  <p class="subtitle" id="subtitle">As of February 6, 2026 at 23:58 UTC</p>
   <p class="manifesto">We started with 9,011 raw images and zero metadata.<br>We will create the best UX UIs on photos.<br>Game ON.</p>
 </div>
 
-<!-- ═══ MODEL INTELLIGENCE GRID ═══ -->
-<div style="margin-bottom:var(--space-8);">
+<!-- ═══ MODELS ═══ -->
+<div class="section" style="margin-bottom:var(--space-8);">
+  <div class="section-title">Models</div>
   <div class="el-section-sub" id="el-sub">17 models &middot; every image</div>
   <div class="el-grid" id="el-grid"></div>
 </div>
 
-<!-- ═══ CAMERA FLEET ═══ -->
-<div class="section" id="sec-cameras">
-  <div class="section-title">Camera Fleet</div>
-  <div class="table-wrap"><table class="camera-table">
-    <thead>
-      <tr>
-        <th>Camera</th>
-        <th class="num">Images</th>
-        <th>Medium</th>
-        <th>Film</th>
-        <th class="num">Lum</th>
-        <th class="num">WB Red</th>
-        <th class="num">WB Blue</th>
-        <th class="num">Noise</th>
-        <th class="num">Shadow%</th>
-      </tr>
-    </thead>
-    <tbody id="tbl-cameras"></tbody>
-  </table></div>
-</div>
+<!-- ═══ SIGNALS — All tags grouped by meaning ═══ -->
+<div class="section" id="sec-signals">
+  <div class="section-title">Signals</div>
 
-<!-- Signal Extraction section removed — redundant with model cards above -->
-
-<!-- ═══ ADVANCED SIGNALS (NEW) ═══ -->
-<div class="section" id="sec-advanced">
-  <div class="section-title">Advanced Signals</div>
-
-  <div class="two-col">
-    <!-- Depth Estimation -->
-    <div>
-      <div class="subsection-title">Depth Estimation</div>
-      <div style="font-size:var(--text-sm);color:var(--muted);margin-bottom:var(--space-2);">
-        <span id="depth-count"></span> images analyzed
-      </div>
-      <div id="pills-depth-zones" class="tag-row"></div>
-      <div class="subsection-title" style="margin-top:var(--space-3);">Complexity</div>
-      <div id="pills-depth" class="tag-row"></div>
-    </div>
-
-    <!-- Scene Classification -->
-    <div>
-      <div class="subsection-title">Scene Classification</div>
-      <div style="font-size:var(--text-sm);color:var(--muted);margin-bottom:var(--space-2);">
-        <span id="scene-count"></span> images classified
-      </div>
-      <div id="pills-scenes" class="tag-row"></div>
-      <div class="subsection-title" style="margin-top:var(--space-3);">Environment</div>
-      <div id="pills-environments" class="tag-row"></div>
+  <!-- Scene & Setting -->
+  <div class="signal-group">
+    <div class="signal-group-label">Scene & Setting</div>
+    <div class="signal-flow">
+      <div class="signal-sub"><span class="signal-sub-label">Scene</span><div id="pills-scenes" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Environment</span><div id="pills-environments" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Setting</span><div id="pills-setting" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Objects</span><div id="pills-objects" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Location</span><div id="pills-locations" class="tag-row"></div></div>
     </div>
   </div>
 
-  <div class="two-col" style="margin-top:var(--space-6);">
-    <!-- Enhancement -->
-    <div>
-      <div class="subsection-title">Enhancement Engine</div>
-      <div style="font-size:var(--text-sm);color:var(--muted);margin-bottom:var(--space-2);">
-        <span id="enhance-count"></span> images enhanced
-      </div>
-      <div id="pills-enhance" class="tag-row"></div>
+  <!-- Visual Style -->
+  <div class="signal-group">
+    <div class="signal-group-label">Visual Style</div>
+    <div class="signal-flow">
+      <div class="signal-sub"><span class="signal-sub-label">Vibes</span><div id="pills-vibes" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Emotions</span><div id="pills-emotions" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Grading</span><div id="pills-grading" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Style</span><div id="pills-styles" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Colors</span><div id="pills-topcolors" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Color Cast</span><div id="pills-cast" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Temperature</span><div id="pills-temp" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Exposure</span><div id="pills-exposure" class="tag-row"></div></div>
     </div>
+  </div>
 
-    <!-- Locations -->
-    <div>
-      <div class="subsection-title">Locations</div>
-      <div style="font-size:var(--text-sm);color:var(--muted);margin-bottom:var(--space-2);">
-        <span id="location-count"></span> images with location &middot; <span id="exif-gps-count"></span> GPS from EXIF
-      </div>
-      <div id="pills-locations" class="tag-row"></div>
+  <!-- Structure -->
+  <div class="signal-group">
+    <div class="signal-group-label">Structure</div>
+    <div class="signal-flow">
+      <div class="signal-sub"><span class="signal-sub-label">Depth Zones</span><div id="pills-depth-zones" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Complexity</span><div id="pills-depth" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Composition</span><div id="pills-composition" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Aspect Ratio</span><div id="pills-ratios" class="tag-row"></div></div>
     </div>
   </div>
-</div>
 
-<!-- ═══ PIXEL ANALYSIS ═══ -->
-<div class="section" id="sec-pixel">
-  <div class="section-title">Pixel Analysis</div>
-  <div class="two-col">
-    <div>
-      <div class="subsection-title">Color Cast</div>
-      <div id="pills-cast" class="tag-row"></div>
+  <!-- Context -->
+  <div class="signal-group">
+    <div class="signal-group-label">Context</div>
+    <div class="signal-flow">
+      <div class="signal-sub"><span class="signal-sub-label">Camera</span><div id="pills-subs" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Time of Day</span><div id="pills-time" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Enhancement</span><div id="pills-enhance" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Rotation</span><div id="pills-rotate" class="tag-row"></div></div>
     </div>
-    <div>
-      <div class="subsection-title">Color Temperature</div>
-      <div id="pills-temp" class="tag-row"></div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ GEMINI INSIGHTS ═══ -->
-<div class="section" id="sec-insights">
-  <div class="section-title">Gemini Insights</div>
-  <div class="three-col">
-    <div>
-      <div class="subsection-title">Grading</div>
-      <div id="pills-grading" class="tag-row"></div>
-    </div>
-    <div>
-      <div class="subsection-title">Time of Day</div>
-      <div id="pills-time" class="tag-row"></div>
-    </div>
-    <div>
-      <div class="subsection-title">Setting</div>
-      <div id="pills-setting" class="tag-row"></div>
-    </div>
-  </div>
-  <div class="three-col" style="margin-top:var(--space-4);">
-    <div>
-      <div class="subsection-title">Exposure</div>
-      <div id="pills-exposure" class="tag-row"></div>
-    </div>
-    <div>
-      <div class="subsection-title">Composition</div>
-      <div id="pills-composition" class="tag-row"></div>
-    </div>
-    <div>
-      <div class="subsection-title">Rotation</div>
-      <div id="pills-rotate" class="tag-row"></div>
-    </div>
-  </div>
-  <div style="margin-top:var(--space-4);">
-    <div class="subsection-title">Top Vibes</div>
-    <div id="pills-vibes" class="tag-row"></div>
   </div>
 </div>
 
@@ -1121,37 +1043,25 @@
   </div>
 </div>
 
-<!-- ═══ ALL SIGNALS (Tags) ═══ -->
-<div class="section" id="sec-all-signals">
-  <div class="section-title">All Signal Tags</div>
-  <div class="two-col">
-    <div>
-      <div class="subsection-title">Style Classification</div>
-      <div id="pills-styles" class="tag-row"></div>
-    </div>
-    <div>
-      <div class="subsection-title">Top Objects</div>
-      <div id="pills-objects" class="tag-row"></div>
-    </div>
-  </div>
-  <div class="two-col" style="margin-top:var(--space-4);">
-    <div>
-      <div class="subsection-title">Facial Emotions</div>
-      <div id="pills-emotions" class="tag-row"></div>
-    </div>
-    <div>
-      <div class="subsection-title">Dominant Colors</div>
-      <div id="pills-topcolors" class="tag-row"></div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ CATEGORIES ═══ -->
-<div class="section" id="sec-categories">
-  <div class="subsection-title">By Camera</div>
-  <div id="pills-subs" class="tag-row"></div>
-  <div class="subsection-title" style="margin-top:var(--space-3);">Aspect Ratio</div>
-  <div id="pills-ratios" class="tag-row"></div>
+<!-- ═══ CAMERA FLEET ═══ -->
+<div class="section" id="sec-cameras">
+  <div class="section-title">Camera Fleet</div>
+  <div class="table-wrap"><table class="camera-table">
+    <thead>
+      <tr>
+        <th>Camera</th>
+        <th class="num">Images</th>
+        <th>Medium</th>
+        <th>Film</th>
+        <th class="num">Lum</th>
+        <th class="num">WB Red</th>
+        <th class="num">WB Blue</th>
+        <th class="num">Noise</th>
+        <th class="num">Shadow%</th>
+      </tr>
+    </thead>
+    <tbody id="tbl-cameras"></tbody>
+  </table></div>
 </div>
 
 <!-- ═══ RENDER TIERS ═══ -->
@@ -1378,33 +1288,40 @@
 
     /* Signal extraction table removed — data shown in model cards */
 
-    /* ── Advanced Signals ── */
-    /* Depth — zones as tags, not bar chart */
-    el("depth-count").textContent = fmt(d.depth_count);
+    /* ── Signals (unified section, group-based colors) ── */
+
+    /* Scene & Setting — all teal family */
+    tags(d.top_scenes, 'pills-scenes', 'scene', 'scene');
+    tags(d.scene_environments, 'pills-environments', 'home', 'scene-env');
+    tags(d.settings, "pills-setting", "scene", 'scene-set');
+    tags(d.top_objects || [], "pills-objects", "eye", 'scene-obj');
+    tags(d.location_sources, 'pills-locations', 'pin', 'scene-loc');
+
+    /* Visual Style — all style/purple family */
+    tags(d.vibes, "pills-vibes", "sparkle", "style");
+    tags(d.top_emotions || [], "pills-emotions", "sparkle", "style-emo");
+    tags(d.grading, "pills-grading", "star", "style-grad");
+    tags(d.top_styles || [], "pills-styles", "sparkle", "style-cls");
+    colorTags(d.top_color_names || [], "pills-topcolors");
+    tags(d.color_cast, 'pills-cast', 'palette', 'style-cast');
+    tags(d.color_temp, 'pills-temp', 'sun', 'style-temp');
+    tags(d.exposure, "pills-exposure", "bulb", "style-exp");
+
+    /* Structure — all depth/indigo family */
     var depthZones = [];
     if (d.depth_avg_near) depthZones.push({name: 'Near ' + d.depth_avg_near + '%', count: d.depth_count});
     if (d.depth_avg_mid) depthZones.push({name: 'Mid-Range ' + d.depth_avg_mid + '%', count: d.depth_count});
     if (d.depth_avg_far) depthZones.push({name: 'Far ' + d.depth_avg_far + '%', count: d.depth_count});
     tags(depthZones, 'pills-depth-zones', 'depth', 'depth');
     tags(d.depth_complexity_buckets, 'pills-depth', 'depth', 'depth');
+    tags(d.composition, "pills-composition", "frame", "depth-comp");
+    tags(d.aspect_ratios || [], "pills-ratios", "frame", "depth-ratio");
 
-    /* Scenes */
-    el("scene-count").textContent = fmt(d.scene_count);
-    tags(d.top_scenes, 'pills-scenes', 'scene', 'scene');
-    tags(d.scene_environments, 'pills-environments', 'home', 'scene');
-
-    /* Enhancement */
-    el("enhance-count").textContent = fmt(d.enhancement_count);
-    tags(d.enhancement_cameras, 'pills-enhance', 'camera', 'enhance');
-
-    /* Locations */
-    el("location-count").textContent = fmt(d.location_count);
-    el("exif-gps-count").textContent = fmt(d.exif_gps);
-    tags(d.location_sources, 'pills-locations', 'pin', 'setting');
-
-    /* ── Pixel analysis — HF-style tags ── */
-    tags(d.color_cast, 'pills-cast', 'palette', 'exposure');
-    tags(d.color_temp, 'pills-temp', 'sun', 'time');
+    /* Context — all camera/blue family */
+    tags(d.subcategories, "pills-subs", "film", "camera");
+    tags(d.time_of_day, "pills-time", "sunset", "camera-time");
+    tags(d.enhancement_cameras, 'pills-enhance', 'camera', 'camera-enh');
+    tags(d.rotate_stats.map(function(r) { return {name: r.value, count: r.count}; }), "pills-rotate", "rotate", "camera-rot");
 
     /* ── Vector store ── */
     el("vector-info").innerHTML =
@@ -1412,25 +1329,6 @@
       (d.vector_count >= d.total ? ' \u2014 <span class="badge done">complete</span>' :
        d.vector_count > 0 ? ' \u2014 <span class="badge partial">' + (d.vector_count / d.total * 100).toFixed(1) + '%</span>' :
        ' \u2014 <span class="badge empty">not started</span>');
-
-    /* ── Gemini insights ── */
-    tags(d.grading, "pills-grading", "star", "grading");
-    tags(d.time_of_day, "pills-time", "sunset", "time");
-    tags(d.settings, "pills-setting", "scene", "setting");
-    tags(d.exposure, "pills-exposure", "bulb", "exposure");
-    tags(d.composition, "pills-composition", "frame", "composition");
-    tags(d.vibes, "pills-vibes", "sparkle", "vibe");
-    tags(d.rotate_stats.map(function(r) { return {name: r.value, count: r.count}; }), "pills-rotate", "rotate");
-
-    /* ── Categories ── */
-    tags(d.subcategories, "pills-subs", "film", "camera");
-    tags(d.aspect_ratios || [], "pills-ratios", "frame", "composition");
-
-    /* ── All signal tags ── */
-    tags(d.top_styles || [], "pills-styles", "sparkle", "style");
-    tags(d.top_objects || [], "pills-objects", "eye", "object");
-    tags(d.top_emotions || [], "pills-emotions", "sparkle", "emotion");
-    colorTags(d.top_color_names || [], "pills-topcolors");
 
     /* ── Render tiers ── */
     el("tbl-tiers").innerHTML = d.tiers.map(function(t) {
@@ -1492,7 +1390,7 @@
   }
 
   if (API === "inline") {
-    update({"timestamp": "2026-02-06 22:38:06 UTC", "total": 9011, "analyzed": 6180, "failed": 33, "pending": 2798, "analysis_pct": 68.58, "pixel_analyzed": 9011, "pixel_pct": 100.0, "categories": [{"name": "Digital", "count": 3533}, {"name": "Osmo", "count": 3116}, {"name": "Analog", "count": 1126}, {"name": "Monochrome", "count": 1099}, {"name": "G12", "count": 137}], "subcategories": [{"name": "Leica Digital", "count": 3533}, {"name": "DJI Osmo Pro", "count": 3032}, {"name": "Leica Analog", "count": 1126}, {"name": "Leica Monochrom", "count": 1099}, {"name": "G12", "count": 137}, {"name": "DJI Osmo Memo", "count": 84}], "tiers": [{"name": "full/jpeg", "tier": "full", "format": "jpeg", "count": 9276, "size": 16901121969, "size_human": "15.7 GB"}, {"name": "original/jpeg", "tier": "original", "format": "jpeg", "count": 5138, "size": 16765399393, "size_human": "15.6 GB"}, {"name": "display/jpeg", "tier": "display", "format": "jpeg", "count": 9276, "size": 3839314853, "size_human": "3.6 GB"}, {"name": "display/webp", "tier": "display", "format": "webp", "count": 9276, "size": 1857008582, "size_human": "1.7 GB"}, {"name": "mobile/jpeg", "tier": "mobile", "format": "jpeg", "count": 9276, "size": 1418594772, "size_human": "1.3 GB"}, {"name": "mobile/webp", "tier": "mobile", "format": "webp", "count": 9276, "size": 767674764, "size_human": "732.1 MB"}, {"name": "thumb/jpeg", "tier": "thumb", "format": "jpeg", "count": 9276, "size": 223177774, "size_human": "212.8 MB"}, {"name": "thumb/webp", "tier": "thumb", "format": "webp", "count": 9276, "size": 142779904, "size_human": "136.2 MB"}, {"name": "micro/jpeg", "tier": "micro", "format": "jpeg", "count": 9276, "size": 8527295, "size_human": "8.1 MB"}, {"name": "micro/webp", "tier": "micro", "format": "webp", "count": 9276, "size": 5389416, "size_human": "5.1 MB"}, {"name": "gemini/jpeg", "tier": "gemini", "format": "jpeg", "count": 9276, "size": 4466278452, "size_human": "4.2 GB"}], "tier_coverage": [{"tier": "full", "images": 9011}, {"tier": "display", "images": 9011}, {"tier": "mobile", "images": 9011}, {"tier": "thumb", "images": 9011}, {"tier": "micro", "images": 9011}, {"tier": "gemini", "images": 9011}, {"tier": "original", "images": 5138}], "total_rendered_bytes": 46395267174, "total_rendered_human": "43.2 GB", "total_tier_files": 97898, "ai_variants_total": 216, "variant_summary": [{"type": "gemini_edit", "ok": 100, "fail": 0, "filtered": 0, "pending": 0, "total": 100, "pct": 1.11}, {"type": "light_enhance", "ok": 16, "fail": 0, "filtered": 0, "pending": 0, "total": 16, "pct": 0.18}, {"type": "pro_edit", "ok": 100, "fail": 0, "filtered": 0, "pending": 0, "total": 100, "pct": 1.11}], "gcs_uploads": 0, "cameras": [{"body": "Leica M8", "count": 3533, "medium": "digital", "film": "\u2014", "wb_r": 0.09, "wb_b": -0.085, "noise": 1.7, "shadow": 11.7, "luminance": 83.5}, {"body": "DJI Osmo Pro", "count": 3032, "medium": "digital", "film": "\u2014", "wb_r": 0.057, "wb_b": -0.046, "noise": 1.7, "shadow": 5.9, "luminance": 80.6}, {"body": "Leica MP", "count": 1126, "medium": "scanned_film", "film": "Kodak Portra 400 VC", "wb_r": 0.063, "wb_b": -0.061, "noise": 4.6, "shadow": 11.4, "luminance": 94.7}, {"body": "Leica Monochrom", "count": 1099, "medium": "digital", "film": "\u2014", "wb_r": 0, "wb_b": 0, "noise": 1.8, "shadow": 22.5, "luminance": 77.1}, {"body": "Canon G12", "count": 137, "medium": "digital", "film": "\u2014", "wb_r": 0.167, "wb_b": -0.139, "noise": 2.0, "shadow": 12.6, "luminance": 64.1}, {"body": "DJI Osmo Memo", "count": 84, "medium": "digital", "film": "\u2014", "wb_r": 0.041, "wb_b": -0.04, "noise": 2.3, "shadow": 1.8, "luminance": 109.6}], "source_formats": [{"name": "JPEG", "count": 5138}, {"name": "DNG", "count": 3841}, {"name": "RAW", "count": 32}], "monochrome_count": 1176, "color_cast": [{"name": "none", "count": 3946}, {"name": "warm", "count": 3457}, {"name": "cool", "count": 1531}, {"name": "magenta", "count": 44}, {"name": "green", "count": 33}], "color_temp": [{"name": "cool (5000-7000K)", "count": 5167}, {"name": "warm (<3500K)", "count": 1412}, {"name": "neutral (3500-5000K)", "count": 1280}, {"name": "very cool (>7000K)", "count": 1152}], "grading": [{"name": "Cinematic", "count": 3587}, {"name": "Natural", "count": 1968}, {"name": "Monochrome", "count": 566}, {"name": "Pastel", "count": 59}], "time_of_day": [{"name": "Midday", "count": 2858}, {"name": "Night", "count": 2480}, {"name": "Golden Hour", "count": 841}, {"name": "Dusk/Blue Hour", "count": 1}], "settings": [{"name": "Exterior", "count": 4404}, {"name": "Interior", "count": 1496}, {"name": "Mixed", "count": 279}, {"name": "Indeterminate", "count": 1}], "exposure": [{"name": "Balanced", "count": 5056}, {"name": "Under", "count": 764}, {"name": "Over", "count": 360}], "composition": [{"name": "Rule of Thirds", "count": 4069}, {"name": "Negative Space", "count": 2102}, {"name": "Symmetry", "count": 5}, {"name": "Rule of Thirds|Negative Space", "count": 3}, {"name": "Golden Ratio", "count": 1}], "vibes": [{"name": "Moody", "count": 4835}, {"name": "Gritty", "count": 3683}, {"name": "Nostalgic", "count": 2919}, {"name": "Urban", "count": 877}, {"name": "Dynamic", "count": 415}, {"name": "Candid", "count": 408}, {"name": "Solitary", "count": 376}, {"name": "Pensive", "count": 258}, {"name": "Contemplative", "count": 211}, {"name": "Intimate", "count": 188}, {"name": "Introspective", "count": 187}, {"name": "Cozy", "count": 132}, {"name": "Serene", "count": 130}, {"name": "Mysterious", "count": 120}, {"name": "Energetic", "count": 115}, {"name": "Peaceful", "count": 102}, {"name": "Sleek", "count": 99}, {"name": "Chaotic", "count": 94}, {"name": "Abstract", "count": 93}, {"name": "Quiet", "count": 87}], "rotate_stats": [{"value": "unknown", "count": 5725}, {"value": "none", "count": 452}, {"value": "cw90", "count": 1}, {"value": "ccw90", "count": 1}, {"value": "180", "count": 1}], "has_edit_prompt": 630, "has_semantic_pops": 5291, "curation": [{"status": "pending", "count": 9011}], "kept": 0, "rejected": 0, "curated_total": 0, "curation_pct": 0.0, "vector_count": 9011, "vector_size": "70.8 MB", "runs": [{"phase": "enhance", "status": "completed", "ok": 9256, "failed": 0, "started": "2026-02-06 13:33"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 13:31"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 13:30"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 13:26"}, {"phase": "enhance", "status": "completed", "ok": 20, "failed": 0, "started": "2026-02-06 13:24"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 13:23"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 12:54"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 12:52"}, {"phase": "image_analysis", "status": "completed", "ok": 9276, "failed": 0, "started": "2026-02-06 10:40"}, {"phase": "image_analysis", "status": "completed", "ok": 5, "failed": 0, "started": "2026-02-06 10:40"}, {"phase": "image_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 10:40"}, {"phase": "image_analysis", "status": "completed", "ok": 248, "failed": 0, "started": "2026-02-06 10:35"}, {"phase": "image_analysis", "status": "completed", "ok": 438, "failed": 0, "started": "2026-02-06 10:33"}, {"phase": "render_originals", "status": "completed", "ok": 686, "failed": 0, "started": "2026-02-06 10:30"}, {"phase": "image_analysis", "status": "completed", "ok": 8580, "failed": 0, "started": "2026-02-06 10:27"}], "recent": [{"uuid": "fdea5c1d", "style": "Cinematic", "alt": "Two men are caught in a candid, warmly lit moment at a dark table, sharing conversation and smoke.", "time": "2026-02-06 22:20:56"}, {"uuid": "fc4ae94b", "style": "Cinematic", "alt": "Cracked white lines on dark asphalt converge beside the deep black gloss of a parked car.", "time": "2026-02-06 22:17:22"}, {"uuid": "f0a762cd", "style": "Cinematic", "alt": "City lights blur into a constellation of color through a rain-streaked window at night.", "time": "2026-02-06 21:44:32"}, {"uuid": "eae8276e", "style": "Natural", "alt": "A pensive tabby cat rests on a leather chair, bathed in soft window light and gazing thoughtfully into the distance.", "time": "2026-02-06 21:25:33"}, {"uuid": "e62ecf68", "style": "Cinematic", "alt": "A silver tabby cat sleeps soundly, nestled between deep red velvet cushions.", "time": "2026-02-06 21:18:33"}, {"uuid": "e5a459e1", "style": "Monochrome", "alt": "A fleeting, monochrome glimpse of city traffic at dusk, framed by deep shadow and blurred by motion.", "time": "2026-02-06 21:15:10"}, {"uuid": "e357c930", "style": "Monochrome", "alt": "A quiet city artery pulses in monochrome, guided by the silent watch of twin traffic lights under an expansive, pale sky.", "time": "2026-02-06 21:11:23"}, {"uuid": "dfeca377", "style": "Monochrome", "alt": "A desiccated cactus bows its head in a final, spiny gesture against a blurred cityscape.", "time": "2026-02-06 21:04:30"}], "sample": {"uuid": "fdea5c1d-6176-5460-bbc7-74e2db7dfca0", "time": "2026-02-06 22:20:56", "data": {"technical": {"exposure": "Under", "sharpness": "Soft", "lens_artifacts": ["Vignetting"]}, "composition": {"technique": "Negative Space", "depth": "Shallow Bokeh", "geometry": []}, "color": {"palette": ["#9A3C0B", "#010000", "#E3D8D0", "#4E1F08", "#8C0001"], "semantic_pops": [{"color": "Red", "object": "Cigarette pack", "impact": "Medium"}], "grading_style": "Cinematic"}, "environment": {"time": "Night", "setting": "Interior", "weather": "Not applicable"}, "narrative": {"faces": 2, "vibe": ["Moody", "Nostalgic", "Intimate"], "alt_text": "Two men are caught in a candid, warmly lit moment at a dark table, sharing conversation and smoke."}}}, "db_size": "2.9 GB", "web_json_size": "15.1 MB", "web_photo_count": 11, "signals": {"exif_metadata": {"rows": 9011, "images": 9011}, "dominant_colors": {"rows": 45051, "images": 9011}, "face_detections": {"rows": 3187, "images": 1676, "processed": 9011}, "object_detections": {"rows": 14534, "images": 5363, "processed": 9011}, "image_hashes": {"rows": 9011, "images": 9011}}, "exif_gps": 1820, "exif_iso": 7890, "face_images_with": 1676, "face_total": 3187, "top_objects": [{"name": "person", "count": 4752}, {"name": "car", "count": 3603}, {"name": "traffic light", "count": 1051}, {"name": "cat", "count": 977}, {"name": "truck", "count": 499}, {"name": "couch", "count": 422}, {"name": "chair", "count": 294}, {"name": "bus", "count": 229}, {"name": "tv", "count": 228}, {"name": "bed", "count": 209}, {"name": "clock", "count": 208}, {"name": "motorcycle", "count": 124}, {"name": "bicycle", "count": 118}, {"name": "umbrella", "count": 116}, {"name": "airplane", "count": 106}, {"name": "train", "count": 91}, {"name": "suitcase", "count": 87}, {"name": "laptop", "count": 83}, {"name": "bottle", "count": 81}, {"name": "bird", "count": 73}], "top_color_names": [{"name": "charcoal", "hex": "#403f3d", "count": 13562}, {"name": "black", "hex": "#131110", "count": 8373}, {"name": "gray", "hex": "#827d75", "count": 8344}, {"name": "silver", "hex": "#b8bcbb", "count": 4264}, {"name": "lavender", "hex": "#dee6eb", "count": 1527}, {"name": "brown", "hex": "#794b2a", "count": 1401}, {"name": "tan", "hex": "#beab89", "count": 1400}, {"name": "slate", "hex": "#6e8293", "count": 1270}, {"name": "beige", "hex": "#e9e8db", "count": 617}, {"name": "white", "hex": "#f7fafb", "count": 544}, {"name": "steel", "hex": "#487eb2", "count": 512}, {"name": "sky", "hex": "#90bbdd", "count": 445}, {"name": "rust", "hex": "#bb4923", "count": 414}, {"name": "ivory", "hex": "#f5f6f3", "count": 370}, {"name": "peach", "hex": "#eadaba", "count": 296}, {"name": "crimson", "hex": "#d72b3d", "count": 266}, {"name": "maroon", "hex": "#5e160a", "count": 250}, {"name": "coral", "hex": "#d28443", "count": 235}, {"name": "burgundy", "hex": "#661b1b", "count": 200}, {"name": "khaki", "hex": "#f0da8b", "count": 148}, {"name": "olive", "hex": "#91822b", "count": 117}, {"name": "teal", "hex": "#116390", "count": 90}, {"name": "salmon", "hex": "#d8806b", "count": 90}, {"name": "mint", "hex": "#c8e3d0", "count": 76}, {"name": "navy", "hex": "#072366", "count": 49}, {"name": "orange", "hex": "#dd9f1a", "count": 40}, {"name": "forest", "hex": "#387c2e", "count": 23}, {"name": "purple", "hex": "#932882", "count": 22}, {"name": "pink", "hex": "#eac3c5", "count": 20}, {"name": "gold", "hex": "#edd426", "count": 18}], "aesthetic_count": 9011, "aesthetic_avg": 0, "aesthetic_min": 0, "aesthetic_max": 0, "aesthetic_labels": [], "depth_count": 9011, "depth_avg_near": 54.2, "depth_avg_mid": 25.1, "depth_avg_far": 20.8, "depth_complexity_buckets": [{"name": "complex", "count": 7592}, {"name": "layered", "count": 1121}, {"name": "moderate", "count": 260}, {"name": "simple", "count": 38}], "scene_count": 9011, "top_scenes": [{"name": "veterinarians office", "count": 516}, {"name": "indoor", "count": 477}, {"name": "skyscraper", "count": 463}, {"name": "sky", "count": 420}, {"name": "crosswalk", "count": 399}, {"name": "parking lot", "count": 376}, {"name": "highway", "count": 367}, {"name": "downtown", "count": 321}, {"name": "discotheque", "count": 299}, {"name": "bridge", "count": 294}, {"name": "street", "count": 215}, {"name": "outdoor", "count": 202}, {"name": "elevator shaft", "count": 171}, {"name": "catacomb", "count": 144}, {"name": "aquarium", "count": 98}], "scene_environments": [{"name": "unknown", "count": 3642}, {"name": "outdoor", "count": 2817}, {"name": "indoor", "count": 2552}], "enhancement_count": 9011, "enhancement_statuses": [{"name": "enhanced", "count": 9011}], "enhancement_cameras": [{"name": "Leica M8", "count": 3533}, {"name": "DJI Osmo Pro", "count": 3032}, {"name": "Leica MP", "count": 1126}, {"name": "Leica Monochrom", "count": 1099}, {"name": "Canon G12", "count": 137}, {"name": "DJI Osmo Memo", "count": 84}], "location_count": 0, "location_sources": [], "location_accepted": 0, "style_count": 9011, "top_styles": [{"name": "documentary", "count": 2749}, {"name": "interior", "count": 1837}, {"name": "street", "count": 1375}, {"name": "monochrome", "count": 1176}, {"name": "analog", "count": 747}, {"name": "architecture", "count": 718}, {"name": "landscape", "count": 409}], "ocr_images": 3029, "ocr_texts": 4739, "caption_count": 9006, "emotion_count": 150, "top_emotions": [{"name": "sad", "count": 88}, {"name": "neutral", "count": 87}, {"name": "happy", "count": 61}, {"name": "angry", "count": 38}, {"name": "fear", "count": 10}, {"name": "surprise", "count": 3}], "aspect_ratios": [{"name": "Landscape", "count": 3867}, {"name": "Square", "count": 6}], "models_complete": 6, "total_signals": 181968});
+    update({"timestamp": "2026-02-06 23:58:18 UTC", "total": 9011, "analyzed": 6297, "failed": 32, "pending": 2682, "analysis_pct": 69.88, "pixel_analyzed": 9011, "pixel_pct": 100.0, "categories": [{"name": "Digital", "count": 3533}, {"name": "Osmo", "count": 3116}, {"name": "Analog", "count": 1126}, {"name": "Monochrome", "count": 1099}, {"name": "G12", "count": 137}], "subcategories": [{"name": "Leica Digital", "count": 3533}, {"name": "DJI Osmo Pro", "count": 3032}, {"name": "Leica Analog", "count": 1126}, {"name": "Leica Monochrom", "count": 1099}, {"name": "G12", "count": 137}, {"name": "DJI Osmo Memo", "count": 84}], "tiers": [{"name": "full/jpeg", "tier": "full", "format": "jpeg", "count": 9276, "size": 16901121969, "size_human": "15.7 GB"}, {"name": "original/jpeg", "tier": "original", "format": "jpeg", "count": 5138, "size": 16765399393, "size_human": "15.6 GB"}, {"name": "display/jpeg", "tier": "display", "format": "jpeg", "count": 9276, "size": 3839314853, "size_human": "3.6 GB"}, {"name": "display/webp", "tier": "display", "format": "webp", "count": 9276, "size": 1857008582, "size_human": "1.7 GB"}, {"name": "mobile/jpeg", "tier": "mobile", "format": "jpeg", "count": 9276, "size": 1418594772, "size_human": "1.3 GB"}, {"name": "mobile/webp", "tier": "mobile", "format": "webp", "count": 9276, "size": 767674764, "size_human": "732.1 MB"}, {"name": "thumb/jpeg", "tier": "thumb", "format": "jpeg", "count": 9276, "size": 223177774, "size_human": "212.8 MB"}, {"name": "thumb/webp", "tier": "thumb", "format": "webp", "count": 9276, "size": 142779904, "size_human": "136.2 MB"}, {"name": "micro/jpeg", "tier": "micro", "format": "jpeg", "count": 9276, "size": 8527295, "size_human": "8.1 MB"}, {"name": "micro/webp", "tier": "micro", "format": "webp", "count": 9276, "size": 5389416, "size_human": "5.1 MB"}, {"name": "gemini/jpeg", "tier": "gemini", "format": "jpeg", "count": 9276, "size": 4466278452, "size_human": "4.2 GB"}], "tier_coverage": [{"tier": "full", "images": 9011}, {"tier": "display", "images": 9011}, {"tier": "mobile", "images": 9011}, {"tier": "thumb", "images": 9011}, {"tier": "micro", "images": 9011}, {"tier": "gemini", "images": 9011}, {"tier": "original", "images": 5138}], "total_rendered_bytes": 46395267174, "total_rendered_human": "43.2 GB", "total_tier_files": 97898, "ai_variants_total": 216, "variant_summary": [{"type": "gemini_edit", "ok": 100, "fail": 0, "filtered": 0, "pending": 0, "total": 100, "pct": 1.11}, {"type": "light_enhance", "ok": 16, "fail": 0, "filtered": 0, "pending": 0, "total": 16, "pct": 0.18}, {"type": "pro_edit", "ok": 100, "fail": 0, "filtered": 0, "pending": 0, "total": 100, "pct": 1.11}], "gcs_uploads": 0, "cameras": [{"body": "Leica M8", "count": 3533, "medium": "digital", "film": "\u2014", "wb_r": 0.09, "wb_b": -0.085, "noise": 1.7, "shadow": 11.7, "luminance": 83.5}, {"body": "DJI Osmo Pro", "count": 3032, "medium": "digital", "film": "\u2014", "wb_r": 0.057, "wb_b": -0.046, "noise": 1.7, "shadow": 5.9, "luminance": 80.6}, {"body": "Leica MP", "count": 1126, "medium": "scanned_film", "film": "Kodak Portra 400 VC", "wb_r": 0.063, "wb_b": -0.061, "noise": 4.6, "shadow": 11.4, "luminance": 94.7}, {"body": "Leica Monochrom", "count": 1099, "medium": "digital", "film": "\u2014", "wb_r": 0, "wb_b": 0, "noise": 1.8, "shadow": 22.5, "luminance": 77.1}, {"body": "Canon G12", "count": 137, "medium": "digital", "film": "\u2014", "wb_r": 0.167, "wb_b": -0.139, "noise": 2.0, "shadow": 12.6, "luminance": 64.1}, {"body": "DJI Osmo Memo", "count": 84, "medium": "digital", "film": "\u2014", "wb_r": 0.041, "wb_b": -0.04, "noise": 2.3, "shadow": 1.8, "luminance": 109.6}], "source_formats": [{"name": "JPEG", "count": 5138}, {"name": "DNG", "count": 3841}, {"name": "RAW", "count": 32}], "monochrome_count": 1176, "color_cast": [{"name": "none", "count": 3946}, {"name": "warm", "count": 3457}, {"name": "cool", "count": 1531}, {"name": "magenta", "count": 44}, {"name": "green", "count": 33}], "color_temp": [{"name": "cool (5000-7000K)", "count": 5167}, {"name": "warm (<3500K)", "count": 1412}, {"name": "neutral (3500-5000K)", "count": 1280}, {"name": "very cool (>7000K)", "count": 1152}], "grading": [{"name": "Cinematic", "count": 3632}, {"name": "Natural", "count": 2009}, {"name": "Monochrome", "count": 597}, {"name": "Pastel", "count": 59}], "time_of_day": [{"name": "Midday", "count": 2918}, {"name": "Night", "count": 2521}, {"name": "Golden Hour", "count": 857}, {"name": "Dusk/Blue Hour", "count": 1}], "settings": [{"name": "Exterior", "count": 4476}, {"name": "Interior", "count": 1539}, {"name": "Mixed", "count": 281}, {"name": "Indeterminate", "count": 1}], "exposure": [{"name": "Balanced", "count": 5151}, {"name": "Under", "count": 769}, {"name": "Over", "count": 377}], "composition": [{"name": "Rule of Thirds", "count": 4147}, {"name": "Negative Space", "count": 2141}, {"name": "Symmetry", "count": 5}, {"name": "Rule of Thirds|Negative Space", "count": 3}, {"name": "Golden Ratio", "count": 1}], "vibes": [{"name": "Moody", "count": 4913}, {"name": "Gritty", "count": 3742}, {"name": "Nostalgic", "count": 2964}, {"name": "Urban", "count": 898}, {"name": "Dynamic", "count": 427}, {"name": "Candid", "count": 410}, {"name": "Solitary", "count": 384}, {"name": "Pensive", "count": 261}, {"name": "Contemplative", "count": 215}, {"name": "Introspective", "count": 193}, {"name": "Intimate", "count": 191}, {"name": "Cozy", "count": 142}, {"name": "Serene", "count": 132}, {"name": "Mysterious", "count": 122}, {"name": "Energetic", "count": 116}, {"name": "Peaceful", "count": 106}, {"name": "Sleek", "count": 105}, {"name": "Chaotic", "count": 95}, {"name": "Abstract", "count": 94}, {"name": "Quiet", "count": 89}], "rotate_stats": [{"value": "unknown", "count": 5842}, {"value": "none", "count": 452}, {"value": "cw90", "count": 1}, {"value": "ccw90", "count": 1}, {"value": "180", "count": 1}], "has_edit_prompt": 630, "has_semantic_pops": 5372, "curation": [{"status": "pending", "count": 9011}], "kept": 0, "rejected": 0, "curated_total": 0, "curation_pct": 0.0, "vector_count": 9011, "vector_size": "70.8 MB", "runs": [{"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 23:51"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 23:48"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 23:43"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 23:40"}, {"phase": "enhance", "status": "completed", "ok": 9256, "failed": 0, "started": "2026-02-06 13:33"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 13:31"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 13:30"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 13:26"}, {"phase": "enhance", "status": "completed", "ok": 20, "failed": 0, "started": "2026-02-06 13:24"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 13:23"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 12:54"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 12:52"}, {"phase": "image_analysis", "status": "completed", "ok": 9276, "failed": 0, "started": "2026-02-06 10:40"}, {"phase": "image_analysis", "status": "completed", "ok": 5, "failed": 0, "started": "2026-02-06 10:40"}, {"phase": "image_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 10:40"}], "recent": [{"uuid": "2ea1b88b", "style": "Cinematic", "alt": "Golden hour sunlight floods a city highway, guiding the way home as the day comes to a close.", "time": "2026-02-06 23:57:27"}, {"uuid": "2e9283c2", "style": "Cinematic", "alt": "A sleek black machine carves through the concrete arteries of the city, chasing the horizon under a steel-laced sky.", "time": "2026-02-06 23:57:27"}, {"uuid": "2c95df22", "style": "Natural", "alt": "In a sun-drenched city apartment, two cats find repose on vibrant velvet cushions amidst the tools of a creative life.", "time": "2026-02-06 23:57:06"}, {"uuid": "2e2799b8", "style": "Monochrome", "alt": "Converging lines of a classic New York street pull the viewer into a timeless, monochrome urban narrative.", "time": "2026-02-06 23:55:46"}, {"uuid": "2df92ce7", "style": "Natural", "alt": "A fleeting view of a distant city skyline, seen from a highway past brick apartment buildings and the back of a white truck.", "time": "2026-02-06 23:55:46"}, {"uuid": "2e425e2d", "style": "Natural", "alt": "In the warm glow of a quiet room, a tabby cat fixes its intense gaze, poised on the edge of action.", "time": "2026-02-06 23:55:20"}, {"uuid": "2dcae9cd", "style": "Cinematic", "alt": "A blur of chrome and crimson races through the city's twilight reflections.", "time": "2026-02-06 23:54:03"}, {"uuid": "2dccb857", "style": "Natural", "alt": "A towering retro car wash sign reaches for the clear blue sky, promising service 24 hours a day.", "time": "2026-02-06 23:54:03"}], "sample": {"uuid": "2ea1b88b-c5c8-588e-b22a-4b51b90723f6", "time": "2026-02-06 23:57:27", "data": {"technical": {"exposure": "Balanced", "sharpness": "Soft", "lens_artifacts": ["Flare", "Vignetting"]}, "composition": {"technique": "Rule of Thirds", "depth": "Shallow Bokeh", "geometry": ["Leading Lines"]}, "color": {"palette": ["#E5A82C", "#3A3A3B", "#A65E53", "#C9D3D8"], "semantic_pops": [{"color": "Red", "object": "Car", "impact": "Medium"}], "grading_style": "Cinematic"}, "environment": {"time": "Golden Hour", "setting": "Exterior", "weather": "Clear with light haze"}, "narrative": {"faces": 0, "vibe": ["Nostalgic", "Gritty", "Urban"], "alt_text": "Golden hour sunlight floods a city highway, guiding the way home as the day comes to a close."}}}, "db_size": "2.9 GB", "web_json_size": "15.1 MB", "web_photo_count": 11, "signals": {"exif_metadata": {"rows": 9011, "images": 9011}, "dominant_colors": {"rows": 45051, "images": 9011}, "face_detections": {"rows": 3187, "images": 1676, "processed": 9011}, "object_detections": {"rows": 14534, "images": 5363, "processed": 9011}, "image_hashes": {"rows": 9011, "images": 9011}}, "exif_gps": 1820, "exif_iso": 7890, "face_images_with": 1676, "face_total": 3187, "top_objects": [{"name": "person", "count": 4752}, {"name": "car", "count": 3603}, {"name": "traffic light", "count": 1051}, {"name": "cat", "count": 977}, {"name": "truck", "count": 499}, {"name": "couch", "count": 422}, {"name": "chair", "count": 294}, {"name": "bus", "count": 229}, {"name": "tv", "count": 228}, {"name": "bed", "count": 209}, {"name": "clock", "count": 208}, {"name": "motorcycle", "count": 124}, {"name": "bicycle", "count": 118}, {"name": "umbrella", "count": 116}, {"name": "airplane", "count": 106}, {"name": "train", "count": 91}, {"name": "suitcase", "count": 87}, {"name": "laptop", "count": 83}, {"name": "bottle", "count": 81}, {"name": "bird", "count": 73}], "top_color_names": [{"name": "charcoal", "hex": "#403f3d", "count": 13562}, {"name": "black", "hex": "#131110", "count": 8373}, {"name": "gray", "hex": "#827d75", "count": 8344}, {"name": "silver", "hex": "#b8bcbb", "count": 4264}, {"name": "lavender", "hex": "#dee6eb", "count": 1527}, {"name": "brown", "hex": "#794b2a", "count": 1401}, {"name": "tan", "hex": "#beab89", "count": 1400}, {"name": "slate", "hex": "#6e8293", "count": 1270}, {"name": "beige", "hex": "#e9e8db", "count": 617}, {"name": "white", "hex": "#f7fafb", "count": 544}, {"name": "steel", "hex": "#487eb2", "count": 512}, {"name": "sky", "hex": "#90bbdd", "count": 445}, {"name": "rust", "hex": "#bb4923", "count": 414}, {"name": "ivory", "hex": "#f5f6f3", "count": 370}, {"name": "peach", "hex": "#eadaba", "count": 296}, {"name": "crimson", "hex": "#d72b3d", "count": 266}, {"name": "maroon", "hex": "#5e160a", "count": 250}, {"name": "coral", "hex": "#d28443", "count": 235}, {"name": "burgundy", "hex": "#661b1b", "count": 200}, {"name": "khaki", "hex": "#f0da8b", "count": 148}, {"name": "olive", "hex": "#91822b", "count": 117}, {"name": "teal", "hex": "#116390", "count": 90}, {"name": "salmon", "hex": "#d8806b", "count": 90}, {"name": "mint", "hex": "#c8e3d0", "count": 76}, {"name": "navy", "hex": "#072366", "count": 49}, {"name": "orange", "hex": "#dd9f1a", "count": 40}, {"name": "forest", "hex": "#387c2e", "count": 23}, {"name": "purple", "hex": "#932882", "count": 22}, {"name": "pink", "hex": "#eac3c5", "count": 20}, {"name": "gold", "hex": "#edd426", "count": 18}], "aesthetic_count": 9011, "aesthetic_avg": 0, "aesthetic_min": 0, "aesthetic_max": 0, "aesthetic_labels": [], "depth_count": 9011, "depth_avg_near": 54.2, "depth_avg_mid": 25.1, "depth_avg_far": 20.8, "depth_complexity_buckets": [{"name": "complex", "count": 7592}, {"name": "layered", "count": 1121}, {"name": "moderate", "count": 260}, {"name": "simple", "count": 38}], "scene_count": 9011, "top_scenes": [{"name": "veterinarians office", "count": 516}, {"name": "indoor", "count": 477}, {"name": "skyscraper", "count": 463}, {"name": "sky", "count": 420}, {"name": "crosswalk", "count": 399}, {"name": "parking lot", "count": 376}, {"name": "highway", "count": 367}, {"name": "downtown", "count": 321}, {"name": "discotheque", "count": 299}, {"name": "bridge", "count": 294}, {"name": "street", "count": 215}, {"name": "outdoor", "count": 202}, {"name": "elevator shaft", "count": 171}, {"name": "catacomb", "count": 144}, {"name": "aquarium", "count": 98}], "scene_environments": [{"name": "unknown", "count": 3642}, {"name": "outdoor", "count": 2817}, {"name": "indoor", "count": 2552}], "enhancement_count": 9011, "enhancement_statuses": [{"name": "enhanced", "count": 9011}], "enhancement_cameras": [{"name": "Leica M8", "count": 3533}, {"name": "DJI Osmo Pro", "count": 3032}, {"name": "Leica MP", "count": 1126}, {"name": "Leica Monochrom", "count": 1099}, {"name": "Canon G12", "count": 137}, {"name": "DJI Osmo Memo", "count": 84}], "location_count": 0, "location_sources": [], "location_accepted": 0, "style_count": 9011, "top_styles": [{"name": "documentary", "count": 2749}, {"name": "interior", "count": 1837}, {"name": "street", "count": 1375}, {"name": "monochrome", "count": 1176}, {"name": "analog", "count": 747}, {"name": "architecture", "count": 718}, {"name": "landscape", "count": 409}], "ocr_images": 4262, "ocr_texts": 6607, "caption_count": 9011, "emotion_count": 1676, "top_emotions": [{"name": "sad", "count": 1106}, {"name": "happy", "count": 758}, {"name": "neutral", "count": 666}, {"name": "angry", "count": 442}, {"name": "fear", "count": 172}, {"name": "surprise", "count": 43}], "aspect_ratios": [{"name": "Landscape", "count": 3867}, {"name": "Square", "count": 6}], "models_complete": 13, "total_signals": 185484});
   } else {
     poll();
     setInterval(poll, POLL);

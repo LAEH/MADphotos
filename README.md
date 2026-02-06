@@ -21,44 +21,67 @@ Source formats: **5,138 JPEG** + **3,841 DNG** + **32 RAW** = **9,011** images.
 
 ## Three Apps
 
-### See
-
-The private power tool. A native macOS SwiftUI app for exploring, curating, and editing the collection. Browse by camera, vibe, time of day, location, aesthetic score. Keep or reject with a keystroke. Toggle between original and enhanced. Accept or reject AI-suggested locations. Every decision flows back into the database.
-
-See is where the human decides what's worth showing to the world.
-
 ### [Show](https://madphotos-efbfb.web.app)
 
-The public experience. 14 web-based experiments — each a different answer to *"what happens when you give a creative mind 9,011 images with every possible signal?"*
+Blow people's minds. Continuously release new experiences guided by signals and new ideas — playful, elegant, smart, teasing, revealing, exciting. 14 experiments and counting, each a different answer to *"what happens when you give a creative mind 9,011 images with every possible signal?"*
 
-**La Grille** (filterable grid) · **Le Bento** (Mondrian mosaic with chromatic harmony) · **La Similarité** (semantic neighbors) · **La Dérive** (structural drift) · **Les Couleurs** (color space) · **Le Terrain de Jeu** (connection game) · **Le Flot** (curated infinite stream) · **La Chambre Noire** (signal layers) · **Les Visages** (face wall with emotions) · **La Boussole** (4-axis compass navigation) · **L'Observatoire** (6-panel data dashboard) · **La Carte** (GPS map) · **La Machine à Écrire** (text search) · **Le Pendule** (aesthetic taste test)
-
-Show only displays images that passed through See. The curated experience.
+**La Grille** · **Le Bento** · **La Similarité** · **La Dérive** · **Les Couleurs** · **Le Terrain de Jeu** · **Le Flot** · **La Chambre Noire** · **Les Visages** · **La Boussole** · **L'Observatoire** · **La Carte** · **La Machine à Écrire** · **Le Pendule**
 
 ### [State](https://laeh.github.io/MADphotos/)
 
-The system dashboard. Real-time view of every pipeline, every signal, every model. Camera fleet statistics, signal completion, enhancement metrics. Plus sub-pages: Journal de Bord (the project narrative), system instructions.
+The dashboard. The control room. Every signal, every model, every image — tracked, measured, monitored. Live status, system instructions, signal inventory, Journal de Bord.
 
-State is the control room.
+### See
+
+The native power image viewer. MADCurator — SwiftUI on macOS, reading directly from the SQLite database. Full-resolution display, 55 fields, 18 filters. The human eye decides what's worth showing.
 
 ## The Pipeline
 
-The processing pipeline runs 9 scripts orchestrated by `mad_pipeline.py`:
+10 Python scripts. `mad_completions.py` is the master orchestrator — it checks all 20 pipeline stages against the database, starts whatever's missing, and regenerates the dashboard.
 
-1. **Render** (`render_pipeline.py`) — 6-tier resolution pyramid per image (64px to 3840px), plus 4-tier for AI variants
-2. **Analyze** (`photography_engine.py`) — Gemini 2.5 Pro structured analysis: vibes, exposure, composition, color grading, edit instructions, rotation
-3. **Pixel Metrics** (`image_analysis.py`) — Luminance, white balance, noise, clipping, contrast, color temperature
-4. **Vectors** (`vector_engine.py`) — Three embedding models (DINOv2, SigLIP, CLIP) into LanceDB for similarity search
-5. **Signals** (`signal_extraction.py`) — EXIF, dominant colors (K-means LAB), face detection (YuNet), object detection (YOLOv8n), perceptual hashes
-6. **Advanced Signals** (`advanced_signals.py`) — Aesthetic scoring, depth estimation, scene/style classification, OCR, captions, facial emotions
-7. **Enhance** (`enhance_engine.py`) — Camera-aware per-image enhancement: white balance, exposure, shadows/highlights, contrast, saturation, sharpening
-8. **Variants** (`imagen_engine.py`) — 4 AI variants via Imagen 3: gemini_edit, pro_edit, nano_feel, cartoon
-9. **Sync** (`gcs_sync.py`) — Upload to Google Cloud Storage, track public URLs
+| Script | Purpose |
+|--------|---------|
+| `mad_completions.py` | Master orchestrator — checks 20 stages, fixes gaps, updates State |
+| `mad_pipeline.py` | Phase orchestrator — runs stages in sequence |
+| `render_pipeline.py` | 6-tier resolution pyramid per image (64px to 3840px), plus 4-tier for AI variants |
+| `photography_engine.py` | Gemini 2.5 Pro structured analysis: vibes, exposure, composition, color grading, edit instructions |
+| `advanced_signals.py` | 7 ML models: aesthetic scoring, depth estimation, scene classification, style classification, OCR, BLIP captions, facial emotions |
+| `enhance_engine.py` | Camera-aware per-image enhancement: white balance, exposure, shadows/highlights, contrast, saturation, sharpening |
+| `imagen_engine.py` | 4 AI variants via Imagen 3: gemini_edit, pro_edit, nano_feel, cartoon |
+| `gcs_sync.py` | Upload serving tiers to Google Cloud Storage |
+| `mad_database.py` | SQLite schema — 24 tables, shared across all scripts |
+| `generate_status_page.py` | Dashboard, system instructions, Journal de Bord |
+
+Additional scripts: `export_gallery_data.py` (web data export), `serve_gallery.py` (local dev server).
+
+## Signal Inventory — 18 Signals per Image
+
+| Signal | Source | Fields |
+|--------|--------|--------|
+| EXIF | Pillow | Camera, lens, focal, aperture, shutter, ISO, GPS |
+| Pixel Analysis | NumPy/OpenCV | Brightness, saturation, contrast, noise, WB shifts |
+| Dominant Colors | K-means (LAB) | 5 clusters: hex, RGB, LAB, percentage |
+| Face Detection | YuNet | 3,187 faces across 1,676 images: boxes, landmarks, area % |
+| Object Detection | YOLOv8n | 14,534 detections across 5,363 images, 80 COCO classes |
+| Perceptual Hashes | imagehash | pHash, aHash, dHash, wHash, blur, sharpness |
+| Vectors | DINOv2 + SigLIP + CLIP | 768d + 768d + 512d = 2,048 dimensions (LanceDB) |
+| Gemini Analysis | Gemini 2.5 Pro | Alt text, vibes, exposure, composition, grading, edit prompt |
+| Aesthetic Score | LAION (CLIP MLP) | Score 1–10 |
+| Depth | Depth Anything v2 | Near/mid/far %, complexity bucket |
+| Scene | Places365 | Top 3 labels, indoor/outdoor |
+| Style | Derived | street, portrait, landscape, macro, etc. |
+| OCR | EasyOCR | Text regions, language, confidence |
+| Captions | BLIP | Natural language description |
+| Facial Emotions | ViT | 7-class emotion scores per face |
+| Enhancement | Camera engine | WB, gamma, shadows, contrast, saturation, sharpening |
+| AI Variants | Imagen 3 | gemini_edit, pro_edit, nano_feel, cartoon |
 
 ## Infrastructure
 
-- **Database**: SQLite (`mad_photos.db`) — 23 tables, one source of truth
-- **Vector Store**: LanceDB (`vectors.lance/`) — 9,011 images x 3 models
-- **Cloud**: GCS `gs://myproject-public-assets/art/MADphotos/`
-- **Models**: Gemini 2.5 Pro, Imagen 3, DINOv2, SigLIP, CLIP, YOLOv8n, YuNet, BLIP, Depth Anything v2, Places365
-- **Platform**: macOS, Python 3.9, Apple Silicon (MPS)
+- **Database**: SQLite (`mad_photos.db`) — 24 tables, one source of truth
+- **Vector Store**: LanceDB (`vectors.lance/`) — 9,011 images × 3 embedding models
+- **Cloud**: GCS `gs://myproject-public-assets/art/MADphotos/` — versioned image hosting (original / enhanced / blind)
+- **AI Models**: Gemini 2.5 Pro, Imagen 3, DINOv2, SigLIP, CLIP, YOLOv8n, YuNet, BLIP, EasyOCR, Depth Anything v2, Places365, LAION Aesthetic, ViT Emotion
+- **Platform**: macOS, Python 3.9, Apple Silicon (MPS acceleration)
+- **Web**: Vanilla JS, no framework — dark glassmorphism UI, 14 experience modules
+- **Hosting**: Firebase (Show), GitHub Pages (State), GCS (Images)

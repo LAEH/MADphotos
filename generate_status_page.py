@@ -569,10 +569,18 @@ def get_stats():
         pass
 
     # Total models completed (how many analysis phases hit 100%)
+    # Use 'processed' for detection models (images with + without detections)
+    face_processed = signals.get('face_detections', {}).get('processed', signals.get('face_detections', {}).get('images', 0))
+    obj_processed = signals.get('object_detections', {}).get('processed', signals.get('object_detections', {}).get('images', 0))
     models_complete = sum(1 for c in [
+        pixel_analyzed, analyzed,
         aesthetic_count, depth_count, scene_count, style_count,
-        caption_count, enhancement_count
-    ] if c >= total) + (1 if pixel_analyzed >= total else 0) + (1 if analyzed >= total else 0)
+        caption_count, enhancement_count, vector_count,
+        signals.get('exif_metadata', {}).get('rows', 0),
+        signals.get('dominant_colors', {}).get('images', 0),
+        face_processed, obj_processed,
+        signals.get('image_hashes', {}).get('rows', 0),
+    ] if c >= total)
 
     # Total signals extracted across all models
     total_signals = sum([
@@ -1157,25 +1165,21 @@ PAGE_HTML = r"""<!DOCTYPE html>
     font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700;
     letter-spacing: var(--tracking-tight); margin-bottom: var(--space-1);
   }
-  .el-section-sub {
-    font-size: var(--text-sm); color: var(--muted); margin-bottom: var(--space-3);
-  }
+  .el-section-sub { display: none; }
   .el-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: 6px;
   }
   .el-card.status-done {
-    border-color: var(--apple-green);
-    border-left: 3px solid var(--apple-green);
+    border-color: var(--border);
   }
   .el-card.status-active {
     border-color: var(--apple-blue);
-    border-left: 3px solid var(--apple-blue);
     background: color-mix(in srgb, var(--apple-blue) 4%, var(--card-bg));
   }
   .el-card.status-pending {
-    opacity: 0.5;
+    opacity: 0.35;
   }
   .el-card {
     background: var(--card-bg);
@@ -1215,7 +1219,7 @@ PAGE_HTML = r"""<!DOCTYPE html>
     background: var(--fg);
     transition: width 1s var(--ease-default);
   }
-  .el-card.status-done .el-fill { background: var(--apple-green); }
+  .el-card.status-done .el-fill { background: var(--muted); }
   .el-card.status-active .el-fill { background: var(--apple-blue); }
   .el-card .el-pct { display: none; }
   .el-badge {
@@ -1376,75 +1380,74 @@ PAGE_HTML = r"""<!DOCTYPE html>
   }
   .tag .tag-label { font-weight: 500; color: var(--fg-secondary); text-transform: capitalize; }
   .tag .tag-count {
-    font-weight: 400;
+    font-weight: 700;
     font-size: 10px;
     font-variant-numeric: tabular-nums;
+    color: var(--fg);
   }
-  /* Category-themed tags — icon, label, AND count all tinted */
-  .tag-cat-vibe { border-color: color-mix(in srgb, var(--apple-orange) 30%, transparent); }
-  .tag-cat-vibe .tag-label { color: var(--apple-orange); }
-  .tag-cat-vibe .tag-icon svg { color: var(--apple-orange); }
-  .tag-cat-vibe .tag-count { color: color-mix(in srgb, var(--apple-orange) 60%, var(--muted)); }
-
-  .tag-cat-grading { border-color: color-mix(in srgb, var(--apple-blue) 30%, transparent); }
-  .tag-cat-grading .tag-label { color: var(--apple-blue); }
-  .tag-cat-grading .tag-icon svg { color: var(--apple-blue); }
-  .tag-cat-grading .tag-count { color: color-mix(in srgb, var(--apple-blue) 60%, var(--muted)); }
-
-  .tag-cat-time { border-color: color-mix(in srgb, #d4a017 30%, transparent); }
-  .tag-cat-time .tag-label { color: #d4a017; }
-  .tag-cat-time .tag-icon svg { color: #d4a017; }
-  .tag-cat-time .tag-count { color: color-mix(in srgb, #d4a017 60%, var(--muted)); }
-
-  .tag-cat-setting { border-color: color-mix(in srgb, var(--apple-green) 30%, transparent); }
-  .tag-cat-setting .tag-label { color: var(--apple-green); }
-  .tag-cat-setting .tag-icon svg { color: var(--apple-green); }
-  .tag-cat-setting .tag-count { color: color-mix(in srgb, var(--apple-green) 60%, var(--muted)); }
-
-  .tag-cat-exposure { border-color: color-mix(in srgb, var(--apple-teal) 25%, transparent); }
-  .tag-cat-exposure .tag-label { color: var(--apple-teal); }
-  .tag-cat-exposure .tag-icon svg { color: var(--apple-teal); }
-  .tag-cat-exposure .tag-count { color: color-mix(in srgb, var(--apple-teal) 60%, var(--muted)); }
-
-  .tag-cat-composition { border-color: color-mix(in srgb, var(--apple-purple) 25%, transparent); }
-  .tag-cat-composition .tag-label { color: var(--apple-purple); }
-  .tag-cat-composition .tag-icon svg { color: var(--apple-purple); }
-  .tag-cat-composition .tag-count { color: color-mix(in srgb, var(--apple-purple) 60%, var(--muted)); }
-
-  .tag-cat-camera { border-color: color-mix(in srgb, #98989d 30%, transparent); }
-  .tag-cat-camera .tag-label { color: #98989d; }
-  .tag-cat-camera .tag-icon svg { color: #98989d; }
-  .tag-cat-camera .tag-count { color: color-mix(in srgb, #98989d 60%, var(--muted)); }
-
-  .tag-cat-depth { border-color: color-mix(in srgb, var(--apple-indigo) 30%, transparent); }
-  .tag-cat-depth .tag-label { color: var(--apple-indigo); }
-  .tag-cat-depth .tag-icon svg { color: var(--apple-indigo); }
-  .tag-cat-depth .tag-count { color: color-mix(in srgb, var(--apple-indigo) 60%, var(--muted)); }
-
-  .tag-cat-scene { border-color: color-mix(in srgb, var(--apple-teal) 25%, transparent); }
-  .tag-cat-scene .tag-label { color: var(--apple-teal); }
+  .signal-group {
+    margin-bottom: var(--space-6);
+  }
+  .signal-group:last-child { margin-bottom: 0; }
+  .signal-group-label {
+    font-size: var(--text-lg);
+    font-weight: 700;
+    color: var(--fg);
+    margin-bottom: var(--space-3);
+    padding-bottom: var(--space-1);
+    border-bottom: 1px solid var(--border);
+  }
+  .signal-flow {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .signal-sub {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+  }
+  .signal-sub .tag-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    margin: 0;
+    flex: 1;
+    min-width: 0;
+  }
+  .signal-sub-label {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+    min-width: 100px;
+    flex-shrink: 0;
+  }
+  /* Only icon gets group color — border stays default, count stays black */
   .tag-cat-scene .tag-icon svg { color: var(--apple-teal); }
-  .tag-cat-scene .tag-count { color: color-mix(in srgb, var(--apple-teal) 60%, var(--muted)); }
+  .tag-cat-scene-env .tag-icon svg { color: color-mix(in srgb, var(--apple-teal) 70%, var(--apple-green)); }
+  .tag-cat-scene-set .tag-icon svg { color: color-mix(in srgb, var(--apple-teal) 60%, var(--apple-blue)); }
+  .tag-cat-scene-obj .tag-icon svg { color: color-mix(in srgb, var(--apple-teal) 50%, var(--apple-green)); }
+  .tag-cat-scene-loc .tag-icon svg { color: color-mix(in srgb, var(--apple-teal) 40%, var(--apple-blue)); }
 
-  .tag-cat-style { border-color: color-mix(in srgb, var(--apple-purple) 25%, transparent); }
-  .tag-cat-style .tag-label { color: var(--apple-purple); }
   .tag-cat-style .tag-icon svg { color: var(--apple-purple); }
-  .tag-cat-style .tag-count { color: color-mix(in srgb, var(--apple-purple) 60%, var(--muted)); }
+  .tag-cat-style-emo .tag-icon svg { color: var(--apple-pink); }
+  .tag-cat-style-grad .tag-icon svg { color: color-mix(in srgb, var(--apple-purple) 70%, var(--apple-blue)); }
+  .tag-cat-style-cls .tag-icon svg { color: color-mix(in srgb, var(--apple-purple) 60%, var(--apple-pink)); }
+  .tag-cat-style-cast .tag-icon svg { color: color-mix(in srgb, var(--apple-purple) 50%, var(--apple-orange)); }
+  .tag-cat-style-temp .tag-icon svg { color: color-mix(in srgb, var(--apple-purple) 40%, var(--apple-orange)); }
+  .tag-cat-style-exp .tag-icon svg { color: color-mix(in srgb, var(--apple-purple) 50%, var(--apple-blue)); }
 
-  .tag-cat-emotion { border-color: color-mix(in srgb, var(--apple-pink) 25%, transparent); }
-  .tag-cat-emotion .tag-label { color: var(--apple-pink); }
-  .tag-cat-emotion .tag-icon svg { color: var(--apple-pink); }
-  .tag-cat-emotion .tag-count { color: color-mix(in srgb, var(--apple-pink) 60%, var(--muted)); }
+  .tag-cat-depth .tag-icon svg { color: var(--apple-indigo); }
+  .tag-cat-depth-comp .tag-icon svg { color: color-mix(in srgb, var(--apple-indigo) 70%, var(--apple-blue)); }
+  .tag-cat-depth-ratio .tag-icon svg { color: color-mix(in srgb, var(--apple-indigo) 50%, var(--apple-teal)); }
 
-  .tag-cat-object { border-color: color-mix(in srgb, var(--apple-green) 25%, transparent); }
-  .tag-cat-object .tag-label { color: var(--apple-green); }
-  .tag-cat-object .tag-icon svg { color: var(--apple-green); }
-  .tag-cat-object .tag-count { color: color-mix(in srgb, var(--apple-green) 60%, var(--muted)); }
-
-  .tag-cat-enhance { border-color: color-mix(in srgb, var(--apple-blue) 25%, transparent); }
-  .tag-cat-enhance .tag-label { color: var(--apple-blue); }
-  .tag-cat-enhance .tag-icon svg { color: var(--apple-blue); }
-  .tag-cat-enhance .tag-count { color: color-mix(in srgb, var(--apple-blue) 60%, var(--muted)); }
+  .tag-cat-camera .tag-icon svg { color: #86868b; }
+  .tag-cat-camera-time .tag-icon svg { color: #a1a1a6; }
+  .tag-cat-camera-enh .tag-icon svg { color: #6e6e73; }
+  .tag-cat-camera-rot .tag-icon svg { color: #98989d; }
 
   /* Color dot inside tags (for dominant colors) */
   .tag .tag-cdot {
@@ -1616,13 +1619,13 @@ PAGE_HTML = r"""<!DOCTYPE html>
 <nav class="sidebar" id="sidebar">
   <div class="sb-title">MADphotos</div>
   <button class="sb-hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')" aria-label="Menu">&#9776;</button>
-  <a href="/readme">README</a>
   <a href="/" class="active">State</a>
   <a href="/journal">Journal de Bord</a>
   <a href="/instructions">System Instructions</a>
   <div class="sb-sep"></div>
   <div class="sb-group">Experiments</div>
-  <a href="/drift">Drift</a>
+  <a href="/drift">Similarity</a>
+  <a href="/creative-drift">Drift</a>
   <a href="/blind-test">Blind Test</a>
   <a href="/mosaics">Mosaics</a>
   <div class="sb-sep"></div>
@@ -1631,13 +1634,9 @@ PAGE_HTML = r"""<!DOCTYPE html>
   </div>
   <div class="sb-collapsible sb-collapsed">
     <a href="#sec-gemini">Gemini Progress</a>
-    <a href="#sec-cameras">Camera Fleet</a>
-    <a href="#sec-advanced">Advanced Signals</a>
-    <a href="#sec-pixel">Pixel Analysis</a>
-    <a href="#sec-insights">Gemini Insights</a>
+    <a href="#sec-signals">Signals</a>
     <a href="#sec-vectors">Vector Store</a>
-    <a href="#sec-all-signals">All Signals</a>
-    <a href="#sec-categories">Categories</a>
+    <a href="#sec-cameras">Camera Fleet</a>
     <a href="#sec-tiers">Render Tiers</a>
     <a href="#sec-storage">Storage</a>
     <a href="#sec-runs">Pipeline Runs</a>
@@ -1659,133 +1658,64 @@ PAGE_HTML = r"""<!DOCTYPE html>
   <p class="manifesto">We started with 9,011 raw images and zero metadata.<br>We will create the best UX UIs on photos.<br>Game ON.</p>
 </div>
 
-<!-- ═══ MODEL INTELLIGENCE GRID ═══ -->
-<div style="margin-bottom:var(--space-8);">
+<!-- ═══ MODELS ═══ -->
+<div class="section" style="margin-bottom:var(--space-8);">
+  <div class="section-title">Models</div>
   <div class="el-section-sub" id="el-sub">17 models &middot; every image</div>
   <div class="el-grid" id="el-grid"></div>
 </div>
 
-<!-- ═══ CAMERA FLEET ═══ -->
-<div class="section" id="sec-cameras">
-  <div class="section-title">Camera Fleet</div>
-  <div class="table-wrap"><table class="camera-table">
-    <thead>
-      <tr>
-        <th>Camera</th>
-        <th class="num">Images</th>
-        <th>Medium</th>
-        <th>Film</th>
-        <th class="num">Lum</th>
-        <th class="num">WB Red</th>
-        <th class="num">WB Blue</th>
-        <th class="num">Noise</th>
-        <th class="num">Shadow%</th>
-      </tr>
-    </thead>
-    <tbody id="tbl-cameras"></tbody>
-  </table></div>
-</div>
+<!-- ═══ SIGNALS — All tags grouped by meaning ═══ -->
+<div class="section" id="sec-signals">
+  <div class="section-title">Signals</div>
 
-<!-- Signal Extraction section removed — redundant with model cards above -->
-
-<!-- ═══ ADVANCED SIGNALS (NEW) ═══ -->
-<div class="section" id="sec-advanced">
-  <div class="section-title">Advanced Signals</div>
-
-  <div class="two-col">
-    <!-- Depth Estimation -->
-    <div>
-      <div class="subsection-title">Depth Estimation</div>
-      <div style="font-size:var(--text-sm);color:var(--muted);margin-bottom:var(--space-2);">
-        <span id="depth-count"></span> images analyzed
-      </div>
-      <div id="pills-depth-zones" class="tag-row"></div>
-      <div class="subsection-title" style="margin-top:var(--space-3);">Complexity</div>
-      <div id="pills-depth" class="tag-row"></div>
-    </div>
-
-    <!-- Scene Classification -->
-    <div>
-      <div class="subsection-title">Scene Classification</div>
-      <div style="font-size:var(--text-sm);color:var(--muted);margin-bottom:var(--space-2);">
-        <span id="scene-count"></span> images classified
-      </div>
-      <div id="pills-scenes" class="tag-row"></div>
-      <div class="subsection-title" style="margin-top:var(--space-3);">Environment</div>
-      <div id="pills-environments" class="tag-row"></div>
+  <!-- Scene & Setting -->
+  <div class="signal-group">
+    <div class="signal-group-label">Scene & Setting</div>
+    <div class="signal-flow">
+      <div class="signal-sub"><span class="signal-sub-label">Scene</span><div id="pills-scenes" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Environment</span><div id="pills-environments" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Setting</span><div id="pills-setting" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Objects</span><div id="pills-objects" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Location</span><div id="pills-locations" class="tag-row"></div></div>
     </div>
   </div>
 
-  <div class="two-col" style="margin-top:var(--space-6);">
-    <!-- Enhancement -->
-    <div>
-      <div class="subsection-title">Enhancement Engine</div>
-      <div style="font-size:var(--text-sm);color:var(--muted);margin-bottom:var(--space-2);">
-        <span id="enhance-count"></span> images enhanced
-      </div>
-      <div id="pills-enhance" class="tag-row"></div>
+  <!-- Visual Style -->
+  <div class="signal-group">
+    <div class="signal-group-label">Visual Style</div>
+    <div class="signal-flow">
+      <div class="signal-sub"><span class="signal-sub-label">Vibes</span><div id="pills-vibes" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Emotions</span><div id="pills-emotions" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Grading</span><div id="pills-grading" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Style</span><div id="pills-styles" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Colors</span><div id="pills-topcolors" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Color Cast</span><div id="pills-cast" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Temperature</span><div id="pills-temp" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Exposure</span><div id="pills-exposure" class="tag-row"></div></div>
     </div>
+  </div>
 
-    <!-- Locations -->
-    <div>
-      <div class="subsection-title">Locations</div>
-      <div style="font-size:var(--text-sm);color:var(--muted);margin-bottom:var(--space-2);">
-        <span id="location-count"></span> images with location &middot; <span id="exif-gps-count"></span> GPS from EXIF
-      </div>
-      <div id="pills-locations" class="tag-row"></div>
+  <!-- Structure -->
+  <div class="signal-group">
+    <div class="signal-group-label">Structure</div>
+    <div class="signal-flow">
+      <div class="signal-sub"><span class="signal-sub-label">Depth Zones</span><div id="pills-depth-zones" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Complexity</span><div id="pills-depth" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Composition</span><div id="pills-composition" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Aspect Ratio</span><div id="pills-ratios" class="tag-row"></div></div>
     </div>
   </div>
-</div>
 
-<!-- ═══ PIXEL ANALYSIS ═══ -->
-<div class="section" id="sec-pixel">
-  <div class="section-title">Pixel Analysis</div>
-  <div class="two-col">
-    <div>
-      <div class="subsection-title">Color Cast</div>
-      <div id="pills-cast" class="tag-row"></div>
+  <!-- Context -->
+  <div class="signal-group">
+    <div class="signal-group-label">Context</div>
+    <div class="signal-flow">
+      <div class="signal-sub"><span class="signal-sub-label">Camera</span><div id="pills-subs" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Time of Day</span><div id="pills-time" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Enhancement</span><div id="pills-enhance" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Rotation</span><div id="pills-rotate" class="tag-row"></div></div>
     </div>
-    <div>
-      <div class="subsection-title">Color Temperature</div>
-      <div id="pills-temp" class="tag-row"></div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ GEMINI INSIGHTS ═══ -->
-<div class="section" id="sec-insights">
-  <div class="section-title">Gemini Insights</div>
-  <div class="three-col">
-    <div>
-      <div class="subsection-title">Grading</div>
-      <div id="pills-grading" class="tag-row"></div>
-    </div>
-    <div>
-      <div class="subsection-title">Time of Day</div>
-      <div id="pills-time" class="tag-row"></div>
-    </div>
-    <div>
-      <div class="subsection-title">Setting</div>
-      <div id="pills-setting" class="tag-row"></div>
-    </div>
-  </div>
-  <div class="three-col" style="margin-top:var(--space-4);">
-    <div>
-      <div class="subsection-title">Exposure</div>
-      <div id="pills-exposure" class="tag-row"></div>
-    </div>
-    <div>
-      <div class="subsection-title">Composition</div>
-      <div id="pills-composition" class="tag-row"></div>
-    </div>
-    <div>
-      <div class="subsection-title">Rotation</div>
-      <div id="pills-rotate" class="tag-row"></div>
-    </div>
-  </div>
-  <div style="margin-top:var(--space-4);">
-    <div class="subsection-title">Top Vibes</div>
-    <div id="pills-vibes" class="tag-row"></div>
   </div>
 </div>
 
@@ -1812,37 +1742,25 @@ PAGE_HTML = r"""<!DOCTYPE html>
   </div>
 </div>
 
-<!-- ═══ ALL SIGNALS (Tags) ═══ -->
-<div class="section" id="sec-all-signals">
-  <div class="section-title">All Signal Tags</div>
-  <div class="two-col">
-    <div>
-      <div class="subsection-title">Style Classification</div>
-      <div id="pills-styles" class="tag-row"></div>
-    </div>
-    <div>
-      <div class="subsection-title">Top Objects</div>
-      <div id="pills-objects" class="tag-row"></div>
-    </div>
-  </div>
-  <div class="two-col" style="margin-top:var(--space-4);">
-    <div>
-      <div class="subsection-title">Facial Emotions</div>
-      <div id="pills-emotions" class="tag-row"></div>
-    </div>
-    <div>
-      <div class="subsection-title">Dominant Colors</div>
-      <div id="pills-topcolors" class="tag-row"></div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ CATEGORIES ═══ -->
-<div class="section" id="sec-categories">
-  <div class="subsection-title">By Camera</div>
-  <div id="pills-subs" class="tag-row"></div>
-  <div class="subsection-title" style="margin-top:var(--space-3);">Aspect Ratio</div>
-  <div id="pills-ratios" class="tag-row"></div>
+<!-- ═══ CAMERA FLEET ═══ -->
+<div class="section" id="sec-cameras">
+  <div class="section-title">Camera Fleet</div>
+  <div class="table-wrap"><table class="camera-table">
+    <thead>
+      <tr>
+        <th>Camera</th>
+        <th class="num">Images</th>
+        <th>Medium</th>
+        <th>Film</th>
+        <th class="num">Lum</th>
+        <th class="num">WB Red</th>
+        <th class="num">WB Blue</th>
+        <th class="num">Noise</th>
+        <th class="num">Shadow%</th>
+      </tr>
+    </thead>
+    <tbody id="tbl-cameras"></tbody>
+  </table></div>
 </div>
 
 <!-- ═══ RENDER TIERS ═══ -->
@@ -2069,33 +1987,40 @@ PAGE_HTML = r"""<!DOCTYPE html>
 
     /* Signal extraction table removed — data shown in model cards */
 
-    /* ── Advanced Signals ── */
-    /* Depth — zones as tags, not bar chart */
-    el("depth-count").textContent = fmt(d.depth_count);
+    /* ── Signals (unified section, group-based colors) ── */
+
+    /* Scene & Setting — all teal family */
+    tags(d.top_scenes, 'pills-scenes', 'scene', 'scene');
+    tags(d.scene_environments, 'pills-environments', 'home', 'scene-env');
+    tags(d.settings, "pills-setting", "scene", 'scene-set');
+    tags(d.top_objects || [], "pills-objects", "eye", 'scene-obj');
+    tags(d.location_sources, 'pills-locations', 'pin', 'scene-loc');
+
+    /* Visual Style — all style/purple family */
+    tags(d.vibes, "pills-vibes", "sparkle", "style");
+    tags(d.top_emotions || [], "pills-emotions", "sparkle", "style-emo");
+    tags(d.grading, "pills-grading", "star", "style-grad");
+    tags(d.top_styles || [], "pills-styles", "sparkle", "style-cls");
+    colorTags(d.top_color_names || [], "pills-topcolors");
+    tags(d.color_cast, 'pills-cast', 'palette', 'style-cast');
+    tags(d.color_temp, 'pills-temp', 'sun', 'style-temp');
+    tags(d.exposure, "pills-exposure", "bulb", "style-exp");
+
+    /* Structure — all depth/indigo family */
     var depthZones = [];
     if (d.depth_avg_near) depthZones.push({name: 'Near ' + d.depth_avg_near + '%', count: d.depth_count});
     if (d.depth_avg_mid) depthZones.push({name: 'Mid-Range ' + d.depth_avg_mid + '%', count: d.depth_count});
     if (d.depth_avg_far) depthZones.push({name: 'Far ' + d.depth_avg_far + '%', count: d.depth_count});
     tags(depthZones, 'pills-depth-zones', 'depth', 'depth');
     tags(d.depth_complexity_buckets, 'pills-depth', 'depth', 'depth');
+    tags(d.composition, "pills-composition", "frame", "depth-comp");
+    tags(d.aspect_ratios || [], "pills-ratios", "frame", "depth-ratio");
 
-    /* Scenes */
-    el("scene-count").textContent = fmt(d.scene_count);
-    tags(d.top_scenes, 'pills-scenes', 'scene', 'scene');
-    tags(d.scene_environments, 'pills-environments', 'home', 'scene');
-
-    /* Enhancement */
-    el("enhance-count").textContent = fmt(d.enhancement_count);
-    tags(d.enhancement_cameras, 'pills-enhance', 'camera', 'enhance');
-
-    /* Locations */
-    el("location-count").textContent = fmt(d.location_count);
-    el("exif-gps-count").textContent = fmt(d.exif_gps);
-    tags(d.location_sources, 'pills-locations', 'pin', 'setting');
-
-    /* ── Pixel analysis — HF-style tags ── */
-    tags(d.color_cast, 'pills-cast', 'palette', 'exposure');
-    tags(d.color_temp, 'pills-temp', 'sun', 'time');
+    /* Context — all camera/blue family */
+    tags(d.subcategories, "pills-subs", "film", "camera");
+    tags(d.time_of_day, "pills-time", "sunset", "camera-time");
+    tags(d.enhancement_cameras, 'pills-enhance', 'camera', 'camera-enh');
+    tags(d.rotate_stats.map(function(r) { return {name: r.value, count: r.count}; }), "pills-rotate", "rotate", "camera-rot");
 
     /* ── Vector store ── */
     el("vector-info").innerHTML =
@@ -2103,25 +2028,6 @@ PAGE_HTML = r"""<!DOCTYPE html>
       (d.vector_count >= d.total ? ' \u2014 <span class="badge done">complete</span>' :
        d.vector_count > 0 ? ' \u2014 <span class="badge partial">' + (d.vector_count / d.total * 100).toFixed(1) + '%</span>' :
        ' \u2014 <span class="badge empty">not started</span>');
-
-    /* ── Gemini insights ── */
-    tags(d.grading, "pills-grading", "star", "grading");
-    tags(d.time_of_day, "pills-time", "sunset", "time");
-    tags(d.settings, "pills-setting", "scene", "setting");
-    tags(d.exposure, "pills-exposure", "bulb", "exposure");
-    tags(d.composition, "pills-composition", "frame", "composition");
-    tags(d.vibes, "pills-vibes", "sparkle", "vibe");
-    tags(d.rotate_stats.map(function(r) { return {name: r.value, count: r.count}; }), "pills-rotate", "rotate");
-
-    /* ── Categories ── */
-    tags(d.subcategories, "pills-subs", "film", "camera");
-    tags(d.aspect_ratios || [], "pills-ratios", "frame", "composition");
-
-    /* ── All signal tags ── */
-    tags(d.top_styles || [], "pills-styles", "sparkle", "style");
-    tags(d.top_objects || [], "pills-objects", "eye", "object");
-    tags(d.top_emotions || [], "pills-emotions", "sparkle", "emotion");
-    colorTags(d.top_color_names || [], "pills-topcolors");
 
     /* ── Render tiers ── */
     el("tbl-tiers").innerHTML = d.tiers.map(function(t) {
@@ -2296,8 +2202,6 @@ def page_shell(title, content, active="", extra_css="", extra_js=""):
   .sidebar a:hover {{ background: var(--sidebar-active-bg); color: var(--fg); }}
   .sidebar a.active {{
     color: var(--fg); font-weight: 600; background: var(--sidebar-active-bg);
-    border-left: 3px solid var(--apple-blue);
-    padding-left: calc(var(--space-5) - 3px);
   }}
   .sidebar .sb-sep {{ height: 1px; background: var(--border); margin: var(--space-2) var(--space-5); }}
   .sidebar .sb-group {{
@@ -2400,13 +2304,13 @@ def page_shell(title, content, active="", extra_css="", extra_js=""):
 <nav class="sidebar" id="sidebar">
   <div class="sb-title">MADphotos</div>
   <button class="sb-hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')" aria-label="Menu">&#9776;</button>
-  <a href="/readme"{_active("readme")}>README</a>
   <a href="/"{_active("status")}>State</a>
   <a href="/journal"{_active("journal")}>Journal de Bord</a>
   <a href="/instructions"{_active("instructions")}>System Instructions</a>
   <div class="sb-sep"></div>
   <div class="sb-group">Experiments</div>
-  <a href="/drift"{_active("drift")}>Drift</a>
+  <a href="/drift"{_active("drift")}>Similarity</a>
+  <a href="/creative-drift"{_active("creative-drift")}>Drift</a>
   <a href="/blind-test"{_active("blind-test")}>Blind Test</a>
   <a href="/mosaics"{_active("mosaics")}>Mosaics</a>
   <div class="sb-bottom">
@@ -2460,7 +2364,7 @@ README_PATH = Path(__file__).resolve().parent / "README.md"
 
 def render_readme():
     # type: () -> str
-    """Read README.md and render a styled HTML page."""
+    """Read README.md and render a card-based styled HTML page matching System Instructions."""
     if not README_PATH.exists():
         return "<p>No README.md found.</p>"
     raw = README_PATH.read_text()
@@ -2469,134 +2373,234 @@ def render_readme():
 
     def md_inline(text):
         # type: (str) -> str
+        text = re.sub(r'\[(.+?)\]\((.+?)\)', r'<a href="\2">\1</a>', text)
         text = re.sub(r'`(.+?)`', r'<code>\1</code>', text)
         text = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
         text = re.sub(r'\*(.+?)\*', r'<em>\1</em>', text)
         return text
 
-    lines = raw.split('\n')
-    html_parts = []
-    in_table = False
-    in_list = False
-    i = 0
-    while i < len(lines):
-        line = lines[i]
-
-        # Heading
+    # Parse into sections: {heading, level, content_lines}
+    sections = []  # type: list[dict]
+    current = {"heading": "", "level": 0, "lines": []}  # type: dict
+    for line in raw.split('\n'):
         m = re.match(r'^(#{1,4})\s+(.*)', line)
         if m:
-            if in_list:
-                html_parts.append('</ul>')
-                in_list = False
-            if in_table:
-                html_parts.append('</tbody></table>')
-                in_table = False
-            level = len(m.group(1))
-            text = md_inline(m.group(2))
-            slug = re.sub(r'[^a-z0-9]+', '-', m.group(2).lower()).strip('-')
-            html_parts.append(f'<h{level} id="{slug}">{text}</h{level}>')
-            i += 1
-            continue
+            if current["heading"] or current["lines"]:
+                sections.append(current)
+            current = {"heading": m.group(2), "level": len(m.group(1)), "lines": []}
+        else:
+            current["lines"].append(line)
+    if current["heading"] or current["lines"]:
+        sections.append(current)
 
-        # Table row
-        if line.strip().startswith('|'):
-            cells = [c.strip() for c in line.strip().strip('|').split('|')]
-            # Skip separator rows
-            if all(re.match(r'^[-:]+$', c) for c in cells):
-                i += 1
+    def render_block(content_lines):
+        # type: (list[str]) -> str
+        """Render a block of markdown lines to HTML."""
+        parts = []  # type: list[str]
+        in_table = False
+        in_list = False
+        in_olist = False
+        for ln in content_lines:
+            s = ln.strip()
+            if not s:
+                if in_list:
+                    parts.append('</ul>')
+                    in_list = False
+                if in_olist:
+                    parts.append('</ol>')
+                    in_olist = False
+                if in_table:
+                    parts.append('</tbody></table>')
+                    in_table = False
                 continue
-            if not in_table:
-                html_parts.append('<table><thead><tr>')
-                html_parts.append(''.join(f'<th>{md_inline(c)}</th>' for c in cells))
-                html_parts.append('</tr></thead><tbody>')
-                in_table = True
-            else:
-                html_parts.append('<tr>')
-                html_parts.append(''.join(f'<td>{md_inline(c)}</td>' for c in cells))
-                html_parts.append('</tr>')
-            i += 1
+            # Table
+            if s.startswith('|'):
+                cells = [c.strip() for c in s.strip('|').split('|')]
+                if all(re.match(r'^[-:]+$', c) for c in cells):
+                    continue
+                if not in_table:
+                    parts.append('<table><thead><tr>')
+                    parts.append(''.join(f'<th>{md_inline(c)}</th>' for c in cells))
+                    parts.append('</tr></thead><tbody>')
+                    in_table = True
+                else:
+                    parts.append('<tr>' + ''.join(f'<td>{md_inline(c)}</td>' for c in cells) + '</tr>')
+                continue
+            if in_table:
+                parts.append('</tbody></table>')
+                in_table = False
+            # Ordered list
+            m_ol = re.match(r'^(\d+)\.\s+(.*)', s)
+            if m_ol:
+                if not in_olist:
+                    parts.append('<ol>')
+                    in_olist = True
+                parts.append(f'<li>{md_inline(m_ol.group(2))}</li>')
+                continue
+            if in_olist:
+                parts.append('</ol>')
+                in_olist = False
+            # Unordered list
+            if re.match(r'^[-*]\s', s):
+                if not in_list:
+                    parts.append('<ul>')
+                    in_list = True
+                item_text = md_inline(re.sub(r'^[-*]\s+', '', s))
+                parts.append(f'<li>{item_text}</li>')
+                continue
+            if in_list:
+                parts.append('</ul>')
+                in_list = False
+            # Paragraph
+            parts.append(f'<p>{md_inline(s)}</p>')
+        if in_list:
+            parts.append('</ul>')
+        if in_olist:
+            parts.append('</ol>')
+        if in_table:
+            parts.append('</tbody></table>')
+        return '\n'.join(parts)
+
+    # Map sections to card styles
+    SECTION_STYLES = {
+        "The Collection": ("orange", "Hardware", ""),
+        "Three Apps": ("pink", "Creative", "inst-creative"),
+        "The Pipeline": ("blue", "Architecture", "inst-accent"),
+        "Infrastructure": ("teal", "Infrastructure", "inst-status"),
+    }
+
+    # Build HTML
+    html_parts = []
+
+    # Hero from first section (# MADphotos + intro paragraph)
+    intro_sec = sections[0] if sections else None
+    if intro_sec:
+        intro_lines = [l for l in intro_sec["lines"] if l.strip()]
+        html_parts.append(f'''<div class="inst-hero">
+  <h1>MADphotos</h1>
+  <p class="hero-sub">{md_inline(intro_lines[0].strip()) if intro_lines else ""}</p>
+</div>''')
+        if len(intro_lines) > 1:
+            html_parts.append(render_block(intro_lines[1:]))
+
+    # Build index for quick lookup
+    skip_indices = set()  # type: set[int]
+
+    # Render each ## section as a card
+    for idx, sec in enumerate(sections[1:], 1):
+        if idx in skip_indices:
             continue
-
-        if in_table and not line.strip().startswith('|'):
-            html_parts.append('</tbody></table>')
-            in_table = False
-
-        # List item
-        if re.match(r'^[-*]\s', line.strip()):
-            if not in_list:
-                html_parts.append('<ul>')
-                in_list = True
-            text = md_inline(re.sub(r'^[-*]\s+', '', line.strip()))
-            html_parts.append(f'<li>{text}</li>')
-            i += 1
+        if sec["level"] == 1:
             continue
+        # Level 3 sections outside a parent are rendered standalone
+        if sec["level"] >= 3:
+            continue
+        heading = sec["heading"]
+        clean_heading = re.sub(r'\[(.+?)\]\(.+?\)', r'\1', heading)
 
-        if in_list and not re.match(r'^[-*]\s', line.strip()):
-            html_parts.append('</ul>')
-            in_list = False
+        style_info = SECTION_STYLES.get(clean_heading)
+        if style_info:
+            pill_color, pill_label, card_class = style_info
+        else:
+            pill_color, pill_label, card_class = "blue", clean_heading[:12], ""
 
-        # Paragraph
-        if line.strip():
-            html_parts.append(f'<p>{md_inline(line.strip())}</p>')
+        # Collect child ### sections that follow this ## section
+        child_secs = []  # type: list[dict]
+        for j in range(idx + 1, len(sections)):
+            if sections[j]["level"] <= 2:
+                break
+            child_secs.append(sections[j])
+            skip_indices.add(j)
 
-        i += 1
+        if clean_heading == "Three Apps" and child_secs:
+            boxes = []
+            for cs in child_secs:
+                body = render_block(cs["lines"])
+                raw_name = cs["heading"]
+                sub_name = re.sub(r'\[(.+?)\]\(.+?\)', r'\1', raw_name)
+                sub_link = re.search(r'\[.+?\]\((.+?)\)', raw_name)
+                name = sub_name
+                if sub_link:
+                    name = f'<a href="{sub_link.group(1)}" style="text-decoration:none;color:inherit">{name}</a>'
+                boxes.append(f'<div class="app-box"><strong>{name}</strong>{body}</div>')
 
-    if in_list:
-        html_parts.append('</ul>')
-    if in_table:
-        html_parts.append('</tbody></table>')
+            html_parts.append(f'''<div class="inst-card {card_class}">
+  <span class="inst-pill inst-pill-{pill_color}">{pill_label}</span>
+  <h2>{clean_heading}</h2>
+  <div class="app-trio">
+    {"".join(boxes)}
+  </div>
+</div>''')
+        elif child_secs:
+            # Render parent body + child subsections inside same card
+            body = render_block(sec["lines"])
+            for cs in child_secs:
+                cs_name = re.sub(r'\[(.+?)\]\(.+?\)', r'\1', cs["heading"])
+                body += f'\n<h3>{cs_name}</h3>\n' + render_block(cs["lines"])
+            html_parts.append(f'''<div class="inst-card {card_class}">
+  <span class="inst-pill inst-pill-{pill_color}">{pill_label}</span>
+  <h2>{clean_heading}</h2>
+  {body}
+</div>''')
+        else:
+            body = render_block(sec["lines"])
+            html_parts.append(f'''<div class="inst-card {card_class}">
+  <span class="inst-pill inst-pill-{pill_color}">{pill_label}</span>
+  <h2>{clean_heading}</h2>
+  {body}
+</div>''')
 
     body = '\n'.join(html_parts)
 
     readme_style = """<style>
-  .main-content h1 { font-size: var(--text-3xl); margin-bottom: var(--space-1); }
-  .main-content > p:first-of-type {
-    font-size: var(--text-lg); line-height: var(--leading-relaxed);
-    color: var(--fg-secondary); max-width: 640px;
+  .inst-hero { text-align: center; margin-bottom: var(--space-8); padding: var(--space-8) 0 var(--space-4); }
+  .inst-hero h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; margin: 0; }
+  .inst-hero .hero-sub, .inst-hero p { font-size: var(--text-sm); color: var(--muted); margin-top: var(--space-2); max-width: 640px; margin-left: auto; margin-right: auto; line-height: var(--leading-relaxed); }
+  .inst-card {
+    background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    padding: var(--space-5) var(--space-6); margin-bottom: var(--space-4);
+    transition: border-color var(--duration-fast) var(--ease-default);
   }
-  .main-content h2 {
-    font-size: var(--text-xl); margin: var(--space-10) 0 var(--space-4);
-    padding-bottom: var(--space-2); border-bottom: 1px solid var(--border);
+  .inst-card:hover { border-color: var(--border-strong); }
+  .inst-card.inst-accent {
+    border-color: var(--apple-indigo);
+    background: linear-gradient(135deg, var(--card-bg) 0%, rgba(88,86,214,0.05) 100%);
   }
-  .main-content h3 {
-    font-size: var(--text-lg); margin: var(--space-6) 0 var(--space-2);
+  .inst-card.inst-creative {
+    border-color: var(--apple-pink);
+    background: linear-gradient(135deg, var(--card-bg) 0%, rgba(255,55,95,0.04) 100%);
   }
-  .main-content > p, .main-content > ul {
-    font-size: var(--text-sm); line-height: var(--leading-relaxed);
-    color: var(--fg-secondary); max-width: 640px;
+  .inst-card.inst-status {
+    border-color: var(--apple-green);
+    background: linear-gradient(135deg, var(--card-bg) 0%, rgba(52,199,89,0.04) 100%);
   }
-  .main-content table {
-    width: 100%; border-collapse: separate; border-spacing: 0;
-    background: var(--card-bg); border: 1px solid var(--border);
-    border-radius: var(--radius-md); overflow: hidden;
-    margin: var(--space-4) 0;
+  .inst-card h2 { font-size: 16px; font-weight: 700; margin: 0 0 var(--space-3); letter-spacing: -0.01em; border-bottom: none; padding-bottom: 0; }
+  .inst-card h3 { font-size: 13px; font-weight: 600; margin: var(--space-4) 0 var(--space-2); color: var(--fg); }
+  .inst-card p, .inst-card li { font-size: var(--text-sm); color: var(--fg-secondary); line-height: var(--leading-relaxed); }
+  .inst-card ul { list-style: none; padding: 0; margin: var(--space-2) 0; }
+  .inst-card li { padding: var(--space-1) 0 var(--space-1) var(--space-4); position: relative; }
+  .inst-card li::before { content: "\\2014"; position: absolute; left: 0; color: var(--muted); }
+  .inst-card ol { padding-left: var(--space-5); margin: var(--space-2) 0; }
+  .inst-card ol li { padding: var(--space-1) 0; position: static; }
+  .inst-card ol li::before { content: none; }
+  .inst-card table { width: 100%; border-collapse: collapse; font-size: var(--text-xs); margin: var(--space-2) 0; }
+  .inst-card th, .inst-card td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+  .inst-card th { font-weight: 600; color: var(--fg); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .inst-card code { font-family: var(--font-mono); font-size: 0.88em; color: var(--apple-blue); }
+  .inst-pill {
+    display: inline-block; font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.05em; padding: 2px 8px; border-radius: var(--radius-full, 9999px);
+    margin-bottom: var(--space-2);
   }
-  .main-content th {
-    text-align: left; font-size: var(--text-xs); font-weight: 600;
-    text-transform: uppercase; letter-spacing: var(--tracking-caps);
-    color: var(--muted); padding: var(--space-3) var(--space-4);
-    background: var(--hover-overlay); border-bottom: 1px solid var(--border);
-  }
-  .main-content td {
-    font-size: var(--text-sm); padding: var(--space-3) var(--space-4);
-    border-bottom: 1px solid var(--border); color: var(--fg-secondary);
-  }
-  .main-content tr:last-child td { border-bottom: none; }
-  .main-content tr:hover td { background: var(--hover-overlay); }
-  .main-content ol {
-    font-size: var(--text-sm); color: var(--fg-secondary);
-    line-height: var(--leading-relaxed); padding-left: var(--space-5);
-    max-width: 640px;
-  }
-  .main-content li {
-    margin: var(--space-2) 0; font-size: var(--text-sm);
-    color: var(--fg-secondary); line-height: var(--leading-relaxed);
-  }
-  .main-content code {
-    font-family: var(--font-mono); font-size: 0.9em;
-    background: var(--hover-overlay); padding: 1px var(--space-1);
-    border-radius: 3px; color: var(--fg);
-  }
+  .inst-pill-orange { color: var(--apple-orange); background: color-mix(in srgb, var(--apple-orange) 12%, transparent); }
+  .inst-pill-pink { color: var(--apple-pink); background: color-mix(in srgb, var(--apple-pink) 12%, transparent); }
+  .inst-pill-blue { color: var(--apple-blue); background: color-mix(in srgb, var(--apple-blue) 12%, transparent); }
+  .inst-pill-teal { color: var(--apple-teal); background: color-mix(in srgb, var(--apple-teal) 12%, transparent); }
+  .app-trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); margin: var(--space-3) 0; }
+  .app-box { background: var(--hover-overlay); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); }
+  .app-box strong { display: block; font-size: 14px; margin-bottom: 4px; }
+  .app-box p { font-size: 12px; margin: 0; color: var(--muted); line-height: 1.5; }
+  @media (max-width: 700px) { .app-trio { grid-template-columns: 1fr; } }
 </style>
 """
     content = readme_style + body
@@ -2671,20 +2675,20 @@ def render_instructions():
 <div class="inst-card inst-accent">
   <span class="inst-pill inst-pill-indigo">Briefing</span>
   <h2>MADphotos</h2>
-  <p>A solo art project by <strong>LAEH</strong>. 9,011 unedited photographs shot over a decade with five cameras, turned into the most richly-understood image collection ever built. Every image gets every possible signal. Then camera-aware enhancement. Then human curation. Then a public gallery that only shows the accepted best.</p>
+  <p>A solo art project by <strong>LAEH</strong>. 9,011 unedited photographs shot over a decade with five cameras, turned into the most richly-understood image collection ever built. Every image gets every possible signal. Then camera-aware enhancement.</p>
 
   <div class="app-trio">
     <div class="app-box">
-      <strong>See</strong>
-      <p>MADCurator &mdash; native SwiftUI app. 55 fields, 18 filters, Keep/Reject workflow. The human decides.</p>
-    </div>
-    <div class="app-box">
       <strong>Show</strong>
-      <p>Web gallery. 14 experiences: Grille, Bento, Similarit&eacute;, D&eacute;rive, Couleurs, Terrain de Jeu, Flot, Chambre Noire, Visages, Boussole, Observatoire, Carte, Machine &agrave; &Eacute;crire, Pendule.</p>
+      <p>Blow people&rsquo;s minds. Continuously release new experiences guided by signals and new ideas. Delightful, playful, elegant, smart, teasing, revealing, exciting &mdash; on every screen.</p>
     </div>
     <div class="app-box">
       <strong>State</strong>
-      <p>This dashboard. Live system monitoring, Journal de Bord, signal inventory. The control room.</p>
+      <p>The dashboard. The control room. Every signal, every model, every image &mdash; tracked, measured, monitored.</p>
+    </div>
+    <div class="app-box">
+      <strong>See</strong>
+      <p>The native power image viewer. MADCurator &mdash; 55 fields, 18 filters, full-resolution display. The human eye decides what&rsquo;s worth showing.</p>
     </div>
   </div>
 </div>
@@ -2705,9 +2709,10 @@ def render_instructions():
 <div class="inst-card inst-status">
   <span class="inst-pill inst-pill-green">Status</span>
   <h2>What&rsquo;s Done vs. What&rsquo;s Next</h2>
-  <p><strong>Done (12/18):</strong> EXIF. Pixel Analysis. Dominant Colors. Face Detection. Object Detection. Perceptual Hashes. Vectors (DINOv2+SigLIP+CLIP). Aesthetic Scoring. Depth Estimation. Scene Classification. Style Classification. Enhancement Plans. &mdash; GCS hosting live. Dashboard + Journal. MADCurator. 14 web experiences.</p>
-  <p><strong>In progress (6/18):</strong> Gemini analysis (6,211/9,011 &mdash; 69%). OCR (2,796/9,011 &mdash; 31%). BLIP Captions (9,006/9,011 &mdash; 5 retrying). Facial Emotions (re-running with fixed coordinate conversion).</p>
-  <p><strong>Next:</strong> Finish all signals to 100%. Curate in MADCurator. Precompute DINOv2 visual neighbors for Drift. SigLIP text&rarr;image API. Location intelligence. Juicy cartoon experiences with Imagen variants.</p>
+  <p><strong>Done (14/20):</strong> Rendering (97,898 tiers). EXIF. Pixel Analysis. Dominant Colors. Image Hashes. Vectors (DINOv2+SigLIP+CLIP). Aesthetic Scoring. Depth Estimation. Scene Classification. Style Classification. BLIP Captions. Facial Emotions. Enhancement Plans (v1+v2). &mdash; Dashboard + Journal. MADCurator. 14 web experiences. Master orchestrator (<code>mad_completions.py</code>).</p>
+  <p><strong>In progress (2/20):</strong> Gemini analysis (70%). OCR / Text Detection (47%).</p>
+  <p><strong>Sparse signals (complete but partial by nature):</strong> Face Detections (1,676 images). Object Detections (5,363 images). OCR is also sparse &mdash; not every photo contains text.</p>
+  <p><strong>Next:</strong> Finish Gemini + OCR to 100%. GCS upload pipeline. Curate in MADCurator. Imagen AI variants at scale. Location intelligence from EXIF GPS.</p>
 </div>
 
 <!-- ═══ CAMERAS + ARCHITECTURE ═══ -->
@@ -2730,11 +2735,12 @@ def render_instructions():
 
 <div class="inst-card">
   <span class="inst-pill inst-pill-blue">Architecture</span>
-  <h2>9 Python Scripts</h2>
+  <h2>10 Python Scripts</h2>
   <table>
     <thead><tr><th>Script</th><th>Purpose</th></tr></thead>
     <tbody>
-      <tr><td><code>mad_pipeline.py</code></td><td>Orchestrator</td></tr>
+      <tr><td><code>mad_pipeline.py</code></td><td>Phase orchestrator</td></tr>
+      <tr><td><code>mad_completions.py</code></td><td>Master orchestrator &mdash; checks all 20 stages, fixes gaps, updates State</td></tr>
       <tr><td><code>render_pipeline.py</code></td><td>6-tier resolution pyramid</td></tr>
       <tr><td><code>photography_engine.py</code></td><td>Gemini 2.5 Pro structured analysis</td></tr>
       <tr><td><code>imagen_engine.py</code></td><td>4 AI variants via Imagen 3</td></tr>
@@ -2808,11 +2814,12 @@ def render_instructions():
 </div>
 
 <div class="inst-card">
-  <h2>Web Gallery (Show)</h2>
+  <h2>Web Gallery (Show) &mdash; 14 Experiences</h2>
   <ul>
-    <li><code>export_gallery_data.py</code> &rarr; 4 JSON files</li>
+    <li><code>export_gallery_data.py</code> &rarr; 5 JSON files (photos, faces, game_rounds, stream_sequence, drift_neighbors)</li>
     <li><code>serve_gallery.py</code> &rarr; localhost:3000</li>
-    <li>16 files: index.html, style.css, app.js + 13 modules</li>
+    <li>18 files: index.html, style.css, app.js + 14 experience modules + data/</li>
+    <li>La Grille, Le Bento, La Similarit&eacute;, La D&eacute;rive, Les Couleurs, Le Jeu, Chambre Noire, Le Flot, Les Visages, La Boussole, L&rsquo;Observatoire, La Carte, Machine &Agrave; &Eacute;crire, Le Pendule</li>
     <li>Dark, monospace, glassmorphism. Vanilla JS, no framework.</li>
   </ul>
 </div>
@@ -2833,14 +2840,14 @@ def render_instructions():
       <tr><td>Objects</td><td>YOLOv8n</td><td class="done">5,363 images &check;</td><td>14,534 detections, 80 COCO classes</td></tr>
       <tr><td>Hashes</td><td>imagehash</td><td class="done">9,011 &check;</td><td>pHash, aHash, dHash, wHash, blur, sharpness</td></tr>
       <tr><td>Vectors</td><td>DINOv2+SigLIP+CLIP</td><td class="done">9,011 &check;</td><td>768d+768d+512d = 2,048 dims (LanceDB)</td></tr>
-      <tr><td>Gemini</td><td>Gemini 2.5 Pro</td><td>6,211/9,011</td><td>Alt, vibes, exposure, composition, grading, edit prompt</td></tr>
+      <tr><td>Gemini</td><td>Gemini 2.5 Pro</td><td>6,294/9,011</td><td>Alt, vibes, exposure, composition, grading, edit prompt</td></tr>
       <tr><td>Aesthetic</td><td>LAION (CLIP MLP)</td><td class="done">9,011 &check;</td><td>Score 1&ndash;10</td></tr>
       <tr><td>Depth</td><td>Depth Anything v2</td><td class="done">9,011 &check;</td><td>Near/mid/far %, complexity bucket</td></tr>
       <tr><td>Scenes</td><td>Places365</td><td class="done">9,011 &check;</td><td>Top 3 labels, indoor/outdoor</td></tr>
       <tr><td>Style</td><td>Derived</td><td class="done">9,011 &check;</td><td>street, portrait, landscape, macro, etc.</td></tr>
-      <tr><td>OCR</td><td>EasyOCR</td><td>2,796/9,011</td><td>Text regions, language, confidence (3 shards running)</td></tr>
-      <tr><td>Captions</td><td>BLIP (Salesforce)</td><td>9,006/9,011</td><td>Natural language (5 retrying)</td></tr>
-      <tr><td>Emotions</td><td>ViT expression</td><td>re-running</td><td>7-class scores per face (fixed coord bug)</td></tr>
+      <tr><td>OCR</td><td>EasyOCR</td><td>4,223/9,011</td><td>Text regions, language, confidence (sparse &mdash; not all images have text)</td></tr>
+      <tr><td>Captions</td><td>BLIP (Salesforce)</td><td class="done">9,011 &check;</td><td>Natural language description</td></tr>
+      <tr><td>Emotions</td><td>ViT expression</td><td class="done">1,676 &check;</td><td>7-class scores per face (3,185 emotion entries)</td></tr>
       <tr><td>Enhancement</td><td>Camera engine</td><td class="done">9,011 &check;</td><td>WB, gamma, shadows, contrast, saturation, sharpening</td></tr>
       <tr><td>Enhancement v2</td><td>Camera engine v2</td><td class="done">9,011 &check;</td><td>Updated parameters</td></tr>
       <tr><td>AI Variants</td><td>Imagen 3</td><td>216/9,011</td><td>gemini_edit, pro_edit, nano_feel, cartoon</td></tr>
@@ -3337,25 +3344,13 @@ def render_journal():
             current_event["raw_text"] += " " + stripped
             continue
 
-        # Regular content lines inside an event
+        # Regular content lines inside an event — uniform style
         if current_event is not None:
             if stripped.startswith("> "):
                 if in_list:
                     current_event["body"].append("</ul>")
                     in_list = False
-                current_event["body"].append(f'<blockquote>{md_inline(stripped[2:])}</blockquote>')
-            elif stripped.startswith("**Intent.**"):
-                text = stripped.replace("**Intent.**", "").strip()
-                current_event["body"].append(f'<p class="intent">{md_inline(text)}</p>')
-            elif stripped.startswith("**Discovered.**"):
-                text = stripped.replace("**Discovered.**", "").strip()
-                current_event["body"].append(f'<p class="discovered">{md_inline(text)}</p>')
-            elif stripped.startswith("**Solution.**"):
-                text = stripped.replace("**Solution.**", "").strip()
-                current_event["body"].append(f'<p class="solution">{md_inline(text)}</p>')
-            elif stripped.startswith("**"):
-                # Any other bold-prefixed paragraph (e.g. **What changed.**, **Results.**)
-                current_event["body"].append(f'<p class="detail">{md_inline(stripped)}</p>')
+                current_event["body"].append(f'<p>{md_inline(stripped[2:])}</p>')
             else:
                 current_event["body"].append(f'<p>{md_inline(stripped)}</p>')
             current_event["raw_text"] += " " + stripped
@@ -3366,13 +3361,23 @@ def render_journal():
     if in_table and current_event:
         current_event["body"].append("</tbody></table></div>")
 
+    # -- Merge duplicate date sections ------------------------------------
+    merged = []  # type: list[dict]
+    seen_dates = {}  # type: dict[str, int]
+    for ds in date_sections:
+        if ds["header"] in seen_dates:
+            merged[seen_dates[ds["header"]]]["events"].extend(ds["events"])
+        else:
+            seen_dates[ds["header"]] = len(merged)
+            merged.append(ds)
+    date_sections = merged
+
     # -- Genesis event (special card at the bottom) -----------------------
     genesis_html = """<div class="event event-genesis">
 <div class="ev-labels"><span class="ev-label" style="--label-color:var(--apple-indigo)">Genesis</span></div>
 <h3>The Vision</h3>
-<p class="intent">9,011 unedited photographs taken over a decade with five cameras. The mission: augment every single image with every possible signal — AI analysis, pixel metrics, vector embeddings, depth maps, scene classification, object detection, face emotions, captions, color palettes. Then enhance each frame with camera-aware, signal-driven corrections. Then curate: a human eye decides what's worth showing. Only the accepted images reach the public gallery.</p>
-<p>Three apps, one pipeline. <strong>See</strong> (MADCurator) — the native SwiftUI app where every image is examined, filtered across 18 dimensions, and accepted or rejected. <strong>Show</strong> — the web gallery with 14 experiences: La Grille, Le Bento, La Similarité, La Dérive, Les Couleurs, Le Terrain de Jeu, Le Flot, La Chambre Noire, Les Visages, La Boussole, L'Observatoire, La Carte, La Machine à Écrire, Le Pendule. <strong>State</strong> — the live dashboard tracking every signal, every model, every image.</p>
-<p>The goal is not a photo dump. It's storytelling, exploration, discovery. Every photograph that reaches the public has been looked at, considered, and chosen.</p>
+<p class="intent">9,011 unedited photographs taken over a decade with five cameras. The mission: augment every single image with every possible signal — AI analysis, pixel metrics, vector embeddings, depth maps, scene classification, object detection, face emotions, captions, color palettes. Then enhance each frame with camera-aware, signal-driven corrections.</p>
+<p>Three apps, one pipeline. <strong>Show</strong> — blow people's minds with experiences that are playful, elegant, smart, teasing, revealing. Continuously release new ways to see photographs, guided by signals and new ideas. <strong>State</strong> — the dashboard, the control room. Every signal, every model, every image tracked. <strong>See</strong> (MADCurator) — the native power image viewer. 55 fields, 18 filters, full-resolution. The human eye decides what's worth showing.</p>
 <blockquote>We started with 9,011 raw images and zero metadata. We will create the best experience on photos. Game ON.</blockquote>
 </div>"""
 
@@ -3385,20 +3390,13 @@ def render_journal():
             body_lines = ev["body"]
             body_html = "\n".join(body_lines)
             quote_html = f'<span class="quote">({ev["quote"]})</span>' if ev.get("quote") else ""
-            # Extract the first intent/paragraph as summary (the "why it matters")
+            # Extract the first paragraph as summary
             summary = ""
             for line in body_lines:
-                if '<p class="intent">' in line:
-                    summary = line
-                    break
-                elif line.startswith("<p>") and not line.startswith("<p><strong>"):
-                    summary = line
-                    break
-                elif line.startswith("<blockquote>"):
+                if line.startswith("<p>"):
                     summary = line
                     break
             if not summary and body_lines:
-                # Fallback: first non-empty body element
                 for line in body_lines:
                     if line.strip() and not line.startswith("</"):
                         summary = line
@@ -3477,26 +3475,6 @@ def render_journal():
     font-size: var(--text-xs); color: var(--muted); font-style: italic;
     font-weight: 400; display: block; margin-top: 2px;
   }}
-  .intent {{
-    font-size: var(--text-sm); color: var(--fg-secondary);
-    margin: var(--space-2) 0 var(--space-1); line-height: var(--leading-relaxed);
-  }}
-  .discovered {{
-    font-size: var(--text-sm); color: var(--muted);
-    margin: var(--space-2) 0 var(--space-1); font-style: italic; line-height: var(--leading-relaxed);
-    padding-left: var(--space-3);
-    border-left: 2px solid var(--border-strong);
-  }}
-  .solution {{
-    font-size: var(--text-sm); color: var(--fg-secondary);
-    margin: var(--space-2) 0 var(--space-1); line-height: var(--leading-relaxed);
-    padding-left: var(--space-3);
-    border-left: 2px solid var(--apple-green);
-  }}
-  .detail {{
-    font-size: var(--text-sm); color: var(--fg-secondary);
-    margin: var(--space-2) 0 var(--space-1); line-height: var(--leading-relaxed);
-  }}
   /* Compact/expanded toggle */
   .event {{ cursor: pointer; }}
   .ev-expand-hint {{
@@ -3513,13 +3491,6 @@ def render_journal():
     margin-top: var(--space-1); line-height: var(--leading-relaxed);
   }}
   .ev-summary p {{ margin: 0; }}
-  .event blockquote {{
-    font-size: var(--text-sm); color: var(--fg-secondary);
-    margin: var(--space-2) 0 var(--space-1); line-height: var(--leading-relaxed);
-    padding-left: var(--space-3);
-    border-left: 2px solid var(--apple-blue);
-    font-style: italic;
-  }}
   .event p {{
     font-size: var(--text-sm); color: var(--fg-secondary);
     margin: var(--space-1) 0; line-height: var(--leading-relaxed);
@@ -3561,211 +3532,622 @@ def render_journal():
 
 
 # ---------------------------------------------------------------------------
-# Drift — Vector nearest-neighbor explorer
+# Similarity — Interactive vector neighbor explorer
 # ---------------------------------------------------------------------------
 
 RENDERED_DIR = Path(__file__).resolve().parent / "rendered"
 
+# Shared lancedb connection (lazy)
+_lance_db = None  # type: Optional[object]
+_lance_tbl = None  # type: Optional[object]
 
-def render_drift():
-    # type: () -> str
-    """Sample 10 images, find 4 nearest neighbors per embedding model."""
-    import random
 
+def _get_lance():
+    """Lazy-load lancedb connection, returns (tbl, df) or (None, None)."""
+    global _lance_db, _lance_tbl
     try:
         import lancedb as _ldb
     except ImportError:
-        return page_shell("Drift", "<h1>Drift</h1><p>lancedb not installed.</p>", active="drift")
-
+        return None, None
     lance_path = Path(__file__).resolve().parent / "vectors.lance"
     if not lance_path.exists():
-        return page_shell("Drift", "<h1>Drift</h1><p>No vector store found.</p>", active="drift")
+        return None, None
+    if _lance_db is None:
+        _lance_db = _ldb.connect(str(lance_path))
+        _lance_tbl = _lance_db.open_table("image_vectors")
+    return _lance_tbl, _lance_tbl.to_pandas()
 
-    _db = _ldb.connect(str(lance_path))
-    tbl = _db.open_table("image_vectors")
-    df = tbl.to_pandas()
 
-    # Sample 10 random images
-    all_uuids = df["uuid"].tolist()
-    sample_uuids = random.sample(all_uuids, min(10, len(all_uuids)))
-
+def similarity_search(query_uuid):
+    # type: (str) -> Optional[dict]
+    """Find nearest neighbors for a UUID across all 3 models. Returns JSON-ready dict."""
+    tbl, df = _get_lance()
+    if tbl is None:
+        return None
+    matches = df[df["uuid"] == query_uuid]
+    if matches.empty:
+        return None
+    query_row = matches.iloc[0]
     models = [
-        ("dino", "DINOv2", "Composition & texture"),
-        ("siglip", "SigLIP", "Semantic meaning"),
-        ("clip", "CLIP", "Subject matching"),
+        ("dino", "DINOv2", "Texture & structure — finds images with similar visual geometry"),
+        ("siglip", "SigLIP", "Semantic meaning — finds images about similar things"),
+        ("clip", "CLIP", "Subject matching — finds images of similar objects"),
     ]
+    result = {"uuid": query_uuid, "models": []}
+    for col, name, desc in models:
+        query_vec = query_row[col]
+        results = tbl.search(query_vec, vector_column_name=col).limit(9).to_pandas()
+        neighbors = results[results["uuid"] != query_uuid].head(8)
+        nb_list = []
+        for _, nb_row in neighbors.iterrows():
+            nb_list.append({"uuid": nb_row["uuid"], "dist": round(float(nb_row["_distance"]), 4)})
+        result["models"].append({"name": name, "desc": desc, "neighbors": nb_list})
+    return result
 
-    sections_html = []
-    for idx, query_uuid in enumerate(sample_uuids):
-        query_row = df[df["uuid"] == query_uuid].iloc[0]
 
-        rows_html = []
-        for col, model_name, model_desc in models:
-            query_vec = query_row[col]
-            results = tbl.search(query_vec, vector_column_name=col).limit(5).to_pandas()
-            # Skip self (first result)
-            neighbors = results[results["uuid"] != query_uuid].head(4)
+def render_drift():
+    # type: () -> str
+    """Interactive similarity explorer — navigate through vector space."""
+    import random
+    tbl, df = _get_lance()
+    if tbl is None:
+        return page_shell("Similarity", "<h1>Similarity</h1><p>Vector store not available.</p>", active="drift")
 
-            # Build neighbor cells
-            neighbor_cells = []
-            for _, nb_row in neighbors.iterrows():
-                nb_uuid = nb_row["uuid"]
-                dist = nb_row["_distance"]
-                neighbor_cells.append(
-                    f'<div class="drift-cell">'
-                    f'<img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/{nb_uuid}.jpg" loading="lazy" alt="{nb_uuid[:8]}" onload="this.classList.add(\'loaded\')" class="drift-img">'
-                    f'<div class="drift-dist">{dist:.3f}</div>'
-                    f'</div>'
-                )
-
-            rows_html.append(
-                f'<div class="drift-model-row">'
-                f'<div class="drift-model-label">'
-                f'<span class="drift-model-name">{model_name}</span>'
-                f'<span class="drift-model-desc">{model_desc}</span>'
-                f'</div>'
-                f'<div class="drift-cell drift-cell-query">'
-                f'<img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/{query_uuid}.jpg" loading="lazy" alt="{query_uuid[:8]}" onload="this.classList.add(\'loaded\')" class="drift-img">'
-                f'<div class="drift-dist">query</div>'
-                f'</div>'
-                + "".join(neighbor_cells) +
-                f'</div>'
-            )
-
-        sections_html.append(
-            f'<div class="drift-section">'
-            f'<div class="drift-section-header">'
-            f'<span class="drift-section-num">{idx + 1}</span>'
-            f'<span class="drift-section-uuid">{query_uuid[:8]}</span>'
-            f'</div>'
-            + "\n".join(rows_html) +
-            f'</div>'
-        )
-
-    body = "\n".join(sections_html)
+    all_uuids = df["uuid"].tolist()
+    start_uuid = random.choice(all_uuids)
+    GCS = "https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original"
 
     content = f"""<style>
-  .drift-section {{
-    margin-bottom: var(--space-10);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    background: var(--card-bg);
-    overflow: hidden;
+  .sim-hero {{
+    text-align: center;
+    margin-bottom: var(--space-6);
   }}
-  .drift-section-header {{
-    display: flex;
-    align-items: baseline;
-    gap: var(--space-3);
-    padding: var(--space-3) var(--space-5);
-    border-bottom: 1px solid var(--border);
-    background: var(--hover-overlay);
+  .sim-hero h1 {{
+    font-size: 28px; font-weight: 800; letter-spacing: -0.02em; margin: 0;
   }}
-  .drift-section-num {{
-    font-family: var(--font-display);
-    font-size: var(--text-xl);
-    font-weight: 700;
-    color: var(--muted);
+  .sim-hero p {{
+    font-size: var(--text-sm); color: var(--muted); margin-top: var(--space-2);
+    max-width: 500px; margin-left: auto; margin-right: auto;
   }}
-  .drift-section-uuid {{
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    color: var(--muted);
+  .sim-controls {{
+    display: flex; gap: var(--space-2); justify-content: center;
+    margin-bottom: var(--space-6);
   }}
-  .drift-model-row {{
-    display: flex;
-    align-items: stretch;
-    border-bottom: 1px solid var(--border);
-    min-height: 120px;
+  .sim-btn {{
+    font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 600;
+    padding: var(--space-2) var(--space-4); border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--card-bg); color: var(--fg);
+    cursor: pointer; transition: all var(--duration-fast);
   }}
-  .drift-model-row:last-child {{ border-bottom: none; }}
-  .drift-model-label {{
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    min-width: 100px;
-    max-width: 100px;
-    padding: var(--space-3);
-    border-right: 1px solid var(--border);
-    background: var(--hover-overlay);
+  .sim-btn:hover {{ border-color: var(--border-strong); background: var(--hover-overlay); }}
+  .sim-trail {{
+    display: flex; gap: 4px; justify-content: center; align-items: center;
+    margin-bottom: var(--space-6); flex-wrap: wrap;
   }}
-  .drift-model-name {{
-    font-size: var(--text-sm);
-    font-weight: 700;
-    color: var(--fg);
+  .sim-trail-item {{
+    width: 40px; height: 40px; border-radius: var(--radius-sm);
+    overflow: hidden; cursor: pointer; border: 2px solid transparent;
+    transition: border-color var(--duration-fast);
+    flex-shrink: 0;
   }}
-  .drift-model-desc {{
-    font-size: 10px;
-    color: var(--muted);
-    margin-top: 2px;
+  .sim-trail-item:hover {{ border-color: var(--muted); }}
+  .sim-trail-item.current {{ border-color: var(--apple-blue); }}
+  .sim-trail-item img {{ width: 100%; height: 100%; object-fit: cover; display: block; }}
+  .sim-trail-arrow {{ color: var(--muted); font-size: 12px; flex-shrink: 0; }}
+  .sim-query {{
+    display: flex; justify-content: center; margin-bottom: var(--space-6);
   }}
-  .drift-cell {{
-    flex: 1;
-    position: relative;
-    min-width: 0;
-    border-right: 1px solid var(--border);
+  .sim-query img {{
+    max-width: 100%; max-height: 420px; border-radius: var(--radius-md);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    transition: opacity 0.4s;
   }}
-  .drift-cell:last-child {{ border-right: none; }}
-  .drift-cell img {{
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-    min-height: 120px;
-    opacity: 0;
-    transform: scale(1.05);
-    transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1),
-                transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  .sim-model-section {{
+    margin-bottom: var(--space-6);
   }}
-  .drift-cell img.loaded {{
-    opacity: 1;
-    transform: scale(1);
+  .sim-model-header {{
+    display: flex; align-items: baseline; gap: var(--space-2);
+    margin-bottom: var(--space-3);
   }}
-  .drift-cell-query {{
-    flex: 1;
-    position: relative;
+  .sim-model-name {{
+    font-size: var(--text-base); font-weight: 700; color: var(--fg);
   }}
-  .drift-cell-query::after {{
-    content: "";
-    position: absolute;
-    inset: 0;
-    border: 3px solid var(--apple-blue);
-    pointer-events: none;
+  .sim-model-desc {{
+    font-size: var(--text-xs); color: var(--muted);
   }}
-  .drift-dist {{
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    font-weight: 600;
-    color: rgba(255,255,255,0.95);
-    background: rgba(0,0,0,0.6);
-    padding: 2px var(--space-2);
+  .sim-grid {{
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-2);
+  }}
+  .sim-card {{
+    position: relative; border-radius: var(--radius-sm);
+    overflow: hidden; cursor: pointer; aspect-ratio: 1;
+    border: 2px solid transparent;
+    transition: border-color var(--duration-fast), transform var(--duration-fast);
+  }}
+  .sim-card:hover {{
+    border-color: var(--apple-blue);
+    transform: scale(1.03);
+  }}
+  .sim-card img {{
+    width: 100%; height: 100%; object-fit: cover; display: block;
+    opacity: 0; transition: opacity 0.5s;
+  }}
+  .sim-card img.loaded {{ opacity: 1; }}
+  .sim-card .sim-dist {{
+    position: absolute; bottom: 0; right: 0;
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    color: rgba(255,255,255,0.9); background: rgba(0,0,0,0.5);
+    padding: 2px 6px; border-radius: var(--radius-sm) 0 0 0;
     backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-  }}
-  .drift-cell-query .drift-dist {{
-    background: var(--apple-blue);
   }}
   @media (max-width: 700px) {{
-    .drift-model-label {{ min-width: 60px; max-width: 60px; }}
-    .drift-model-name {{ font-size: var(--text-xs); }}
-    .drift-model-desc {{ display: none; }}
+    .sim-grid {{ grid-template-columns: repeat(2, 1fr); }}
+    .sim-query img {{ max-height: 280px; }}
   }}
 </style>
 
-<h1>Drift</h1>
-<p style="font-size:var(--text-sm);color:var(--muted);margin-bottom:var(--space-6);">
-  10 random images. For each, the 4 nearest neighbors from each embedding model.
-  <strong>DINOv2</strong> sees texture and composition.
-  <strong>SigLIP</strong> sees semantic meaning.
-  <strong>CLIP</strong> matches subjects.
-  Distance = L2 in embedding space.
-  <a href="/drift" style="color:var(--apple-blue);text-decoration:none;margin-left:var(--space-2);">Reshuffle &rarr;</a>
-</p>
-{body}"""
+<div class="sim-hero">
+  <h1>Similarity</h1>
+  <p>Navigate vector space. Each image has neighbors in three dimensions: visual structure, semantic meaning, and subject matter. Click any image to drift there.</p>
+</div>
 
-    return page_shell("Drift", content, active="drift")
+<div class="sim-controls">
+  <button class="sim-btn" onclick="simRandom()">Random</button>
+  <button class="sim-btn" onclick="simBack()" id="sim-back-btn" style="display:none">Back</button>
+</div>
+
+<div class="sim-trail" id="sim-trail"></div>
+<div class="sim-query" id="sim-query"></div>
+<div id="sim-results"></div>
+
+<script>
+(function() {{
+  var GCS = "{GCS}";
+  var history = [];
+  var currentUuid = "{start_uuid}";
+
+  function thumbUrl(uuid) {{ return GCS + "/thumb/jpeg/" + uuid + ".jpg"; }}
+  function displayUrl(uuid) {{ return GCS + "/display/jpeg/" + uuid + ".jpg"; }}
+
+  function loadImg(img) {{
+    img.onload = function() {{ img.classList.add("loaded"); }};
+  }}
+
+  function renderTrail() {{
+    var el = document.getElementById("sim-trail");
+    el.innerHTML = "";
+    var trail = history.slice(-12);
+    for (var i = 0; i < trail.length; i++) {{
+      var item = document.createElement("div");
+      item.className = "sim-trail-item";
+      var img = document.createElement("img");
+      img.src = thumbUrl(trail[i]);
+      img.alt = "";
+      item.appendChild(img);
+      (function(uuid) {{
+        item.onclick = function() {{ navigate(uuid); }};
+      }})(trail[i]);
+      el.appendChild(item);
+      if (i < trail.length - 1) {{
+        var arrow = document.createElement("span");
+        arrow.className = "sim-trail-arrow";
+        arrow.textContent = "\\u203a";
+        el.appendChild(arrow);
+      }}
+    }}
+    if (trail.length > 0) {{
+      var arrow = document.createElement("span");
+      arrow.className = "sim-trail-arrow";
+      arrow.textContent = "\\u203a";
+      el.appendChild(arrow);
+    }}
+    var cur = document.createElement("div");
+    cur.className = "sim-trail-item current";
+    var curImg = document.createElement("img");
+    curImg.src = thumbUrl(currentUuid);
+    curImg.alt = "";
+    cur.appendChild(curImg);
+    el.appendChild(cur);
+    document.getElementById("sim-back-btn").style.display = history.length > 0 ? "" : "none";
+  }}
+
+  function navigate(uuid) {{
+    if (uuid === currentUuid) return;
+    history.push(currentUuid);
+    currentUuid = uuid;
+    load(uuid);
+  }}
+
+  window.simRandom = function() {{
+    fetch("/api/similarity/random").then(function(r) {{ return r.json(); }}).then(function(d) {{
+      if (d.uuid) navigate(d.uuid);
+    }});
+  }};
+
+  window.simBack = function() {{
+    if (history.length === 0) return;
+    currentUuid = history.pop();
+    load(currentUuid);
+  }};
+
+  function load(uuid) {{
+    // Query image
+    var qEl = document.getElementById("sim-query");
+    qEl.innerHTML = "";
+    var qImg = document.createElement("img");
+    qImg.src = displayUrl(uuid);
+    loadImg(qImg);
+    qEl.appendChild(qImg);
+
+    // Fetch neighbors
+    var resEl = document.getElementById("sim-results");
+    resEl.innerHTML = '<p style="text-align:center;color:var(--muted);padding:var(--space-4)">Loading neighbors...</p>';
+
+    fetch("/api/similarity/" + uuid).then(function(r) {{ return r.json(); }}).then(function(data) {{
+      resEl.innerHTML = "";
+      if (!data.models) return;
+      for (var m = 0; m < data.models.length; m++) {{
+        var model = data.models[m];
+        var section = document.createElement("div");
+        section.className = "sim-model-section";
+        var header = document.createElement("div");
+        header.className = "sim-model-header";
+        header.innerHTML = '<span class="sim-model-name">' + model.name + '</span><span class="sim-model-desc">' + model.desc + '</span>';
+        section.appendChild(header);
+        var grid = document.createElement("div");
+        grid.className = "sim-grid";
+        for (var n = 0; n < model.neighbors.length; n++) {{
+          var nb = model.neighbors[n];
+          var card = document.createElement("div");
+          card.className = "sim-card";
+          var img = document.createElement("img");
+          img.src = thumbUrl(nb.uuid);
+          img.alt = "";
+          loadImg(img);
+          card.appendChild(img);
+          var dist = document.createElement("span");
+          dist.className = "sim-dist";
+          dist.textContent = nb.dist.toFixed(3);
+          card.appendChild(dist);
+          (function(nbuuid) {{
+            card.onclick = function() {{ navigate(nbuuid); }};
+          }})(nb.uuid);
+          grid.appendChild(card);
+        }}
+        section.appendChild(grid);
+        resEl.appendChild(section);
+      }}
+    }});
+    renderTrail();
+  }}
+
+  // Initial load
+  load(currentUuid);
+  renderTrail();
+}})();
+</script>"""
+
+    return page_shell("Similarity", content, active="drift")
+
+
+# ---------------------------------------------------------------------------
+# Creative Drift — Loose structural matches, different worlds
+# ---------------------------------------------------------------------------
+
+def drift_search(query_uuid):
+    # type: (str) -> Optional[dict]
+    """Find creative drift neighbors: structurally similar (DINOv2) but semantically different (SigLIP).
+    Skip the closest matches to find surprising connections."""
+    tbl, df = _get_lance()
+    if tbl is None:
+        return None
+    matches = df[df["uuid"] == query_uuid]
+    if matches.empty:
+        return None
+    query_row = matches.iloc[0]
+
+    # Get DINOv2 neighbors (structural) — skip top 3 closest (too similar), take rank 4-20
+    dino_vec = query_row["dino"]
+    dino_results = tbl.search(dino_vec, vector_column_name="dino").limit(25).to_pandas()
+    dino_results = dino_results[dino_results["uuid"] != query_uuid]
+
+    # Also get SigLIP distances for these same images to find semantic divergence
+    siglip_vec = query_row["siglip"]
+    siglip_results = tbl.search(siglip_vec, vector_column_name="siglip").limit(100).to_pandas()
+    siglip_dist_map = dict(zip(siglip_results["uuid"].tolist(), siglip_results["_distance"].tolist()))
+
+    # Score: want LOW dino distance (similar structure) but HIGH siglip distance (different meaning)
+    candidates = []
+    for _, row in dino_results.iterrows():
+        nb_uuid = row["uuid"]
+        dino_dist = float(row["_distance"])
+        siglip_dist = siglip_dist_map.get(nb_uuid, 1.0)
+        # Creative score: penalize close semantic matches, reward structural similarity
+        creativity = siglip_dist / max(dino_dist, 0.01)
+        candidates.append({
+            "uuid": nb_uuid,
+            "dino_dist": round(dino_dist, 4),
+            "siglip_dist": round(siglip_dist, 4),
+            "creativity": round(creativity, 2),
+        })
+
+    # Sort by creativity score (highest = most interesting structural match with different meaning)
+    candidates.sort(key=lambda x: -x["creativity"])
+    return {"uuid": query_uuid, "neighbors": candidates[:8]}
+
+
+def render_creative_drift():
+    # type: () -> str
+    """Creative drift — structurally similar but semantically different images."""
+    import random
+    tbl, df = _get_lance()
+    if tbl is None:
+        return page_shell("Drift", "<h1>Drift</h1><p>Vector store not available.</p>", active="creative-drift")
+
+    all_uuids = df["uuid"].tolist()
+    start_uuid = random.choice(all_uuids)
+    GCS = "https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original"
+
+    content = f"""<style>
+  .drift-hero {{
+    text-align: center;
+    margin-bottom: var(--space-6);
+  }}
+  .drift-hero h1 {{
+    font-size: 28px; font-weight: 800; letter-spacing: -0.02em; margin: 0;
+  }}
+  .drift-hero p {{
+    font-size: var(--text-sm); color: var(--muted); margin-top: var(--space-2);
+    max-width: 520px; margin-left: auto; margin-right: auto; line-height: var(--leading-relaxed);
+  }}
+  .drift-controls {{
+    display: flex; gap: var(--space-2); justify-content: center;
+    margin-bottom: var(--space-6);
+  }}
+  .drift-btn {{
+    font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 600;
+    padding: var(--space-2) var(--space-4); border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--card-bg); color: var(--fg);
+    cursor: pointer; transition: all var(--duration-fast);
+  }}
+  .drift-btn:hover {{ border-color: var(--border-strong); background: var(--hover-overlay); }}
+  .drift-trail {{
+    display: flex; gap: 4px; justify-content: center; align-items: center;
+    margin-bottom: var(--space-6); flex-wrap: wrap;
+  }}
+  .drift-trail-item {{
+    width: 40px; height: 40px; border-radius: var(--radius-sm);
+    overflow: hidden; cursor: pointer; border: 2px solid transparent;
+    transition: border-color var(--duration-fast); flex-shrink: 0;
+  }}
+  .drift-trail-item:hover {{ border-color: var(--muted); }}
+  .drift-trail-item.current {{ border-color: var(--apple-purple); }}
+  .drift-trail-item img {{ width: 100%; height: 100%; object-fit: cover; display: block; }}
+  .drift-trail-arrow {{ color: var(--muted); font-size: 12px; flex-shrink: 0; }}
+  .drift-pair {{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-4);
+    margin-bottom: var(--space-6);
+    align-items: start;
+  }}
+  .drift-query-wrap {{
+    position: relative;
+  }}
+  .drift-query-wrap img {{
+    width: 100%; border-radius: var(--radius-md);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  }}
+  .drift-query-label {{
+    position: absolute; top: var(--space-2); left: var(--space-2);
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.05em; padding: 2px 8px; border-radius: var(--radius-full, 9999px);
+    color: white; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+  }}
+  .drift-match-wrap {{
+    position: relative; cursor: pointer;
+    transition: transform var(--duration-fast);
+  }}
+  .drift-match-wrap:hover {{ transform: scale(1.02); }}
+  .drift-match-wrap img {{
+    width: 100%; border-radius: var(--radius-md);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  }}
+  .drift-match-score {{
+    position: absolute; bottom: var(--space-2); right: var(--space-2);
+    display: flex; gap: var(--space-1); align-items: center;
+  }}
+  .drift-match-score span {{
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    padding: 2px 6px; border-radius: var(--radius-sm);
+    backdrop-filter: blur(4px);
+  }}
+  .drift-score-close {{ color: white; background: rgba(52,199,89,0.8); }}
+  .drift-score-far {{ color: white; background: rgba(255,55,95,0.8); }}
+  .drift-grid {{
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+  }}
+  .drift-card {{
+    position: relative; border-radius: var(--radius-sm);
+    overflow: hidden; cursor: pointer; aspect-ratio: 1;
+    transition: transform var(--duration-fast);
+  }}
+  .drift-card:hover {{ transform: scale(1.05); }}
+  .drift-card img {{
+    width: 100%; height: 100%; object-fit: cover; display: block;
+    opacity: 0; transition: opacity 0.5s;
+  }}
+  .drift-card img.loaded {{ opacity: 1; }}
+  .drift-card .drift-card-scores {{
+    position: absolute; bottom: 0; left: 0; right: 0;
+    display: flex; justify-content: space-between;
+    padding: 2px 4px; font-family: var(--font-mono); font-size: 9px; font-weight: 600;
+    background: linear-gradient(transparent, rgba(0,0,0,0.6));
+    color: white;
+  }}
+  .drift-explainer {{
+    text-align: center; font-size: var(--text-xs); color: var(--muted);
+    margin-bottom: var(--space-4);
+  }}
+  @media (max-width: 700px) {{
+    .drift-grid {{ grid-template-columns: repeat(2, 1fr); }}
+    .drift-pair {{ grid-template-columns: 1fr; }}
+  }}
+</style>
+
+<div class="drift-hero">
+  <h1>Drift</h1>
+  <p>A bridge matches a ribcage. A shoe matches a skateboard ramp. Same geometry, different worlds. These images share visual structure (DINOv2) but mean completely different things (SigLIP). The most creative connections in the collection.</p>
+</div>
+
+<div class="drift-controls">
+  <button class="drift-btn" onclick="driftRandom()">Random</button>
+  <button class="drift-btn" onclick="driftBack()" id="drift-back-btn" style="display:none">Back</button>
+</div>
+
+<div class="drift-trail" id="drift-trail"></div>
+<div class="drift-explainer"><span style="color:var(--apple-green)">\\u25cf</span> structure &nbsp; <span style="color:var(--apple-pink)">\\u25cf</span> meaning &mdash; green = close, pink = far</div>
+<div id="drift-content"></div>
+
+<script>
+(function() {{
+  var GCS = "{GCS}";
+  var history = [];
+  var currentUuid = "{start_uuid}";
+
+  function thumbUrl(uuid) {{ return GCS + "/thumb/jpeg/" + uuid + ".jpg"; }}
+  function displayUrl(uuid) {{ return GCS + "/display/jpeg/" + uuid + ".jpg"; }}
+  function loadImg(img) {{ img.onload = function() {{ img.classList.add("loaded"); }}; }}
+
+  function renderTrail() {{
+    var el = document.getElementById("drift-trail");
+    el.innerHTML = "";
+    var trail = history.slice(-10);
+    for (var i = 0; i < trail.length; i++) {{
+      var item = document.createElement("div");
+      item.className = "drift-trail-item";
+      var img = document.createElement("img");
+      img.src = thumbUrl(trail[i]);
+      item.appendChild(img);
+      (function(uuid) {{ item.onclick = function() {{ navigate(uuid); }}; }})(trail[i]);
+      el.appendChild(item);
+      if (i < trail.length - 1) {{
+        var arrow = document.createElement("span");
+        arrow.className = "drift-trail-arrow";
+        arrow.textContent = "\\u203a";
+        el.appendChild(arrow);
+      }}
+    }}
+    if (trail.length > 0) {{
+      var arrow = document.createElement("span");
+      arrow.className = "drift-trail-arrow";
+      arrow.textContent = "\\u203a";
+      el.appendChild(arrow);
+    }}
+    var cur = document.createElement("div");
+    cur.className = "drift-trail-item current";
+    var curImg = document.createElement("img");
+    curImg.src = thumbUrl(currentUuid);
+    cur.appendChild(curImg);
+    el.appendChild(cur);
+    document.getElementById("drift-back-btn").style.display = history.length > 0 ? "" : "none";
+  }}
+
+  function navigate(uuid) {{
+    if (uuid === currentUuid) return;
+    history.push(currentUuid);
+    currentUuid = uuid;
+    load(uuid);
+  }}
+
+  window.driftRandom = function() {{
+    fetch("/api/drift/random").then(function(r) {{ return r.json(); }}).then(function(d) {{
+      if (d.uuid) navigate(d.uuid);
+    }});
+  }};
+
+  window.driftBack = function() {{
+    if (history.length === 0) return;
+    currentUuid = history.pop();
+    load(currentUuid);
+  }};
+
+  function load(uuid) {{
+    var content = document.getElementById("drift-content");
+    content.innerHTML = '<p style="text-align:center;color:var(--muted);padding:var(--space-6)">Finding creative connections...</p>';
+
+    fetch("/api/drift/" + uuid).then(function(r) {{ return r.json(); }}).then(function(data) {{
+      content.innerHTML = "";
+      if (!data.neighbors || data.neighbors.length === 0) return;
+
+      // Top match: large side-by-side pair
+      var top = data.neighbors[0];
+      var pair = document.createElement("div");
+      pair.className = "drift-pair";
+
+      var queryWrap = document.createElement("div");
+      queryWrap.className = "drift-query-wrap";
+      var qImg = document.createElement("img");
+      qImg.src = displayUrl(uuid);
+      loadImg(qImg);
+      queryWrap.appendChild(qImg);
+      var qLabel = document.createElement("div");
+      qLabel.className = "drift-query-label";
+      qLabel.textContent = "query";
+      queryWrap.appendChild(qLabel);
+      pair.appendChild(queryWrap);
+
+      var matchWrap = document.createElement("div");
+      matchWrap.className = "drift-match-wrap";
+      var mImg = document.createElement("img");
+      mImg.src = displayUrl(top.uuid);
+      loadImg(mImg);
+      matchWrap.appendChild(mImg);
+      var scores = document.createElement("div");
+      scores.className = "drift-match-score";
+      scores.innerHTML = '<span class="drift-score-close">\\u0394struct ' + top.dino_dist.toFixed(3) + '</span><span class="drift-score-far">\\u0394meaning ' + top.siglip_dist.toFixed(3) + '</span>';
+      matchWrap.appendChild(scores);
+      matchWrap.onclick = function() {{ navigate(top.uuid); }};
+      pair.appendChild(matchWrap);
+
+      content.appendChild(pair);
+
+      // Remaining matches as grid
+      if (data.neighbors.length > 1) {{
+        var grid = document.createElement("div");
+        grid.className = "drift-grid";
+        for (var i = 1; i < data.neighbors.length; i++) {{
+          var nb = data.neighbors[i];
+          var card = document.createElement("div");
+          card.className = "drift-card";
+          var img = document.createElement("img");
+          img.src = thumbUrl(nb.uuid);
+          loadImg(img);
+          card.appendChild(img);
+          var sc = document.createElement("div");
+          sc.className = "drift-card-scores";
+          sc.innerHTML = '<span>\\u25b2' + nb.dino_dist.toFixed(2) + '</span><span>\\u25bc' + nb.siglip_dist.toFixed(2) + '</span>';
+          card.appendChild(sc);
+          (function(nbuuid) {{ card.onclick = function() {{ navigate(nbuuid); }}; }})(nb.uuid);
+          grid.appendChild(card);
+        }}
+        content.appendChild(grid);
+      }}
+    }});
+    renderTrail();
+  }}
+
+  load(currentUuid);
+  renderTrail();
+}})();
+</script>"""
+
+    return page_shell("Drift", content, active="creative-drift")
 
 
 # ---------------------------------------------------------------------------
@@ -4066,12 +4448,6 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(data)
-        elif self.path == "/readme":
-            html = render_readme().encode()
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html")
-            self.end_headers()
-            self.wfile.write(html)
         elif self.path == "/mosaics":
             html = render_mosaics().encode()
             self.send_response(200)
@@ -4126,6 +4502,48 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "text/html")
             self.end_headers()
             self.wfile.write(html)
+        elif self.path.startswith("/api/similarity/"):
+            uuid_part = self.path[16:]
+            if uuid_part == "random":
+                import random
+                tbl, df = _get_lance()
+                if tbl is not None:
+                    rand_uuid = random.choice(df["uuid"].tolist())
+                    data = json.dumps({"uuid": rand_uuid}).encode()
+                else:
+                    data = json.dumps({"error": "no vectors"}).encode()
+            else:
+                result = similarity_search(uuid_part)
+                data = json.dumps(result or {"error": "not found"}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(data)
+        elif self.path.startswith("/api/drift/"):
+            uuid_part = self.path[11:]
+            if uuid_part == "random":
+                import random
+                tbl, df = _get_lance()
+                if tbl is not None:
+                    rand_uuid = random.choice(df["uuid"].tolist())
+                    data = json.dumps({"uuid": rand_uuid}).encode()
+                else:
+                    data = json.dumps({"error": "no vectors"}).encode()
+            else:
+                result = drift_search(uuid_part)
+                data = json.dumps(result or {"error": "not found"}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(data)
+        elif self.path == "/creative-drift":
+            html = render_creative_drift().encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.end_headers()
+            self.wfile.write(html)
         elif self.path == "/drift":
             html = render_drift().encode()
             self.send_response(200)
@@ -4173,12 +4591,12 @@ def serve(port):
 def _static_links(html):
     # type: (str) -> str
     """Rewrite server routes to static file paths for GitHub Pages."""
-    html = html.replace('href="/readme"', 'href="index.html"')
     html = html.replace('href="/"', 'href="state.html"')
     html = html.replace('href="/journal"', 'href="journal.html"')
     html = html.replace('href="/instructions"', 'href="instructions.html"')
     html = html.replace('href="/mosaics"', 'href="mosaics.html"')
     html = html.replace('href="/drift"', 'href="drift.html"')
+    html = html.replace('href="/creative-drift"', 'href="creative-drift.html"')
     html = html.replace('href="/blind-test"', 'href="blind-test.html"')
     html = html.replace('src="/mosaic-hero"', 'src="hero-mosaic.jpg"')
     # Thumb and blind test images use absolute GCS URLs — no rewriting needed

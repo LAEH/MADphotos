@@ -68,8 +68,6 @@
   .sidebar a:hover { background: var(--sidebar-active-bg); color: var(--fg); }
   .sidebar a.active {
     color: var(--fg); font-weight: 600; background: var(--sidebar-active-bg);
-    border-left: 3px solid var(--apple-blue);
-    padding-left: calc(var(--space-5) - 3px);
   }
   .sidebar .sb-sep { height: 1px; background: var(--border); margin: var(--space-2) var(--space-5); }
   .sidebar .sb-group {
@@ -172,13 +170,13 @@
 <nav class="sidebar" id="sidebar">
   <div class="sb-title">MADphotos</div>
   <button class="sb-hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')" aria-label="Menu">&#9776;</button>
-  <a href="index.html">README</a>
   <a href="state.html">State</a>
   <a href="journal.html">Journal de Bord</a>
   <a href="instructions.html" class="active">System Instructions</a>
   <div class="sb-sep"></div>
   <div class="sb-group">Experiments</div>
-  <a href="drift.html">Drift</a>
+  <a href="drift.html">Similarity</a>
+  <a href="creative-drift.html">Drift</a>
   <a href="blind-test.html">Blind Test</a>
   <a href="mosaics.html">Mosaics</a>
   <div class="sb-bottom">
@@ -252,20 +250,20 @@
 <div class="inst-card inst-accent">
   <span class="inst-pill inst-pill-indigo">Briefing</span>
   <h2>MADphotos</h2>
-  <p>A solo art project by <strong>LAEH</strong>. 9,011 unedited photographs shot over a decade with five cameras, turned into the most richly-understood image collection ever built. Every image gets every possible signal. Then camera-aware enhancement. Then human curation. Then a public gallery that only shows the accepted best.</p>
+  <p>A solo art project by <strong>LAEH</strong>. 9,011 unedited photographs shot over a decade with five cameras, turned into the most richly-understood image collection ever built. Every image gets every possible signal. Then camera-aware enhancement.</p>
 
   <div class="app-trio">
     <div class="app-box">
-      <strong>See</strong>
-      <p>MADCurator &mdash; native SwiftUI app. 55 fields, 18 filters, Keep/Reject workflow. The human decides.</p>
-    </div>
-    <div class="app-box">
       <strong>Show</strong>
-      <p>Web gallery. 14 experiences: Grille, Bento, Similarit&eacute;, D&eacute;rive, Couleurs, Terrain de Jeu, Flot, Chambre Noire, Visages, Boussole, Observatoire, Carte, Machine &agrave; &Eacute;crire, Pendule.</p>
+      <p>Blow people&rsquo;s minds. Continuously release new experiences guided by signals and new ideas. Delightful, playful, elegant, smart, teasing, revealing, exciting &mdash; on every screen.</p>
     </div>
     <div class="app-box">
       <strong>State</strong>
-      <p>This dashboard. Live system monitoring, Journal de Bord, signal inventory. The control room.</p>
+      <p>The dashboard. The control room. Every signal, every model, every image &mdash; tracked, measured, monitored.</p>
+    </div>
+    <div class="app-box">
+      <strong>See</strong>
+      <p>The native power image viewer. MADCurator &mdash; 55 fields, 18 filters, full-resolution display. The human eye decides what&rsquo;s worth showing.</p>
     </div>
   </div>
 </div>
@@ -286,9 +284,10 @@
 <div class="inst-card inst-status">
   <span class="inst-pill inst-pill-green">Status</span>
   <h2>What&rsquo;s Done vs. What&rsquo;s Next</h2>
-  <p><strong>Done (12/18):</strong> EXIF. Pixel Analysis. Dominant Colors. Face Detection. Object Detection. Perceptual Hashes. Vectors (DINOv2+SigLIP+CLIP). Aesthetic Scoring. Depth Estimation. Scene Classification. Style Classification. Enhancement Plans. &mdash; GCS hosting live. Dashboard + Journal. MADCurator. 14 web experiences.</p>
-  <p><strong>In progress (6/18):</strong> Gemini analysis (6,211/9,011 &mdash; 69%). OCR (2,796/9,011 &mdash; 31%). BLIP Captions (9,006/9,011 &mdash; 5 retrying). Facial Emotions (re-running with fixed coordinate conversion).</p>
-  <p><strong>Next:</strong> Finish all signals to 100%. Curate in MADCurator. Precompute DINOv2 visual neighbors for Drift. SigLIP text&rarr;image API. Location intelligence. Juicy cartoon experiences with Imagen variants.</p>
+  <p><strong>Done (14/20):</strong> Rendering (97,898 tiers). EXIF. Pixel Analysis. Dominant Colors. Image Hashes. Vectors (DINOv2+SigLIP+CLIP). Aesthetic Scoring. Depth Estimation. Scene Classification. Style Classification. BLIP Captions. Facial Emotions. Enhancement Plans (v1+v2). &mdash; Dashboard + Journal. MADCurator. 14 web experiences. Master orchestrator (<code>mad_completions.py</code>).</p>
+  <p><strong>In progress (2/20):</strong> Gemini analysis (70%). OCR / Text Detection (47%).</p>
+  <p><strong>Sparse signals (complete but partial by nature):</strong> Face Detections (1,676 images). Object Detections (5,363 images). OCR is also sparse &mdash; not every photo contains text.</p>
+  <p><strong>Next:</strong> Finish Gemini + OCR to 100%. GCS upload pipeline. Curate in MADCurator. Imagen AI variants at scale. Location intelligence from EXIF GPS.</p>
 </div>
 
 <!-- ═══ CAMERAS + ARCHITECTURE ═══ -->
@@ -311,11 +310,12 @@
 
 <div class="inst-card">
   <span class="inst-pill inst-pill-blue">Architecture</span>
-  <h2>9 Python Scripts</h2>
+  <h2>10 Python Scripts</h2>
   <table>
     <thead><tr><th>Script</th><th>Purpose</th></tr></thead>
     <tbody>
-      <tr><td><code>mad_pipeline.py</code></td><td>Orchestrator</td></tr>
+      <tr><td><code>mad_pipeline.py</code></td><td>Phase orchestrator</td></tr>
+      <tr><td><code>mad_completions.py</code></td><td>Master orchestrator &mdash; checks all 20 stages, fixes gaps, updates State</td></tr>
       <tr><td><code>render_pipeline.py</code></td><td>6-tier resolution pyramid</td></tr>
       <tr><td><code>photography_engine.py</code></td><td>Gemini 2.5 Pro structured analysis</td></tr>
       <tr><td><code>imagen_engine.py</code></td><td>4 AI variants via Imagen 3</td></tr>
@@ -389,11 +389,12 @@
 </div>
 
 <div class="inst-card">
-  <h2>Web Gallery (Show)</h2>
+  <h2>Web Gallery (Show) &mdash; 14 Experiences</h2>
   <ul>
-    <li><code>export_gallery_data.py</code> &rarr; 4 JSON files</li>
+    <li><code>export_gallery_data.py</code> &rarr; 5 JSON files (photos, faces, game_rounds, stream_sequence, drift_neighbors)</li>
     <li><code>serve_gallery.py</code> &rarr; localhost:3000</li>
-    <li>16 files: index.html, style.css, app.js + 13 modules</li>
+    <li>18 files: index.html, style.css, app.js + 14 experience modules + data/</li>
+    <li>La Grille, Le Bento, La Similarit&eacute;, La D&eacute;rive, Les Couleurs, Le Jeu, Chambre Noire, Le Flot, Les Visages, La Boussole, L&rsquo;Observatoire, La Carte, Machine &Agrave; &Eacute;crire, Le Pendule</li>
     <li>Dark, monospace, glassmorphism. Vanilla JS, no framework.</li>
   </ul>
 </div>
@@ -414,14 +415,14 @@
       <tr><td>Objects</td><td>YOLOv8n</td><td class="done">5,363 images &check;</td><td>14,534 detections, 80 COCO classes</td></tr>
       <tr><td>Hashes</td><td>imagehash</td><td class="done">9,011 &check;</td><td>pHash, aHash, dHash, wHash, blur, sharpness</td></tr>
       <tr><td>Vectors</td><td>DINOv2+SigLIP+CLIP</td><td class="done">9,011 &check;</td><td>768d+768d+512d = 2,048 dims (LanceDB)</td></tr>
-      <tr><td>Gemini</td><td>Gemini 2.5 Pro</td><td>6,211/9,011</td><td>Alt, vibes, exposure, composition, grading, edit prompt</td></tr>
+      <tr><td>Gemini</td><td>Gemini 2.5 Pro</td><td>6,294/9,011</td><td>Alt, vibes, exposure, composition, grading, edit prompt</td></tr>
       <tr><td>Aesthetic</td><td>LAION (CLIP MLP)</td><td class="done">9,011 &check;</td><td>Score 1&ndash;10</td></tr>
       <tr><td>Depth</td><td>Depth Anything v2</td><td class="done">9,011 &check;</td><td>Near/mid/far %, complexity bucket</td></tr>
       <tr><td>Scenes</td><td>Places365</td><td class="done">9,011 &check;</td><td>Top 3 labels, indoor/outdoor</td></tr>
       <tr><td>Style</td><td>Derived</td><td class="done">9,011 &check;</td><td>street, portrait, landscape, macro, etc.</td></tr>
-      <tr><td>OCR</td><td>EasyOCR</td><td>2,796/9,011</td><td>Text regions, language, confidence (3 shards running)</td></tr>
-      <tr><td>Captions</td><td>BLIP (Salesforce)</td><td>9,006/9,011</td><td>Natural language (5 retrying)</td></tr>
-      <tr><td>Emotions</td><td>ViT expression</td><td>re-running</td><td>7-class scores per face (fixed coord bug)</td></tr>
+      <tr><td>OCR</td><td>EasyOCR</td><td>4,223/9,011</td><td>Text regions, language, confidence (sparse &mdash; not all images have text)</td></tr>
+      <tr><td>Captions</td><td>BLIP (Salesforce)</td><td class="done">9,011 &check;</td><td>Natural language description</td></tr>
+      <tr><td>Emotions</td><td>ViT expression</td><td class="done">1,676 &check;</td><td>7-class scores per face (3,185 emotion entries)</td></tr>
       <tr><td>Enhancement</td><td>Camera engine</td><td class="done">9,011 &check;</td><td>WB, gamma, shadows, contrast, saturation, sharpening</td></tr>
       <tr><td>Enhancement v2</td><td>Camera engine v2</td><td class="done">9,011 &check;</td><td>Updated parameters</td></tr>
       <tr><td>AI Variants</td><td>Imagen 3</td><td>216/9,011</td><td>gemini_edit, pro_edit, nano_feel, cartoon</td></tr>

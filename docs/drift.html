@@ -68,8 +68,6 @@
   .sidebar a:hover { background: var(--sidebar-active-bg); color: var(--fg); }
   .sidebar a.active {
     color: var(--fg); font-weight: 600; background: var(--sidebar-active-bg);
-    border-left: 3px solid var(--apple-blue);
-    padding-left: calc(var(--space-5) - 3px);
   }
   .sidebar .sb-sep { height: 1px; background: var(--border); margin: var(--space-2) var(--space-5); }
   .sidebar .sb-group {
@@ -172,13 +170,13 @@
 <nav class="sidebar" id="sidebar">
   <div class="sb-title">MADphotos</div>
   <button class="sb-hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')" aria-label="Menu">&#9776;</button>
-  <a href="index.html">README</a>
   <a href="state.html">State</a>
   <a href="journal.html">Journal de Bord</a>
   <a href="instructions.html">System Instructions</a>
   <div class="sb-sep"></div>
   <div class="sb-group">Experiments</div>
-  <a href="drift.html" class="active">Drift</a>
+  <a href="drift.html" class="active">Similarity</a>
+  <a href="creative-drift.html">Drift</a>
   <a href="blind-test.html">Blind Test</a>
   <a href="mosaics.html">Mosaics</a>
   <div class="sb-bottom">
@@ -191,154 +189,236 @@
 </nav>
 <div class="main-content">
 <style>
-  .drift-section {
-    margin-bottom: var(--space-10);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    background: var(--card-bg);
-    overflow: hidden;
+  .sim-hero {
+    text-align: center;
+    margin-bottom: var(--space-6);
   }
-  .drift-section-header {
-    display: flex;
-    align-items: baseline;
-    gap: var(--space-3);
-    padding: var(--space-3) var(--space-5);
-    border-bottom: 1px solid var(--border);
-    background: var(--hover-overlay);
+  .sim-hero h1 {
+    font-size: 28px; font-weight: 800; letter-spacing: -0.02em; margin: 0;
   }
-  .drift-section-num {
-    font-family: var(--font-display);
-    font-size: var(--text-xl);
-    font-weight: 700;
-    color: var(--muted);
+  .sim-hero p {
+    font-size: var(--text-sm); color: var(--muted); margin-top: var(--space-2);
+    max-width: 500px; margin-left: auto; margin-right: auto;
   }
-  .drift-section-uuid {
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    color: var(--muted);
+  .sim-controls {
+    display: flex; gap: var(--space-2); justify-content: center;
+    margin-bottom: var(--space-6);
   }
-  .drift-model-row {
-    display: flex;
-    align-items: stretch;
-    border-bottom: 1px solid var(--border);
-    min-height: 120px;
+  .sim-btn {
+    font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 600;
+    padding: var(--space-2) var(--space-4); border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--card-bg); color: var(--fg);
+    cursor: pointer; transition: all var(--duration-fast);
   }
-  .drift-model-row:last-child { border-bottom: none; }
-  .drift-model-label {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    min-width: 100px;
-    max-width: 100px;
-    padding: var(--space-3);
-    border-right: 1px solid var(--border);
-    background: var(--hover-overlay);
+  .sim-btn:hover { border-color: var(--border-strong); background: var(--hover-overlay); }
+  .sim-trail {
+    display: flex; gap: 4px; justify-content: center; align-items: center;
+    margin-bottom: var(--space-6); flex-wrap: wrap;
   }
-  .drift-model-name {
-    font-size: var(--text-sm);
-    font-weight: 700;
-    color: var(--fg);
+  .sim-trail-item {
+    width: 40px; height: 40px; border-radius: var(--radius-sm);
+    overflow: hidden; cursor: pointer; border: 2px solid transparent;
+    transition: border-color var(--duration-fast);
+    flex-shrink: 0;
   }
-  .drift-model-desc {
-    font-size: 10px;
-    color: var(--muted);
-    margin-top: 2px;
+  .sim-trail-item:hover { border-color: var(--muted); }
+  .sim-trail-item.current { border-color: var(--apple-blue); }
+  .sim-trail-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .sim-trail-arrow { color: var(--muted); font-size: 12px; flex-shrink: 0; }
+  .sim-query {
+    display: flex; justify-content: center; margin-bottom: var(--space-6);
   }
-  .drift-cell {
-    flex: 1;
-    position: relative;
-    min-width: 0;
-    border-right: 1px solid var(--border);
+  .sim-query img {
+    max-width: 100%; max-height: 420px; border-radius: var(--radius-md);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    transition: opacity 0.4s;
   }
-  .drift-cell:last-child { border-right: none; }
-  .drift-cell img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-    min-height: 120px;
-    opacity: 0;
-    transform: scale(1.05);
-    transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1),
-                transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  .sim-model-section {
+    margin-bottom: var(--space-6);
   }
-  .drift-cell img.loaded {
-    opacity: 1;
-    transform: scale(1);
+  .sim-model-header {
+    display: flex; align-items: baseline; gap: var(--space-2);
+    margin-bottom: var(--space-3);
   }
-  .drift-cell-query {
-    flex: 1;
-    position: relative;
+  .sim-model-name {
+    font-size: var(--text-base); font-weight: 700; color: var(--fg);
   }
-  .drift-cell-query::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border: 3px solid var(--apple-blue);
-    pointer-events: none;
+  .sim-model-desc {
+    font-size: var(--text-xs); color: var(--muted);
   }
-  .drift-dist {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    font-weight: 600;
-    color: rgba(255,255,255,0.95);
-    background: rgba(0,0,0,0.6);
-    padding: 2px var(--space-2);
+  .sim-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-2);
+  }
+  .sim-card {
+    position: relative; border-radius: var(--radius-sm);
+    overflow: hidden; cursor: pointer; aspect-ratio: 1;
+    border: 2px solid transparent;
+    transition: border-color var(--duration-fast), transform var(--duration-fast);
+  }
+  .sim-card:hover {
+    border-color: var(--apple-blue);
+    transform: scale(1.03);
+  }
+  .sim-card img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+    opacity: 0; transition: opacity 0.5s;
+  }
+  .sim-card img.loaded { opacity: 1; }
+  .sim-card .sim-dist {
+    position: absolute; bottom: 0; right: 0;
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    color: rgba(255,255,255,0.9); background: rgba(0,0,0,0.5);
+    padding: 2px 6px; border-radius: var(--radius-sm) 0 0 0;
     backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-  }
-  .drift-cell-query .drift-dist {
-    background: var(--apple-blue);
   }
   @media (max-width: 700px) {
-    .drift-model-label { min-width: 60px; max-width: 60px; }
-    .drift-model-name { font-size: var(--text-xs); }
-    .drift-model-desc { display: none; }
+    .sim-grid { grid-template-columns: repeat(2, 1fr); }
+    .sim-query img { max-height: 280px; }
   }
 </style>
 
-<h1>Drift</h1>
-<p style="font-size:var(--text-sm);color:var(--muted);margin-bottom:var(--space-6);">
-  10 random images. For each, the 4 nearest neighbors from each embedding model.
-  <strong>DINOv2</strong> sees texture and composition.
-  <strong>SigLIP</strong> sees semantic meaning.
-  <strong>CLIP</strong> matches subjects.
-  Distance = L2 in embedding space.
-  <a href="drift.html" style="color:var(--apple-blue);text-decoration:none;margin-left:var(--space-2);">Reshuffle &rarr;</a>
-</p>
-<div class="drift-section"><div class="drift-section-header"><span class="drift-section-num">1</span><span class="drift-section-uuid">b9ec8c81</span></div><div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">DINOv2</span><span class="drift-model-desc">Composition & texture</span></div><div class="drift-cell drift-cell-query"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/b9ec8c81-e749-552d-8e37-0a1c207c3818.jpg" loading="lazy" alt="b9ec8c81" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/7b8f4f2a-50dd-526d-a091-ab0dcc6b678f.jpg" loading="lazy" alt="7b8f4f2a" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.340</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/95d5495b-8fb2-5acb-b3bb-0ba9f3283125.jpg" loading="lazy" alt="95d5495b" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.342</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/18b8edfb-1946-57e4-9889-f2e75d39a300.jpg" loading="lazy" alt="18b8edfb" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.384</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/3b1681ee-8348-51cf-a11e-bd95aa6231e1.jpg" loading="lazy" alt="3b1681ee" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.428</div></div></div>
-<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">SigLIP</span><span class="drift-model-desc">Semantic meaning</span></div><div class="drift-cell drift-cell-query"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/b9ec8c81-e749-552d-8e37-0a1c207c3818.jpg" loading="lazy" alt="b9ec8c81" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/7b8f4f2a-50dd-526d-a091-ab0dcc6b678f.jpg" loading="lazy" alt="7b8f4f2a" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.078</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/95d5495b-8fb2-5acb-b3bb-0ba9f3283125.jpg" loading="lazy" alt="95d5495b" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.136</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/18b8edfb-1946-57e4-9889-f2e75d39a300.jpg" loading="lazy" alt="18b8edfb" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.197</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/b0908c82-c623-5ea6-b661-97960d26d404.jpg" loading="lazy" alt="b0908c82" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.206</div></div></div>
-<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">CLIP</span><span class="drift-model-desc">Subject matching</span></div><div class="drift-cell drift-cell-query"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/b9ec8c81-e749-552d-8e37-0a1c207c3818.jpg" loading="lazy" alt="b9ec8c81" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/7b8f4f2a-50dd-526d-a091-ab0dcc6b678f.jpg" loading="lazy" alt="7b8f4f2a" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.069</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/95d5495b-8fb2-5acb-b3bb-0ba9f3283125.jpg" loading="lazy" alt="95d5495b" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.111</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/6dc36e4f-6c2b-52ea-bd4d-b5452da55368.jpg" loading="lazy" alt="6dc36e4f" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.201</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/18b8edfb-1946-57e4-9889-f2e75d39a300.jpg" loading="lazy" alt="18b8edfb" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.213</div></div></div></div>
-<div class="drift-section"><div class="drift-section-header"><span class="drift-section-num">2</span><span class="drift-section-uuid">749ad14d</span></div><div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">DINOv2</span><span class="drift-model-desc">Composition & texture</span></div><div class="drift-cell drift-cell-query"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/749ad14d-618e-5600-b08e-19e9741a3e90.jpg" loading="lazy" alt="749ad14d" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/c460fb43-d7e6-58c1-9463-02691376e3d3.jpg" loading="lazy" alt="c460fb43" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.390</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/9f476d78-311a-55b1-8edd-26c6797aff94.jpg" loading="lazy" alt="9f476d78" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.438</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/e7e87b5a-7d9d-5c6b-8772-87b16c0f81c5.jpg" loading="lazy" alt="e7e87b5a" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.478</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/8fa7abd7-0465-50a0-989a-50906dffffee.jpg" loading="lazy" alt="8fa7abd7" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.484</div></div></div>
-<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">SigLIP</span><span class="drift-model-desc">Semantic meaning</span></div><div class="drift-cell drift-cell-query"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/749ad14d-618e-5600-b08e-19e9741a3e90.jpg" loading="lazy" alt="749ad14d" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/c05653f4-563e-58c3-ab29-d594f3ac557b.jpg" loading="lazy" alt="c05653f4" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.167</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/bbdbc48d-bf9f-5394-9c52-0568649488e6.jpg" loading="lazy" alt="bbdbc48d" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.211</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/8fa7abd7-0465-50a0-989a-50906dffffee.jpg" loading="lazy" alt="8fa7abd7" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.211</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/22cd98f2-d180-58b8-9f7a-fd6cc5794331.jpg" loading="lazy" alt="22cd98f2" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.212</div></div></div>
-<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">CLIP</span><span class="drift-model-desc">Subject matching</span></div><div class="drift-cell drift-cell-query"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/749ad14d-618e-5600-b08e-19e9741a3e90.jpg" loading="lazy" alt="749ad14d" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/c05653f4-563e-58c3-ab29-d594f3ac557b.jpg" loading="lazy" alt="c05653f4" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.172</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/d64d2a83-a18e-5689-aa0c-e827df7b6246.jpg" loading="lazy" alt="d64d2a83" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.174</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/104e8891-60c7-556a-9f43-5a2fa9fee834.jpg" loading="lazy" alt="104e8891" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.182</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/765a8214-4a5c-5c0d-9be2-6d350bd119af.jpg" loading="lazy" alt="765a8214" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.194</div></div></div></div>
-<div class="drift-section"><div class="drift-section-header"><span class="drift-section-num">3</span><span class="drift-section-uuid">7809d928</span></div><div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">DINOv2</span><span class="drift-model-desc">Composition & texture</span></div><div class="drift-cell drift-cell-query"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/7809d928-628b-560f-af45-55a44fae64e3.jpg" loading="lazy" alt="7809d928" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/ebbb1ba6-9ec0-5668-8ad8-f44005c160a6.jpg" loading="lazy" alt="ebbb1ba6" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.238</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/b1f1704a-0aec-5457-87e4-739505a5687c.jpg" loading="lazy" alt="b1f1704a" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.260</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/c97da272-a745-5732-8f5c-8a7451273c2b.jpg" loading="lazy" alt="c97da272" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.276</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/5781b099-d246-57af-9af7-97114a5975ab.jpg" loading="lazy" alt="5781b099" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.290</div></div></div>
-<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">SigLIP</span><span class="drift-model-desc">Semantic meaning</span></div><div class="drift-cell drift-cell-query"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/7809d928-628b-560f-af45-55a44fae64e3.jpg" loading="lazy" alt="7809d928" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/ebbb1ba6-9ec0-5668-8ad8-f44005c160a6.jpg" loading="lazy" alt="ebbb1ba6" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.222</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/c97da272-a745-5732-8f5c-8a7451273c2b.jpg" loading="lazy" alt="c97da272" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.224</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/21ff5255-2fad-54b7-a5e1-2981a75b9a3a.jpg" loading="lazy" alt="21ff5255" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.229</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/fc65c9db-df0a-573e-aad6-f0afe2c1b835.jpg" loading="lazy" alt="fc65c9db" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.237</div></div></div>
-<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">CLIP</span><span class="drift-model-desc">Subject matching</span></div><div class="drift-cell drift-cell-query"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/7809d928-628b-560f-af45-55a44fae64e3.jpg" loading="lazy" alt="7809d928" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/5781b099-d246-57af-9af7-97114a5975ab.jpg" loading="lazy" alt="5781b099" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.238</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/ebbb1ba6-9ec0-5668-8ad8-f44005c160a6.jpg" loading="lazy" alt="ebbb1ba6" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.251</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/6bc1b82d-21d5-5db6-b676-79b254665cd4.jpg" loading="lazy" alt="6bc1b82d" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.276</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/df158245-caed-5dd6-940f-eac1724d246c.jpg" loading="lazy" alt="df158245" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.282</div></div></div></div>
-<div class="drift-section"><div class="drift-section-header"><span class="drift-section-num">4</span><span class="drift-section-uuid">03b59407</span></div><div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">DINOv2</span><span class="drift-model-desc">Composition & texture</span></div><div class="drift-cell drift-cell-query"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/03b59407-2d4a-5449-8f2c-ddaf3848137d.jpg" loading="lazy" alt="03b59407" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/1ec99483-7768-5628-aa82-b35dcc0392f7.jpg" loading="lazy" alt="1ec99483" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.426</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/8e9b0c93-424e-5bea-8873-58fa308f1b3c.jpg" loading="lazy" alt="8e9b0c93" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.477</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/08040c15-59d5-5165-85cf-af72a11b66d7.jpg" loading="lazy" alt="08040c15" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.484</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/e948c091-9034-55ad-ba97-baaa44960210.jpg" loading="lazy" alt="e948c091" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.492</div></div></div>
-<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">SigLIP</span><span class="drift-model-desc">Semantic meaning</span></div><div class="drift-cell drift-cell-query"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/03b59407-2d4a-5449-8f2c-ddaf3848137d.jpg" loading="lazy" alt="03b59407" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/596c09a4-8694-561b-abf1-50ce9f17ef9e.jpg" loading="lazy" alt="596c09a4" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.124</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/ce60ff50-e379-52ec-b92c-eb25c51e4c7f.jpg" loading="lazy" alt="ce60ff50" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.129</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/c452b003-b559-5a27-bc0a-4fbb63d89a89.jpg" loading="lazy" alt="c452b003" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.140</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/08883c92-a688-523c-a410-36d6e9197af2.jpg" loading="lazy" alt="08883c92" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.143</div></div></div>
-<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">CLIP</span><span class="drift-model-desc">Subject matching</span></div><div class="drift-cell drift-cell-query"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/03b59407-2d4a-5449-8f2c-ddaf3848137d.jpg" loading="lazy" alt="03b59407" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/45a56e5f-c6c8-560d-a66c-daa3a58c97ec.jpg" loading="lazy" alt="45a56e5f" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.094</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/fcfa2479-9087-5e3c-8240-75f55076b784.jpg" loading="lazy" alt="fcfa2479" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.095</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/41c01b7e-00d8-5e57-aa04-d8621f6911f1.jpg" loading="lazy" alt="41c01b7e" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.102</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/8d5359d0-0221-5435-8781-3b67024d8267.jpg" loading="lazy" alt="8d5359d0" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.106</div></div></div></div>
-<div class="drift-section"><div class="drift-section-header"><span class="drift-section-num">5</span><span class="drift-section-uuid">94e19a3a</span></div><div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">DINOv2</span><span class="drift-model-desc">Composition & texture</span></div><div class="drift-cell drift-cell-query"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/94e19a3a-e092-5678-ba1a-2df04cd0d757.jpg" loading="lazy" alt="94e19a3a" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/5b3a9d91-5ed6-5e90-a06d-bf114eebff70.jpg" loading="lazy" alt="5b3a9d91" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.329</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/3b85314c-983b-5b90-9e8b-112a03ae1f37.jpg" loading="lazy" alt="3b85314c" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.478</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/ca96fd8c-6e84-5120-b7f2-07bfb313692b.jpg" loading="lazy" alt="ca96fd8c" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.480</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/565d25bb-dba8-5d96-bec9-1415113f4d62.jpg" loading="lazy" alt="565d25bb" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.482</div></div></div>
-<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">SigLIP</span><span class="drift-model-desc">Semantic meaning</span></div><div class="drift-cell drift-cell-query"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/94e19a3a-e092-5678-ba1a-2df04cd0d757.jpg" loading="lazy" alt="94e19a3a" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/49f82704-7ac4-5d1a-87b3-341d4ab51fc5.jpg" loading="lazy" alt="49f82704" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.165</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/d03f19b8-d86a-55b9-b4d4-7d6b3086b118.jpg" loading="lazy" alt="d03f19b8" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.191</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/3b85314c-983b-5b90-9e8b-112a03ae1f37.jpg" loading="lazy" alt="3b85314c" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.219</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/92131522-80ac-58a0-a418-49ff5d7f6b45.jpg" loading="lazy" alt="92131522" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.223</div></div></div>
-<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">CLIP</span><span class="drift-model-desc">Subject matching</span></div><div class="drift-cell drift-cell-query"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/94e19a3a-e092-5678-ba1a-2df04cd0d757.jpg" loading="lazy" alt="94e19a3a" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/d03f19b8-d86a-55b9-b4d4-7d6b3086b118.jpg" loading="lazy" alt="d03f19b8" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.140</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/5b3a9d91-5ed6-5e90-a06d-bf114eebff70.jpg" loading="lazy" alt="5b3a9d91" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.140</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/94cf6d7c-e124-5207-8c7e-6905249e130a.jpg" loading="lazy" alt="94cf6d7c" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.163</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/2599bb55-7c90-59b3-baee-24393ae3fc8e.jpg" loading="lazy" alt="2599bb55" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.165</div></div></div></div>
-<div class="drift-section"><div class="drift-section-header"><span class="drift-section-num">6</span><span class="drift-section-uuid">46d0b53f</span></div><div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">DINOv2</span><span class="drift-model-desc">Composition & texture</span></div><div class="drift-cell drift-cell-query"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/46d0b53f-1ba1-5d2b-bdfd-8964a9c7f90e.jpg" loading="lazy" alt="46d0b53f" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/b688e924-50be-5a87-896f-19fe5e0ef6d7.jpg" loading="lazy" alt="b688e924" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.267</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/651cfdf6-7e98-5379-8ff0-e69a4559f031.jpg" loading="lazy" alt="651cfdf6" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.284</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/0888a32e-51a8-52b8-b7ae-9bf259abf406.jpg" loading="lazy" alt="0888a32e" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.298</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/b65aa6fb-2b73-53bc-b18e-e89b31e717f6.jpg" loading="lazy" alt="b65aa6fb" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.413</div></div></div>
-<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">SigLIP</span><span class="drift-model-desc">Semantic meaning</span></div><div class="drift-cell drift-cell-query"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/46d0b53f-1ba1-5d2b-bdfd-8964a9c7f90e.jpg" loading="lazy" alt="46d0b53f" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/651cfdf6-7e98-5379-8ff0-e69a4559f031.jpg" loading="lazy" alt="651cfdf6" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.124</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/b688e924-50be-5a87-896f-19fe5e0ef6d7.jpg" loading="lazy" alt="b688e924" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.140</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/0888a32e-51a8-52b8-b7ae-9bf259abf406.jpg" loading="lazy" alt="0888a32e" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.190</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/b65aa6fb-2b73-53bc-b18e-e89b31e717f6.jpg" loading="lazy" alt="b65aa6fb" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.211</div></div></div>
-<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">CLIP</span><span class="drift-model-desc">Subject matching</span></div><div class="drift-cell drift-cell-query"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/46d0b53f-1ba1-5d2b-bdfd-8964a9c7f90e.jpg" loading="lazy" alt="46d0b53f" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/b688e924-50be-5a87-896f-19fe5e0ef6d7.jpg" loading="lazy" alt="b688e924" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.111</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/0888a32e-51a8-52b8-b7ae-9bf259abf406.jpg" loading="lazy" alt="0888a32e" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.117</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/651cfdf6-7e98-5379-8ff0-e69a4559f031.jpg" loading="lazy" alt="651cfdf6" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.130</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/5c2300f3-922c-529a-9c08-7c82bfb356b7.jpg" loading="lazy" alt="5c2300f3" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.139</div></div></div></div>
-<div class="drift-section"><div class="drift-section-header"><span class="drift-section-num">7</span><span class="drift-section-uuid">c002b489</span></div><div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">DINOv2</span><span class="drift-model-desc">Composition & texture</span></div><div class="drift-cell drift-cell-query"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/c002b489-7d09-5ca9-9e54-825f05e24445.jpg" loading="lazy" alt="c002b489" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/b8531867-8cae-59b6-baa8-ccb15264d9ad.jpg" loading="lazy" alt="b8531867" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.300</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/ba4f338f-0948-545f-b794-5bddca49d933.jpg" loading="lazy" alt="ba4f338f" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.311</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/24181429-7818-5bc5-b30b-40c72fe79ec6.jpg" loading="lazy" alt="24181429" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.325</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/73519a6a-d3d6-50a2-9756-e303a3c4e696.jpg" loading="lazy" alt="73519a6a" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.345</div></div></div>
-<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">SigLIP</span><span class="drift-model-desc">Semantic meaning</span></div><div class="drift-cell drift-cell-query"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/c002b489-7d09-5ca9-9e54-825f05e24445.jpg" loading="lazy" alt="c002b489" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/73519a6a-d3d6-50a2-9756-e303a3c4e696.jpg" loading="lazy" alt="73519a6a" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.073</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/ba4f338f-0948-545f-b794-5bddca49d933.jpg" loading="lazy" alt="ba4f338f" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.109</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/24181429-7818-5bc5-b30b-40c72fe79ec6.jpg" loading="lazy" alt="24181429" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.123</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/b8531867-8cae-59b6-baa8-ccb15264d9ad.jpg" loading="lazy" alt="b8531867" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.134</div></div></div>
-<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">CLIP</span><span class="drift-model-desc">Subject matching</span></div><div class="drift-cell drift-cell-query"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/c002b489-7d09-5ca9-9e54-825f05e24445.jpg" loading="lazy" alt="c002b489" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/24181429-7818-5bc5-b30b-40c72fe79ec6.jpg" loading="lazy" alt="24181429" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.140</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/2b155fad-6ae6-548d-9b83-7624db22bc83.jpg" loading="lazy" alt="2b155fad" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.151</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/73519a6a-d3d6-50a2-9756-e303a3c4e696.jpg" loading="lazy" alt="73519a6a" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.153</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/b8531867-8cae-59b6-baa8-ccb15264d9ad.jpg" loading="lazy" alt="b8531867" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.153</div></div></div></div>
-<div class="drift-section"><div class="drift-section-header"><span class="drift-section-num">8</span><span class="drift-section-uuid">b002e731</span></div><div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">DINOv2</span><span class="drift-model-desc">Composition & texture</span></div><div class="drift-cell drift-cell-query"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/b002e731-ae1f-5237-b5e7-3f18e899dc5a.jpg" loading="lazy" alt="b002e731" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/0c616ec7-dfc2-5de6-aa88-4821882b0a85.jpg" loading="lazy" alt="0c616ec7" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.018</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/9ed4d43e-3cc5-5f04-b473-19158ddcb274.jpg" loading="lazy" alt="9ed4d43e" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.389</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/6e33309e-3bac-5b31-a4b0-986749edad18.jpg" loading="lazy" alt="6e33309e" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.418</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/e690941e-6ce0-5624-b45a-ad5874b86704.jpg" loading="lazy" alt="e690941e" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.424</div></div></div>
-<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">SigLIP</span><span class="drift-model-desc">Semantic meaning</span></div><div class="drift-cell drift-cell-query"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/b002e731-ae1f-5237-b5e7-3f18e899dc5a.jpg" loading="lazy" alt="b002e731" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/0c616ec7-dfc2-5de6-aa88-4821882b0a85.jpg" loading="lazy" alt="0c616ec7" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.013</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/23fe607a-7e27-5abd-bc53-876093a33e8b.jpg" loading="lazy" alt="23fe607a" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.185</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/1a38bc4c-e837-590e-aeec-22576f848c25.jpg" loading="lazy" alt="1a38bc4c" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.190</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/07063c36-864c-59ed-a6f6-3ec43d69a590.jpg" loading="lazy" alt="07063c36" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.191</div></div></div>
-<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">CLIP</span><span class="drift-model-desc">Subject matching</span></div><div class="drift-cell drift-cell-query"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/b002e731-ae1f-5237-b5e7-3f18e899dc5a.jpg" loading="lazy" alt="b002e731" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/0c616ec7-dfc2-5de6-aa88-4821882b0a85.jpg" loading="lazy" alt="0c616ec7" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.015</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/5085af52-b8c3-592d-8b27-8bf89adbdf25.jpg" loading="lazy" alt="5085af52" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.189</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/209a3ad4-3748-5bf6-a0df-4fb3d8362136.jpg" loading="lazy" alt="209a3ad4" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.199</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/38223090-0e74-50a6-8c20-0c15c54bccb2.jpg" loading="lazy" alt="38223090" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.204</div></div></div></div>
-<div class="drift-section"><div class="drift-section-header"><span class="drift-section-num">9</span><span class="drift-section-uuid">0f8646ae</span></div><div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">DINOv2</span><span class="drift-model-desc">Composition & texture</span></div><div class="drift-cell drift-cell-query"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/0f8646ae-7f02-51b1-8653-f707fd4d1c25.jpg" loading="lazy" alt="0f8646ae" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/6c2050d9-83be-5647-81fc-0b1d5a76ba4d.jpg" loading="lazy" alt="6c2050d9" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.235</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/0e4d2510-8073-5919-8c67-d6879d597c0c.jpg" loading="lazy" alt="0e4d2510" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.309</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/788921a4-548a-5200-a1bb-c6249256d198.jpg" loading="lazy" alt="788921a4" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.407</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/e68833ac-0254-5ea7-bb56-725e7b1d3896.jpg" loading="lazy" alt="e68833ac" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.423</div></div></div>
-<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">SigLIP</span><span class="drift-model-desc">Semantic meaning</span></div><div class="drift-cell drift-cell-query"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/0f8646ae-7f02-51b1-8653-f707fd4d1c25.jpg" loading="lazy" alt="0f8646ae" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/6c2050d9-83be-5647-81fc-0b1d5a76ba4d.jpg" loading="lazy" alt="6c2050d9" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.098</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/0e4d2510-8073-5919-8c67-d6879d597c0c.jpg" loading="lazy" alt="0e4d2510" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.140</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/41cd2494-8cb5-5709-b7ab-dea2ecb4a6c8.jpg" loading="lazy" alt="41cd2494" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.175</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/87c32d42-762d-5de4-99c6-81460cd8cd82.jpg" loading="lazy" alt="87c32d42" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.201</div></div></div>
-<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">CLIP</span><span class="drift-model-desc">Subject matching</span></div><div class="drift-cell drift-cell-query"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/0f8646ae-7f02-51b1-8653-f707fd4d1c25.jpg" loading="lazy" alt="0f8646ae" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/0e4d2510-8073-5919-8c67-d6879d597c0c.jpg" loading="lazy" alt="0e4d2510" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.132</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/6c2050d9-83be-5647-81fc-0b1d5a76ba4d.jpg" loading="lazy" alt="6c2050d9" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.143</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/8434a371-8022-56e9-9f36-46921fa3373c.jpg" loading="lazy" alt="8434a371" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.149</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/f7026eeb-701e-5ab5-827c-fbd52e2b5e86.jpg" loading="lazy" alt="f7026eeb" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.173</div></div></div></div>
-<div class="drift-section"><div class="drift-section-header"><span class="drift-section-num">10</span><span class="drift-section-uuid">61721f5a</span></div><div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">DINOv2</span><span class="drift-model-desc">Composition & texture</span></div><div class="drift-cell drift-cell-query"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/61721f5a-39ac-57ad-a231-740b66e58cb2.jpg" loading="lazy" alt="61721f5a" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/64028d32-0c31-5a54-8ff8-0c40b216bd0f.jpg" loading="lazy" alt="64028d32" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.345</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/ab530ab8-fe25-51b9-b745-6d7056ccda0e.jpg" loading="lazy" alt="ab530ab8" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.506</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/8268127b-2c7f-55f6-b3e6-ca92f3c03169.jpg" loading="lazy" alt="8268127b" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.512</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/1f0e74d0-8b0b-5044-a4ef-eed5f4dc935b.jpg" loading="lazy" alt="1f0e74d0" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.540</div></div></div>
-<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">SigLIP</span><span class="drift-model-desc">Semantic meaning</span></div><div class="drift-cell drift-cell-query"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/61721f5a-39ac-57ad-a231-740b66e58cb2.jpg" loading="lazy" alt="61721f5a" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/64028d32-0c31-5a54-8ff8-0c40b216bd0f.jpg" loading="lazy" alt="64028d32" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.067</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/eb289b38-e709-54d4-8e6d-59a83a7822d2.jpg" loading="lazy" alt="eb289b38" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.071</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/a8a5f28b-7988-59d6-b59c-9e75b71764a3.jpg" loading="lazy" alt="a8a5f28b" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.074</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/b79987f5-a07a-5cb3-9296-44c258cd8d87.jpg" loading="lazy" alt="b79987f5" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.077</div></div></div>
-<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">CLIP</span><span class="drift-model-desc">Subject matching</span></div><div class="drift-cell drift-cell-query"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/61721f5a-39ac-57ad-a231-740b66e58cb2.jpg" loading="lazy" alt="61721f5a" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/64028d32-0c31-5a54-8ff8-0c40b216bd0f.jpg" loading="lazy" alt="64028d32" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.084</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/cbd05f24-bda3-5280-af73-348762b363fc.jpg" loading="lazy" alt="cbd05f24" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.089</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/eb289b38-e709-54d4-8e6d-59a83a7822d2.jpg" loading="lazy" alt="eb289b38" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.109</div></div><div class="drift-cell"><img src="https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original/thumb/jpeg/c85feeaf-46ab-5d06-baf1-572ca716173e.jpg" loading="lazy" alt="c85feeaf" onload="this.classList.add('loaded')" class="drift-img"><div class="drift-dist">0.109</div></div></div></div>
+<div class="sim-hero">
+  <h1>Similarity</h1>
+  <p>Navigate vector space. Each image has neighbors in three dimensions: visual structure, semantic meaning, and subject matter. Click any image to drift there.</p>
+</div>
+
+<div class="sim-controls">
+  <button class="sim-btn" onclick="simRandom()">Random</button>
+  <button class="sim-btn" onclick="simBack()" id="sim-back-btn" style="display:none">Back</button>
+</div>
+
+<div class="sim-trail" id="sim-trail"></div>
+<div class="sim-query" id="sim-query"></div>
+<div id="sim-results"></div>
+
+<script>
+(function() {
+  var GCS = "https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original";
+  var history = [];
+  var currentUuid = "9742305c-fd26-5b89-921b-1416447bd0b9";
+
+  function thumbUrl(uuid) { return GCS + "/thumb/jpeg/" + uuid + ".jpg"; }
+  function displayUrl(uuid) { return GCS + "/display/jpeg/" + uuid + ".jpg"; }
+
+  function loadImg(img) {
+    img.onload = function() { img.classList.add("loaded"); };
+  }
+
+  function renderTrail() {
+    var el = document.getElementById("sim-trail");
+    el.innerHTML = "";
+    var trail = history.slice(-12);
+    for (var i = 0; i < trail.length; i++) {
+      var item = document.createElement("div");
+      item.className = "sim-trail-item";
+      var img = document.createElement("img");
+      img.src = thumbUrl(trail[i]);
+      img.alt = "";
+      item.appendChild(img);
+      (function(uuid) {
+        item.onclick = function() { navigate(uuid); };
+      })(trail[i]);
+      el.appendChild(item);
+      if (i < trail.length - 1) {
+        var arrow = document.createElement("span");
+        arrow.className = "sim-trail-arrow";
+        arrow.textContent = "\u203a";
+        el.appendChild(arrow);
+      }
+    }
+    if (trail.length > 0) {
+      var arrow = document.createElement("span");
+      arrow.className = "sim-trail-arrow";
+      arrow.textContent = "\u203a";
+      el.appendChild(arrow);
+    }
+    var cur = document.createElement("div");
+    cur.className = "sim-trail-item current";
+    var curImg = document.createElement("img");
+    curImg.src = thumbUrl(currentUuid);
+    curImg.alt = "";
+    cur.appendChild(curImg);
+    el.appendChild(cur);
+    document.getElementById("sim-back-btn").style.display = history.length > 0 ? "" : "none";
+  }
+
+  function navigate(uuid) {
+    if (uuid === currentUuid) return;
+    history.push(currentUuid);
+    currentUuid = uuid;
+    load(uuid);
+  }
+
+  window.simRandom = function() {
+    fetch("/api/similarity/random").then(function(r) { return r.json(); }).then(function(d) {
+      if (d.uuid) navigate(d.uuid);
+    });
+  };
+
+  window.simBack = function() {
+    if (history.length === 0) return;
+    currentUuid = history.pop();
+    load(currentUuid);
+  };
+
+  function load(uuid) {
+    // Query image
+    var qEl = document.getElementById("sim-query");
+    qEl.innerHTML = "";
+    var qImg = document.createElement("img");
+    qImg.src = displayUrl(uuid);
+    loadImg(qImg);
+    qEl.appendChild(qImg);
+
+    // Fetch neighbors
+    var resEl = document.getElementById("sim-results");
+    resEl.innerHTML = '<p style="text-align:center;color:var(--muted);padding:var(--space-4)">Loading neighbors...</p>';
+
+    fetch("/api/similarity/" + uuid).then(function(r) { return r.json(); }).then(function(data) {
+      resEl.innerHTML = "";
+      if (!data.models) return;
+      for (var m = 0; m < data.models.length; m++) {
+        var model = data.models[m];
+        var section = document.createElement("div");
+        section.className = "sim-model-section";
+        var header = document.createElement("div");
+        header.className = "sim-model-header";
+        header.innerHTML = '<span class="sim-model-name">' + model.name + '</span><span class="sim-model-desc">' + model.desc + '</span>';
+        section.appendChild(header);
+        var grid = document.createElement("div");
+        grid.className = "sim-grid";
+        for (var n = 0; n < model.neighbors.length; n++) {
+          var nb = model.neighbors[n];
+          var card = document.createElement("div");
+          card.className = "sim-card";
+          var img = document.createElement("img");
+          img.src = thumbUrl(nb.uuid);
+          img.alt = "";
+          loadImg(img);
+          card.appendChild(img);
+          var dist = document.createElement("span");
+          dist.className = "sim-dist";
+          dist.textContent = nb.dist.toFixed(3);
+          card.appendChild(dist);
+          (function(nbuuid) {
+            card.onclick = function() { navigate(nbuuid); };
+          })(nb.uuid);
+          grid.appendChild(card);
+        }
+        section.appendChild(grid);
+        resEl.appendChild(section);
+      }
+    });
+    renderTrail();
+  }
+
+  // Initial load
+  load(currentUuid);
+  renderTrail();
+})();
+</script>
 <footer>MADphotos &mdash; <a href="https://github.com/LAEH/MADphotos">github.com/LAEH/MADphotos</a></footer>
 </div>
 <script>

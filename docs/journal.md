@@ -856,3 +856,53 @@ Added a horizontal filmstrip of 40 randomly sampled photographs below the manife
 **Intent.** State dashboard showed stale numbers ("16/16 signals, 6,203 Gemini"). The signal inventory claimed everything was done when only 12/18 signals were complete. Sidebar items shifted on click due to border-left appearing.
 
 > Updated `render_instructions()` with accurate counts for all 18 signals (green checkmarks for complete, live numbers for in-progress). Fixed sidebar shift by giving all links a transparent 3px left border at baseline. Added "As of [date]" timestamp in hero subtitle for static deployments. Deployed to GitHub Pages and Firebase.
+
+---
+
+### 23:10 — Three Apps: Intent Over State
+
+**Intent.** The Three Apps descriptions (Show, State, See) read like a feature list. They should express intent and purpose. Show exists to blow minds and delight. State is the control room. See is the native power viewer where the human eye decides.
+
+> Rewrote all Three Apps descriptions in the briefing (System Instructions), Genesis event (Journal), and README.md. Removed "Then human curation. Then a public gallery that only shows the accepted best" — the apps speak for themselves now. Show leads the trio: "Blow people's minds. Continuously release new experiences guided by signals and new ideas. Delightful, playful, elegant, smart, teasing, revealing, exciting — on every screen."
+
+---
+
+### 23:15 — README Gets Card Layout
+
+**Intent.** README page was plain rendered markdown while System Instructions had beautiful card-based layout with colored accent borders and pill labels. They should match.
+
+> Rewrote `render_readme()` from a generic markdown-to-HTML converter into a section-aware card renderer. Each ## section becomes an `inst-card` with a colored pill label (Hardware/orange, Creative/pink, Architecture/blue, Infrastructure/teal). Three Apps section renders as `app-trio` boxes. Tables, lists, and ordered lists all render correctly inside cards.
+
+---
+
+### 23:19 — Similarity: Interactive Vector Explorer
+
+**Intent.** The old Drift page was a static dump of 10 random images with their neighbors — no interaction, no navigation. The user described an interactive experience twice. Now it's real: a dynamic similarity explorer with a live API.
+
+> Rewrote `render_drift()` into an interactive single-page app. Start with a random image shown large. Below it: 3 model sections (DINOv2/SigLIP/CLIP) each with an 8-neighbor grid. Click any neighbor to navigate there — it becomes the new query. Breadcrumb trail tracks your journey. Back button. Random button. New API endpoints: `/api/similarity/<uuid>` returns 8 nearest neighbors per model, `/api/similarity/random` picks a random starting image. Lazy lancedb connection shared across requests.
+
+---
+
+### 23:15 — Sidebar: Drift → Similarity
+
+**Intent.** User still saw "Drift" in the sidebar navigation. The experiments section in `page_shell()` hadn't been renamed.
+
+> Renamed the sidebar link from "Drift" to "Similarity" in `page_shell()`. The web gallery already had both La Similarité (semantic) and La Dérive (structural) as separate, correctly named experiences.
+
+---
+
+## 2026-02-07
+
+### 00:50 — Master Orchestrator: mad_completions.py
+
+The project had a recurring problem: analysis processes would hang, die silently, or never start. The user would wake up to find nothing completed. No more.
+
+> Built `mad_completions.py` — a master orchestrator that checks all 20 pipeline stages against the database: infrastructure (rendering, EXIF, colors, hashes), models (11 CV models + Gemini + vectors), enhancement, AI variants, and GCS uploads. For any gap found, it identifies the correct fix script and starts it with proper `PYTHONUNBUFFERED=1` logging. Resource-aware: only one GPU-heavy process at a time, API processes run alongside. `--watch` mode loops until everything reaches 100%. After each cycle, regenerates the State dashboard so it always reflects reality. Previously, the Gemini engine had been silently stuck for 8 hours because it was started with `--limit` instead of `--test`. The orchestrator makes manual process babysitting obsolete.
+
+---
+
+### 00:55 — Signal Status: 14/20 Stages Complete
+
+Running processes finally producing real output. Gemini analysis at 70% (6,294/9,011). OCR running at 47% (4,223/9,011). All other signals at 100%. Emotions was already done — the 19% was misleading because only 1,676 images have faces, and all 1,676 have emotions.
+
+> Updated State dashboard with accurate numbers across the board. Signal Inventory table now shows BLIP Captions DONE (9,011), Facial Emotions DONE (1,676 images with faces), Gemini at 6,294, OCR at 4,223. Architecture section updated from "9 Python Scripts" to 10 with the new orchestrator. Next priorities: finish Gemini + OCR, then GCS upload pipeline.
