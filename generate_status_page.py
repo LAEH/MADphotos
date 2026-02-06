@@ -780,6 +780,81 @@ PAGE_HTML = r"""<!DOCTYPE html>
     -moz-osx-font-smoothing: grayscale;
   }
 
+  /* ═══ HERO ═══ */
+  .hero {
+    position: relative;
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    margin-bottom: var(--space-10);
+    min-height: 320px;
+    display: flex;
+    align-items: flex-end;
+  }
+  .hero-mosaic {
+    position: absolute; inset: 0;
+  }
+  .hero-mosaic img {
+    width: 100%; height: 100%; object-fit: cover;
+    filter: brightness(0.4) saturate(0.8);
+    transition: filter 0.5s;
+  }
+  .hero:hover .hero-mosaic img {
+    filter: brightness(0.5) saturate(0.9);
+  }
+  .hero-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(0deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.1) 100%);
+  }
+  .hero-content {
+    position: relative; z-index: 1;
+    padding: var(--space-10) var(--space-8);
+    max-width: 640px;
+  }
+  .hero-title {
+    font-family: var(--font-display);
+    font-size: 48px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #FFFFFF;
+    margin-bottom: var(--space-1);
+    line-height: 1.1;
+  }
+  .hero-count {
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    font-weight: 600;
+    color: rgba(255,255,255,0.7);
+    margin-bottom: var(--space-4);
+    letter-spacing: -0.01em;
+  }
+  .hero-tagline {
+    font-size: var(--text-base);
+    color: rgba(255,255,255,0.85);
+    line-height: var(--leading-relaxed);
+    margin-bottom: var(--space-3);
+  }
+  .hero-mission {
+    font-size: var(--text-sm);
+    color: rgba(255,255,255,0.6);
+    line-height: var(--leading-relaxed);
+    margin-bottom: var(--space-2);
+  }
+  .hero-mission em {
+    color: rgba(255,255,255,0.85);
+    font-style: italic;
+  }
+  @media (max-width: 700px) {
+    .hero { min-height: 260px; }
+    .hero-title { font-size: 32px; }
+    .hero-content { padding: var(--space-6); }
+    .hero-count { font-size: var(--text-lg); }
+  }
+  @media (max-width: 440px) {
+    .hero { min-height: 220px; }
+    .hero-title { font-size: 26px; }
+    .hero-content { padding: var(--space-4); }
+  }
+
   /* ═══ SIDEBAR ═══ */
   .sidebar {
     width: var(--sidebar-w);
@@ -1375,7 +1450,21 @@ PAGE_HTML = r"""<!DOCTYPE html>
 
 <div class="main-content">
 
-<h1>MADphotos</h1>
+<!-- ═══ HERO LANDING ═══ -->
+<div class="hero">
+  <div class="hero-mosaic">
+    <img src="/mosaic-hero" alt="9,011 photographs arranged by brightness" loading="eager">
+    <div class="hero-overlay"></div>
+  </div>
+  <div class="hero-content">
+    <h1 class="hero-title">MADphotos</h1>
+    <p class="hero-count"><span id="hero-count">9,011</span> photographs</p>
+    <p class="hero-tagline">Shot over a decade on Leica rangefinders, a monochrome sensor with no Bayer filter, scanned analog film, and pocket action cameras. Most have never been seen by anyone.</p>
+    <p class="hero-mission">The mission: treat every single image as if it deserves a curator, a critic, and an editor. Not batch processing &mdash; <em>per-image intelligence</em>. An AI studies the exposure, the composition, the mood, the color. It writes editing instructions unique to that frame. Then another AI executes them. From that improved base, style variants bloom.</p>
+    <p class="hero-mission">Everything tracked in one database. Every signal extractable. Every image searchable by what it <em>means</em>, not just what it&rsquo;s named.</p>
+  </div>
+</div>
+
 <p class="subtitle" id="subtitle">System Dashboard</p>
 
 <!-- ═══ TOP CARDS ═══ -->
@@ -3514,6 +3603,31 @@ class Handler(BaseHTTPRequestHandler):
                 self.wfile.write(fpath.read_bytes())
             else:
                 self.send_error(404)
+        elif self.path == "/mosaic-hero":
+            mosaic_path = RENDERED_DIR / "mosaics" / "by_brightness.jpg"
+            if mosaic_path.exists():
+                # Serve a resized version for the hero
+                hero_cache = BASE_DIR / "docs" / "hero-mosaic.jpg"
+                if hero_cache.exists():
+                    data = hero_cache.read_bytes()
+                else:
+                    from PIL import Image as _PILImage
+                    img = _PILImage.open(str(mosaic_path))
+                    w, h = img.size
+                    new_w = 1200
+                    new_h = int(h * new_w / w)
+                    img = img.resize((new_w, new_h), _PILImage.LANCZOS)
+                    import io
+                    buf = io.BytesIO()
+                    img.save(buf, "JPEG", quality=75, optimize=True)
+                    data = buf.getvalue()
+                self.send_response(200)
+                self.send_header("Content-Type", "image/jpeg")
+                self.send_header("Cache-Control", "public, max-age=86400")
+                self.end_headers()
+                self.wfile.write(data)
+            else:
+                self.send_error(404)
         elif self.path == "/journal":
             html = render_journal().encode()
             self.send_response(200)
@@ -3606,6 +3720,8 @@ def generate_static():
     html = html.replace('href="/instructions"', 'href="#sec-runs"')
     html = html.replace('href="/drift"', 'href="#"')
     html = html.replace('href="/blind-test"', 'href="#"')
+    # Hero mosaic: point to local file for GitHub Pages
+    html = html.replace('src="/mosaic-hero"', 'src="hero-mosaic.jpg"')
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUT_PATH.write_text(html)
     print(f"Wrote {OUT_PATH} ({len(html):,} bytes) — snapshot {ts}")
