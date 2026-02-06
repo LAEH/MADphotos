@@ -832,3 +832,27 @@ Added a horizontal filmstrip of 40 randomly sampled photographs below the manife
 **Intent.** Check-in on all background analysis processes running since the previous session.
 
 > Five processes still alive: 3 OCR shards (28%, 2,543/9,011), photography_engine for Gemini (68.9%, 6,210/9,011), facial emotions (79.7%, 2,541/3,187 faces). Face detections jumped from 1,676 to 3,187 — more faces discovered as analysis expanded. Emotions climbed from 1,367 to 2,541. BLIP captions stuck at 9,006/9,011 — 5 images blocked by SQLite locks from concurrent OCR shards. Will retry once OCR finishes.
+
+---
+
+### 01:00 — Emotions Bug: Normalized Coordinates Were Producing 1×1 Pixel Crops
+
+**Intent.** The facial emotions process completed 2,545 face classifications, but investigation revealed ALL of them were garbage. Face detection stores coordinates as normalized values (0-1 range), but the emotion code treated them as pixel coordinates — producing 0×0 or 1×1 pixel crops fed to the ViT classifier. Every emotion label was nonsense.
+
+> Fixed `advanced_signals.py` to multiply normalized coordinates by image dimensions before cropping. Added minimum crop size check (10px). Moved try/except to per-face level so one bad face doesn't skip the whole image. Deleted all bad emotion data. Re-running with --force, but OCR shards are locking the DB. Will retry once OCR finishes.
+
+---
+
+### 01:15 — La Dérive: Real DINOv2 Visual Drift
+
+**Intent.** Transform La Dérive from metadata-based heuristics into real visual embedding similarity. The user wants incredible pairs: completely different images that share abstract visual structure — a bridge and a ribcage, a shoe and a ramp. DINOv2 captures texture and structure, not content.
+
+> Precomputed 8 nearest DINOv2 neighbors for all 9,011 images (768d vectors, cosine similarity). Exported to `drift_neighbors.json` (5.2MB). Rewrote `drift.js` to load and navigate these embedding-based neighbors. Added `loadDriftNeighbors()` to `app.js`. Added subtle similarity score bar to neighbor cards.
+
+---
+
+### 01:20 — State: Accurate Signal Inventory + Sidebar Fix + "As of" Timestamp
+
+**Intent.** State dashboard showed stale numbers ("16/16 signals, 6,203 Gemini"). The signal inventory claimed everything was done when only 12/18 signals were complete. Sidebar items shifted on click due to border-left appearing.
+
+> Updated `render_instructions()` with accurate counts for all 18 signals (green checkmarks for complete, live numbers for in-progress). Fixed sidebar shift by giving all links a transparent 3px left border at baseline. Added "As of [date]" timestamp in hero subtitle for static deployments. Deployed to GitHub Pages and Firebase.
