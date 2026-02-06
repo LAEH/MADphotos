@@ -355,12 +355,35 @@
 <div class="inst-grid">
 
 <div class="inst-card">
-  <h2>GCS Hosting</h2>
+  <span class="inst-pill inst-pill-blue">Infrastructure</span>
+  <h2>GCS Image Hosting Strategy</h2>
   <ul>
-    <li><strong>Project:</strong> madbox-e4a35</li>
+    <li><strong>GCP Project:</strong> madbox-e4a35 &mdash; account: laeh@madbits.ai</li>
     <li><strong>Bucket:</strong> <code>gs://myproject-public-assets/art/MADphotos/</code></li>
-    <li><strong>URL:</strong> <code>.../v/{version}/{tier}/{format}/{uuid}.ext</code></li>
-    <li><strong>Versions:</strong> original, enhanced, blind</li>
+    <li><strong>URL pattern:</strong> <code>https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/{version}/{tier}/{format}/{uuid}.ext</code></li>
+  </ul>
+  <h3>Versioned Directory Structure</h3>
+  <table>
+    <thead><tr><th>Version</th><th>Content</th><th>Tiers Uploaded</th></tr></thead>
+    <tbody>
+      <tr><td><code>original</code></td><td>Unmodified rendered tiers</td><td>display, mobile, thumb, micro &times; jpeg + webp</td></tr>
+      <tr><td><code>enhanced</code></td><td>Camera-aware enhanced</td><td>display, mobile, thumb, micro &times; jpeg + webp</td></tr>
+      <tr><td><code>blind</code></td><td>Blind test comparison images</td><td>display/jpeg only</td></tr>
+    </tbody>
+  </table>
+  <h3>Deployment Map</h3>
+  <table>
+    <thead><tr><th>App</th><th>Platform</th><th>URL</th></tr></thead>
+    <tbody>
+      <tr><td><strong>State</strong></td><td>GitHub Pages</td><td>laeh.github.io/MADphotos/</td></tr>
+      <tr><td><strong>Show</strong></td><td>Firebase Hosting</td><td>madphotos-efbfb.web.app</td></tr>
+      <tr><td><strong>Images</strong></td><td>GCS public bucket</td><td>storage.googleapis.com/myproject-public-assets/...</td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li><strong>Show does NOT host images.</strong> All image URLs point to GCS. Firebase only serves HTML/CSS/JS + data JSONs.</li>
+    <li><strong>gcs_sync.py</strong> uploads serving tiers only. Full/gemini tiers stay local (AI pipeline input).</li>
+    <li><strong>Upload command:</strong> <code>python3 gcs_sync.py --version original</code> (or enhanced, blind)</li>
   </ul>
 </div>
 

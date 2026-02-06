@@ -800,3 +800,27 @@ Added a horizontal filmstrip of 40 randomly sampled photographs below the manife
 > Removed Imagen Variant Generation section entirely (HTML, CSS, JavaScript). Updated Project Briefing: Show now lists all 14 experiences. Updated signal completion counts (Gemini 6,203/9,011, OCR complete, BLIP 8,933/9,011, Emotions 1,367/1,676). Updated "Done vs. Next" to reflect actual state. Added "Creative Direction for Show" section to instructions — signal-aware storytelling, emotional moments, minimalist UI.
 
 **Self-instruction written:** Added mandatory rule to MEMORY.md — always update `generate_status_page.py` instructions when architecture changes, just like the journal. Also added creative direction mandate: Show experiences must be designed by someone who is simultaneously developer, architect, ML engineer, Apple-level designer, and emotionally intelligent creative director. Pairing two laughing faces IS funny. A rose next to rose accents IS pretty.
+
+---
+
+### 22:45 — State Instructions Page Restyled
+
+**Intent.** User pointed out System Instructions page was completely outdated in style and content. Needed card-based layout, not a wall of text.
+
+> Complete rewrite of `render_instructions()`: card-based layout with colored accent borders (indigo=briefing, pink=creative, green=status), 2-column grids for cameras and architecture, app trio boxes, category-themed signal inventory table. Added incremental ingestion pipeline card. Removed verbose Development Principles prose — replaced with compact actionable rules.
+
+---
+
+### 22:50 — State Dashboard: Category-Themed Tags + Compact Journal
+
+**Intent.** Tags in State dashboard all looked identical. User wanted category-specific color theming like in Show. Journal events were too long — needed compact default with click-to-expand.
+
+> Added 7 category color classes to State tags: vibe=orange, grading=blue, time=gold, setting=green, exposure=teal, composition=purple, camera=silver. Updated `tags()` JS function to accept category parameter. Journal events now collapsed by default — show title + labels + key "why it matters" line. Click toggles full body.
+
+---
+
+### 23:00 — Landing Page: Bold Mission + Game is ON
+
+**Intent.** Mission statement needed to stand out. Changed "on different screens" to "on screens". Added "GAME IS ON." tagline.
+
+> Mission text now bold black (weight 700) at base font size. Added uppercase "GAME IS ON." below in muted gray with caps tracking. Deployed to GitHub Pages.
