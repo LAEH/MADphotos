@@ -79,6 +79,15 @@ def _db_retry(conn, sql, params=(), retries=5, delay=1.0):
                 raise
 
 
+def _apply_shard(work, shard_str):
+    # type: (list, Optional[str]) -> list
+    """Filter work list by shard N/M using hash(uuid) mod M == N."""
+    if not shard_str:
+        return work
+    n, m = map(int, shard_str.split("/"))
+    return [item for item in work if hash(item["uuid"]) % m == n]
+
+
 def _db_commit_retry(conn, retries=5, delay=1.0):
     # type: (sqlite3.Connection, int, float) -> None
     """Commit with retries on database lock."""
@@ -661,8 +670,8 @@ def run_style(conn, limit=0, force=False):
 # Phase 5: OCR / Text Detection
 # ---------------------------------------------------------------------------
 
-def run_ocr(conn, limit=0, force=False):
-    # type: (sqlite3.Connection, int, bool) -> int
+def run_ocr(conn, limit=0, force=False, shard=None):
+    # type: (sqlite3.Connection, int, bool, Optional[str]) -> int
     """Detect text in images using EasyOCR."""
     import easyocr
 
@@ -691,6 +700,7 @@ def run_ocr(conn, limit=0, force=False):
     """, (SOURCE_TIER, SOURCE_FORMAT)).fetchall()
 
     work = [dict(r) for r in rows]
+    work = _apply_shard(work, shard)
     if limit:
         work = work[:limit]
 
@@ -825,8 +835,8 @@ def run_captions(conn, limit=0, force=False):
 # Phase 7: Facial Emotions
 # ---------------------------------------------------------------------------
 
-def run_emotions(conn, limit=0, force=False):
-    # type: (sqlite3.Connection, int, bool) -> int
+def run_emotions(conn, limit=0, force=False, shard=None):
+    # type: (sqlite3.Connection, int, bool, Optional[str]) -> int
     """Detect emotions on face crops using a PyTorch ViT model (no TensorFlow)."""
     import torch
     from transformers import pipeline as hf_pipeline
@@ -859,6 +869,7 @@ def run_emotions(conn, limit=0, force=False):
     """, (SOURCE_TIER, SOURCE_FORMAT)).fetchall()
 
     work = [dict(r) for r in rows]
+    work = _apply_shard(work, shard)
     if limit:
         work = work[:limit]
 
@@ -1011,6 +1022,8 @@ def main():
                         help="Re-process existing results")
     parser.add_argument("--list", action="store_true",
                         help="Show phase status and exit")
+    parser.add_argument("--shard", type=str, default=None,
+                        help="Shard N/M — process only images where hash(uuid) mod M == N (0-indexed)")
     args = parser.parse_args()
 
     conn = db.get_connection()
@@ -1032,7 +1045,13 @@ def main():
     total_processed = 0
     for key, name, func in phases_to_run:
         try:
-            count = func(conn, limit=args.limit, force=args.force)
+            # Pass shard to functions that support it (ocr, emotions)
+            import inspect
+            sig = inspect.signature(func)
+            kwargs = dict(limit=args.limit, force=args.force)
+            if "shard" in sig.parameters:
+                kwargs["shard"] = args.shard
+            count = func(conn, **kwargs)
             total_processed += count
         except Exception as e:
             print(f"\n  ERROR in {name}: {e}", file=sys.stderr)

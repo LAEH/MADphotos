@@ -684,3 +684,21 @@ Added a hero section to the State dashboard. Full-bleed brightness-sorted mosaic
 ### 18:40 — Git Push: The Big One
 
 37 files, 16,564 insertions. The full pipeline code, all 3 apps (See/Show/State), 16 analysis signals, dual enhancement engines, blind test system, web gallery, GitHub Pages deployment workflow. OCR restarted after the v2 enhancement freed up DB locks.
+
+## 2026-02-06
+
+### 17:30 — OCR Sharding: 3x Parallel Workers
+
+OCR was crawling at 0.2/s — 12+ hour ETA for 8,000 remaining images. Added `--shard N/M` argument to `advanced_signals.py` that partitions work by `hash(uuid) % M == N`. Killed the single OCR process and launched 3 parallel workers: shard 0/3 (2,684 images), shard 1/3 (2,733), shard 2/3 (2,671). Each runs its own EasyOCR reader on CPU. Combined throughput should be ~0.6/s, bringing ETA down to ~4 hours. Emotions already at 1,367/1,676 — almost done on its own.
+
+### 17:45 — The Landing Page: Magazine-Quality README
+
+Created a gorgeous dark-themed landing page for GitHub Pages (`docs/index.html`). Full-viewport hero with the brightness-sorted mosaic, giant "9,011" counter with gradient text, the mission statement, and a smooth-scroll "Explore" button. Below: navigation cards (State, Journal de Bord, GitHub) with colored accent borders, the camera collection list, three apps section (See/Show/State), the 9-stage pipeline with numbered step indicators, infrastructure grid, and 10 model pills. All mobile-first: base CSS is for phones, `min-width` media queries at 640px, 960px, 1200px. Pure dark (#0A0A0A) with Apple SF Pro typography.
+
+Dashboard moved to `docs/state.html`. Added `.nojekyll` to bypass Jekyll processing. Sidebar links updated for static file routing.
+
+### 17:55 — Dashboard: Card Redesign + Mobile Responsive
+
+Removed the redundant Gemini Analysis progress section — that data was duplicated in the top cards. Redesigned top stat cards: replaced "Gemini AI", "Pixel Analysis", "GCS Uploads" with "AI Models Active" (shows X/10 models complete), "Enhanced" (enhancement plans with %), "Faces Found" (total faces + emotion count), "Vector Embeddings" (count × 3 models). Cards sorted by activity/interest.
+
+Mobile CSS completely reworked: hamburger menu for sidebar at <900px with backdrop blur, sticky top bar, cards always 2-column on mobile, tables scroll horizontally, hero collapses gracefully (hides tagline/mission on small screens). Media queries switched from max-width to min-width (mobile-first).

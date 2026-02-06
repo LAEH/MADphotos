@@ -20,7 +20,7 @@ from typing import Optional
 
 DB_PATH = Path(__file__).resolve().parent / "mad_photos.db"
 VECTOR_PATH = Path(__file__).resolve().parent / "vectors.lance"
-OUT_PATH = Path(__file__).resolve().parent / "docs" / "index.html"
+OUT_PATH = Path(__file__).resolve().parent / "docs" / "state.html"
 MOSAIC_DIR = Path(__file__).resolve().parent / "rendered" / "mosaics"
 
 
@@ -521,6 +521,36 @@ def get_stats():
         except json.JSONDecodeError:
             pass
 
+    # ── Advanced signal counts (OCR, captions, emotions, style) ─
+    style_count = 0
+    ocr_images = 0
+    ocr_texts = 0
+    caption_count = 0
+    emotion_count = 0
+    try:
+        style_count = conn.execute("SELECT COUNT(*) FROM style_classification").fetchone()[0]
+    except Exception:
+        pass
+    try:
+        ocr_images = conn.execute("SELECT COUNT(DISTINCT image_uuid) FROM ocr_detections").fetchone()[0]
+        ocr_texts = conn.execute("SELECT COUNT(*) FROM ocr_detections WHERE text != ''").fetchone()[0]
+    except Exception:
+        pass
+    try:
+        caption_count = conn.execute("SELECT COUNT(*) FROM image_captions").fetchone()[0]
+    except Exception:
+        pass
+    try:
+        emotion_count = conn.execute("SELECT COUNT(DISTINCT image_uuid) FROM facial_emotions").fetchone()[0]
+    except Exception:
+        pass
+
+    # Total models completed (how many analysis phases hit 100%)
+    models_complete = sum(1 for c in [
+        aesthetic_count, depth_count, scene_count, style_count,
+        caption_count, enhancement_count
+    ] if c >= total) + (1 if pixel_analyzed >= total else 0) + (1 if analyzed >= total else 0)
+
     # ── Disk usage ───────────────────────────────────────────
     db_size = os.path.getsize(str(DB_PATH)) if DB_PATH.exists() else 0
     web_json_path = Path(__file__).resolve().parent / "web" / "data" / "photos.json"
@@ -606,6 +636,12 @@ def get_stats():
         "location_count": location_count,
         "location_sources": location_sources,
         "location_accepted": location_accepted,
+        "style_count": style_count,
+        "ocr_images": ocr_images,
+        "ocr_texts": ocr_texts,
+        "caption_count": caption_count,
+        "emotion_count": emotion_count,
+        "models_complete": models_complete,
     }
 
 
@@ -844,15 +880,16 @@ PAGE_HTML = r"""<!DOCTYPE html>
     font-style: italic;
   }
   @media (max-width: 700px) {
-    .hero { min-height: 260px; }
-    .hero-title { font-size: 32px; }
-    .hero-content { padding: var(--space-6); }
-    .hero-count { font-size: var(--text-lg); }
+    .hero { min-height: 200px; border-radius: var(--radius-lg); }
+    .hero-title { font-size: 28px; }
+    .hero-content { padding: var(--space-4); }
+    .hero-count { font-size: var(--text-base); }
+    .hero-tagline, .hero-mission { display: none; }
   }
   @media (max-width: 440px) {
-    .hero { min-height: 220px; }
-    .hero-title { font-size: 26px; }
-    .hero-content { padding: var(--space-4); }
+    .hero { min-height: 160px; border-radius: var(--radius-md); margin-bottom: var(--space-6); }
+    .hero-title { font-size: 24px; }
+    .hero-content { padding: var(--space-3); }
   }
 
   /* ═══ SIDEBAR ═══ */
@@ -962,23 +999,53 @@ PAGE_HTML = r"""<!DOCTYPE html>
   /* ═══ MAIN CONTENT ═══ */
   .main-content {
     flex: 1;
-    padding: var(--space-10) var(--space-8);
+    padding: var(--space-4);
     max-width: 1120px;
     min-width: 0;
     margin: 0 auto;
+    width: 100%;
   }
+
+  /* ── Mobile hamburger ── */
+  .sb-hamburger {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 36px; height: 36px;
+    background: none; border: none; cursor: pointer;
+    color: var(--fg); font-size: 20px;
+    border-radius: var(--radius-sm);
+    transition: background var(--duration-fast);
+  }
+  .sb-hamburger:hover { background: var(--sidebar-active-bg); }
 
   @media (max-width: 900px) {
     body { flex-direction: column; }
     .sidebar {
-      width: 100%; min-width: unset; height: auto; position: relative;
-      border-right: none; border-bottom: 1px solid var(--border);
-      flex-direction: row; flex-wrap: wrap; gap: 0; padding: var(--space-3);
+      width: 100%; min-width: unset; height: auto; position: sticky; top: 0;
+      z-index: 100; border-right: none; border-bottom: 1px solid var(--border);
+      flex-direction: row; flex-wrap: wrap; gap: 0; padding: var(--space-2) var(--space-3);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      background: color-mix(in srgb, var(--sidebar-bg) 85%, transparent);
     }
-    .sidebar .sb-title { width: 100%; border-bottom: none; padding-bottom: var(--space-1); }
-    .sidebar .sb-group, .sidebar .sb-sep, .sidebar .sb-bottom { display: none; }
-    .sidebar a { padding: var(--space-1) var(--space-3); }
-    .main-content { padding: var(--space-6); }
+    .sidebar .sb-title {
+      width: auto; border-bottom: none; padding: 0 var(--space-2) 0 0;
+      margin-bottom: 0; font-size: var(--text-base);
+    }
+    .sb-hamburger { display: flex; margin-left: auto; }
+    .sidebar > a, .sidebar .sb-group, .sidebar .sb-sep,
+    .sidebar .sb-bottom, .sidebar .sb-collapsible,
+    .sidebar .sb-toggle { display: none; }
+    .sidebar.open > a { display: flex; width: 100%; }
+    .sidebar.open .sb-sep { display: block; width: 100%; }
+    .sidebar.open .sb-group { display: block; width: 100%; }
+    .sidebar.open .sb-bottom { display: block; width: 100%; }
+    .sidebar.open .sb-toggle { display: block; width: 100%; }
+    .main-content { padding: var(--space-4); }
+  }
+
+  @media (min-width: 901px) {
+    .main-content { padding: var(--space-10) var(--space-8); }
   }
 
   /* ═══ TYPOGRAPHY ═══ */
@@ -1139,17 +1206,23 @@ PAGE_HTML = r"""<!DOCTYPE html>
 
   /* ═══ LAYOUT ═══ */
   .section { margin-bottom: var(--space-12); }
-  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-8); }
-  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-6); }
-  @media (max-width: 700px) {
-    .two-col, .three-col { grid-template-columns: 1fr; }
-    .stats-grid { grid-template-columns: 1fr 1fr; }
-    h1 { font-size: var(--text-2xl); }
-    .stat-card .value { font-size: var(--text-xl); }
+  .two-col { display: grid; grid-template-columns: 1fr; gap: var(--space-6); }
+  .three-col { display: grid; grid-template-columns: 1fr; gap: var(--space-6); }
+
+  /* Mobile-first: cards are 2-col on mobile */
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+  h1 { font-size: var(--text-2xl); }
+  .stat-card .value { font-size: var(--text-xl); }
+
+  @media (min-width: 640px) {
+    .stats-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+    .stat-card .value { font-size: var(--text-3xl); }
+    h1 { font-size: var(--text-3xl); }
   }
-  @media (max-width: 440px) {
-    .stats-grid { grid-template-columns: 1fr; }
-    .main-content { padding: var(--space-4); }
+
+  @media (min-width: 768px) {
+    .two-col { grid-template-columns: 1fr 1fr; gap: var(--space-8); }
+    .three-col { grid-template-columns: 1fr 1fr 1fr; }
   }
   .table-wrap {
     overflow-x: auto;
@@ -1412,6 +1485,7 @@ PAGE_HTML = r"""<!DOCTYPE html>
 
 <nav class="sidebar" id="sidebar">
   <div class="sb-title">MADphotos</div>
+  <button class="sb-hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')" aria-label="Menu">&#9776;</button>
   <a href="/readme">README</a>
   <a href="/" class="active">State</a>
   <a href="/journal">Journal de Bord</a>
@@ -1450,21 +1524,7 @@ PAGE_HTML = r"""<!DOCTYPE html>
 
 <div class="main-content">
 
-<!-- ═══ HERO LANDING ═══ -->
-<div class="hero">
-  <div class="hero-mosaic">
-    <img src="/mosaic-hero" alt="9,011 photographs arranged by brightness" loading="eager">
-    <div class="hero-overlay"></div>
-  </div>
-  <div class="hero-content">
-    <h1 class="hero-title">MADphotos</h1>
-    <p class="hero-count"><span id="hero-count">9,011</span> photographs</p>
-    <p class="hero-tagline">Shot over a decade on Leica rangefinders, a monochrome sensor with no Bayer filter, scanned analog film, and pocket action cameras. Most have never been seen by anyone.</p>
-    <p class="hero-mission">The mission: treat every single image as if it deserves a curator, a critic, and an editor. Not batch processing &mdash; <em>per-image intelligence</em>. An AI studies the exposure, the composition, the mood, the color. It writes editing instructions unique to that frame. Then another AI executes them. From that improved base, style variants bloom.</p>
-    <p class="hero-mission">Everything tracked in one database. Every signal extractable. Every image searchable by what it <em>means</em>, not just what it&rsquo;s named.</p>
-  </div>
-</div>
-
+<h1>MADphotos <span style="font-weight:400;color:var(--muted);font-size:var(--text-xl);">State</span></h1>
 <p class="subtitle" id="subtitle">System Dashboard</p>
 
 <!-- ═══ TOP CARDS ═══ -->
@@ -1474,64 +1534,44 @@ PAGE_HTML = r"""<!DOCTYPE html>
     <div class="label">Photographs</div>
     <div class="sub" id="sub-formats"></div>
   </div>
-  <div class="stat-card" id="card-rendered">
-    <div class="value" id="val-rendered">&mdash;</div>
-    <div class="label" id="lbl-rendered">Tier Files</div>
-    <div class="sub" id="sub-rendered"></div>
+  <div class="stat-card" id="card-models">
+    <div class="value" id="val-models">&mdash;</div>
+    <div class="label">AI Models Active</div>
+    <div class="sub" id="sub-models"></div>
   </div>
-  <div class="stat-card" id="card-gemini">
-    <div class="value" id="val-gemini">&mdash;</div>
-    <div class="label">Gemini AI</div>
-    <div class="sub" id="sub-gemini"></div>
+  <div class="stat-card" id="card-enhanced">
+    <div class="value" id="val-enhanced">&mdash;</div>
+    <div class="label">Enhanced</div>
+    <div class="sub" id="sub-enhanced"></div>
   </div>
-  <div class="stat-card" id="card-pixel">
-    <div class="value" id="val-pixel">&mdash;</div>
-    <div class="label">Pixel Analysis</div>
-    <div class="sub" id="sub-pixel"></div>
+  <div class="stat-card" id="card-faces">
+    <div class="value" id="val-faces">&mdash;</div>
+    <div class="label">Faces Found</div>
+    <div class="sub" id="sub-faces"></div>
   </div>
   <div class="stat-card" id="card-vectors">
     <div class="value" id="val-vectors">&mdash;</div>
-    <div class="label">Vector Triples</div>
+    <div class="label">Vector Embeddings</div>
     <div class="sub" id="sub-vectors"></div>
   </div>
   <div class="stat-card" id="card-variants">
     <div class="value" id="val-variants">&mdash;</div>
-    <div class="label">AI Edits</div>
+    <div class="label">AI Variants</div>
     <div class="sub" id="sub-variants"></div>
+  </div>
+  <div class="stat-card" id="card-rendered">
+    <div class="value" id="val-rendered">&mdash;</div>
+    <div class="label">Rendered Files</div>
+    <div class="sub" id="sub-rendered"></div>
   </div>
   <div class="stat-card" id="card-curation">
     <div class="value" id="val-curation">&mdash;</div>
     <div class="label">Curated</div>
     <div class="sub" id="sub-curation"></div>
   </div>
-  <div class="stat-card" id="card-gcs">
-    <div class="value" id="val-gcs">&mdash;</div>
-    <div class="label">GCS Uploads</div>
-    <div class="sub" id="sub-gcs"></div>
-  </div>
 </div>
 
-<!-- ═══ GEMINI PROGRESS ═══ -->
-<div class="section" id="sec-gemini">
-  <div class="section-title"><span class="live-dot" id="live-dot"></span>Gemini Analysis</div>
-  <div class="progress-info">
-    <span class="pi-label" id="progress-label">&mdash; / &mdash;</span>
-    <span class="pi-pct" id="progress-pct"></span>
-  </div>
-  <div class="progress-wrap">
-    <div class="progress-fill" id="progress-fill" style="width:0%"></div>
-  </div>
-  <div class="rate" id="rate-info"></div>
-  <div class="table-wrap"><table>
-    <tr><th>Status</th><th class="num">Count</th></tr>
-    <tr><td>Completed</td><td class="num" id="st-done">&mdash;</td></tr>
-    <tr><td>Failed</td><td class="num" id="st-fail">&mdash;</td></tr>
-    <tr><td>Pending</td><td class="num" id="st-pend">&mdash;</td></tr>
-  </table></div>
-  <div style="font-size:var(--text-xs);color:var(--muted);">
-    <span id="gemini-extras"></span>
-  </div>
-</div>
+<!-- Gemini progress removed — info is in top cards + Gemini Insights section -->
 
 <!-- ═══ CAMERA FLEET ═══ -->
 <div class="section" id="sec-cameras">
@@ -1892,56 +1932,48 @@ PAGE_HTML = r"""<!DOCTYPE html>
     var fmtStr = d.source_formats ? d.source_formats.map(function(f) { return f.name + ": " + fmt(f.count); }).join(" \u00B7 ") : "";
     el("sub-formats").textContent = fmtStr;
 
-    el("val-rendered").textContent = fmt(d.total_tier_files);
-    el("sub-rendered").textContent = d.total_rendered_human;
+    // Models active — count signals that are in-progress or complete
+    var mc = d.models_complete || 0;
+    var totalModels = 10; // Gemini, Pixel, Aesthetic, Depth, Scene, Style, OCR, BLIP, Emotions, Vectors
+    el("val-models").textContent = mc + " / " + totalModels;
+    var modelParts = [];
+    if (d.aesthetic_count >= d.total) modelParts.push("Aesthetic");
+    if (d.depth_count >= d.total) modelParts.push("Depth");
+    if (d.scene_count >= d.total) modelParts.push("Scenes");
+    if (d.caption_count >= d.total) modelParts.push("Captions");
+    if (d.analyzed >= d.total) modelParts.push("Gemini");
+    if (d.pixel_analyzed >= d.total) modelParts.push("Pixels");
+    el("sub-models").textContent = modelParts.length ? modelParts.join(", ") + " complete" : "processing\u2026";
 
-    el("val-gemini").textContent = fmt(d.analyzed);
-    el("sub-gemini").innerHTML = d.analysis_pct.toFixed(1) + '% \u2014 ' + badge(d.analysis_pct, d.analyzed);
+    // Enhanced
+    el("val-enhanced").textContent = fmt(d.enhancement_count);
+    var enhPct = d.total > 0 ? (d.enhancement_count / d.total * 100) : 0;
+    el("sub-enhanced").innerHTML = enhPct.toFixed(0) + '% \u2014 ' + badge(enhPct, d.enhancement_count);
 
-    el("val-pixel").textContent = fmt(d.pixel_analyzed);
-    el("sub-pixel").innerHTML = d.pixel_pct.toFixed(1) + '% \u2014 ' + badge(d.pixel_pct, d.pixel_analyzed);
+    // Faces
+    el("val-faces").textContent = fmt(d.face_total);
+    var emotStr = (d.emotion_count || 0) > 0 ? " \u00B7 " + fmt(d.emotion_count) + " emotions" : "";
+    el("sub-faces").textContent = fmt(d.face_images_with) + " images with faces" + emotStr;
 
-    el("val-vectors").textContent = fmt(d.vector_count);
-    el("sub-vectors").textContent = d.vector_size + " \u00B7 3 models";
+    // Vectors
+    el("val-vectors").textContent = fmt(d.vector_count * 3);
+    el("sub-vectors").textContent = fmt(d.vector_count) + " images \u00D7 3 models \u00B7 " + d.vector_size;
 
+    // AI Variants
     el("val-variants").textContent = fmt(d.ai_variants_total);
     var vtypes = d.variant_summary ? d.variant_summary.map(function(v) { return v.type + ": " + v.ok; }).join(" \u00B7 ") : "";
     el("sub-variants").textContent = vtypes;
 
+    // Rendered
+    el("val-rendered").textContent = fmt(d.total_tier_files);
+    el("sub-rendered").textContent = d.total_rendered_human;
+
+    // Curated
     el("val-curation").textContent = d.curation_pct.toFixed(0) + "%";
     el("sub-curation").textContent = fmt(d.kept) + " kept \u00B7 " + fmt(d.rejected) + " rejected";
 
-    el("val-gcs").textContent = fmt(d.gcs_uploads);
-    el("sub-gcs").textContent = d.gcs_uploads > 0 ? "synced" : "not started";
-
-    if (prev && d.analyzed !== prev.analyzed) flash("card-gemini");
-
-    /* ── Gemini progress ── */
-    el("progress-fill").style.width = d.analysis_pct + "%";
-    el("progress-label").textContent = fmt(d.analyzed) + " / " + fmt(d.total);
-    el("progress-pct").textContent = d.analysis_pct.toFixed(1) + "%";
-
-    var now = Date.now();
-    if (prev && prevTime && d.analyzed > prev.analyzed) {
-      var dt = (now - prevTime) / 1000;
-      var dn = d.analyzed - prev.analyzed;
-      var rate = dn / dt * 60;
-      var remaining = d.pending;
-      var eta = remaining / (dn / dt);
-      var etaH = Math.floor(eta / 3600);
-      var etaM = Math.floor((eta % 3600) / 60);
-      el("rate-info").textContent =
-        rate.toFixed(1) + " img/min \u2014 ~" + etaH + "h " + etaM + "m remaining";
-    }
-
-    el("st-done").textContent = fmt(d.analyzed);
-    el("st-fail").textContent = fmt(d.failed);
-    el("st-pend").textContent = fmt(d.pending);
-
-    var extras = [];
-    if (d.has_edit_prompt) extras.push(fmt(d.has_edit_prompt) + " edit prompts");
-    if (d.has_semantic_pops) extras.push(fmt(d.has_semantic_pops) + " semantic pops");
-    el("gemini-extras").textContent = extras.join(" \u00B7 ");
+    if (prev && d.enhancement_count !== prev.enhancement_count) flash("card-enhanced");
+    if (prev && d.face_total !== prev.face_total) flash("card-faces");
 
     /* ── Camera fleet ── */
     el("tbl-cameras").innerHTML = rows(d.cameras, [
@@ -3713,13 +3745,14 @@ def generate_static():
         'System Dashboard</p>',
         f'System Dashboard &mdash; snapshot {ts}</p>',
     )
-    # Sidebar: make links work as anchors only (no server routes on GitHub Pages)
-    html = html.replace('href="/readme"', 'href="https://github.com/LAEH/MADphotos#readme"')
+    # Sidebar: make links work for GitHub Pages static file layout
+    html = html.replace('href="/readme"', 'href="index.html"')
+    html = html.replace('href="/"', 'href="state.html"')
     html = html.replace('href="/journal"', 'href="https://github.com/LAEH/MADphotos/blob/main/docs/journal.md"')
     html = html.replace('href="/mosaics"', 'href="#sec-storage"')
     html = html.replace('href="/instructions"', 'href="#sec-runs"')
-    html = html.replace('href="/drift"', 'href="#"')
-    html = html.replace('href="/blind-test"', 'href="#"')
+    html = html.replace('href="/drift"', 'href="#sec-vectors"')
+    html = html.replace('href="/blind-test"', 'href="#sec-enhance"')
     # Hero mosaic: point to local file for GitHub Pages
     html = html.replace('src="/mosaic-hero"', 'src="hero-mosaic.jpg"')
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
