@@ -1,14 +1,17 @@
-/* drift.js — La Dérive: Creative structural drift via visual similarity
-   Uses DINOv2 embeddings to find images with similar composition/shape
-   regardless of subject matter. A shoe matches a skateboard ramp. */
+/* drift.js — La Dérive: Abstract visual drift through DINOv2 embeddings.
+   Two completely different images that share something you can't name —
+   a shape, a rhythm, a structure. A bridge matches a ribcage.
+   A shoe matches a skateboard ramp. Same geometry, different worlds. */
 
 let deriveInitialized = false;
 let deriveHistory = [];
 let deriveCurrentId = null;
 
-function initDerive() {
-    if (deriveInitialized) return;
-    deriveInitialized = true;
+async function initDerive() {
+    if (!deriveInitialized) {
+        deriveInitialized = true;
+        await loadDriftNeighbors();
+    }
 
     const container = document.getElementById('view-derive');
     container.innerHTML = '';
@@ -18,9 +21,9 @@ function initDerive() {
     inner.id = 'derive-inner';
     container.appendChild(inner);
 
-    // Note: For now, uses similarity connections until DINOv2 neighbors are precomputed
-    // TODO: Replace with compass_neighbors.json (DINOv2 structural similarity)
-    const photos = APP.data.photos.filter(p => p.thumb);
+    // Pick a random starting photo that has drift neighbors
+    const photos = APP.data.photos.filter(p => p.thumb && APP.driftNeighbors[p.id]);
+    if (photos.length === 0) return;
     const start = randomFrom(photos);
     navigateDerive(start.id);
 }
@@ -44,7 +47,7 @@ function renderDerive(photo) {
     const container = document.getElementById('derive-inner');
     container.innerHTML = '';
 
-    // Controls
+    // Controls bar
     const controls = document.createElement('div');
     controls.className = 'drift-controls';
 
@@ -52,7 +55,7 @@ function renderDerive(photo) {
     randomBtn.className = 'drift-btn';
     randomBtn.textContent = 'random';
     randomBtn.addEventListener('click', () => {
-        const photos = APP.data.photos.filter(p => p.thumb);
+        const photos = APP.data.photos.filter(p => p.thumb && APP.driftNeighbors[p.id]);
         navigateDerive(randomFrom(photos).id);
     });
     controls.appendChild(randomBtn);
@@ -71,7 +74,7 @@ function renderDerive(photo) {
         controls.appendChild(backBtn);
     }
 
-    // Breadcrumb
+    // Breadcrumb trail
     if (deriveHistory.length > 0) {
         const breadcrumb = document.createElement('div');
         breadcrumb.className = 'drift-breadcrumb';
@@ -118,7 +121,7 @@ function renderDerive(photo) {
 
     container.appendChild(controls);
 
-    // Center image — larger, more dramatic
+    // Center image — large and dramatic, structure speaks
     const center = document.createElement('div');
     center.className = 'drift-center';
 
@@ -129,7 +132,7 @@ function renderDerive(photo) {
     img.style.cursor = 'pointer';
     center.appendChild(img);
 
-    // Minimal meta — just caption, no tags for cleaner drift feeling
+    // Minimal metadata — just a whisper of context
     if (photo.caption || photo.alt) {
         const cap = document.createElement('p');
         cap.className = 'drift-center-alt';
@@ -139,71 +142,34 @@ function renderDerive(photo) {
 
     container.appendChild(center);
 
-    // Find drift neighbors: use similarity but favor visual/structural matches
-    // Prefer neighbors that share style/composition but DIFFER in subject
-    const simNeighbors = APP.data.similarity[photo.id] || [];
-    const allPhotos = APP.data.photos;
-
-    // Build "drift" neighbors: find photos with similar depth complexity + composition
-    // but from different categories/scenes
-    const driftCandidates = [];
-    for (const p of allPhotos) {
-        if (p.id === photo.id || !p.thumb) continue;
-
-        let score = 0;
-        // Similar aspect ratio
-        if (Math.abs((p.aspect || 1.5) - (photo.aspect || 1.5)) < 0.3) score += 2;
-        // Similar depth complexity
-        if (p.depth_complexity != null && photo.depth_complexity != null) {
-            if (Math.abs(p.depth_complexity - photo.depth_complexity) < 1) score += 3;
+    // DINOv2 structural neighbors — the magic
+    const neighborData = APP.driftNeighbors[photo.id] || [];
+    const neighbors = [];
+    for (const n of neighborData) {
+        const nPhoto = APP.photoMap[n.uuid];
+        if (nPhoto && nPhoto.thumb) {
+            neighbors.push({ photo: nPhoto, score: n.score });
         }
-        // Similar brightness
-        if (p.brightness != null && photo.brightness != null) {
-            if (Math.abs(p.brightness - photo.brightness) < 30) score += 1;
-        }
-        // Same composition technique but different scene
-        if (p.composition && photo.composition && p.composition === photo.composition && p.scene !== photo.scene) {
-            score += 5;
-        }
-        // Same style but different category
-        if (p.style && photo.style && p.style === photo.style && p.category !== photo.category) {
-            score += 3;
-        }
-        // Penalize same scene/setting (we want unexpected connections)
-        if (p.scene === photo.scene && photo.scene) score -= 2;
-        if (p.setting === photo.setting && photo.setting) score -= 1;
-
-        if (score > 3) {
-            driftCandidates.push({ photo: p, score });
-        }
-    }
-
-    // Sort by score, take top 6
-    driftCandidates.sort((a, b) => b.score - a.score);
-    let neighbors = driftCandidates.slice(0, 6).map(c => c.photo);
-
-    // Fallback to similarity if not enough drift candidates
-    if (neighbors.length < 4) {
-        for (const n of simNeighbors) {
-            if (neighbors.length >= 6) break;
-            const np = APP.photoMap[n.id];
-            if (np && !neighbors.find(x => x.id === np.id)) {
-                neighbors.push(np);
-            }
-        }
+        if (neighbors.length >= 6) break;
     }
 
     if (neighbors.length > 0) {
         const neighborsGrid = document.createElement('div');
         neighborsGrid.className = 'drift-neighbors';
 
-        for (const nPhoto of neighbors) {
+        for (const { photo: nPhoto, score } of neighbors) {
             const card = document.createElement('div');
             card.className = 'drift-neighbor';
 
             const nImg = createLazyImg(nPhoto, 'thumb');
             lazyObserver.observe(nImg);
             card.appendChild(nImg);
+
+            // Subtle similarity score indicator
+            const scoreBar = document.createElement('div');
+            scoreBar.className = 'drift-score';
+            scoreBar.style.width = Math.round(score * 100) + '%';
+            card.appendChild(scoreBar);
 
             card.addEventListener('click', () => navigateDerive(nPhoto.id));
             neighborsGrid.appendChild(card);

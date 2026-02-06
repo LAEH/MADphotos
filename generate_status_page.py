@@ -934,13 +934,16 @@ PAGE_HTML = r"""<!DOCTYPE html>
     align-items: center;
     gap: var(--space-2);
     padding: var(--space-2) var(--space-5);
+    padding-left: calc(var(--space-5) - 3px);
+    border-left: 3px solid transparent;
     color: var(--muted);
     text-decoration: none;
     font-size: var(--text-sm);
     line-height: var(--leading-tight);
     border-radius: 0;
     transition: background var(--duration-fast) var(--ease-default),
-                color var(--duration-fast) var(--ease-default);
+                color var(--duration-fast) var(--ease-default),
+                border-color var(--duration-fast) var(--ease-default);
   }
   .sidebar a:hover {
     background: var(--sidebar-active-bg);
@@ -950,8 +953,7 @@ PAGE_HTML = r"""<!DOCTYPE html>
     color: var(--fg);
     font-weight: 600;
     background: var(--sidebar-active-bg);
-    border-left: 3px solid var(--apple-blue);
-    padding-left: calc(var(--space-5) - 3px);
+    border-left-color: var(--apple-blue);
   }
   .sidebar .sb-sep {
     height: 1px;

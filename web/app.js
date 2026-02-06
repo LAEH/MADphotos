@@ -7,6 +7,7 @@ const APP = {
     faces: null,
     gameRounds: null,
     streamSequence: null,
+    driftNeighbors: null,
 };
 
 /* Experience registry */
@@ -71,6 +72,17 @@ async function loadStreamSequence() {
         APP.streamSequence = [];
     }
     return APP.streamSequence;
+}
+
+async function loadDriftNeighbors() {
+    if (APP.driftNeighbors) return APP.driftNeighbors;
+    try {
+        const resp = await fetch('/data/drift_neighbors.json');
+        APP.driftNeighbors = await resp.json();
+    } catch (e) {
+        APP.driftNeighbors = {};
+    }
+    return APP.driftNeighbors;
 }
 
 /* ===== Router ===== */
