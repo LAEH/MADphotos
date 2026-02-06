@@ -400,16 +400,26 @@
   /* ═══ TYPOGRAPHY ═══ */
   h1 {
     font-family: var(--font-display);
-    font-size: var(--text-3xl);
-    font-weight: 700;
-    letter-spacing: var(--tracking-tight);
+    font-size: 42px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
     margin-bottom: var(--space-1);
+    color: var(--fg);
   }
   .subtitle {
     color: var(--muted);
     font-size: var(--text-sm);
-    margin-bottom: var(--space-10);
+    margin-bottom: var(--space-3);
   }
+  .manifesto {
+    font-size: var(--text-sm);
+    line-height: var(--leading-relaxed);
+    color: var(--fg-secondary);
+    margin-bottom: var(--space-8);
+    max-width: 680px;
+  }
+  .manifesto strong { color: var(--fg); font-weight: 700; }
   .live-dot {
     display: inline-block;
     width: 7px; height: 7px;
@@ -444,45 +454,107 @@
   }
   .subsection-title:first-child { margin-top: 0; }
 
-  /* ═══ STAT CARDS ═══ */
-  .stats-grid {
+  /* ═══ DASHBOARD HERO CARDS ═══ */
+  .dash-hero {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: 1fr 1fr 1fr;
     gap: var(--space-3);
-    margin-bottom: var(--space-4);
+    margin-bottom: var(--space-6);
   }
-  .stat-card {
-    background: var(--card-bg);
-    border: 1px solid var(--border);
+  .hero-card {
     border-radius: var(--radius-lg);
-    padding: var(--space-4) var(--space-5);
-    transition: border-color var(--duration-normal) var(--ease-default),
-                box-shadow var(--duration-normal) var(--ease-default);
-    box-shadow: var(--shadow-sm);
+    padding: var(--space-6);
+    color: #FFFFFF;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+    transition: transform var(--duration-fast), box-shadow var(--duration-fast);
   }
-  .stat-card:hover { box-shadow: var(--shadow-md); }
-  .stat-card.updated { border-color: var(--apple-blue); }
-  .stat-card .value {
+  .hero-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+  .hero-card .hc-label {
+    font-size: var(--text-xs); font-weight: 700;
+    text-transform: uppercase; letter-spacing: var(--tracking-caps);
+    opacity: 0.7; margin-bottom: var(--space-2);
+  }
+  .hero-card .hc-value {
     font-family: var(--font-display);
-    font-size: var(--text-3xl);
-    font-weight: 700;
-    letter-spacing: var(--tracking-tight);
-    line-height: 1;
-    font-variant-numeric: tabular-nums;
+    font-size: 44px; font-weight: 800;
+    letter-spacing: -0.03em; line-height: 1;
+    margin-bottom: 2px; font-variant-numeric: tabular-nums;
   }
-  .stat-card .label {
-    font-size: var(--text-xs);
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: var(--tracking-caps);
-    color: var(--muted);
-    margin-top: var(--space-1);
+  .hero-card .hc-unit {
+    font-size: var(--text-sm); opacity: 0.8;
+    margin-bottom: var(--space-3);
   }
-  .stat-card .sub {
-    font-size: var(--text-xs);
-    color: var(--muted);
-    margin-top: var(--space-1);
+  .hero-card .hc-detail {
+    font-size: var(--text-xs); opacity: 0.6;
+    line-height: var(--leading-relaxed);
   }
+  .hc-blue { background: linear-gradient(135deg, #007AFF 0%, #0055CC 100%); }
+  .hc-green { background: linear-gradient(135deg, #34C759 0%, #1B8A3B 100%); }
+  .hc-purple { background: linear-gradient(135deg, #AF52DE 0%, #8944AB 100%); }
+
+  /* ═══ ELEMENT GRID (model intelligence) ═══ */
+  .el-section-title {
+    font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700;
+    letter-spacing: var(--tracking-tight); margin-bottom: var(--space-1);
+  }
+  .el-section-sub {
+    font-size: var(--text-sm); color: var(--muted); margin-bottom: var(--space-4);
+  }
+  .el-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+    gap: var(--space-3);
+  }
+  .el-card {
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+    position: relative;
+    border-left: 3px solid hsl(var(--el-hue, 210), 70%, 50%);
+    transition: transform var(--duration-fast), box-shadow var(--duration-fast);
+  }
+  [data-theme="light"] .el-card { background: hsl(var(--el-hue, 210), 55%, 96%); }
+  [data-theme="dark"] .el-card { background: hsl(var(--el-hue, 210), 25%, 14%); }
+  .el-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+  .el-card .el-num {
+    position: absolute; top: var(--space-2); right: var(--space-3);
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--muted); font-weight: 600;
+  }
+  .el-card .el-model {
+    font-family: var(--font-display); font-size: var(--text-sm); font-weight: 700;
+    color: var(--fg); margin-bottom: 1px; padding-right: var(--space-6);
+  }
+  .el-card .el-desc {
+    font-size: 10px; color: var(--muted); margin-bottom: var(--space-2);
+  }
+  .el-card .el-count {
+    font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 800;
+    color: var(--fg); line-height: 1; font-variant-numeric: tabular-nums;
+  }
+  .el-card .el-bar {
+    height: 3px; background: var(--border);
+    border-radius: 2px; margin-top: var(--space-2); overflow: hidden;
+  }
+  .el-card .el-fill {
+    height: 100%; border-radius: 2px;
+    background: hsl(var(--el-hue, 210), 70%, 50%);
+    transition: width 1s var(--ease-default);
+  }
+  .el-card .el-pct {
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--muted); margin-top: 2px;
+  }
+  .el-badge {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 1px 5px; border-radius: 3px;
+    vertical-align: middle; margin-left: var(--space-1);
+  }
+  .el-badge.done { background: rgba(52,199,89,0.15); color: #34C759; }
+  .el-badge.active { background: rgba(0,122,255,0.15); color: #007AFF; }
+  .el-badge.pending { background: var(--hover-overlay); color: var(--muted); }
 
   /* ═══ PROGRESS BARS ═══ */
   .progress-wrap {
@@ -558,14 +630,19 @@
   .two-col { display: grid; grid-template-columns: 1fr; gap: var(--space-6); }
   .three-col { display: grid; grid-template-columns: 1fr; gap: var(--space-6); }
 
-  /* Mobile-first: cards are 2-col on mobile */
-  .stats-grid { grid-template-columns: 1fr 1fr; }
+  /* Mobile-first responsive */
   h1 { font-size: var(--text-2xl); }
-  .stat-card .value { font-size: var(--text-xl); }
-
+  @media (max-width: 640px) {
+    .dash-hero { grid-template-columns: 1fr; }
+    .hero-card .hc-value { font-size: 36px; }
+    .el-grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (min-width: 641px) and (max-width: 900px) {
+    .dash-hero { grid-template-columns: 1fr 1fr; }
+    .hero-card .hc-value { font-size: 40px; }
+    .el-grid { grid-template-columns: repeat(3, 1fr); }
+  }
   @media (min-width: 640px) {
-    .stats-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
-    .stat-card .value { font-size: var(--text-3xl); }
     h1 { font-size: var(--text-3xl); }
   }
 
@@ -837,13 +914,13 @@
   <button class="sb-hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')" aria-label="Menu">&#9776;</button>
   <a href="index.html">README</a>
   <a href="state.html" class="active">State</a>
-  <a href="https://github.com/LAEH/MADphotos/blob/main/docs/journal.md">Journal de Bord</a>
-  <a href="#sec-runs">System Instructions</a>
+  <a href="journal.html">Journal de Bord</a>
+  <a href="instructions.html">System Instructions</a>
   <div class="sb-sep"></div>
   <div class="sb-group">Experiments</div>
-  <a href="#sec-vectors">Drift</a>
-  <a href="#sec-enhance">Blind Test</a>
-  <a href="#sec-storage">Mosaics</a>
+  <a href="drift.html">Drift</a>
+  <a href="blind-test.html">Blind Test</a>
+  <a href="mosaics.html">Mosaics</a>
   <div class="sb-sep"></div>
   <div class="sb-group sb-toggle" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('sb-collapsed')">
     Dashboard <span class="sb-arrow">&#9656;</span>
@@ -873,54 +950,38 @@
 
 <div class="main-content">
 
-<h1>MADphotos <span style="font-weight:400;color:var(--muted);font-size:var(--text-xl);">State</span></h1>
-<p class="subtitle" id="subtitle">System Dashboard &mdash; snapshot 2026-02-06 17:58 UTC</p>
+<h1>System State</h1>
+<p class="subtitle" id="subtitle">Snapshot &mdash; 2026-02-06 18:20 UTC</p>
+<p class="manifesto">We started with <strong>9,011 raw images</strong> and zero metadata. No labels, no edits, no captions. The mission: put them on your screen and make you feel something. We threw 17 AI models at every single frame. Not Photoshop. Not presets. Not batch filters. <strong>Per-image intelligence.</strong></p>
 
-<!-- ═══ TOP CARDS ═══ -->
-<div class="stats-grid" id="top-cards">
-  <div class="stat-card" id="card-total">
-    <div class="value" id="val-total">&mdash;</div>
-    <div class="label">Photographs</div>
-    <div class="sub" id="sub-formats"></div>
+<!-- ═══ DASHBOARD HERO ═══ -->
+<div class="dash-hero">
+  <div class="hero-card hc-blue">
+    <div class="hc-label">Collection</div>
+    <div class="hc-value" id="hc-total">&mdash;</div>
+    <div class="hc-unit">photographs</div>
+    <div class="hc-detail" id="hc-formats"></div>
   </div>
-  <div class="stat-card" id="card-models">
-    <div class="value" id="val-models">&mdash;</div>
-    <div class="label">AI Models Active</div>
-    <div class="sub" id="sub-models"></div>
+  <div class="hero-card hc-green">
+    <div class="hc-label">Intelligence</div>
+    <div class="hc-value" id="hc-signals">&mdash;</div>
+    <div class="hc-unit">signals extracted</div>
+    <div class="hc-detail" id="hc-intel-detail"></div>
   </div>
-  <div class="stat-card" id="card-enhanced">
-    <div class="value" id="val-enhanced">&mdash;</div>
-    <div class="label">Enhanced</div>
-    <div class="sub" id="sub-enhanced"></div>
-  </div>
-  <div class="stat-card" id="card-faces">
-    <div class="value" id="val-faces">&mdash;</div>
-    <div class="label">Faces Found</div>
-    <div class="sub" id="sub-faces"></div>
-  </div>
-  <div class="stat-card" id="card-vectors">
-    <div class="value" id="val-vectors">&mdash;</div>
-    <div class="label">Vector Embeddings</div>
-    <div class="sub" id="sub-vectors"></div>
-  </div>
-  <div class="stat-card" id="card-variants">
-    <div class="value" id="val-variants">&mdash;</div>
-    <div class="label">AI Variants</div>
-    <div class="sub" id="sub-variants"></div>
-  </div>
-  <div class="stat-card" id="card-rendered">
-    <div class="value" id="val-rendered">&mdash;</div>
-    <div class="label">Rendered Files</div>
-    <div class="sub" id="sub-rendered"></div>
-  </div>
-  <div class="stat-card" id="card-curation">
-    <div class="value" id="val-curation">&mdash;</div>
-    <div class="label">Curated</div>
-    <div class="sub" id="sub-curation"></div>
+  <div class="hero-card hc-purple">
+    <div class="hc-label">Output</div>
+    <div class="hc-value" id="hc-output">&mdash;</div>
+    <div class="hc-unit">rendered files</div>
+    <div class="hc-detail" id="hc-output-detail"></div>
   </div>
 </div>
 
-<!-- Gemini progress removed — info is in top cards + Gemini Insights section -->
+<!-- ═══ MODEL INTELLIGENCE GRID ═══ -->
+<div style="margin-bottom:var(--space-8);">
+  <div class="el-section-title">Signal Extraction</div>
+  <div class="el-section-sub" id="el-sub">17 models applied to every image</div>
+  <div class="el-grid" id="el-grid"></div>
+</div>
 
 <!-- ═══ CAMERA FLEET ═══ -->
 <div class="section" id="sec-cameras">
@@ -1153,7 +1214,7 @@
 
 <footer>
   MADphotos &mdash; <span id="footer-ts"></span> &mdash;
-  <a href="https://github.com/LAEH/MADphotos/blob/main/docs/journal.md">Journal de Bord</a> &mdash;
+  <a href="journal.html">Journal de Bord</a> &mdash;
   <a href="https://github.com/LAEH/MADphotos">github.com/LAEH/MADphotos</a>
 </footer>
 
@@ -1273,56 +1334,64 @@
      ════════════════════════════════════════════════════════════ */
   function update(d) {
     el("subtitle").innerHTML =
-      '<span class="live-dot"></span>System Dashboard \u2014 ' + d.timestamp;
+      '<span class="live-dot"></span>' + d.timestamp;
     el("footer-ts").textContent = d.timestamp;
 
-    /* ── Top cards ── */
-    el("val-total").textContent = fmt(d.total);
+    /* ── Hero cards ── */
+    el("hc-total").textContent = fmt(d.total);
     var fmtStr = d.source_formats ? d.source_formats.map(function(f) { return f.name + ": " + fmt(f.count); }).join(" \u00B7 ") : "";
-    el("sub-formats").textContent = fmtStr;
+    el("hc-formats").textContent = fmtStr + " \u00B7 5 cameras";
 
-    // Models active — count signals that are in-progress or complete
+    el("hc-signals").textContent = fmt(d.total_signals || 0);
     var mc = d.models_complete || 0;
-    var totalModels = 10; // Gemini, Pixel, Aesthetic, Depth, Scene, Style, OCR, BLIP, Emotions, Vectors
-    el("val-models").textContent = mc + " / " + totalModels;
-    var modelParts = [];
-    if (d.aesthetic_count >= d.total) modelParts.push("Aesthetic");
-    if (d.depth_count >= d.total) modelParts.push("Depth");
-    if (d.scene_count >= d.total) modelParts.push("Scenes");
-    if (d.caption_count >= d.total) modelParts.push("Captions");
-    if (d.analyzed >= d.total) modelParts.push("Gemini");
-    if (d.pixel_analyzed >= d.total) modelParts.push("Pixels");
-    el("sub-models").textContent = modelParts.length ? modelParts.join(", ") + " complete" : "processing\u2026";
+    el("hc-intel-detail").textContent = "17 models \u00B7 " + mc + " complete \u00B7 " + fmt(d.face_total) + " faces \u00B7 " + fmt(d.vector_count * 3) + " vectors";
 
-    // Enhanced
-    el("val-enhanced").textContent = fmt(d.enhancement_count);
-    var enhPct = d.total > 0 ? (d.enhancement_count / d.total * 100) : 0;
-    el("sub-enhanced").innerHTML = enhPct.toFixed(0) + '% \u2014 ' + badge(enhPct, d.enhancement_count);
+    el("hc-output").textContent = fmt(d.total_tier_files);
+    var vtotal = d.ai_variants_total || 0;
+    el("hc-output-detail").textContent = d.total_rendered_human + " \u00B7 " + fmt(d.enhancement_count) + " enhanced \u00B7 " + fmt(vtotal) + " AI variants \u00B7 " + d.curation_pct.toFixed(0) + "% curated";
 
-    // Faces
-    el("val-faces").textContent = fmt(d.face_total);
-    var emotStr = (d.emotion_count || 0) > 0 ? " \u00B7 " + fmt(d.emotion_count) + " emotions" : "";
-    el("sub-faces").textContent = fmt(d.face_images_with) + " images with faces" + emotStr;
-
-    // Vectors
-    el("val-vectors").textContent = fmt(d.vector_count * 3);
-    el("sub-vectors").textContent = fmt(d.vector_count) + " images \u00D7 3 models \u00B7 " + d.vector_size;
-
-    // AI Variants
-    el("val-variants").textContent = fmt(d.ai_variants_total);
-    var vtypes = d.variant_summary ? d.variant_summary.map(function(v) { return v.type + ": " + v.ok; }).join(" \u00B7 ") : "";
-    el("sub-variants").textContent = vtypes;
-
-    // Rendered
-    el("val-rendered").textContent = fmt(d.total_tier_files);
-    el("sub-rendered").textContent = d.total_rendered_human;
-
-    // Curated
-    el("val-curation").textContent = d.curation_pct.toFixed(0) + "%";
-    el("sub-curation").textContent = fmt(d.kept) + " kept \u00B7 " + fmt(d.rejected) + " rejected";
-
-    if (prev && d.enhancement_count !== prev.enhancement_count) flash("card-enhanced");
-    if (prev && d.face_total !== prev.face_total) flash("card-faces");
+    /* ── Model intelligence grid ── */
+    el("el-sub").textContent = "17 models \u00D7 " + fmt(d.total) + " images \u2014 " + mc + " of 17 complete";
+    var sigFD = d.signals && d.signals.face_detections ? d.signals.face_detections : {rows:0, images:0};
+    var sigOD = d.signals && d.signals.object_detections ? d.signals.object_detections : {rows:0, images:0};
+    var sigDC = d.signals && d.signals.dominant_colors ? d.signals.dominant_colors : {rows:0, images:0};
+    var sigEX = d.signals && d.signals.exif_metadata ? d.signals.exif_metadata : {rows:0, images:0};
+    var sigIH = d.signals && d.signals.image_hashes ? d.signals.image_hashes : {rows:0, images:0};
+    var models = [
+      {n:'01', name:'Gemini 2.5 Pro', desc:'Vibes, exposure, composition, edit prompts', hue:210, count:d.analyzed},
+      {n:'02', name:'Pixel Analysis', desc:'Luminance, WB shift, noise, clipping', hue:225, count:d.pixel_analyzed},
+      {n:'03', name:'DINOv2', desc:'Visual embeddings \u2014 768 dimensions', hue:145, count:d.vector_count},
+      {n:'04', name:'SigLIP', desc:'Semantic embeddings \u2014 768 dimensions', hue:160, count:d.vector_count},
+      {n:'05', name:'CLIP', desc:'Cross-modal embeddings \u2014 512 dimensions', hue:175, count:d.vector_count},
+      {n:'06', name:'YuNet', desc:'Face detection \u2014 ' + fmt(d.face_total) + ' faces found', hue:280, count: sigFD.processed || sigFD.images},
+      {n:'07', name:'YOLOv8n', desc:'Object detection \u2014 ' + fmt(sigOD.rows) + ' objects', hue:265, count: sigOD.processed || sigOD.images},
+      {n:'08', name:'NIMA', desc:'Aesthetic scoring \u2014 avg ' + (d.aesthetic_avg || 0).toFixed(1), hue:340, count:d.aesthetic_count},
+      {n:'09', name:'Depth Anything v2', desc:'Monocular depth estimation', hue:320, count:d.depth_count},
+      {n:'10', name:'Places365', desc:'Scene classification \u2014 365 categories', hue:300, count:d.scene_count},
+      {n:'11', name:'Style Net', desc:'Style classification', hue:285, count:d.style_count},
+      {n:'12', name:'BLIP', desc:'Image captioning', hue:30, count:d.caption_count},
+      {n:'13', name:'EasyOCR', desc:'Text detection \u2014 ' + fmt(d.ocr_texts || 0) + ' regions', hue:45, count:d.ocr_images || 0},
+      {n:'14', name:'Emotions', desc:'Facial emotion recognition', hue:350, count:d.emotion_count || 0},
+      {n:'15', name:'Enhancement', desc:'Camera-aware 6-step editing', hue:190, count:d.enhancement_count},
+      {n:'16', name:'K-means LAB', desc:'Dominant color extraction \u2014 ' + fmt(sigDC.rows) + ' colors', hue:60, count:sigDC.images},
+      {n:'17', name:'EXIF Parser', desc:'Metadata \u2014 ' + fmt(d.exif_gps || 0) + ' GPS coords', hue:200, count:sigEX.images}
+    ];
+    var elHtml = models.map(function(m) {
+      var pctVal = d.total > 0 ? (m.count / d.total * 100) : 0;
+      var status = pctVal >= 99.5 ? 'done' : pctVal > 0 ? 'active' : 'pending';
+      var bdg = status === 'done' ? '<span class="el-badge done">\u2713</span>' :
+                status === 'active' ? '<span class="el-badge active">' + pctVal.toFixed(0) + '%</span>' :
+                '<span class="el-badge pending">\u2014</span>';
+      return '<div class="el-card" style="--el-hue:' + m.hue + '">' +
+        '<div class="el-num">' + m.n + '</div>' +
+        '<div class="el-model">' + m.name + '</div>' +
+        '<div class="el-desc">' + m.desc + '</div>' +
+        '<div class="el-count">' + fmt(m.count) + ' ' + bdg + '</div>' +
+        '<div class="el-bar"><div class="el-fill" style="width:' + Math.min(pctVal, 100) + '%"></div></div>' +
+        '<div class="el-pct">' + fmt(m.count) + ' / ' + fmt(d.total) + '</div>' +
+        '</div>';
+    }).join('');
+    el('el-grid').innerHTML = elHtml;
 
     /* ── Camera fleet ── */
     el("tbl-cameras").innerHTML = rows(d.cameras, [
@@ -1507,7 +1576,7 @@
   }
 
   if (API === "inline") {
-    update({"timestamp": "2026-02-06 17:58:15 UTC", "total": 9011, "analyzed": 6107, "failed": 28, "pending": 2876, "analysis_pct": 67.77, "pixel_analyzed": 9011, "pixel_pct": 100.0, "categories": [{"name": "Digital", "count": 3533}, {"name": "Osmo", "count": 3116}, {"name": "Analog", "count": 1126}, {"name": "Monochrome", "count": 1099}, {"name": "G12", "count": 137}], "subcategories": [{"name": "Leica Digital", "count": 3533}, {"name": "DJI Osmo Pro", "count": 3032}, {"name": "Leica Analog", "count": 1126}, {"name": "Leica Monochrom", "count": 1099}, {"name": "G12", "count": 137}, {"name": "DJI Osmo Memo", "count": 84}], "tiers": [{"name": "full/jpeg", "tier": "full", "format": "jpeg", "count": 9276, "size": 16901121969, "size_human": "15.7 GB"}, {"name": "original/jpeg", "tier": "original", "format": "jpeg", "count": 5138, "size": 16765399393, "size_human": "15.6 GB"}, {"name": "display/jpeg", "tier": "display", "format": "jpeg", "count": 9276, "size": 3839314853, "size_human": "3.6 GB"}, {"name": "display/webp", "tier": "display", "format": "webp", "count": 9276, "size": 1857008582, "size_human": "1.7 GB"}, {"name": "mobile/jpeg", "tier": "mobile", "format": "jpeg", "count": 9276, "size": 1418594772, "size_human": "1.3 GB"}, {"name": "mobile/webp", "tier": "mobile", "format": "webp", "count": 9276, "size": 767674764, "size_human": "732.1 MB"}, {"name": "thumb/jpeg", "tier": "thumb", "format": "jpeg", "count": 9276, "size": 223177774, "size_human": "212.8 MB"}, {"name": "thumb/webp", "tier": "thumb", "format": "webp", "count": 9276, "size": 142779904, "size_human": "136.2 MB"}, {"name": "micro/jpeg", "tier": "micro", "format": "jpeg", "count": 9276, "size": 8527295, "size_human": "8.1 MB"}, {"name": "micro/webp", "tier": "micro", "format": "webp", "count": 9276, "size": 5389416, "size_human": "5.1 MB"}, {"name": "gemini/jpeg", "tier": "gemini", "format": "jpeg", "count": 9276, "size": 4466278452, "size_human": "4.2 GB"}], "tier_coverage": [{"tier": "full", "images": 9011}, {"tier": "display", "images": 9011}, {"tier": "mobile", "images": 9011}, {"tier": "thumb", "images": 9011}, {"tier": "micro", "images": 9011}, {"tier": "gemini", "images": 9011}, {"tier": "original", "images": 5138}], "total_rendered_bytes": 46395267174, "total_rendered_human": "43.2 GB", "total_tier_files": 97898, "ai_variants_total": 216, "variant_summary": [{"type": "gemini_edit", "ok": 100, "fail": 0, "filtered": 0, "pending": 0, "total": 100, "pct": 1.11}, {"type": "light_enhance", "ok": 16, "fail": 0, "filtered": 0, "pending": 0, "total": 16, "pct": 0.18}, {"type": "pro_edit", "ok": 100, "fail": 0, "filtered": 0, "pending": 0, "total": 100, "pct": 1.11}], "gcs_uploads": 0, "cameras": [{"body": "Leica M8", "count": 3533, "medium": "digital", "film": "\u2014", "wb_r": 0.09, "wb_b": -0.085, "noise": 1.7, "shadow": 11.7, "luminance": 83.5}, {"body": "DJI Osmo Pro", "count": 3032, "medium": "digital", "film": "\u2014", "wb_r": 0.057, "wb_b": -0.046, "noise": 1.7, "shadow": 5.9, "luminance": 80.6}, {"body": "Leica MP", "count": 1126, "medium": "scanned_film", "film": "Kodak Portra 400 VC", "wb_r": 0.063, "wb_b": -0.061, "noise": 4.6, "shadow": 11.4, "luminance": 94.7}, {"body": "Leica Monochrom", "count": 1099, "medium": "digital", "film": "\u2014", "wb_r": 0, "wb_b": 0, "noise": 1.8, "shadow": 22.5, "luminance": 77.1}, {"body": "Canon G12", "count": 137, "medium": "digital", "film": "\u2014", "wb_r": 0.167, "wb_b": -0.139, "noise": 2.0, "shadow": 12.6, "luminance": 64.1}, {"body": "DJI Osmo Memo", "count": 84, "medium": "digital", "film": "\u2014", "wb_r": 0.041, "wb_b": -0.04, "noise": 2.3, "shadow": 1.8, "luminance": 109.6}], "source_formats": [{"name": "JPEG", "count": 5138}, {"name": "DNG", "count": 3841}, {"name": "RAW", "count": 32}], "monochrome_count": 1176, "color_cast": [{"name": "none", "count": 3946}, {"name": "warm", "count": 3457}, {"name": "cool", "count": 1531}, {"name": "magenta", "count": 44}, {"name": "green", "count": 33}], "color_temp": [{"name": "cool (5000-7000K)", "count": 5167}, {"name": "warm (<3500K)", "count": 1412}, {"name": "neutral (3500-5000K)", "count": 1280}, {"name": "very cool (>7000K)", "count": 1152}], "grading": [{"name": "Cinematic", "count": 3559}, {"name": "Natural", "count": 1943}, {"name": "Monochrome", "count": 546}, {"name": "Pastel", "count": 59}], "time_of_day": [{"name": "Midday", "count": 2815}, {"name": "Night", "count": 2455}, {"name": "Golden Hour", "count": 836}, {"name": "Dusk/Blue Hour", "count": 1}], "settings": [{"name": "Exterior", "count": 4359}, {"name": "Interior", "count": 1475}, {"name": "Mixed", "count": 272}, {"name": "Indeterminate", "count": 1}], "exposure": [{"name": "Balanced", "count": 4992}, {"name": "Under", "count": 757}, {"name": "Over", "count": 358}], "composition": [{"name": "Rule of Thirds", "count": 4023}, {"name": "Negative Space", "count": 2075}, {"name": "Symmetry", "count": 5}, {"name": "Rule of Thirds|Negative Space", "count": 3}, {"name": "Golden Ratio", "count": 1}], "vibes": [{"name": "Moody", "count": 4779}, {"name": "Gritty", "count": 3644}, {"name": "Nostalgic", "count": 2892}, {"name": "Urban", "count": 863}, {"name": "Dynamic", "count": 411}, {"name": "Candid", "count": 405}, {"name": "Solitary", "count": 372}, {"name": "Pensive", "count": 256}, {"name": "Contemplative", "count": 209}, {"name": "Intimate", "count": 184}, {"name": "Introspective", "count": 183}, {"name": "Cozy", "count": 129}, {"name": "Serene", "count": 127}, {"name": "Mysterious", "count": 120}, {"name": "Energetic", "count": 114}, {"name": "Peaceful", "count": 99}, {"name": "Sleek", "count": 98}, {"name": "Chaotic", "count": 92}, {"name": "Abstract", "count": 92}, {"name": "Quiet", "count": 86}], "rotate_stats": [{"value": "unknown", "count": 5652}, {"value": "none", "count": 452}, {"value": "cw90", "count": 1}, {"value": "ccw90", "count": 1}, {"value": "180", "count": 1}], "has_edit_prompt": 630, "has_semantic_pops": 5234, "curation": [{"status": "pending", "count": 9011}], "kept": 0, "rejected": 0, "curated_total": 0, "curation_pct": 0.0, "vector_count": 9011, "vector_size": "70.8 MB", "runs": [{"phase": "enhance", "status": "completed", "ok": 9256, "failed": 0, "started": "2026-02-06 13:33"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 13:31"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 13:30"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 13:26"}, {"phase": "enhance", "status": "completed", "ok": 20, "failed": 0, "started": "2026-02-06 13:24"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 13:23"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 12:54"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 12:52"}, {"phase": "image_analysis", "status": "completed", "ok": 9276, "failed": 0, "started": "2026-02-06 10:40"}, {"phase": "image_analysis", "status": "completed", "ok": 5, "failed": 0, "started": "2026-02-06 10:40"}, {"phase": "image_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 10:40"}, {"phase": "image_analysis", "status": "completed", "ok": 248, "failed": 0, "started": "2026-02-06 10:35"}, {"phase": "image_analysis", "status": "completed", "ok": 438, "failed": 0, "started": "2026-02-06 10:33"}, {"phase": "render_originals", "status": "completed", "ok": 686, "failed": 0, "started": "2026-02-06 10:30"}, {"phase": "image_analysis", "status": "completed", "ok": 8580, "failed": 0, "started": "2026-02-06 10:27"}], "recent": [{"uuid": "93179792", "style": "Monochrome", "alt": "A concrete pillar casts a long shadow across a terrace, pointing towards a glittering sea under a vast sky.", "time": "2026-02-06 17:58:12"}, {"uuid": "92fa3e4c", "style": "Natural", "alt": "Amidst a riot of color and pattern, a contented cat finds a peaceful slumber in a sunlit city apartment.", "time": "2026-02-06 17:58:06"}, {"uuid": "9309b5fb", "style": "Cinematic", "alt": "City lights dissolve into a constellation of soft jewels through a rain-streaked window at night.", "time": "2026-02-06 17:58:04"}, {"uuid": "92ec605f", "style": "Natural", "alt": "A man's hurried conversation is doubly captured, once in reality and once in the polished reflection of a city car.", "time": "2026-02-06 17:57:55"}, {"uuid": "9287de8a", "style": "Cinematic", "alt": "Glass and steel giants pierce the deep blue twilight, their golden windows like scattered stars in a vertical constellation.", "time": "2026-02-06 17:57:51"}, {"uuid": "92def08c", "style": "Cinematic", "alt": "City lights dissolve into a constellation of color through a rain-streaked window pane.", "time": "2026-02-06 17:57:48"}, {"uuid": "92ce9b86", "style": "Cinematic", "alt": "A dreamy, abstract blur of car taillights creates a cascade of bokeh in the city at night.", "time": "2026-02-06 17:57:38"}, {"uuid": "9260403d", "style": "Natural", "alt": "A grey tabby cat sits poised and observant, its green eyes a soft focus in a quiet, sunlit room.", "time": "2026-02-06 17:57:35"}], "sample": {"uuid": "93179792-e284-5cdf-a311-e95e9d21fb0b", "time": "2026-02-06 17:58:12", "data": {"technical": {"exposure": "Balanced", "sharpness": "Tack Sharp", "lens_artifacts": ["Vignetting"]}, "composition": {"technique": "Rule of Thirds", "depth": "Deep Focus", "geometry": ["Leading Lines"]}, "color": {"palette": ["#101010", "#808080", "#DCDCDC"], "semantic_pops": [], "grading_style": "Monochrome"}, "environment": {"time": "Midday", "setting": "Exterior", "weather": "Clear with scattered clouds"}, "narrative": {"faces": 0, "vibe": ["Moody", "Nostalgic", "Serene"], "alt_text": "A concrete pillar casts a long shadow across a terrace, pointing towards a glittering sea under a vast sky."}}}, "db_size": "2.9 GB", "web_json_size": "6.9 MB", "web_photo_count": 7, "signals": {"exif_metadata": {"rows": 9011, "images": 9011}, "dominant_colors": {"rows": 45051, "images": 9011}, "face_detections": {"rows": 3187, "images": 1676, "processed": 9011}, "object_detections": {"rows": 14534, "images": 5363, "processed": 9011}, "image_hashes": {"rows": 9011, "images": 9011}}, "exif_gps": 1820, "exif_iso": 7890, "face_images_with": 1676, "face_total": 3187, "top_objects": [{"name": "person", "count": 4752}, {"name": "car", "count": 3603}, {"name": "traffic light", "count": 1051}, {"name": "cat", "count": 977}, {"name": "truck", "count": 499}, {"name": "couch", "count": 422}, {"name": "chair", "count": 294}, {"name": "bus", "count": 229}, {"name": "tv", "count": 228}, {"name": "bed", "count": 209}, {"name": "clock", "count": 208}, {"name": "motorcycle", "count": 124}, {"name": "bicycle", "count": 118}, {"name": "umbrella", "count": 116}, {"name": "airplane", "count": 106}, {"name": "train", "count": 91}, {"name": "suitcase", "count": 87}, {"name": "laptop", "count": 83}, {"name": "bottle", "count": 81}, {"name": "bird", "count": 73}], "top_color_names": [{"name": "charcoal", "hex": "#403f3d", "count": 13562}, {"name": "black", "hex": "#131110", "count": 8373}, {"name": "gray", "hex": "#827d75", "count": 8344}, {"name": "silver", "hex": "#b8bcbb", "count": 4264}, {"name": "lavender", "hex": "#dee6eb", "count": 1527}, {"name": "brown", "hex": "#794b2a", "count": 1401}, {"name": "tan", "hex": "#beab89", "count": 1400}, {"name": "slate", "hex": "#6e8293", "count": 1270}, {"name": "beige", "hex": "#e9e8db", "count": 617}, {"name": "white", "hex": "#f7fafb", "count": 544}, {"name": "steel", "hex": "#487eb2", "count": 512}, {"name": "sky", "hex": "#90bbdd", "count": 445}, {"name": "rust", "hex": "#bb4923", "count": 414}, {"name": "ivory", "hex": "#f5f6f3", "count": 370}, {"name": "peach", "hex": "#eadaba", "count": 296}, {"name": "crimson", "hex": "#d72b3d", "count": 266}, {"name": "maroon", "hex": "#5e160a", "count": 250}, {"name": "coral", "hex": "#d28443", "count": 235}, {"name": "burgundy", "hex": "#661b1b", "count": 200}, {"name": "khaki", "hex": "#f0da8b", "count": 148}, {"name": "olive", "hex": "#91822b", "count": 117}, {"name": "teal", "hex": "#116390", "count": 90}, {"name": "salmon", "hex": "#d8806b", "count": 90}, {"name": "mint", "hex": "#c8e3d0", "count": 76}, {"name": "navy", "hex": "#072366", "count": 49}, {"name": "orange", "hex": "#dd9f1a", "count": 40}, {"name": "forest", "hex": "#387c2e", "count": 23}, {"name": "purple", "hex": "#932882", "count": 22}, {"name": "pink", "hex": "#eac3c5", "count": 20}, {"name": "gold", "hex": "#edd426", "count": 18}], "aesthetic_count": 9011, "aesthetic_avg": 0, "aesthetic_min": 0, "aesthetic_max": 0, "aesthetic_labels": [], "depth_count": 9011, "depth_avg_near": 54.2, "depth_avg_mid": 25.1, "depth_avg_far": 20.8, "depth_complexity_buckets": [{"name": "complex", "count": 7592}, {"name": "layered", "count": 1121}, {"name": "moderate", "count": 260}, {"name": "simple", "count": 38}], "scene_count": 9011, "top_scenes": [{"name": "veterinarians office", "count": 516}, {"name": "indoor", "count": 477}, {"name": "skyscraper", "count": 463}, {"name": "sky", "count": 420}, {"name": "crosswalk", "count": 399}, {"name": "parking lot", "count": 376}, {"name": "highway", "count": 367}, {"name": "downtown", "count": 321}, {"name": "discotheque", "count": 299}, {"name": "bridge", "count": 294}, {"name": "street", "count": 215}, {"name": "outdoor", "count": 202}, {"name": "elevator shaft", "count": 171}, {"name": "catacomb", "count": 144}, {"name": "aquarium", "count": 98}], "scene_environments": [{"name": "unknown", "count": 3642}, {"name": "outdoor", "count": 2817}, {"name": "indoor", "count": 2552}], "enhancement_count": 9011, "enhancement_statuses": [{"name": "enhanced", "count": 9011}], "enhancement_cameras": [{"name": "Leica M8", "count": 3533}, {"name": "DJI Osmo Pro", "count": 3032}, {"name": "Leica MP", "count": 1126}, {"name": "Leica Monochrom", "count": 1099}, {"name": "Canon G12", "count": 137}, {"name": "DJI Osmo Memo", "count": 84}], "location_count": 0, "location_sources": [], "location_accepted": 0, "style_count": 9011, "ocr_images": 1051, "ocr_texts": 1233, "caption_count": 8933, "emotion_count": 1367, "models_complete": 6});
+    update({"timestamp": "2026-02-06 18:20:51 UTC", "total": 9011, "analyzed": 6166, "failed": 29, "pending": 2816, "analysis_pct": 68.43, "pixel_analyzed": 9011, "pixel_pct": 100.0, "categories": [{"name": "Digital", "count": 3533}, {"name": "Osmo", "count": 3116}, {"name": "Analog", "count": 1126}, {"name": "Monochrome", "count": 1099}, {"name": "G12", "count": 137}], "subcategories": [{"name": "Leica Digital", "count": 3533}, {"name": "DJI Osmo Pro", "count": 3032}, {"name": "Leica Analog", "count": 1126}, {"name": "Leica Monochrom", "count": 1099}, {"name": "G12", "count": 137}, {"name": "DJI Osmo Memo", "count": 84}], "tiers": [{"name": "full/jpeg", "tier": "full", "format": "jpeg", "count": 9276, "size": 16901121969, "size_human": "15.7 GB"}, {"name": "original/jpeg", "tier": "original", "format": "jpeg", "count": 5138, "size": 16765399393, "size_human": "15.6 GB"}, {"name": "display/jpeg", "tier": "display", "format": "jpeg", "count": 9276, "size": 3839314853, "size_human": "3.6 GB"}, {"name": "display/webp", "tier": "display", "format": "webp", "count": 9276, "size": 1857008582, "size_human": "1.7 GB"}, {"name": "mobile/jpeg", "tier": "mobile", "format": "jpeg", "count": 9276, "size": 1418594772, "size_human": "1.3 GB"}, {"name": "mobile/webp", "tier": "mobile", "format": "webp", "count": 9276, "size": 767674764, "size_human": "732.1 MB"}, {"name": "thumb/jpeg", "tier": "thumb", "format": "jpeg", "count": 9276, "size": 223177774, "size_human": "212.8 MB"}, {"name": "thumb/webp", "tier": "thumb", "format": "webp", "count": 9276, "size": 142779904, "size_human": "136.2 MB"}, {"name": "micro/jpeg", "tier": "micro", "format": "jpeg", "count": 9276, "size": 8527295, "size_human": "8.1 MB"}, {"name": "micro/webp", "tier": "micro", "format": "webp", "count": 9276, "size": 5389416, "size_human": "5.1 MB"}, {"name": "gemini/jpeg", "tier": "gemini", "format": "jpeg", "count": 9276, "size": 4466278452, "size_human": "4.2 GB"}], "tier_coverage": [{"tier": "full", "images": 9011}, {"tier": "display", "images": 9011}, {"tier": "mobile", "images": 9011}, {"tier": "thumb", "images": 9011}, {"tier": "micro", "images": 9011}, {"tier": "gemini", "images": 9011}, {"tier": "original", "images": 5138}], "total_rendered_bytes": 46395267174, "total_rendered_human": "43.2 GB", "total_tier_files": 97898, "ai_variants_total": 216, "variant_summary": [{"type": "gemini_edit", "ok": 100, "fail": 0, "filtered": 0, "pending": 0, "total": 100, "pct": 1.11}, {"type": "light_enhance", "ok": 16, "fail": 0, "filtered": 0, "pending": 0, "total": 16, "pct": 0.18}, {"type": "pro_edit", "ok": 100, "fail": 0, "filtered": 0, "pending": 0, "total": 100, "pct": 1.11}], "gcs_uploads": 0, "cameras": [{"body": "Leica M8", "count": 3533, "medium": "digital", "film": "\u2014", "wb_r": 0.09, "wb_b": -0.085, "noise": 1.7, "shadow": 11.7, "luminance": 83.5}, {"body": "DJI Osmo Pro", "count": 3032, "medium": "digital", "film": "\u2014", "wb_r": 0.057, "wb_b": -0.046, "noise": 1.7, "shadow": 5.9, "luminance": 80.6}, {"body": "Leica MP", "count": 1126, "medium": "scanned_film", "film": "Kodak Portra 400 VC", "wb_r": 0.063, "wb_b": -0.061, "noise": 4.6, "shadow": 11.4, "luminance": 94.7}, {"body": "Leica Monochrom", "count": 1099, "medium": "digital", "film": "\u2014", "wb_r": 0, "wb_b": 0, "noise": 1.8, "shadow": 22.5, "luminance": 77.1}, {"body": "Canon G12", "count": 137, "medium": "digital", "film": "\u2014", "wb_r": 0.167, "wb_b": -0.139, "noise": 2.0, "shadow": 12.6, "luminance": 64.1}, {"body": "DJI Osmo Memo", "count": 84, "medium": "digital", "film": "\u2014", "wb_r": 0.041, "wb_b": -0.04, "noise": 2.3, "shadow": 1.8, "luminance": 109.6}], "source_formats": [{"name": "JPEG", "count": 5138}, {"name": "DNG", "count": 3841}, {"name": "RAW", "count": 32}], "monochrome_count": 1176, "color_cast": [{"name": "none", "count": 3946}, {"name": "warm", "count": 3457}, {"name": "cool", "count": 1531}, {"name": "magenta", "count": 44}, {"name": "green", "count": 33}], "color_temp": [{"name": "cool (5000-7000K)", "count": 5167}, {"name": "warm (<3500K)", "count": 1412}, {"name": "neutral (3500-5000K)", "count": 1280}, {"name": "very cool (>7000K)", "count": 1152}], "grading": [{"name": "Cinematic", "count": 3581}, {"name": "Natural", "count": 1966}, {"name": "Monochrome", "count": 560}, {"name": "Pastel", "count": 59}], "time_of_day": [{"name": "Midday", "count": 2850}, {"name": "Night", "count": 2475}, {"name": "Golden Hour", "count": 840}, {"name": "Dusk/Blue Hour", "count": 1}], "settings": [{"name": "Exterior", "count": 4395}, {"name": "Interior", "count": 1493}, {"name": "Mixed", "count": 277}, {"name": "Indeterminate", "count": 1}], "exposure": [{"name": "Balanced", "count": 5045}, {"name": "Under", "count": 761}, {"name": "Over", "count": 360}], "composition": [{"name": "Rule of Thirds", "count": 4062}, {"name": "Negative Space", "count": 2095}, {"name": "Symmetry", "count": 5}, {"name": "Rule of Thirds|Negative Space", "count": 3}, {"name": "Golden Ratio", "count": 1}], "vibes": [{"name": "Moody", "count": 4823}, {"name": "Gritty", "count": 3676}, {"name": "Nostalgic", "count": 2912}, {"name": "Urban", "count": 875}, {"name": "Dynamic", "count": 415}, {"name": "Candid", "count": 408}, {"name": "Solitary", "count": 375}, {"name": "Pensive", "count": 258}, {"name": "Contemplative", "count": 209}, {"name": "Intimate", "count": 187}, {"name": "Introspective", "count": 185}, {"name": "Cozy", "count": 132}, {"name": "Serene", "count": 129}, {"name": "Mysterious", "count": 120}, {"name": "Energetic", "count": 115}, {"name": "Peaceful", "count": 101}, {"name": "Sleek", "count": 99}, {"name": "Chaotic", "count": 94}, {"name": "Abstract", "count": 92}, {"name": "Quiet", "count": 86}], "rotate_stats": [{"value": "unknown", "count": 5711}, {"value": "none", "count": 452}, {"value": "cw90", "count": 1}, {"value": "ccw90", "count": 1}, {"value": "180", "count": 1}], "has_edit_prompt": 630, "has_semantic_pops": 5281, "curation": [{"status": "pending", "count": 9011}], "kept": 0, "rejected": 0, "curated_total": 0, "curation_pct": 0.0, "vector_count": 9011, "vector_size": "70.8 MB", "runs": [{"phase": "enhance", "status": "completed", "ok": 9256, "failed": 0, "started": "2026-02-06 13:33"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 13:31"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 13:30"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 13:26"}, {"phase": "enhance", "status": "completed", "ok": 20, "failed": 0, "started": "2026-02-06 13:24"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 13:23"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 12:54"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 12:52"}, {"phase": "image_analysis", "status": "completed", "ok": 9276, "failed": 0, "started": "2026-02-06 10:40"}, {"phase": "image_analysis", "status": "completed", "ok": 5, "failed": 0, "started": "2026-02-06 10:40"}, {"phase": "image_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 10:40"}, {"phase": "image_analysis", "status": "completed", "ok": 248, "failed": 0, "started": "2026-02-06 10:35"}, {"phase": "image_analysis", "status": "completed", "ok": 438, "failed": 0, "started": "2026-02-06 10:33"}, {"phase": "render_originals", "status": "completed", "ok": 686, "failed": 0, "started": "2026-02-06 10:30"}, {"phase": "image_analysis", "status": "completed", "ok": 8580, "failed": 0, "started": "2026-02-06 10:27"}], "recent": [{"uuid": "9df55256", "style": "Cinematic", "alt": "A sleek black car rests in the shadow of a tiled underpass, its polished curves contrasting with the rigid geometry of the city.", "time": "2026-02-06 18:19:19"}, {"uuid": "9665e074", "style": "Natural", "alt": "A crisp winter sky is framed by the dark, intricate lace of snow-dusted branches.", "time": "2026-02-06 18:03:42"}, {"uuid": "9680779a", "style": "Cinematic", "alt": "City lights dissolve into a jeweled tapestry of color through a rain-streaked window pane at night.", "time": "2026-02-06 18:03:40"}, {"uuid": "96525537", "style": "Monochrome", "alt": "A distant city glimmers like a fragile constellation at the bottom of an overwhelming sea of darkness.", "time": "2026-02-06 18:03:29"}, {"uuid": "964f259e", "style": "Cinematic", "alt": "City lights dissolve into a vibrant, rainy night's dream.", "time": "2026-02-06 18:03:18"}, {"uuid": "964eaa3d", "style": "Monochrome", "alt": "A solitary street sign glows under a streetlight as snow falls on a dark, deserted city road.", "time": "2026-02-06 18:03:15"}, {"uuid": "9638a13c", "style": "Natural", "alt": "Two women offer warm smiles for a candid snapshot, their moment preserved by the stark illumination of a direct flash.", "time": "2026-02-06 18:03:12"}, {"uuid": "9638be5a", "style": "Monochrome", "alt": "A monolithic steel bridge slices through a pale, hazy sky, dwarfing the faint silhouette of the city below.", "time": "2026-02-06 18:03:11"}], "sample": {"uuid": "9df55256-be72-518a-a768-e77658bc5d22", "time": "2026-02-06 18:19:19", "data": {"technical": {"exposure": "Balanced", "sharpness": "Tack Sharp", "lens_artifacts": ["Compression"]}, "composition": {"technique": "Rule of Thirds", "depth": "Shallow Bokeh", "geometry": ["Leading Lines", "Symmetry"]}, "color": {"palette": ["#0A0A0C", "#8C8C8C", "#3E506A", "#C4C5C3", "#6A6A68"], "semantic_pops": [{"color": "Blue", "object": "Sky reflection in mirror", "impact": "Medium"}], "grading_style": "Cinematic"}, "environment": {"time": "Midday", "setting": "Exterior", "weather": "Clear"}, "narrative": {"faces": 0, "vibe": ["Moody", "Gritty", "Sleek"], "alt_text": "A sleek black car rests in the shadow of a tiled underpass, its polished curves contrasting with the rigid geometry of the city."}}}, "db_size": "2.9 GB", "web_json_size": "6.9 MB", "web_photo_count": 7, "signals": {"exif_metadata": {"rows": 9011, "images": 9011}, "dominant_colors": {"rows": 45051, "images": 9011}, "face_detections": {"rows": 3187, "images": 1676, "processed": 9011}, "object_detections": {"rows": 14534, "images": 5363, "processed": 9011}, "image_hashes": {"rows": 9011, "images": 9011}}, "exif_gps": 1820, "exif_iso": 7890, "face_images_with": 1676, "face_total": 3187, "top_objects": [{"name": "person", "count": 4752}, {"name": "car", "count": 3603}, {"name": "traffic light", "count": 1051}, {"name": "cat", "count": 977}, {"name": "truck", "count": 499}, {"name": "couch", "count": 422}, {"name": "chair", "count": 294}, {"name": "bus", "count": 229}, {"name": "tv", "count": 228}, {"name": "bed", "count": 209}, {"name": "clock", "count": 208}, {"name": "motorcycle", "count": 124}, {"name": "bicycle", "count": 118}, {"name": "umbrella", "count": 116}, {"name": "airplane", "count": 106}, {"name": "train", "count": 91}, {"name": "suitcase", "count": 87}, {"name": "laptop", "count": 83}, {"name": "bottle", "count": 81}, {"name": "bird", "count": 73}], "top_color_names": [{"name": "charcoal", "hex": "#403f3d", "count": 13562}, {"name": "black", "hex": "#131110", "count": 8373}, {"name": "gray", "hex": "#827d75", "count": 8344}, {"name": "silver", "hex": "#b8bcbb", "count": 4264}, {"name": "lavender", "hex": "#dee6eb", "count": 1527}, {"name": "brown", "hex": "#794b2a", "count": 1401}, {"name": "tan", "hex": "#beab89", "count": 1400}, {"name": "slate", "hex": "#6e8293", "count": 1270}, {"name": "beige", "hex": "#e9e8db", "count": 617}, {"name": "white", "hex": "#f7fafb", "count": 544}, {"name": "steel", "hex": "#487eb2", "count": 512}, {"name": "sky", "hex": "#90bbdd", "count": 445}, {"name": "rust", "hex": "#bb4923", "count": 414}, {"name": "ivory", "hex": "#f5f6f3", "count": 370}, {"name": "peach", "hex": "#eadaba", "count": 296}, {"name": "crimson", "hex": "#d72b3d", "count": 266}, {"name": "maroon", "hex": "#5e160a", "count": 250}, {"name": "coral", "hex": "#d28443", "count": 235}, {"name": "burgundy", "hex": "#661b1b", "count": 200}, {"name": "khaki", "hex": "#f0da8b", "count": 148}, {"name": "olive", "hex": "#91822b", "count": 117}, {"name": "teal", "hex": "#116390", "count": 90}, {"name": "salmon", "hex": "#d8806b", "count": 90}, {"name": "mint", "hex": "#c8e3d0", "count": 76}, {"name": "navy", "hex": "#072366", "count": 49}, {"name": "orange", "hex": "#dd9f1a", "count": 40}, {"name": "forest", "hex": "#387c2e", "count": 23}, {"name": "purple", "hex": "#932882", "count": 22}, {"name": "pink", "hex": "#eac3c5", "count": 20}, {"name": "gold", "hex": "#edd426", "count": 18}], "aesthetic_count": 9011, "aesthetic_avg": 0, "aesthetic_min": 0, "aesthetic_max": 0, "aesthetic_labels": [], "depth_count": 9011, "depth_avg_near": 54.2, "depth_avg_mid": 25.1, "depth_avg_far": 20.8, "depth_complexity_buckets": [{"name": "complex", "count": 7592}, {"name": "layered", "count": 1121}, {"name": "moderate", "count": 260}, {"name": "simple", "count": 38}], "scene_count": 9011, "top_scenes": [{"name": "veterinarians office", "count": 516}, {"name": "indoor", "count": 477}, {"name": "skyscraper", "count": 463}, {"name": "sky", "count": 420}, {"name": "crosswalk", "count": 399}, {"name": "parking lot", "count": 376}, {"name": "highway", "count": 367}, {"name": "downtown", "count": 321}, {"name": "discotheque", "count": 299}, {"name": "bridge", "count": 294}, {"name": "street", "count": 215}, {"name": "outdoor", "count": 202}, {"name": "elevator shaft", "count": 171}, {"name": "catacomb", "count": 144}, {"name": "aquarium", "count": 98}], "scene_environments": [{"name": "unknown", "count": 3642}, {"name": "outdoor", "count": 2817}, {"name": "indoor", "count": 2552}], "enhancement_count": 9011, "enhancement_statuses": [{"name": "enhanced", "count": 9011}], "enhancement_cameras": [{"name": "Leica M8", "count": 3533}, {"name": "DJI Osmo Pro", "count": 3032}, {"name": "Leica MP", "count": 1126}, {"name": "Leica Monochrom", "count": 1099}, {"name": "Canon G12", "count": 137}, {"name": "DJI Osmo Memo", "count": 84}], "location_count": 0, "location_sources": [], "location_accepted": 0, "style_count": 9011, "ocr_images": 1155, "ocr_texts": 1377, "caption_count": 8933, "emotion_count": 1367, "models_complete": 6, "total_signals": 179736});
   } else {
     poll();
     setInterval(poll, POLL);

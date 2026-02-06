@@ -551,6 +551,19 @@ def get_stats():
         caption_count, enhancement_count
     ] if c >= total) + (1 if pixel_analyzed >= total else 0) + (1 if analyzed >= total else 0)
 
+    # Total signals extracted across all models
+    total_signals = sum([
+        signals.get('exif_metadata', {}).get('rows', 0),
+        signals.get('dominant_colors', {}).get('rows', 0),
+        signals.get('face_detections', {}).get('rows', 0),
+        signals.get('object_detections', {}).get('rows', 0),
+        signals.get('image_hashes', {}).get('rows', 0),
+        aesthetic_count, depth_count, scene_count, style_count,
+        caption_count, ocr_texts, emotion_count,
+        pixel_analyzed, enhancement_count, vector_count * 3,
+        analyzed,
+    ])
+
     # ── Disk usage ───────────────────────────────────────────
     db_size = os.path.getsize(str(DB_PATH)) if DB_PATH.exists() else 0
     web_json_path = Path(__file__).resolve().parent / "web" / "data" / "photos.json"
@@ -642,6 +655,7 @@ def get_stats():
         "caption_count": caption_count,
         "emotion_count": emotion_count,
         "models_complete": models_complete,
+        "total_signals": total_signals,
     }
 
 
@@ -1051,16 +1065,26 @@ PAGE_HTML = r"""<!DOCTYPE html>
   /* ═══ TYPOGRAPHY ═══ */
   h1 {
     font-family: var(--font-display);
-    font-size: var(--text-3xl);
-    font-weight: 700;
-    letter-spacing: var(--tracking-tight);
+    font-size: 42px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
     margin-bottom: var(--space-1);
+    color: var(--fg);
   }
   .subtitle {
     color: var(--muted);
     font-size: var(--text-sm);
-    margin-bottom: var(--space-10);
+    margin-bottom: var(--space-3);
   }
+  .manifesto {
+    font-size: var(--text-sm);
+    line-height: var(--leading-relaxed);
+    color: var(--fg-secondary);
+    margin-bottom: var(--space-8);
+    max-width: 680px;
+  }
+  .manifesto strong { color: var(--fg); font-weight: 700; }
   .live-dot {
     display: inline-block;
     width: 7px; height: 7px;
@@ -1095,45 +1119,107 @@ PAGE_HTML = r"""<!DOCTYPE html>
   }
   .subsection-title:first-child { margin-top: 0; }
 
-  /* ═══ STAT CARDS ═══ */
-  .stats-grid {
+  /* ═══ DASHBOARD HERO CARDS ═══ */
+  .dash-hero {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: 1fr 1fr 1fr;
     gap: var(--space-3);
-    margin-bottom: var(--space-4);
+    margin-bottom: var(--space-6);
   }
-  .stat-card {
-    background: var(--card-bg);
-    border: 1px solid var(--border);
+  .hero-card {
     border-radius: var(--radius-lg);
-    padding: var(--space-4) var(--space-5);
-    transition: border-color var(--duration-normal) var(--ease-default),
-                box-shadow var(--duration-normal) var(--ease-default);
-    box-shadow: var(--shadow-sm);
+    padding: var(--space-6);
+    color: #FFFFFF;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+    transition: transform var(--duration-fast), box-shadow var(--duration-fast);
   }
-  .stat-card:hover { box-shadow: var(--shadow-md); }
-  .stat-card.updated { border-color: var(--apple-blue); }
-  .stat-card .value {
+  .hero-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+  .hero-card .hc-label {
+    font-size: var(--text-xs); font-weight: 700;
+    text-transform: uppercase; letter-spacing: var(--tracking-caps);
+    opacity: 0.7; margin-bottom: var(--space-2);
+  }
+  .hero-card .hc-value {
     font-family: var(--font-display);
-    font-size: var(--text-3xl);
-    font-weight: 700;
-    letter-spacing: var(--tracking-tight);
-    line-height: 1;
-    font-variant-numeric: tabular-nums;
+    font-size: 44px; font-weight: 800;
+    letter-spacing: -0.03em; line-height: 1;
+    margin-bottom: 2px; font-variant-numeric: tabular-nums;
   }
-  .stat-card .label {
-    font-size: var(--text-xs);
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: var(--tracking-caps);
-    color: var(--muted);
-    margin-top: var(--space-1);
+  .hero-card .hc-unit {
+    font-size: var(--text-sm); opacity: 0.8;
+    margin-bottom: var(--space-3);
   }
-  .stat-card .sub {
-    font-size: var(--text-xs);
-    color: var(--muted);
-    margin-top: var(--space-1);
+  .hero-card .hc-detail {
+    font-size: var(--text-xs); opacity: 0.6;
+    line-height: var(--leading-relaxed);
   }
+  .hc-blue { background: linear-gradient(135deg, #007AFF 0%, #0055CC 100%); }
+  .hc-green { background: linear-gradient(135deg, #34C759 0%, #1B8A3B 100%); }
+  .hc-purple { background: linear-gradient(135deg, #AF52DE 0%, #8944AB 100%); }
+
+  /* ═══ ELEMENT GRID (model intelligence) ═══ */
+  .el-section-title {
+    font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700;
+    letter-spacing: var(--tracking-tight); margin-bottom: var(--space-1);
+  }
+  .el-section-sub {
+    font-size: var(--text-sm); color: var(--muted); margin-bottom: var(--space-4);
+  }
+  .el-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+    gap: var(--space-3);
+  }
+  .el-card {
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+    position: relative;
+    border-left: 3px solid hsl(var(--el-hue, 210), 70%, 50%);
+    transition: transform var(--duration-fast), box-shadow var(--duration-fast);
+  }
+  [data-theme="light"] .el-card { background: hsl(var(--el-hue, 210), 55%, 96%); }
+  [data-theme="dark"] .el-card { background: hsl(var(--el-hue, 210), 25%, 14%); }
+  .el-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+  .el-card .el-num {
+    position: absolute; top: var(--space-2); right: var(--space-3);
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--muted); font-weight: 600;
+  }
+  .el-card .el-model {
+    font-family: var(--font-display); font-size: var(--text-sm); font-weight: 700;
+    color: var(--fg); margin-bottom: 1px; padding-right: var(--space-6);
+  }
+  .el-card .el-desc {
+    font-size: 10px; color: var(--muted); margin-bottom: var(--space-2);
+  }
+  .el-card .el-count {
+    font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 800;
+    color: var(--fg); line-height: 1; font-variant-numeric: tabular-nums;
+  }
+  .el-card .el-bar {
+    height: 3px; background: var(--border);
+    border-radius: 2px; margin-top: var(--space-2); overflow: hidden;
+  }
+  .el-card .el-fill {
+    height: 100%; border-radius: 2px;
+    background: hsl(var(--el-hue, 210), 70%, 50%);
+    transition: width 1s var(--ease-default);
+  }
+  .el-card .el-pct {
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--muted); margin-top: 2px;
+  }
+  .el-badge {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 1px 5px; border-radius: 3px;
+    vertical-align: middle; margin-left: var(--space-1);
+  }
+  .el-badge.done { background: rgba(52,199,89,0.15); color: #34C759; }
+  .el-badge.active { background: rgba(0,122,255,0.15); color: #007AFF; }
+  .el-badge.pending { background: var(--hover-overlay); color: var(--muted); }
 
   /* ═══ PROGRESS BARS ═══ */
   .progress-wrap {
@@ -1209,14 +1295,19 @@ PAGE_HTML = r"""<!DOCTYPE html>
   .two-col { display: grid; grid-template-columns: 1fr; gap: var(--space-6); }
   .three-col { display: grid; grid-template-columns: 1fr; gap: var(--space-6); }
 
-  /* Mobile-first: cards are 2-col on mobile */
-  .stats-grid { grid-template-columns: 1fr 1fr; }
+  /* Mobile-first responsive */
   h1 { font-size: var(--text-2xl); }
-  .stat-card .value { font-size: var(--text-xl); }
-
+  @media (max-width: 640px) {
+    .dash-hero { grid-template-columns: 1fr; }
+    .hero-card .hc-value { font-size: 36px; }
+    .el-grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (min-width: 641px) and (max-width: 900px) {
+    .dash-hero { grid-template-columns: 1fr 1fr; }
+    .hero-card .hc-value { font-size: 40px; }
+    .el-grid { grid-template-columns: repeat(3, 1fr); }
+  }
   @media (min-width: 640px) {
-    .stats-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
-    .stat-card .value { font-size: var(--text-3xl); }
     h1 { font-size: var(--text-3xl); }
   }
 
@@ -1524,54 +1615,38 @@ PAGE_HTML = r"""<!DOCTYPE html>
 
 <div class="main-content">
 
-<h1>MADphotos <span style="font-weight:400;color:var(--muted);font-size:var(--text-xl);">State</span></h1>
+<h1>System State</h1>
 <p class="subtitle" id="subtitle">System Dashboard</p>
+<p class="manifesto">We started with <strong>9,011 raw images</strong> and zero metadata. No labels, no edits, no captions. The mission: put them on your screen and make you feel something. We threw 17 AI models at every single frame. Not Photoshop. Not presets. Not batch filters. <strong>Per-image intelligence.</strong></p>
 
-<!-- ═══ TOP CARDS ═══ -->
-<div class="stats-grid" id="top-cards">
-  <div class="stat-card" id="card-total">
-    <div class="value" id="val-total">&mdash;</div>
-    <div class="label">Photographs</div>
-    <div class="sub" id="sub-formats"></div>
+<!-- ═══ DASHBOARD HERO ═══ -->
+<div class="dash-hero">
+  <div class="hero-card hc-blue">
+    <div class="hc-label">Collection</div>
+    <div class="hc-value" id="hc-total">&mdash;</div>
+    <div class="hc-unit">photographs</div>
+    <div class="hc-detail" id="hc-formats"></div>
   </div>
-  <div class="stat-card" id="card-models">
-    <div class="value" id="val-models">&mdash;</div>
-    <div class="label">AI Models Active</div>
-    <div class="sub" id="sub-models"></div>
+  <div class="hero-card hc-green">
+    <div class="hc-label">Intelligence</div>
+    <div class="hc-value" id="hc-signals">&mdash;</div>
+    <div class="hc-unit">signals extracted</div>
+    <div class="hc-detail" id="hc-intel-detail"></div>
   </div>
-  <div class="stat-card" id="card-enhanced">
-    <div class="value" id="val-enhanced">&mdash;</div>
-    <div class="label">Enhanced</div>
-    <div class="sub" id="sub-enhanced"></div>
-  </div>
-  <div class="stat-card" id="card-faces">
-    <div class="value" id="val-faces">&mdash;</div>
-    <div class="label">Faces Found</div>
-    <div class="sub" id="sub-faces"></div>
-  </div>
-  <div class="stat-card" id="card-vectors">
-    <div class="value" id="val-vectors">&mdash;</div>
-    <div class="label">Vector Embeddings</div>
-    <div class="sub" id="sub-vectors"></div>
-  </div>
-  <div class="stat-card" id="card-variants">
-    <div class="value" id="val-variants">&mdash;</div>
-    <div class="label">AI Variants</div>
-    <div class="sub" id="sub-variants"></div>
-  </div>
-  <div class="stat-card" id="card-rendered">
-    <div class="value" id="val-rendered">&mdash;</div>
-    <div class="label">Rendered Files</div>
-    <div class="sub" id="sub-rendered"></div>
-  </div>
-  <div class="stat-card" id="card-curation">
-    <div class="value" id="val-curation">&mdash;</div>
-    <div class="label">Curated</div>
-    <div class="sub" id="sub-curation"></div>
+  <div class="hero-card hc-purple">
+    <div class="hc-label">Output</div>
+    <div class="hc-value" id="hc-output">&mdash;</div>
+    <div class="hc-unit">rendered files</div>
+    <div class="hc-detail" id="hc-output-detail"></div>
   </div>
 </div>
 
-<!-- Gemini progress removed — info is in top cards + Gemini Insights section -->
+<!-- ═══ MODEL INTELLIGENCE GRID ═══ -->
+<div style="margin-bottom:var(--space-8);">
+  <div class="el-section-title">Signal Extraction</div>
+  <div class="el-section-sub" id="el-sub">17 models applied to every image</div>
+  <div class="el-grid" id="el-grid"></div>
+</div>
 
 <!-- ═══ CAMERA FLEET ═══ -->
 <div class="section" id="sec-cameras">
@@ -1924,56 +1999,64 @@ PAGE_HTML = r"""<!DOCTYPE html>
      ════════════════════════════════════════════════════════════ */
   function update(d) {
     el("subtitle").innerHTML =
-      '<span class="live-dot"></span>System Dashboard \u2014 ' + d.timestamp;
+      '<span class="live-dot"></span>' + d.timestamp;
     el("footer-ts").textContent = d.timestamp;
 
-    /* ── Top cards ── */
-    el("val-total").textContent = fmt(d.total);
+    /* ── Hero cards ── */
+    el("hc-total").textContent = fmt(d.total);
     var fmtStr = d.source_formats ? d.source_formats.map(function(f) { return f.name + ": " + fmt(f.count); }).join(" \u00B7 ") : "";
-    el("sub-formats").textContent = fmtStr;
+    el("hc-formats").textContent = fmtStr + " \u00B7 5 cameras";
 
-    // Models active — count signals that are in-progress or complete
+    el("hc-signals").textContent = fmt(d.total_signals || 0);
     var mc = d.models_complete || 0;
-    var totalModels = 10; // Gemini, Pixel, Aesthetic, Depth, Scene, Style, OCR, BLIP, Emotions, Vectors
-    el("val-models").textContent = mc + " / " + totalModels;
-    var modelParts = [];
-    if (d.aesthetic_count >= d.total) modelParts.push("Aesthetic");
-    if (d.depth_count >= d.total) modelParts.push("Depth");
-    if (d.scene_count >= d.total) modelParts.push("Scenes");
-    if (d.caption_count >= d.total) modelParts.push("Captions");
-    if (d.analyzed >= d.total) modelParts.push("Gemini");
-    if (d.pixel_analyzed >= d.total) modelParts.push("Pixels");
-    el("sub-models").textContent = modelParts.length ? modelParts.join(", ") + " complete" : "processing\u2026";
+    el("hc-intel-detail").textContent = "17 models \u00B7 " + mc + " complete \u00B7 " + fmt(d.face_total) + " faces \u00B7 " + fmt(d.vector_count * 3) + " vectors";
 
-    // Enhanced
-    el("val-enhanced").textContent = fmt(d.enhancement_count);
-    var enhPct = d.total > 0 ? (d.enhancement_count / d.total * 100) : 0;
-    el("sub-enhanced").innerHTML = enhPct.toFixed(0) + '% \u2014 ' + badge(enhPct, d.enhancement_count);
+    el("hc-output").textContent = fmt(d.total_tier_files);
+    var vtotal = d.ai_variants_total || 0;
+    el("hc-output-detail").textContent = d.total_rendered_human + " \u00B7 " + fmt(d.enhancement_count) + " enhanced \u00B7 " + fmt(vtotal) + " AI variants \u00B7 " + d.curation_pct.toFixed(0) + "% curated";
 
-    // Faces
-    el("val-faces").textContent = fmt(d.face_total);
-    var emotStr = (d.emotion_count || 0) > 0 ? " \u00B7 " + fmt(d.emotion_count) + " emotions" : "";
-    el("sub-faces").textContent = fmt(d.face_images_with) + " images with faces" + emotStr;
-
-    // Vectors
-    el("val-vectors").textContent = fmt(d.vector_count * 3);
-    el("sub-vectors").textContent = fmt(d.vector_count) + " images \u00D7 3 models \u00B7 " + d.vector_size;
-
-    // AI Variants
-    el("val-variants").textContent = fmt(d.ai_variants_total);
-    var vtypes = d.variant_summary ? d.variant_summary.map(function(v) { return v.type + ": " + v.ok; }).join(" \u00B7 ") : "";
-    el("sub-variants").textContent = vtypes;
-
-    // Rendered
-    el("val-rendered").textContent = fmt(d.total_tier_files);
-    el("sub-rendered").textContent = d.total_rendered_human;
-
-    // Curated
-    el("val-curation").textContent = d.curation_pct.toFixed(0) + "%";
-    el("sub-curation").textContent = fmt(d.kept) + " kept \u00B7 " + fmt(d.rejected) + " rejected";
-
-    if (prev && d.enhancement_count !== prev.enhancement_count) flash("card-enhanced");
-    if (prev && d.face_total !== prev.face_total) flash("card-faces");
+    /* ── Model intelligence grid ── */
+    el("el-sub").textContent = "17 models \u00D7 " + fmt(d.total) + " images \u2014 " + mc + " of 17 complete";
+    var sigFD = d.signals && d.signals.face_detections ? d.signals.face_detections : {rows:0, images:0};
+    var sigOD = d.signals && d.signals.object_detections ? d.signals.object_detections : {rows:0, images:0};
+    var sigDC = d.signals && d.signals.dominant_colors ? d.signals.dominant_colors : {rows:0, images:0};
+    var sigEX = d.signals && d.signals.exif_metadata ? d.signals.exif_metadata : {rows:0, images:0};
+    var sigIH = d.signals && d.signals.image_hashes ? d.signals.image_hashes : {rows:0, images:0};
+    var models = [
+      {n:'01', name:'Gemini 2.5 Pro', desc:'Vibes, exposure, composition, edit prompts', hue:210, count:d.analyzed},
+      {n:'02', name:'Pixel Analysis', desc:'Luminance, WB shift, noise, clipping', hue:225, count:d.pixel_analyzed},
+      {n:'03', name:'DINOv2', desc:'Visual embeddings \u2014 768 dimensions', hue:145, count:d.vector_count},
+      {n:'04', name:'SigLIP', desc:'Semantic embeddings \u2014 768 dimensions', hue:160, count:d.vector_count},
+      {n:'05', name:'CLIP', desc:'Cross-modal embeddings \u2014 512 dimensions', hue:175, count:d.vector_count},
+      {n:'06', name:'YuNet', desc:'Face detection \u2014 ' + fmt(d.face_total) + ' faces found', hue:280, count: sigFD.processed || sigFD.images},
+      {n:'07', name:'YOLOv8n', desc:'Object detection \u2014 ' + fmt(sigOD.rows) + ' objects', hue:265, count: sigOD.processed || sigOD.images},
+      {n:'08', name:'NIMA', desc:'Aesthetic scoring \u2014 avg ' + (d.aesthetic_avg || 0).toFixed(1), hue:340, count:d.aesthetic_count},
+      {n:'09', name:'Depth Anything v2', desc:'Monocular depth estimation', hue:320, count:d.depth_count},
+      {n:'10', name:'Places365', desc:'Scene classification \u2014 365 categories', hue:300, count:d.scene_count},
+      {n:'11', name:'Style Net', desc:'Style classification', hue:285, count:d.style_count},
+      {n:'12', name:'BLIP', desc:'Image captioning', hue:30, count:d.caption_count},
+      {n:'13', name:'EasyOCR', desc:'Text detection \u2014 ' + fmt(d.ocr_texts || 0) + ' regions', hue:45, count:d.ocr_images || 0},
+      {n:'14', name:'Emotions', desc:'Facial emotion recognition', hue:350, count:d.emotion_count || 0},
+      {n:'15', name:'Enhancement', desc:'Camera-aware 6-step editing', hue:190, count:d.enhancement_count},
+      {n:'16', name:'K-means LAB', desc:'Dominant color extraction \u2014 ' + fmt(sigDC.rows) + ' colors', hue:60, count:sigDC.images},
+      {n:'17', name:'EXIF Parser', desc:'Metadata \u2014 ' + fmt(d.exif_gps || 0) + ' GPS coords', hue:200, count:sigEX.images}
+    ];
+    var elHtml = models.map(function(m) {
+      var pctVal = d.total > 0 ? (m.count / d.total * 100) : 0;
+      var status = pctVal >= 99.5 ? 'done' : pctVal > 0 ? 'active' : 'pending';
+      var bdg = status === 'done' ? '<span class="el-badge done">\u2713</span>' :
+                status === 'active' ? '<span class="el-badge active">' + pctVal.toFixed(0) + '%</span>' :
+                '<span class="el-badge pending">\u2014</span>';
+      return '<div class="el-card" style="--el-hue:' + m.hue + '">' +
+        '<div class="el-num">' + m.n + '</div>' +
+        '<div class="el-model">' + m.name + '</div>' +
+        '<div class="el-desc">' + m.desc + '</div>' +
+        '<div class="el-count">' + fmt(m.count) + ' ' + bdg + '</div>' +
+        '<div class="el-bar"><div class="el-fill" style="width:' + Math.min(pctVal, 100) + '%"></div></div>' +
+        '<div class="el-pct">' + fmt(m.count) + ' / ' + fmt(d.total) + '</div>' +
+        '</div>';
+    }).join('');
+    el('el-grid').innerHTML = elHtml;
 
     /* ── Camera fleet ── */
     el("tbl-cameras").innerHTML = rows(d.cameras, [
@@ -2253,6 +2336,8 @@ def page_shell(title, content, active="", extra_css="", extra_js=""):
     background: var(--sidebar-bg); border-right: 1px solid var(--border);
     padding: var(--space-5) 0; position: sticky; top: 0; height: 100vh;
     overflow-y: auto; display: flex; flex-direction: column;
+    transition: width var(--duration-normal) var(--ease-default),
+                min-width var(--duration-normal) var(--ease-default);
   }}
   .sidebar .sb-title {{
     font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700;
@@ -2291,18 +2376,54 @@ def page_shell(title, content, active="", extra_css="", extra_js=""):
   }}
   .theme-toggle:hover {{ color: var(--fg); }}
   .theme-toggle .theme-icon {{ font-size: 16px; }}
+  .sb-collapse {{
+    display: flex; align-items: center; gap: var(--space-2);
+    font-size: var(--text-sm); color: var(--muted); cursor: pointer;
+    padding: var(--space-2) 0; background: none; border: none;
+    font-family: inherit; width: 100%; transition: color var(--duration-fast);
+    margin-bottom: var(--space-2); white-space: nowrap; overflow: hidden;
+  }}
+  .sb-collapse:hover {{ color: var(--fg); }}
+  .sb-expand {{
+    display: none; position: fixed; top: var(--space-4); left: var(--space-4);
+    z-index: 50; width: 36px; height: 36px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--card-bg);
+    cursor: pointer; color: var(--muted); box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    align-items: center; justify-content: center; font-size: 18px;
+    transition: color var(--duration-fast), box-shadow var(--duration-fast);
+  }}
+  .sb-expand:hover {{ color: var(--fg); box-shadow: 0 4px 16px rgba(0,0,0,0.15); }}
+  body.sb-collapsed .sidebar {{ width: 0; min-width: 0; overflow: hidden; padding: 0; border-right: none; }}
+  body.sb-collapsed .sb-expand {{ display: flex; }}
+  .sb-hamburger {{
+    display: none; align-items: center; justify-content: center;
+    width: 36px; height: 36px; background: none; border: none;
+    cursor: pointer; color: var(--fg); font-size: 20px;
+    border-radius: var(--radius-sm); flex-shrink: 0;
+  }}
   .main-content {{
     flex: 1; padding: var(--space-10) var(--space-8);
     max-width: 900px; min-width: 0; margin: 0 auto;
   }}
   @media (max-width: 900px) {{
     body {{ flex-direction: column; }}
-    .sidebar {{ width: 100%; min-width: unset; height: auto; position: relative;
-               border-right: none; border-bottom: 1px solid var(--border);
-               flex-direction: row; flex-wrap: wrap; padding: var(--space-3); }}
-    .sidebar .sb-title {{ width: 100%; border-bottom: none; padding-bottom: var(--space-1); }}
-    .sidebar .sb-group, .sidebar .sb-sep, .sidebar .sb-bottom {{ display: none; }}
-    .sidebar a {{ padding: var(--space-1) var(--space-3); }}
+    body.sb-collapsed .sidebar {{
+      width: 100%; min-width: unset; overflow: visible; padding: var(--space-2) var(--space-3);
+      border-right: none; border-bottom: 1px solid var(--border);
+    }}
+    body.sb-collapsed .sb-expand {{ display: none; }}
+    .sb-collapse {{ display: none !important; }}
+    .sidebar {{ width: 100%; min-width: unset; height: auto; position: sticky; top: 0;
+               z-index: 100; border-right: none; border-bottom: 1px solid var(--border);
+               flex-direction: row; flex-wrap: wrap; padding: var(--space-2) var(--space-3);
+               backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+               background: color-mix(in srgb, var(--sidebar-bg) 85%, transparent); }}
+    .sidebar .sb-title {{ width: auto; border-bottom: none; padding: 0 var(--space-2) 0 0; margin-bottom: 0; font-size: var(--text-base); }}
+    .sb-hamburger {{ display: flex; margin-left: auto; }}
+    .sidebar > a, .sidebar .sb-group, .sidebar .sb-sep, .sidebar .sb-bottom {{ display: none; }}
+    .sidebar.open > a {{ display: flex; width: 100%; }}
+    .sidebar.open .sb-sep {{ display: block; width: 100%; }}
+    .sidebar.open .sb-bottom {{ display: block; width: 100%; }}
     .main-content {{ padding: var(--space-6); }}
   }}
   h1 {{ font-family: var(--font-display); font-size: var(--text-3xl); font-weight: 700;
@@ -2333,8 +2454,10 @@ def page_shell(title, content, active="", extra_css="", extra_js=""):
 </style>
 </head>
 <body>
-<nav class="sidebar">
+<button class="sb-expand" onclick="toggleSidebar()" title="Show sidebar">&#9776;</button>
+<nav class="sidebar" id="sidebar">
   <div class="sb-title">MADphotos</div>
+  <button class="sb-hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')" aria-label="Menu">&#9776;</button>
   <a href="/readme"{_active("readme")}>README</a>
   <a href="/"{_active("status")}>State</a>
   <a href="/journal"{_active("journal")}>Journal de Bord</a>
@@ -2345,6 +2468,7 @@ def page_shell(title, content, active="", extra_css="", extra_js=""):
   <a href="/blind-test"{_active("blind-test")}>Blind Test</a>
   <a href="/mosaics"{_active("mosaics")}>Mosaics</a>
   <div class="sb-bottom">
+    <button class="sb-collapse" onclick="toggleSidebar()">&#x276E; Hide sidebar</button>
     <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">
       <span class="theme-icon" id="themeIcon">&#9790;</span>
       <span id="themeLabel">Dark Mode</span>
@@ -2370,7 +2494,14 @@ def page_shell(title, content, active="", extra_css="", extra_js=""):
     localStorage.setItem('mad-theme', t);
     applyTheme(t);
   }};
+  window.toggleSidebar = function() {{
+    document.body.classList.toggle('sb-collapsed');
+    localStorage.setItem('mad-sidebar', document.body.classList.contains('sb-collapsed') ? 'collapsed' : 'expanded');
+  }};
   applyTheme(getTheme());
+  if (localStorage.getItem('mad-sidebar') === 'collapsed') {{
+    document.body.classList.add('sb-collapsed');
+  }}
 }})();
 </script>
 {extra_js}
@@ -3732,32 +3863,70 @@ def serve(port):
 # Static generation
 # ---------------------------------------------------------------------------
 
+def _static_links(html):
+    # type: (str) -> str
+    """Rewrite server routes to static file paths for GitHub Pages."""
+    html = html.replace('href="/readme"', 'href="index.html"')
+    html = html.replace('href="/"', 'href="state.html"')
+    html = html.replace('href="/journal"', 'href="journal.html"')
+    html = html.replace('href="/instructions"', 'href="instructions.html"')
+    html = html.replace('href="/mosaics"', 'href="mosaics.html"')
+    html = html.replace('href="/drift"', 'href="drift.html"')
+    html = html.replace('href="/blind-test"', 'href="blind-test.html"')
+    html = html.replace('src="/mosaic-hero"', 'src="hero-mosaic.jpg"')
+    # Rewrite /thumb/ and /mosaics/ and /blind/ paths for images
+    html = html.replace('src="/thumb/', 'src="thumbs/')
+    # Mosaic images: inline path
+    import re
+    html = re.sub(r'src="/mosaics/([^"]+)"', r'src="mosaics/\1"', html)
+    html = re.sub(r'src="/blind/([^"]+)"', r'src="blind/\1"', html)
+    return html
+
+
 def generate_static():
-    """Write a self-contained static HTML file with embedded data."""
-    stats = get_stats()
+    """Write self-contained static HTML files with embedded data for GitHub Pages."""
+    docs_dir = OUT_PATH.parent
+    docs_dir.mkdir(parents=True, exist_ok=True)
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
+    # 1. State (main dashboard)
+    stats = get_stats()
     html = PAGE_HTML.replace("%%POLL_MS%%", "0")
     html = html.replace("%%API_URL%%", "inline")
     html = html.replace("%%INLINE_DATA%%", json.dumps(stats))
     html = html.replace('animation: blink 2s infinite;', 'display: none;')
-    # Add generation timestamp to subtitle
-    html = html.replace(
-        'System Dashboard</p>',
-        f'System Dashboard &mdash; snapshot {ts}</p>',
-    )
-    # Sidebar: make links work for GitHub Pages static file layout
-    html = html.replace('href="/readme"', 'href="index.html"')
-    html = html.replace('href="/"', 'href="state.html"')
-    html = html.replace('href="/journal"', 'href="https://github.com/LAEH/MADphotos/blob/main/docs/journal.md"')
-    html = html.replace('href="/mosaics"', 'href="#sec-storage"')
-    html = html.replace('href="/instructions"', 'href="#sec-runs"')
-    html = html.replace('href="/drift"', 'href="#sec-vectors"')
-    html = html.replace('href="/blind-test"', 'href="#sec-enhance"')
-    # Hero mosaic: point to local file for GitHub Pages
-    html = html.replace('src="/mosaic-hero"', 'src="hero-mosaic.jpg"')
-    OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    html = html.replace('System Dashboard</p>',
+                         f'Snapshot &mdash; {ts}</p>')
+    html = _static_links(html)
     OUT_PATH.write_text(html)
-    print(f"Wrote {OUT_PATH} ({len(html):,} bytes) — snapshot {ts}")
+    print(f"  state.html ({len(html):,} bytes)")
+
+    # 2. Journal de Bord
+    journal_html = _static_links(render_journal())
+    (docs_dir / "journal.html").write_text(journal_html)
+    print(f"  journal.html ({len(journal_html):,} bytes)")
+
+    # 3. Instructions
+    instructions_html = _static_links(render_instructions())
+    (docs_dir / "instructions.html").write_text(instructions_html)
+    print(f"  instructions.html ({len(instructions_html):,} bytes)")
+
+    # 4. Drift
+    drift_html = _static_links(render_drift())
+    (docs_dir / "drift.html").write_text(drift_html)
+    print(f"  drift.html ({len(drift_html):,} bytes)")
+
+    # 5. Blind Test
+    blind_html = _static_links(render_blind_test())
+    (docs_dir / "blind-test.html").write_text(blind_html)
+    print(f"  blind-test.html ({len(blind_html):,} bytes)")
+
+    # 6. Mosaics
+    mosaics_html = _static_links(render_mosaics())
+    (docs_dir / "mosaics.html").write_text(mosaics_html)
+    print(f"  mosaics.html ({len(mosaics_html):,} bytes)")
+
+    print(f"\nGenerated 6 pages in docs/ — snapshot {ts}")
 
 
 # ---------------------------------------------------------------------------

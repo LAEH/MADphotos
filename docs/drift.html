@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MADphotos Dashboard</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%23111'/></svg>">
+<style>
+  :root {
+    --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
+    --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif;
+    --font-mono: "SF Mono", ui-monospace, "Cascadia Code", monospace;
+    --text-xs: 11px; --text-sm: 13px; --text-base: 15px; --text-lg: 17px;
+    --text-xl: 20px; --text-2xl: 22px; --text-3xl: 28px;
+    --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+    --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px;
+    --radius-sm: 6px; --radius-md: 10px; --radius-lg: 14px;
+    --sidebar-w: 220px;
+    --apple-blue: #007AFF; --apple-green: #34C759;
+    --leading-normal: 1.47; --leading-relaxed: 1.6;
+    --tracking-tight: -0.01em; --tracking-caps: 0.06em;
+    --duration-fast: 150ms; --ease-default: cubic-bezier(0.25, 0.1, 0.25, 1);
+  }
+  [data-theme="light"] {
+    --bg: #F5F5F7; --bg-secondary: #FFFFFF; --fg: #1D1D1F;
+    --fg-secondary: #3A3A3C; --muted: #86868B;
+    --border: rgba(0,0,0,0.08); --border-strong: rgba(0,0,0,0.14);
+    --card-bg: #FFFFFF; --sidebar-bg: #FFFFFF;
+    --sidebar-active-bg: rgba(0,0,0,0.04); --hover-overlay: rgba(0,0,0,0.03);
+    color-scheme: light;
+  }
+  [data-theme="dark"] {
+    --bg: #1C1C1E; --bg-secondary: #2C2C2E; --fg: #F5F5F7;
+    --fg-secondary: #D1D1D6; --muted: #98989D;
+    --border: rgba(255,255,255,0.08); --border-strong: rgba(255,255,255,0.14);
+    --card-bg: #2C2C2E; --sidebar-bg: #2C2C2E;
+    --sidebar-active-bg: rgba(255,255,255,0.06); --hover-overlay: rgba(255,255,255,0.04);
+    color-scheme: dark;
+  }
+  html { scroll-behavior: smooth; }
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: var(--font-sans); font-size: var(--text-base);
+    line-height: var(--leading-normal); background: var(--bg); color: var(--fg);
+    display: flex; min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  .sidebar {
+    width: var(--sidebar-w); min-width: var(--sidebar-w);
+    background: var(--sidebar-bg); border-right: 1px solid var(--border);
+    padding: var(--space-5) 0; position: sticky; top: 0; height: 100vh;
+    overflow-y: auto; display: flex; flex-direction: column;
+    transition: width var(--duration-normal) var(--ease-default),
+                min-width var(--duration-normal) var(--ease-default);
+  }
+  .sidebar .sb-title {
+    font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700;
+    letter-spacing: var(--tracking-tight); padding: 0 var(--space-5) var(--space-4);
+    border-bottom: 1px solid var(--border); margin-bottom: var(--space-2);
+  }
+  .sidebar a {
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: var(--space-2) var(--space-5); color: var(--muted);
+    text-decoration: none; font-size: var(--text-sm);
+    transition: background var(--duration-fast) var(--ease-default),
+                color var(--duration-fast) var(--ease-default);
+  }
+  .sidebar a:hover { background: var(--sidebar-active-bg); color: var(--fg); }
+  .sidebar a.active {
+    color: var(--fg); font-weight: 600; background: var(--sidebar-active-bg);
+    border-left: 3px solid var(--apple-blue);
+    padding-left: calc(var(--space-5) - 3px);
+  }
+  .sidebar .sb-sep { height: 1px; background: var(--border); margin: var(--space-2) var(--space-5); }
+  .sidebar .sb-group {
+    font-size: var(--text-xs); font-weight: 600; text-transform: uppercase;
+    letter-spacing: var(--tracking-caps); color: var(--muted);
+    padding: var(--space-3) var(--space-5) var(--space-1);
+  }
+  .sidebar .sb-bottom {
+    margin-top: auto; padding: var(--space-3) var(--space-5);
+    border-top: 1px solid var(--border);
+  }
+  .theme-toggle {
+    display: flex; align-items: center; gap: var(--space-2);
+    font-size: var(--text-sm); color: var(--muted); cursor: pointer;
+    padding: var(--space-2) 0; background: none; border: none;
+    font-family: inherit; width: 100%;
+    transition: color var(--duration-fast);
+  }
+  .theme-toggle:hover { color: var(--fg); }
+  .theme-toggle .theme-icon { font-size: 16px; }
+  .sb-collapse {
+    display: flex; align-items: center; gap: var(--space-2);
+    font-size: var(--text-sm); color: var(--muted); cursor: pointer;
+    padding: var(--space-2) 0; background: none; border: none;
+    font-family: inherit; width: 100%; transition: color var(--duration-fast);
+    margin-bottom: var(--space-2); white-space: nowrap; overflow: hidden;
+  }
+  .sb-collapse:hover { color: var(--fg); }
+  .sb-expand {
+    display: none; position: fixed; top: var(--space-4); left: var(--space-4);
+    z-index: 50; width: 36px; height: 36px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--card-bg);
+    cursor: pointer; color: var(--muted); box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    align-items: center; justify-content: center; font-size: 18px;
+    transition: color var(--duration-fast), box-shadow var(--duration-fast);
+  }
+  .sb-expand:hover { color: var(--fg); box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
+  body.sb-collapsed .sidebar { width: 0; min-width: 0; overflow: hidden; padding: 0; border-right: none; }
+  body.sb-collapsed .sb-expand { display: flex; }
+  .sb-hamburger {
+    display: none; align-items: center; justify-content: center;
+    width: 36px; height: 36px; background: none; border: none;
+    cursor: pointer; color: var(--fg); font-size: 20px;
+    border-radius: var(--radius-sm); flex-shrink: 0;
+  }
+  .main-content {
+    flex: 1; padding: var(--space-10) var(--space-8);
+    max-width: 900px; min-width: 0; margin: 0 auto;
+  }
+  @media (max-width: 900px) {
+    body { flex-direction: column; }
+    body.sb-collapsed .sidebar {
+      width: 100%; min-width: unset; overflow: visible; padding: var(--space-2) var(--space-3);
+      border-right: none; border-bottom: 1px solid var(--border);
+    }
+    body.sb-collapsed .sb-expand { display: none; }
+    .sb-collapse { display: none !important; }
+    .sidebar { width: 100%; min-width: unset; height: auto; position: sticky; top: 0;
+               z-index: 100; border-right: none; border-bottom: 1px solid var(--border);
+               flex-direction: row; flex-wrap: wrap; padding: var(--space-2) var(--space-3);
+               backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+               background: color-mix(in srgb, var(--sidebar-bg) 85%, transparent); }
+    .sidebar .sb-title { width: auto; border-bottom: none; padding: 0 var(--space-2) 0 0; margin-bottom: 0; font-size: var(--text-base); }
+    .sb-hamburger { display: flex; margin-left: auto; }
+    .sidebar > a, .sidebar .sb-group, .sidebar .sb-sep, .sidebar .sb-bottom { display: none; }
+    .sidebar.open > a { display: flex; width: 100%; }
+    .sidebar.open .sb-sep { display: block; width: 100%; }
+    .sidebar.open .sb-bottom { display: block; width: 100%; }
+    .main-content { padding: var(--space-6); }
+  }
+  h1 { font-family: var(--font-display); font-size: var(--text-3xl); font-weight: 700;
+       letter-spacing: var(--tracking-tight); margin-bottom: var(--space-2); }
+  h2 { font-family: var(--font-display); font-size: var(--text-xl); font-weight: 700;
+       margin: var(--space-8) 0 var(--space-3); color: var(--fg);
+       border-bottom: 1px solid var(--border); padding-bottom: var(--space-2); }
+  h3 { font-size: var(--text-lg); font-weight: 600; margin: var(--space-6) 0 var(--space-2); color: var(--fg); }
+  h4 { font-size: var(--text-base); font-weight: 600; margin: var(--space-4) 0 var(--space-2); color: var(--muted); }
+  p { font-size: var(--text-sm); margin: var(--space-2) 0; line-height: var(--leading-relaxed); }
+  ul { font-size: var(--text-sm); margin: var(--space-2) 0 var(--space-2) var(--space-5); }
+  li { margin: var(--space-1) 0; }
+  table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); margin: var(--space-3) 0 var(--space-4); }
+  th { text-align: left; font-size: var(--text-xs); font-weight: 600; text-transform: uppercase;
+       letter-spacing: var(--tracking-caps); color: var(--muted);
+       border-bottom: 1px solid var(--border-strong); padding: var(--space-2) var(--space-3); }
+  td { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); }
+  code { background: var(--hover-overlay); padding: 2px var(--space-2); font-size: var(--text-sm);
+         font-family: var(--font-mono); border-radius: var(--radius-sm); }
+  strong { font-weight: 700; }
+  a { color: var(--fg); }
+  blockquote { font-size: var(--text-sm); color: var(--muted); border-left: 3px solid var(--border);
+               padding-left: var(--space-4); margin: var(--space-2) 0; font-style: normal; }
+  footer { margin-top: var(--space-10); padding-top: var(--space-4);
+           border-top: 1px solid var(--border); font-size: var(--text-xs); color: var(--muted); }
+  footer a { color: var(--muted); text-decoration: none; }
+  
+</style>
+</head>
+<body>
+<button class="sb-expand" onclick="toggleSidebar()" title="Show sidebar">&#9776;</button>
+<nav class="sidebar" id="sidebar">
+  <div class="sb-title">MADphotos</div>
+  <button class="sb-hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+  <a href="index.html">README</a>
+  <a href="state.html">State</a>
+  <a href="journal.html">Journal de Bord</a>
+  <a href="instructions.html">System Instructions</a>
+  <div class="sb-sep"></div>
+  <div class="sb-group">Experiments</div>
+  <a href="drift.html" class="active">Drift</a>
+  <a href="blind-test.html">Blind Test</a>
+  <a href="mosaics.html">Mosaics</a>
+  <div class="sb-bottom">
+    <button class="sb-collapse" onclick="toggleSidebar()">&#x276E; Hide sidebar</button>
+    <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">
+      <span class="theme-icon" id="themeIcon">&#9790;</span>
+      <span id="themeLabel">Dark Mode</span>
+    </button>
+  </div>
+</nav>
+<div class="main-content">
+<style>
+  .drift-section {
+    margin-bottom: var(--space-10);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--card-bg);
+    overflow: hidden;
+  }
+  .drift-section-header {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-5);
+    border-bottom: 1px solid var(--border);
+    background: var(--hover-overlay);
+  }
+  .drift-section-num {
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    font-weight: 700;
+    color: var(--muted);
+  }
+  .drift-section-uuid {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--muted);
+  }
+  .drift-model-row {
+    display: flex;
+    align-items: stretch;
+    border-bottom: 1px solid var(--border);
+    min-height: 120px;
+  }
+  .drift-model-row:last-child { border-bottom: none; }
+  .drift-model-label {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 100px;
+    max-width: 100px;
+    padding: var(--space-3);
+    border-right: 1px solid var(--border);
+    background: var(--hover-overlay);
+  }
+  .drift-model-name {
+    font-size: var(--text-sm);
+    font-weight: 700;
+    color: var(--fg);
+  }
+  .drift-model-desc {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .drift-cell {
+    flex: 1;
+    position: relative;
+    min-width: 0;
+    border-right: 1px solid var(--border);
+  }
+  .drift-cell:last-child { border-right: none; }
+  .drift-cell img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    min-height: 120px;
+  }
+  .drift-cell-query {
+    flex: 1;
+    position: relative;
+  }
+  .drift-cell-query::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border: 3px solid var(--apple-blue);
+    pointer-events: none;
+  }
+  .drift-dist {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.95);
+    background: rgba(0,0,0,0.6);
+    padding: 2px var(--space-2);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+  .drift-cell-query .drift-dist {
+    background: var(--apple-blue);
+  }
+  @media (max-width: 700px) {
+    .drift-model-label { min-width: 60px; max-width: 60px; }
+    .drift-model-name { font-size: var(--text-xs); }
+    .drift-model-desc { display: none; }
+  }
+</style>
+
+<h1>Drift</h1>
+<p style="font-size:var(--text-sm);color:var(--muted);margin-bottom:var(--space-6);">
+  10 random images. For each, the 4 nearest neighbors from each embedding model.
+  <strong>DINOv2</strong> sees texture and composition.
+  <strong>SigLIP</strong> sees semantic meaning.
+  <strong>CLIP</strong> matches subjects.
+  Distance = L2 in embedding space.
+  <a href="drift.html" style="color:var(--apple-blue);text-decoration:none;margin-left:var(--space-2);">Reshuffle &rarr;</a>
+</p>
+<div class="drift-section"><div class="drift-section-header"><span class="drift-section-num">1</span><span class="drift-section-uuid">f226d135</span></div><div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">DINOv2</span><span class="drift-model-desc">Composition & texture</span></div><div class="drift-cell drift-cell-query"><img src="thumbs/f226d135-4e0d-5dbc-82ef-69c5664e6e0f" loading="lazy" alt="f226d135"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="thumbs/b8cb1299-cfde-5a72-941e-1ab09c20538e" loading="lazy" alt="b8cb1299"><div class="drift-dist">0.289</div></div><div class="drift-cell"><img src="thumbs/dabd8ff0-9ce8-54a8-b6c7-1df3a4919cf1" loading="lazy" alt="dabd8ff0"><div class="drift-dist">0.370</div></div><div class="drift-cell"><img src="thumbs/ae38863e-284c-5a92-932e-8a5aef2b926e" loading="lazy" alt="ae38863e"><div class="drift-dist">0.386</div></div><div class="drift-cell"><img src="thumbs/20c8d5cb-ae6c-5693-a768-02effe365c29" loading="lazy" alt="20c8d5cb"><div class="drift-dist">0.435</div></div></div>
+<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">SigLIP</span><span class="drift-model-desc">Semantic meaning</span></div><div class="drift-cell drift-cell-query"><img src="thumbs/f226d135-4e0d-5dbc-82ef-69c5664e6e0f" loading="lazy" alt="f226d135"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="thumbs/a244288c-604b-5b30-8635-836551dd2323" loading="lazy" alt="a244288c"><div class="drift-dist">0.281</div></div><div class="drift-cell"><img src="thumbs/ae38863e-284c-5a92-932e-8a5aef2b926e" loading="lazy" alt="ae38863e"><div class="drift-dist">0.283</div></div><div class="drift-cell"><img src="thumbs/e24ceffc-9f99-5702-95df-2b4406622896" loading="lazy" alt="e24ceffc"><div class="drift-dist">0.297</div></div><div class="drift-cell"><img src="thumbs/18a6cbb5-1b42-5381-afbe-15433c302f88" loading="lazy" alt="18a6cbb5"><div class="drift-dist">0.304</div></div></div>
+<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">CLIP</span><span class="drift-model-desc">Subject matching</span></div><div class="drift-cell drift-cell-query"><img src="thumbs/f226d135-4e0d-5dbc-82ef-69c5664e6e0f" loading="lazy" alt="f226d135"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="thumbs/a244288c-604b-5b30-8635-836551dd2323" loading="lazy" alt="a244288c"><div class="drift-dist">0.204</div></div><div class="drift-cell"><img src="thumbs/ae6fda56-ead8-5d0d-a382-cb3c2aafe9e8" loading="lazy" alt="ae6fda56"><div class="drift-dist">0.210</div></div><div class="drift-cell"><img src="thumbs/7e8c56c1-ce4e-5899-aaec-b85b36ff157d" loading="lazy" alt="7e8c56c1"><div class="drift-dist">0.235</div></div><div class="drift-cell"><img src="thumbs/b8cb1299-cfde-5a72-941e-1ab09c20538e" loading="lazy" alt="b8cb1299"><div class="drift-dist">0.240</div></div></div></div>
+<div class="drift-section"><div class="drift-section-header"><span class="drift-section-num">2</span><span class="drift-section-uuid">53fdca37</span></div><div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">DINOv2</span><span class="drift-model-desc">Composition & texture</span></div><div class="drift-cell drift-cell-query"><img src="thumbs/53fdca37-4b6a-505c-8d7f-34c659564915" loading="lazy" alt="53fdca37"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="thumbs/f1b2e38a-79d6-57d7-af2b-ebd4517c2ed6" loading="lazy" alt="f1b2e38a"><div class="drift-dist">0.598</div></div><div class="drift-cell"><img src="thumbs/e61fe346-0e7d-507c-ad53-317ae3f8e6e4" loading="lazy" alt="e61fe346"><div class="drift-dist">0.622</div></div><div class="drift-cell"><img src="thumbs/5fe4c6d0-4930-5d58-b423-5fdf4b346696" loading="lazy" alt="5fe4c6d0"><div class="drift-dist">0.643</div></div><div class="drift-cell"><img src="thumbs/47e71f88-5725-57b8-ab66-6ce600b189d3" loading="lazy" alt="47e71f88"><div class="drift-dist">0.676</div></div></div>
+<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">SigLIP</span><span class="drift-model-desc">Semantic meaning</span></div><div class="drift-cell drift-cell-query"><img src="thumbs/53fdca37-4b6a-505c-8d7f-34c659564915" loading="lazy" alt="53fdca37"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="thumbs/7b77f94e-1533-55cd-bffd-6c3d1123de2c" loading="lazy" alt="7b77f94e"><div class="drift-dist">0.170</div></div><div class="drift-cell"><img src="thumbs/a0732a3d-7979-5506-b570-10ea7f9d971b" loading="lazy" alt="a0732a3d"><div class="drift-dist">0.189</div></div><div class="drift-cell"><img src="thumbs/e2f5ee0e-6b90-5eba-845c-6099ecb8874d" loading="lazy" alt="e2f5ee0e"><div class="drift-dist">0.192</div></div><div class="drift-cell"><img src="thumbs/eeed96ba-7189-5c1c-a20b-0b2217d86f28" loading="lazy" alt="eeed96ba"><div class="drift-dist">0.194</div></div></div>
+<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">CLIP</span><span class="drift-model-desc">Subject matching</span></div><div class="drift-cell drift-cell-query"><img src="thumbs/53fdca37-4b6a-505c-8d7f-34c659564915" loading="lazy" alt="53fdca37"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="thumbs/522e1392-af8a-5ada-9a63-6e1e7b70a81a" loading="lazy" alt="522e1392"><div class="drift-dist">0.218</div></div><div class="drift-cell"><img src="thumbs/5fe4c6d0-4930-5d58-b423-5fdf4b346696" loading="lazy" alt="5fe4c6d0"><div class="drift-dist">0.262</div></div><div class="drift-cell"><img src="thumbs/6139cc12-9949-51ac-8ab6-45750f177ea6" loading="lazy" alt="6139cc12"><div class="drift-dist">0.295</div></div><div class="drift-cell"><img src="thumbs/c33ea597-a602-5930-bbf7-d490a225c6dd" loading="lazy" alt="c33ea597"><div class="drift-dist">0.301</div></div></div></div>
+<div class="drift-section"><div class="drift-section-header"><span class="drift-section-num">3</span><span class="drift-section-uuid">ea8f5266</span></div><div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">DINOv2</span><span class="drift-model-desc">Composition & texture</span></div><div class="drift-cell drift-cell-query"><img src="thumbs/ea8f5266-3f6f-5577-a68e-37765bd81bde" loading="lazy" alt="ea8f5266"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="thumbs/7eb412b1-bf3b-5ee6-bb89-5f712f221c1c" loading="lazy" alt="7eb412b1"><div class="drift-dist">0.516</div></div><div class="drift-cell"><img src="thumbs/f327b37c-8e21-5504-b3f6-fb1c4b1627e2" loading="lazy" alt="f327b37c"><div class="drift-dist">0.644</div></div><div class="drift-cell"><img src="thumbs/77c2d0a2-a834-56f3-9492-b4a5c73a1b4c" loading="lazy" alt="77c2d0a2"><div class="drift-dist">0.681</div></div><div class="drift-cell"><img src="thumbs/ef2d0498-e57d-5082-9790-3180d641f7cd" loading="lazy" alt="ef2d0498"><div class="drift-dist">0.736</div></div></div>
+<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">SigLIP</span><span class="drift-model-desc">Semantic meaning</span></div><div class="drift-cell drift-cell-query"><img src="thumbs/ea8f5266-3f6f-5577-a68e-37765bd81bde" loading="lazy" alt="ea8f5266"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="thumbs/7eb412b1-bf3b-5ee6-bb89-5f712f221c1c" loading="lazy" alt="7eb412b1"><div class="drift-dist">0.141</div></div><div class="drift-cell"><img src="thumbs/3e1f5441-10ea-58c2-8a55-7f00ae96bf1d" loading="lazy" alt="3e1f5441"><div class="drift-dist">0.291</div></div><div class="drift-cell"><img src="thumbs/d1e9de8a-f7e2-5ac3-bfce-44457d1ac6a0" loading="lazy" alt="d1e9de8a"><div class="drift-dist">0.303</div></div><div class="drift-cell"><img src="thumbs/77c2d0a2-a834-56f3-9492-b4a5c73a1b4c" loading="lazy" alt="77c2d0a2"><div class="drift-dist">0.331</div></div></div>
+<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">CLIP</span><span class="drift-model-desc">Subject matching</span></div><div class="drift-cell drift-cell-query"><img src="thumbs/ea8f5266-3f6f-5577-a68e-37765bd81bde" loading="lazy" alt="ea8f5266"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="thumbs/7eb412b1-bf3b-5ee6-bb89-5f712f221c1c" loading="lazy" alt="7eb412b1"><div class="drift-dist">0.114</div></div><div class="drift-cell"><img src="thumbs/11bd05ac-7f69-576f-b2a3-88582cb18257" loading="lazy" alt="11bd05ac"><div class="drift-dist">0.341</div></div><div class="drift-cell"><img src="thumbs/d1e9de8a-f7e2-5ac3-bfce-44457d1ac6a0" loading="lazy" alt="d1e9de8a"><div class="drift-dist">0.368</div></div><div class="drift-cell"><img src="thumbs/0dd31932-3762-5de7-bf83-587a53d5922c" loading="lazy" alt="0dd31932"><div class="drift-dist">0.370</div></div></div></div>
+<div class="drift-section"><div class="drift-section-header"><span class="drift-section-num">4</span><span class="drift-section-uuid">eb6d4b2f</span></div><div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">DINOv2</span><span class="drift-model-desc">Composition & texture</span></div><div class="drift-cell drift-cell-query"><img src="thumbs/eb6d4b2f-6c9a-507a-bc06-ed9fb9df79a4" loading="lazy" alt="eb6d4b2f"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="thumbs/9a2c4b0c-8916-54b6-94e2-d83447ffadb0" loading="lazy" alt="9a2c4b0c"><div class="drift-dist">0.073</div></div><div class="drift-cell"><img src="thumbs/36f7d326-839e-5cb1-8ef9-0a18d99d07ad" loading="lazy" alt="36f7d326"><div class="drift-dist">0.125</div></div><div class="drift-cell"><img src="thumbs/e9fa231d-55f5-5468-9579-4d31d572d6be" loading="lazy" alt="e9fa231d"><div class="drift-dist">0.138</div></div><div class="drift-cell"><img src="thumbs/1ec55d47-e3a9-5a16-baf5-ecfcfa9170e5" loading="lazy" alt="1ec55d47"><div class="drift-dist">0.148</div></div></div>
+<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">SigLIP</span><span class="drift-model-desc">Semantic meaning</span></div><div class="drift-cell drift-cell-query"><img src="thumbs/eb6d4b2f-6c9a-507a-bc06-ed9fb9df79a4" loading="lazy" alt="eb6d4b2f"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="thumbs/9a2c4b0c-8916-54b6-94e2-d83447ffadb0" loading="lazy" alt="9a2c4b0c"><div class="drift-dist">0.035</div></div><div class="drift-cell"><img src="thumbs/36f7d326-839e-5cb1-8ef9-0a18d99d07ad" loading="lazy" alt="36f7d326"><div class="drift-dist">0.039</div></div><div class="drift-cell"><img src="thumbs/1ec55d47-e3a9-5a16-baf5-ecfcfa9170e5" loading="lazy" alt="1ec55d47"><div class="drift-dist">0.060</div></div><div class="drift-cell"><img src="thumbs/e9fa231d-55f5-5468-9579-4d31d572d6be" loading="lazy" alt="e9fa231d"><div class="drift-dist">0.074</div></div></div>
+<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">CLIP</span><span class="drift-model-desc">Subject matching</span></div><div class="drift-cell drift-cell-query"><img src="thumbs/eb6d4b2f-6c9a-507a-bc06-ed9fb9df79a4" loading="lazy" alt="eb6d4b2f"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="thumbs/9a2c4b0c-8916-54b6-94e2-d83447ffadb0" loading="lazy" alt="9a2c4b0c"><div class="drift-dist">0.039</div></div><div class="drift-cell"><img src="thumbs/36f7d326-839e-5cb1-8ef9-0a18d99d07ad" loading="lazy" alt="36f7d326"><div class="drift-dist">0.046</div></div><div class="drift-cell"><img src="thumbs/e9fa231d-55f5-5468-9579-4d31d572d6be" loading="lazy" alt="e9fa231d"><div class="drift-dist">0.056</div></div><div class="drift-cell"><img src="thumbs/1ec55d47-e3a9-5a16-baf5-ecfcfa9170e5" loading="lazy" alt="1ec55d47"><div class="drift-dist">0.167</div></div></div></div>
+<div class="drift-section"><div class="drift-section-header"><span class="drift-section-num">5</span><span class="drift-section-uuid">831ac01f</span></div><div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">DINOv2</span><span class="drift-model-desc">Composition & texture</span></div><div class="drift-cell drift-cell-query"><img src="thumbs/831ac01f-18db-5158-880e-3da7780139ed" loading="lazy" alt="831ac01f"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="thumbs/944e534f-1a6c-5fb2-b76a-23ba5e4f2de8" loading="lazy" alt="944e534f"><div class="drift-dist">0.162</div></div><div class="drift-cell"><img src="thumbs/2f6dc2bd-e40f-50e5-b1bc-998c73b2b865" loading="lazy" alt="2f6dc2bd"><div class="drift-dist">0.198</div></div><div class="drift-cell"><img src="thumbs/feebf94d-8372-5532-880c-7782639cfe20" loading="lazy" alt="feebf94d"><div class="drift-dist">0.273</div></div><div class="drift-cell"><img src="thumbs/5cfb88cb-f317-5b01-a653-c080ea1e1155" loading="lazy" alt="5cfb88cb"><div class="drift-dist">0.350</div></div></div>
+<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">SigLIP</span><span class="drift-model-desc">Semantic meaning</span></div><div class="drift-cell drift-cell-query"><img src="thumbs/831ac01f-18db-5158-880e-3da7780139ed" loading="lazy" alt="831ac01f"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="thumbs/944e534f-1a6c-5fb2-b76a-23ba5e4f2de8" loading="lazy" alt="944e534f"><div class="drift-dist">0.108</div></div><div class="drift-cell"><img src="thumbs/2f6dc2bd-e40f-50e5-b1bc-998c73b2b865" loading="lazy" alt="2f6dc2bd"><div class="drift-dist">0.177</div></div><div class="drift-cell"><img src="thumbs/f8055bc8-c938-5afd-9b61-e10fd1589c4c" loading="lazy" alt="f8055bc8"><div class="drift-dist">0.225</div></div><div class="drift-cell"><img src="thumbs/b66403c0-367b-5494-9dcb-63f8985facee" loading="lazy" alt="b66403c0"><div class="drift-dist">0.241</div></div></div>
+<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">CLIP</span><span class="drift-model-desc">Subject matching</span></div><div class="drift-cell drift-cell-query"><img src="thumbs/831ac01f-18db-5158-880e-3da7780139ed" loading="lazy" alt="831ac01f"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="thumbs/2f6dc2bd-e40f-50e5-b1bc-998c73b2b865" loading="lazy" alt="2f6dc2bd"><div class="drift-dist">0.098</div></div><div class="drift-cell"><img src="thumbs/944e534f-1a6c-5fb2-b76a-23ba5e4f2de8" loading="lazy" alt="944e534f"><div class="drift-dist">0.104</div></div><div class="drift-cell"><img src="thumbs/feebf94d-8372-5532-880c-7782639cfe20" loading="lazy" alt="feebf94d"><div class="drift-dist">0.181</div></div><div class="drift-cell"><img src="thumbs/f8055bc8-c938-5afd-9b61-e10fd1589c4c" loading="lazy" alt="f8055bc8"><div class="drift-dist">0.208</div></div></div></div>
+<div class="drift-section"><div class="drift-section-header"><span class="drift-section-num">6</span><span class="drift-section-uuid">5a7543d2</span></div><div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">DINOv2</span><span class="drift-model-desc">Composition & texture</span></div><div class="drift-cell drift-cell-query"><img src="thumbs/5a7543d2-ffdd-549e-bb38-eb6ff22c5237" loading="lazy" alt="5a7543d2"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="thumbs/b7cbaa12-9765-54e9-83ce-23125b9e9341" loading="lazy" alt="b7cbaa12"><div class="drift-dist">0.800</div></div><div class="drift-cell"><img src="thumbs/89eb46ab-f3f3-5425-aa2c-092f176e0fa6" loading="lazy" alt="89eb46ab"><div class="drift-dist">0.853</div></div><div class="drift-cell"><img src="thumbs/399ac605-3e46-5194-a175-ee762f1a7e7e" loading="lazy" alt="399ac605"><div class="drift-dist">0.878</div></div><div class="drift-cell"><img src="thumbs/ad7bd1bf-a971-5d5c-b438-b46133cb0031" loading="lazy" alt="ad7bd1bf"><div class="drift-dist">0.910</div></div></div>
+<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">SigLIP</span><span class="drift-model-desc">Semantic meaning</span></div><div class="drift-cell drift-cell-query"><img src="thumbs/5a7543d2-ffdd-549e-bb38-eb6ff22c5237" loading="lazy" alt="5a7543d2"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="thumbs/69f146f8-bfdc-576a-a83f-d7d5d4afa36b" loading="lazy" alt="69f146f8"><div class="drift-dist">0.582</div></div><div class="drift-cell"><img src="thumbs/b7cbaa12-9765-54e9-83ce-23125b9e9341" loading="lazy" alt="b7cbaa12"><div class="drift-dist">0.584</div></div><div class="drift-cell"><img src="thumbs/689d4708-3b6c-561d-8fff-71dd4c30d9f2" loading="lazy" alt="689d4708"><div class="drift-dist">0.601</div></div><div class="drift-cell"><img src="thumbs/026b7fba-6031-5eff-b0e5-f1fc2a51b958" loading="lazy" alt="026b7fba"><div class="drift-dist">0.622</div></div></div>
+<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">CLIP</span><span class="drift-model-desc">Subject matching</span></div><div class="drift-cell drift-cell-query"><img src="thumbs/5a7543d2-ffdd-549e-bb38-eb6ff22c5237" loading="lazy" alt="5a7543d2"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="thumbs/9ecacf06-f602-585c-b79c-40a5c63d0472" loading="lazy" alt="9ecacf06"><div class="drift-dist">0.341</div></div><div class="drift-cell"><img src="thumbs/bff743ef-c92b-5287-a518-0c6cff7f2949" loading="lazy" alt="bff743ef"><div class="drift-dist">0.352</div></div><div class="drift-cell"><img src="thumbs/026b7fba-6031-5eff-b0e5-f1fc2a51b958" loading="lazy" alt="026b7fba"><div class="drift-dist">0.359</div></div><div class="drift-cell"><img src="thumbs/af3c63e0-9b4f-5e97-a06b-ca446d7896c8" loading="lazy" alt="af3c63e0"><div class="drift-dist">0.417</div></div></div></div>
+<div class="drift-section"><div class="drift-section-header"><span class="drift-section-num">7</span><span class="drift-section-uuid">fc68c31c</span></div><div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">DINOv2</span><span class="drift-model-desc">Composition & texture</span></div><div class="drift-cell drift-cell-query"><img src="thumbs/fc68c31c-f12a-53e4-87ab-2246290fca82" loading="lazy" alt="fc68c31c"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="thumbs/2130a10d-74dd-5ce3-9c60-e9ce93937b2b" loading="lazy" alt="2130a10d"><div class="drift-dist">0.017</div></div><div class="drift-cell"><img src="thumbs/86ac7536-a85f-5e85-b291-087123bef5c1" loading="lazy" alt="86ac7536"><div class="drift-dist">0.253</div></div><div class="drift-cell"><img src="thumbs/f283b636-fba8-50f3-8076-6f120d41ea15" loading="lazy" alt="f283b636"><div class="drift-dist">1.005</div></div><div class="drift-cell"><img src="thumbs/27e55db6-656b-5e18-92e2-e544d5b023ff" loading="lazy" alt="27e55db6"><div class="drift-dist">1.030</div></div></div>
+<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">SigLIP</span><span class="drift-model-desc">Semantic meaning</span></div><div class="drift-cell drift-cell-query"><img src="thumbs/fc68c31c-f12a-53e4-87ab-2246290fca82" loading="lazy" alt="fc68c31c"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="thumbs/2130a10d-74dd-5ce3-9c60-e9ce93937b2b" loading="lazy" alt="2130a10d"><div class="drift-dist">0.020</div></div><div class="drift-cell"><img src="thumbs/86ac7536-a85f-5e85-b291-087123bef5c1" loading="lazy" alt="86ac7536"><div class="drift-dist">0.144</div></div><div class="drift-cell"><img src="thumbs/a91cf08a-a557-5e3f-b45a-82d7e4d9e42a" loading="lazy" alt="a91cf08a"><div class="drift-dist">0.474</div></div><div class="drift-cell"><img src="thumbs/df6e94e5-92fe-5be3-b29b-07a47dca44ca" loading="lazy" alt="df6e94e5"><div class="drift-dist">0.492</div></div></div>
+<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">CLIP</span><span class="drift-model-desc">Subject matching</span></div><div class="drift-cell drift-cell-query"><img src="thumbs/fc68c31c-f12a-53e4-87ab-2246290fca82" loading="lazy" alt="fc68c31c"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="thumbs/2130a10d-74dd-5ce3-9c60-e9ce93937b2b" loading="lazy" alt="2130a10d"><div class="drift-dist">0.029</div></div><div class="drift-cell"><img src="thumbs/86ac7536-a85f-5e85-b291-087123bef5c1" loading="lazy" alt="86ac7536"><div class="drift-dist">0.169</div></div><div class="drift-cell"><img src="thumbs/cb30b35d-5b57-54fd-98e7-c31dbe913aa5" loading="lazy" alt="cb30b35d"><div class="drift-dist">0.498</div></div><div class="drift-cell"><img src="thumbs/35e23528-7d2b-55cd-a93c-d20d16c99832" loading="lazy" alt="35e23528"><div class="drift-dist">0.511</div></div></div></div>
+<div class="drift-section"><div class="drift-section-header"><span class="drift-section-num">8</span><span class="drift-section-uuid">ab6c51a8</span></div><div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">DINOv2</span><span class="drift-model-desc">Composition & texture</span></div><div class="drift-cell drift-cell-query"><img src="thumbs/ab6c51a8-2272-5411-9906-996acd34aed6" loading="lazy" alt="ab6c51a8"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="thumbs/49e28878-53e0-54d5-b66f-e8c087c1d45f" loading="lazy" alt="49e28878"><div class="drift-dist">0.108</div></div><div class="drift-cell"><img src="thumbs/96e278e8-15bb-5129-ab81-fb24fc8a3cf7" loading="lazy" alt="96e278e8"><div class="drift-dist">0.323</div></div><div class="drift-cell"><img src="thumbs/c406a606-b830-599f-ad53-e3f845b852c7" loading="lazy" alt="c406a606"><div class="drift-dist">0.513</div></div><div class="drift-cell"><img src="thumbs/b4229c3f-cb11-5aa6-a588-4b0f76750d0d" loading="lazy" alt="b4229c3f"><div class="drift-dist">0.668</div></div></div>
+<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">SigLIP</span><span class="drift-model-desc">Semantic meaning</span></div><div class="drift-cell drift-cell-query"><img src="thumbs/ab6c51a8-2272-5411-9906-996acd34aed6" loading="lazy" alt="ab6c51a8"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="thumbs/49e28878-53e0-54d5-b66f-e8c087c1d45f" loading="lazy" alt="49e28878"><div class="drift-dist">0.075</div></div><div class="drift-cell"><img src="thumbs/96e278e8-15bb-5129-ab81-fb24fc8a3cf7" loading="lazy" alt="96e278e8"><div class="drift-dist">0.205</div></div><div class="drift-cell"><img src="thumbs/c406a606-b830-599f-ad53-e3f845b852c7" loading="lazy" alt="c406a606"><div class="drift-dist">0.291</div></div><div class="drift-cell"><img src="thumbs/4a5eee61-c5a9-5bc7-b7fa-cf8ed7cccf74" loading="lazy" alt="4a5eee61"><div class="drift-dist">0.397</div></div></div>
+<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">CLIP</span><span class="drift-model-desc">Subject matching</span></div><div class="drift-cell drift-cell-query"><img src="thumbs/ab6c51a8-2272-5411-9906-996acd34aed6" loading="lazy" alt="ab6c51a8"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="thumbs/49e28878-53e0-54d5-b66f-e8c087c1d45f" loading="lazy" alt="49e28878"><div class="drift-dist">0.028</div></div><div class="drift-cell"><img src="thumbs/c406a606-b830-599f-ad53-e3f845b852c7" loading="lazy" alt="c406a606"><div class="drift-dist">0.202</div></div><div class="drift-cell"><img src="thumbs/96e278e8-15bb-5129-ab81-fb24fc8a3cf7" loading="lazy" alt="96e278e8"><div class="drift-dist">0.291</div></div><div class="drift-cell"><img src="thumbs/3ac3244c-dd2b-50a3-847f-43c61a23471e" loading="lazy" alt="3ac3244c"><div class="drift-dist">0.367</div></div></div></div>
+<div class="drift-section"><div class="drift-section-header"><span class="drift-section-num">9</span><span class="drift-section-uuid">68aa548d</span></div><div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">DINOv2</span><span class="drift-model-desc">Composition & texture</span></div><div class="drift-cell drift-cell-query"><img src="thumbs/68aa548d-d609-57e1-aa7e-9bc6b6040e3c" loading="lazy" alt="68aa548d"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="thumbs/80863169-43e6-5381-8a09-b6ee9b9f4732" loading="lazy" alt="80863169"><div class="drift-dist">1.304</div></div><div class="drift-cell"><img src="thumbs/1822efdb-d260-52ec-ad99-397f06f65d70" loading="lazy" alt="1822efdb"><div class="drift-dist">1.317</div></div><div class="drift-cell"><img src="thumbs/d3e4d220-71e7-52e3-9608-3979e096f5f5" loading="lazy" alt="d3e4d220"><div class="drift-dist">1.345</div></div><div class="drift-cell"><img src="thumbs/5206e3d3-a819-5eaa-9702-f3c9d912e652" loading="lazy" alt="5206e3d3"><div class="drift-dist">1.361</div></div></div>
+<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">SigLIP</span><span class="drift-model-desc">Semantic meaning</span></div><div class="drift-cell drift-cell-query"><img src="thumbs/68aa548d-d609-57e1-aa7e-9bc6b6040e3c" loading="lazy" alt="68aa548d"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="thumbs/236ace8b-08fb-5f30-b768-3f6149488db1" loading="lazy" alt="236ace8b"><div class="drift-dist">0.568</div></div><div class="drift-cell"><img src="thumbs/5283d715-667f-5f9b-8009-60b0a69ffbb4" loading="lazy" alt="5283d715"><div class="drift-dist">0.641</div></div><div class="drift-cell"><img src="thumbs/59871306-f5b4-5f9c-9e98-cf4f3a807079" loading="lazy" alt="59871306"><div class="drift-dist">0.643</div></div><div class="drift-cell"><img src="thumbs/bb8223bd-6b3b-5ca6-92f8-3b9dca7f9193" loading="lazy" alt="bb8223bd"><div class="drift-dist">0.643</div></div></div>
+<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">CLIP</span><span class="drift-model-desc">Subject matching</span></div><div class="drift-cell drift-cell-query"><img src="thumbs/68aa548d-d609-57e1-aa7e-9bc6b6040e3c" loading="lazy" alt="68aa548d"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="thumbs/f8191d6b-81f5-57bf-aa9c-8d698eedb5b4" loading="lazy" alt="f8191d6b"><div class="drift-dist">0.599</div></div><div class="drift-cell"><img src="thumbs/06989c97-eb70-5127-9850-bab9f4fb306c" loading="lazy" alt="06989c97"><div class="drift-dist">0.623</div></div><div class="drift-cell"><img src="thumbs/d3a040d0-9835-597f-9b05-07eee8bfeefa" loading="lazy" alt="d3a040d0"><div class="drift-dist">0.647</div></div><div class="drift-cell"><img src="thumbs/55e6873f-2cd9-5818-868f-9989ebcf56e3" loading="lazy" alt="55e6873f"><div class="drift-dist">0.672</div></div></div></div>
+<div class="drift-section"><div class="drift-section-header"><span class="drift-section-num">10</span><span class="drift-section-uuid">f98fd184</span></div><div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">DINOv2</span><span class="drift-model-desc">Composition & texture</span></div><div class="drift-cell drift-cell-query"><img src="thumbs/f98fd184-0702-5f4b-8906-a8d008f95de7" loading="lazy" alt="f98fd184"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="thumbs/8f6d30b1-7f16-5c92-9849-ff85e335399f" loading="lazy" alt="8f6d30b1"><div class="drift-dist">0.696</div></div><div class="drift-cell"><img src="thumbs/fcfe22b0-2b18-5216-bbb6-e86067234d0b" loading="lazy" alt="fcfe22b0"><div class="drift-dist">0.715</div></div><div class="drift-cell"><img src="thumbs/ae3c1585-4135-54b1-93a9-addc5cb063d8" loading="lazy" alt="ae3c1585"><div class="drift-dist">0.719</div></div><div class="drift-cell"><img src="thumbs/8caeff90-5003-5e10-af7a-2b73d6142024" loading="lazy" alt="8caeff90"><div class="drift-dist">0.721</div></div></div>
+<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">SigLIP</span><span class="drift-model-desc">Semantic meaning</span></div><div class="drift-cell drift-cell-query"><img src="thumbs/f98fd184-0702-5f4b-8906-a8d008f95de7" loading="lazy" alt="f98fd184"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="thumbs/8f6d30b1-7f16-5c92-9849-ff85e335399f" loading="lazy" alt="8f6d30b1"><div class="drift-dist">0.351</div></div><div class="drift-cell"><img src="thumbs/1eb9a4ed-bd3c-5fe6-af2d-8d3a5303b5c5" loading="lazy" alt="1eb9a4ed"><div class="drift-dist">0.522</div></div><div class="drift-cell"><img src="thumbs/f5cf3ce2-0b1d-593a-aa14-475782184d54" loading="lazy" alt="f5cf3ce2"><div class="drift-dist">0.535</div></div><div class="drift-cell"><img src="thumbs/c8c6c651-b9d2-5fd8-b902-8eb412e85e85" loading="lazy" alt="c8c6c651"><div class="drift-dist">0.550</div></div></div>
+<div class="drift-model-row"><div class="drift-model-label"><span class="drift-model-name">CLIP</span><span class="drift-model-desc">Subject matching</span></div><div class="drift-cell drift-cell-query"><img src="thumbs/f98fd184-0702-5f4b-8906-a8d008f95de7" loading="lazy" alt="f98fd184"><div class="drift-dist">query</div></div><div class="drift-cell"><img src="thumbs/8f6d30b1-7f16-5c92-9849-ff85e335399f" loading="lazy" alt="8f6d30b1"><div class="drift-dist">0.389</div></div><div class="drift-cell"><img src="thumbs/3cd554ab-02b5-5344-ab5b-1235dd02c0d8" loading="lazy" alt="3cd554ab"><div class="drift-dist">0.464</div></div><div class="drift-cell"><img src="thumbs/81375ff2-46f5-5a8b-b07c-346bde0b6e3d" loading="lazy" alt="81375ff2"><div class="drift-dist">0.465</div></div><div class="drift-cell"><img src="thumbs/8905e69a-a416-5146-be3b-2cecfef1fb6b" loading="lazy" alt="8905e69a"><div class="drift-dist">0.476</div></div></div></div>
+<footer>MADphotos &mdash; <a href="https://github.com/LAEH/MADphotos">github.com/LAEH/MADphotos</a></footer>
+</div>
+<script>
+(function() {
+  function getTheme() { return localStorage.getItem('mad-theme') || 'light'; }
+  function applyTheme(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    var icon = document.getElementById('themeIcon');
+    var label = document.getElementById('themeLabel');
+    if (icon) icon.textContent = t === 'dark' ? '\u2600' : '\u263E';
+    if (label) label.textContent = t === 'dark' ? 'Light Mode' : 'Dark Mode';
+  }
+  window.toggleTheme = function() {
+    var t = getTheme() === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('mad-theme', t);
+    applyTheme(t);
+  };
+  window.toggleSidebar = function() {
+    document.body.classList.toggle('sb-collapsed');
+    localStorage.setItem('mad-sidebar', document.body.classList.contains('sb-collapsed') ? 'collapsed' : 'expanded');
+  };
+  applyTheme(getTheme());
+  if (localStorage.getItem('mad-sidebar') === 'collapsed') {
+    document.body.classList.add('sb-collapsed');
+  }
+})();
+</script>
+
+</body>
+</html>

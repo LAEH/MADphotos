@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MADphotos Dashboard</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%23111'/></svg>">
+<style>
+  :root {
+    --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
+    --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif;
+    --font-mono: "SF Mono", ui-monospace, "Cascadia Code", monospace;
+    --text-xs: 11px; --text-sm: 13px; --text-base: 15px; --text-lg: 17px;
+    --text-xl: 20px; --text-2xl: 22px; --text-3xl: 28px;
+    --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+    --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px;
+    --radius-sm: 6px; --radius-md: 10px; --radius-lg: 14px;
+    --sidebar-w: 220px;
+    --apple-blue: #007AFF; --apple-green: #34C759;
+    --leading-normal: 1.47; --leading-relaxed: 1.6;
+    --tracking-tight: -0.01em; --tracking-caps: 0.06em;
+    --duration-fast: 150ms; --ease-default: cubic-bezier(0.25, 0.1, 0.25, 1);
+  }
+  [data-theme="light"] {
+    --bg: #F5F5F7; --bg-secondary: #FFFFFF; --fg: #1D1D1F;
+    --fg-secondary: #3A3A3C; --muted: #86868B;
+    --border: rgba(0,0,0,0.08); --border-strong: rgba(0,0,0,0.14);
+    --card-bg: #FFFFFF; --sidebar-bg: #FFFFFF;
+    --sidebar-active-bg: rgba(0,0,0,0.04); --hover-overlay: rgba(0,0,0,0.03);
+    color-scheme: light;
+  }
+  [data-theme="dark"] {
+    --bg: #1C1C1E; --bg-secondary: #2C2C2E; --fg: #F5F5F7;
+    --fg-secondary: #D1D1D6; --muted: #98989D;
+    --border: rgba(255,255,255,0.08); --border-strong: rgba(255,255,255,0.14);
+    --card-bg: #2C2C2E; --sidebar-bg: #2C2C2E;
+    --sidebar-active-bg: rgba(255,255,255,0.06); --hover-overlay: rgba(255,255,255,0.04);
+    color-scheme: dark;
+  }
+  html { scroll-behavior: smooth; }
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: var(--font-sans); font-size: var(--text-base);
+    line-height: var(--leading-normal); background: var(--bg); color: var(--fg);
+    display: flex; min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  .sidebar {
+    width: var(--sidebar-w); min-width: var(--sidebar-w);
+    background: var(--sidebar-bg); border-right: 1px solid var(--border);
+    padding: var(--space-5) 0; position: sticky; top: 0; height: 100vh;
+    overflow-y: auto; display: flex; flex-direction: column;
+    transition: width var(--duration-normal) var(--ease-default),
+                min-width var(--duration-normal) var(--ease-default);
+  }
+  .sidebar .sb-title {
+    font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700;
+    letter-spacing: var(--tracking-tight); padding: 0 var(--space-5) var(--space-4);
+    border-bottom: 1px solid var(--border); margin-bottom: var(--space-2);
+  }
+  .sidebar a {
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: var(--space-2) var(--space-5); color: var(--muted);
+    text-decoration: none; font-size: var(--text-sm);
+    transition: background var(--duration-fast) var(--ease-default),
+                color var(--duration-fast) var(--ease-default);
+  }
+  .sidebar a:hover { background: var(--sidebar-active-bg); color: var(--fg); }
+  .sidebar a.active {
+    color: var(--fg); font-weight: 600; background: var(--sidebar-active-bg);
+    border-left: 3px solid var(--apple-blue);
+    padding-left: calc(var(--space-5) - 3px);
+  }
+  .sidebar .sb-sep { height: 1px; background: var(--border); margin: var(--space-2) var(--space-5); }
+  .sidebar .sb-group {
+    font-size: var(--text-xs); font-weight: 600; text-transform: uppercase;
+    letter-spacing: var(--tracking-caps); color: var(--muted);
+    padding: var(--space-3) var(--space-5) var(--space-1);
+  }
+  .sidebar .sb-bottom {
+    margin-top: auto; padding: var(--space-3) var(--space-5);
+    border-top: 1px solid var(--border);
+  }
+  .theme-toggle {
+    display: flex; align-items: center; gap: var(--space-2);
+    font-size: var(--text-sm); color: var(--muted); cursor: pointer;
+    padding: var(--space-2) 0; background: none; border: none;
+    font-family: inherit; width: 100%;
+    transition: color var(--duration-fast);
+  }
+  .theme-toggle:hover { color: var(--fg); }
+  .theme-toggle .theme-icon { font-size: 16px; }
+  .sb-collapse {
+    display: flex; align-items: center; gap: var(--space-2);
+    font-size: var(--text-sm); color: var(--muted); cursor: pointer;
+    padding: var(--space-2) 0; background: none; border: none;
+    font-family: inherit; width: 100%; transition: color var(--duration-fast);
+    margin-bottom: var(--space-2); white-space: nowrap; overflow: hidden;
+  }
+  .sb-collapse:hover { color: var(--fg); }
+  .sb-expand {
+    display: none; position: fixed; top: var(--space-4); left: var(--space-4);
+    z-index: 50; width: 36px; height: 36px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--card-bg);
+    cursor: pointer; color: var(--muted); box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    align-items: center; justify-content: center; font-size: 18px;
+    transition: color var(--duration-fast), box-shadow var(--duration-fast);
+  }
+  .sb-expand:hover { color: var(--fg); box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
+  body.sb-collapsed .sidebar { width: 0; min-width: 0; overflow: hidden; padding: 0; border-right: none; }
+  body.sb-collapsed .sb-expand { display: flex; }
+  .sb-hamburger {
+    display: none; align-items: center; justify-content: center;
+    width: 36px; height: 36px; background: none; border: none;
+    cursor: pointer; color: var(--fg); font-size: 20px;
+    border-radius: var(--radius-sm); flex-shrink: 0;
+  }
+  .main-content {
+    flex: 1; padding: var(--space-10) var(--space-8);
+    max-width: 900px; min-width: 0; margin: 0 auto;
+  }
+  @media (max-width: 900px) {
+    body { flex-direction: column; }
+    body.sb-collapsed .sidebar {
+      width: 100%; min-width: unset; overflow: visible; padding: var(--space-2) var(--space-3);
+      border-right: none; border-bottom: 1px solid var(--border);
+    }
+    body.sb-collapsed .sb-expand { display: none; }
+    .sb-collapse { display: none !important; }
+    .sidebar { width: 100%; min-width: unset; height: auto; position: sticky; top: 0;
+               z-index: 100; border-right: none; border-bottom: 1px solid var(--border);
+               flex-direction: row; flex-wrap: wrap; padding: var(--space-2) var(--space-3);
+               backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+               background: color-mix(in srgb, var(--sidebar-bg) 85%, transparent); }
+    .sidebar .sb-title { width: auto; border-bottom: none; padding: 0 var(--space-2) 0 0; margin-bottom: 0; font-size: var(--text-base); }
+    .sb-hamburger { display: flex; margin-left: auto; }
+    .sidebar > a, .sidebar .sb-group, .sidebar .sb-sep, .sidebar .sb-bottom { display: none; }
+    .sidebar.open > a { display: flex; width: 100%; }
+    .sidebar.open .sb-sep { display: block; width: 100%; }
+    .sidebar.open .sb-bottom { display: block; width: 100%; }
+    .main-content { padding: var(--space-6); }
+  }
+  h1 { font-family: var(--font-display); font-size: var(--text-3xl); font-weight: 700;
+       letter-spacing: var(--tracking-tight); margin-bottom: var(--space-2); }
+  h2 { font-family: var(--font-display); font-size: var(--text-xl); font-weight: 700;
+       margin: var(--space-8) 0 var(--space-3); color: var(--fg);
+       border-bottom: 1px solid var(--border); padding-bottom: var(--space-2); }
+  h3 { font-size: var(--text-lg); font-weight: 600; margin: var(--space-6) 0 var(--space-2); color: var(--fg); }
+  h4 { font-size: var(--text-base); font-weight: 600; margin: var(--space-4) 0 var(--space-2); color: var(--muted); }
+  p { font-size: var(--text-sm); margin: var(--space-2) 0; line-height: var(--leading-relaxed); }
+  ul { font-size: var(--text-sm); margin: var(--space-2) 0 var(--space-2) var(--space-5); }
+  li { margin: var(--space-1) 0; }
+  table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); margin: var(--space-3) 0 var(--space-4); }
+  th { text-align: left; font-size: var(--text-xs); font-weight: 600; text-transform: uppercase;
+       letter-spacing: var(--tracking-caps); color: var(--muted);
+       border-bottom: 1px solid var(--border-strong); padding: var(--space-2) var(--space-3); }
+  td { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); }
+  code { background: var(--hover-overlay); padding: 2px var(--space-2); font-size: var(--text-sm);
+         font-family: var(--font-mono); border-radius: var(--radius-sm); }
+  strong { font-weight: 700; }
+  a { color: var(--fg); }
+  blockquote { font-size: var(--text-sm); color: var(--muted); border-left: 3px solid var(--border);
+               padding-left: var(--space-4); margin: var(--space-2) 0; font-style: normal; }
+  footer { margin-top: var(--space-10); padding-top: var(--space-4);
+           border-top: 1px solid var(--border); font-size: var(--text-xs); color: var(--muted); }
+  footer a { color: var(--muted); text-decoration: none; }
+  
+</style>
+</head>
+<body>
+<button class="sb-expand" onclick="toggleSidebar()" title="Show sidebar">&#9776;</button>
+<nav class="sidebar" id="sidebar">
+  <div class="sb-title">MADphotos</div>
+  <button class="sb-hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+  <a href="index.html">README</a>
+  <a href="state.html">State</a>
+  <a href="journal.html" class="active">Journal de Bord</a>
+  <a href="instructions.html">System Instructions</a>
+  <div class="sb-sep"></div>
+  <div class="sb-group">Experiments</div>
+  <a href="drift.html">Drift</a>
+  <a href="blind-test.html">Blind Test</a>
+  <a href="mosaics.html">Mosaics</a>
+  <div class="sb-bottom">
+    <button class="sb-collapse" onclick="toggleSidebar()">&#x276E; Hide sidebar</button>
+    <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">
+      <span class="theme-icon" id="themeIcon">&#9790;</span>
+      <span id="themeLabel">Dark Mode</span>
+    </button>
+  </div>
+</nav>
+<div class="main-content">
+<style>
+  .date-header {
+    font-size: var(--text-sm); font-weight: 600; margin: var(--space-8) 0 var(--space-3);
+    padding: var(--space-2) var(--space-3); color: var(--muted);
+    background: var(--hover-overlay); border-radius: var(--radius-sm);
+    letter-spacing: var(--tracking-caps); text-transform: uppercase;
+  }
+  .event {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: var(--space-4) var(--space-5);
+    margin-bottom: var(--space-3);
+    transition: border-color var(--duration-fast) var(--ease-default);
+    position: relative;
+  }
+  .event:hover {
+    border-color: var(--border-strong);
+  }
+  /* Thread connector line */
+  .event + .event::before {
+    content: "";
+    position: absolute;
+    top: calc(-1 * var(--space-3));
+    left: var(--space-6);
+    width: 2px;
+    height: var(--space-3);
+    background: var(--border);
+  }
+  .main-content h3 {
+    font-size: var(--text-sm); font-weight: 700; margin: 0;
+    color: var(--fg); display: block; line-height: var(--leading-normal);
+  }
+  .quote {
+    font-size: var(--text-xs); color: var(--muted); font-style: italic;
+    font-weight: 400; display: block; margin-top: 2px;
+  }
+  .intent {
+    font-size: var(--text-sm); color: var(--fg-secondary);
+    margin: var(--space-2) 0 0; line-height: var(--leading-relaxed);
+  }
+  .discovered {
+    font-size: var(--text-sm); color: var(--muted);
+    margin: var(--space-2) 0 0; font-style: italic; line-height: var(--leading-relaxed);
+    padding-left: var(--space-3);
+    border-left: 2px solid var(--border-strong);
+  }
+  .event blockquote {
+    font-size: var(--text-sm); color: var(--fg-secondary);
+    margin: var(--space-2) 0 0; line-height: var(--leading-relaxed);
+    padding-left: var(--space-3);
+    border-left: 2px solid var(--apple-blue);
+    font-style: italic;
+  }
+  .main-content p { font-size: var(--text-sm); color: var(--fg-secondary); margin-bottom: var(--space-2); line-height: var(--leading-relaxed); }
+  .main-content ul { list-style: none; margin: var(--space-3) 0; }
+  .main-content li {
+    font-size: var(--text-sm); color: var(--fg-secondary);
+    padding: var(--space-1) 0 var(--space-1) var(--space-5); position: relative;
+  }
+  .main-content li::before { content: "—"; position: absolute; left: 0; color: var(--muted); }
+  hr { border: none; margin: 0; }
+</style>
+<h1>Journal de Bord — MADphotos</h1>
+<p>> The story of 9,011 photographs and the machine that sees them.</p>
+<h2 class="date-header">The Beginning</h2>
+<p>9,011 photographs. A decade of shooting. Five cameras: a Leica M8 with its IR-sensitive CCD, a Leica Monochrom that captures pure luminance with no Bayer filter, a Leica MP loaded with Kodak Portra 400 VC and scanned frame by frame, a DJI Osmo Pro strapped to a helmet, a Canon G12 in a back pocket. Most of these images have never been seen by anyone.</p>
+<p>Every single frame now runs through 10 AI models. Gemini 2.5 Pro reads each photograph and writes structured analysis — vibes, exposure, composition, color grading, per-image editing instructions. Three embedding models (DINOv2 for texture, SigLIP for semantics, CLIP for concepts) map every image into vector space. Depth Anything v2 estimates monocular depth. Places365 classifies the scene. A LAION aesthetic predictor scores visual quality. YuNet finds faces, then a ViT emotion classifier reads expressions. YOLOv8n detects objects. EasyOCR extracts text. BLIP writes captions. K-means clustering in LAB space pulls dominant colors. Imagen 3 generates four style variants per image.</p>
+<p>One database. 23 tables. Every signal queryable. Every image searchable by what it means.</p>
+<h2 class="date-header">The Numbers</h2>
+<ul>
+<li><strong>9,011</strong> photographs across 5 camera bodies (3,533 M8 / 3,032 Osmo Pro / 1,126 MP / 1,099 Monochrom / 221 G12+Memo)</li>
+<li><strong>10 AI models</strong> per image: Gemini 2.5 Pro, DINOv2, SigLIP, CLIP, Depth Anything v2, Places365, BLIP, YuNet + ViT Emotions, YOLOv8n, EasyOCR</li>
+<li><strong>6 resolution tiers</strong> per image: micro (64px), thumb (480px), mobile (1280px), display (2048px), full (3840px), gemini (2048px)</li>
+<li><strong>4 AI variant types</strong>: gemini_edit, pro_edit, nano_feel, cartoon (via Imagen 3)</li>
+<li><strong>~52 GB</strong> rendered tier files</li>
+<li><strong>23 SQLite tables</strong>, one source of truth</li>
+<li><strong>3 apps</strong>: See (native curator), Show (web gallery), State (dashboard)</li>
+</ul>
+<h2 class="date-header">2026-02-06</h2>
+<div class="event"><h3>19:18 — Static Site: All 6 Pages Generated</h3></div>
+<div class="event"><h3>19:18 — Dashboard Cards: Element Table Redesign</h3></div>
+<div class="event"><h3>19:12 — Full Sidebar Sync + Collapse Toggle</h3></div>
+<div class="event"><h3>19:10 — Landing Page: Mosaic Floats Right</h3></div>
+<div class="event"><h3>17:55 — Dashboard: Card Redesign + Mobile Responsive</h3></div>
+<div class="event"><h3>17:45 — The Landing Page: Magazine-Quality README</h3></div>
+<div class="event"><h3>17:30 — OCR Sharding: 3x Parallel Workers</h3></div>
+<h2 class="date-header">2026-02-06</h2>
+<div class="event"><h3>18:40 — Git Push: The Big One</h3></div>
+<div class="event"><h3>18:35 — Hero Landing on State Dashboard</h3></div>
+<div class="event"><h3>18:30 — V2 Enhancement Complete: 9,276 Images, Zero Errors</h3></div>
+<div class="event"><h3>18:15 — Blind Test Redesign: True 3-Way Comparison</h3></div>
+<div class="event"><h3>18:00 — Enhancement Engine V2: Signal-Aware Processing</h3></div>
+<div class="event"><h3>17:45 — Apple.com-Style README & System Instructions Update</h3></div>
+<div class="event"><h3>17:30 — SVG Icon System for Tags</h3></div>
+<div class="event"><h3>17:10 — Dashboard UI Overhaul: Tags, Sidebar, README</h3></div>
+<div class="event"><h3>16:45 — TensorFlow Broke Everything</h3></div>
+<div class="event"><h3>16:18 — Running 3 Missing Analysis Models in Parallel</h3></div>
+<div class="event"><h3>16:15 — Drift Page: Vector Nearest Neighbor Visualization</h3></div>
+<h2 class="date-header">2026-02-06</h2>
+<div class="event"><h3>14:30 — Dashboard Redesign: Apple HIG Design System + Dark Mode + HF-Style Tags</h3><p class="intent">The old dashboard used monospace fonts, hardcoded hex colors, raw pixel values, and a flat monochrome aesthetic.</p>
+<p class="discovered">Scene classification already ran to completion (9,011 images) since last check.</p></div>
+<div class="event"><h3>18:30 — MADCurator Major Upgrade: Location Intelligence + All Signals + Power UX</h3><p class="intent">Transform MADCurator from a curation-only tool into the ultimate image intelligence console.</p>
+<blockquote>MADCurator now surfaces every signal collected by the pipeline. 55 data fields per image, 18 filter dimensions, 11 keyboard shortcuts.</blockquote></div>
+<div class="event"><h3>17:40 — Dashboard Responsive + GitHub Pages Deployment</h3><p class="intent">The dashboard (`docs/index.</p>
+<blockquote>Dashboard is responsive. Workflow ready. Run <code>python3 generate_status_page.py</code> before pushing to update the snapshot.</blockquote></div>
+<div class="event"><h3>17:30 — Full Enhancement Run</h3><span class="quote">("I want it all")</span><p class="intent">Run the enhancement engine on every single photograph in the collection.</p>
+<blockquote><code>rendered/enhanced/jpeg/</code> — 9,256 enhanced images. Ready for review in MADCurator.</blockquote></div>
+<div class="event"><h3>17:20 — Gemini Re-authenticated</h3><p class="intent">Resume the stuck Gemini analysis (5,039/9,011 done, 3,902 remaining).</p>
+<blockquote>PID 92782 running. 3,902 images to analyze.</blockquote></div>
+<div class="event"><h3>17:15 — The Endgame Vision</h3><span class="quote">("The incredible experience")</span><p class="intent">A fundamental clarification of the project's architecture.</p>
+<blockquote>This is the architecture going forward: signal everything, enhance everything, curate selectively, publish only the best.</blockquote></div>
+<div class="event"><h3>17:00 — The Enhancement Engine</h3><span class="quote">("Pure signal-driven corrections")</span><p class="intent">Every image has different problems.</p>
+<blockquote>Created <code>enhance_engine.py</code>, added <code>enhancement_plans</code> table to <code>mad_database.py</code>. Ready for full 9,011-image run.</blockquote></div>
+<div class="event"><h3>16:45 — Gemini Processing Blocked</h3><p class="intent">Resume Gemini analysis (55.</p></div>
+<div class="event"><h3>16:30 — System Instructions Page</h3><p class="intent">As the project grows, development principles need to be documented where both the user and the AI assistant can reference them.</p>
+<blockquote>The project now has a living reference document accessible at http://localhost:8080/instructions.</blockquote></div>
+<div class="event"><h3>16:15 — Mosaic Generation</h3><p class="intent">See all 9,011 photographs at once — not scrolling through a grid, but tiled into one 4096px square image.</p>
+<blockquote>14 mosaics totaling 93 MB in <code>rendered/mosaics/</code>. The by_hue mosaic is a particularly beautiful rainbow. The by_latitude mosaic (1,820 GPS-tagged images) reveals geographic patterns in shooting style.</blockquote></div>
+<div class="event"><h3>16:00 — Multi-Page Architecture</h3><p class="intent">The dashboard sidebar navigation was only on the main page.</p>
+<blockquote>All pages now share one navigation UI. The dashboard feels like one app, not separate pages.</blockquote></div>
+<div class="event"><h3>15:30 — Unified Pill/Tag Design System</h3><p class="intent">Every data dimension — grading, time of day, setting, categories, cameras, vibes, colors, objects — used a different visual format: some tables, some inline text, some badges.</p>
+<blockquote>Every data point in the dashboard now speaks the same visual language. Ready for filter interaction.</blockquote></div>
+<div class="event"><h3>15:10 — Dashboard Polish</h3></div>
+<div class="event"><h3>15:00 — Signal Extraction Complete</h3><blockquote>Every photograph now has: EXIF, 5 dominant colors, face boxes, object labels, 4 perceptual hashes, quality metrics. Combined with Gemini analysis + pixel analysis + 3 vector embeddings = comprehensive signal coverage.</blockquote></div>
+<div class="event"><h3>14:30 — Signal Extraction Progress Check</h3><blockquote>Still running. YuNet face detection and YOLOv8 object detection processing through the collection.</blockquote></div>
+<div class="event"><h3>14:20 — Dashboard Left Sidebar Navigation & Tier Format Fix</h3><p class="intent">Two user requests: (1) the Render Tiers table showed file counts nearly double the image counts with no explanation — needed to clarify that display/mobile/thumb/micro tiers produce both JPEG and WebP; (2) add a persistent left sidebar navigation to access all dashboard sections and the Journal without scrolling.</p>
+<blockquote>Dashboard now has proper navigation. Tier breakdown shows: full/gemini/original = JPEG only, display/mobile/thumb/micro = JPEG + WebP.</blockquote></div>
+<h2 class="date-header">2026-02-06</h2>
+<div class="event"><h3>13:30 — Full System Dashboard</h3><span class="quote">("Show me all that is there, all the stats")</span><p class="intent">The original dashboard showed Gemini analysis progress, category tables, render tiers, and variant generation — about 40% of the system.</p>
+<blockquote>Rewrote <code>generate_status_page.py</code> — 1,635 lines (was 1,367). 8 stat cards, 13 sections, live-polling every 5s. All routes preserved: <code>/journal</code>, <code>/blind-test</code>.</blockquote></div>
+<div class="event"><h3>13:00 — Full Vector Extraction</h3><span class="quote">("go")</span><p class="intent">Run all 9,276 images through all three models.</p>
+<blockquote><code>vectors.lance/</code> — 9,011 complete vector triples. Ready for La Dérive integration.</blockquote></div>
+<div class="event"><h3>12:30 — Vector Engine</h3><span class="quote">("Store 3 vectors for each image for later use in navigation")</span><p class="intent">The web gallery's La Dérive experience drifts through connected photographs — but the connections were computed from shared vibes and colors, which is shallow.</p>
+<blockquote>Created <code>vector_engine.py</code>. Tested extraction + LanceDB storage + similarity search on 20 images. Three distinct similarity rankings confirmed — each model sees differently.</blockquote></div>
+<div class="event"><h3>12:00 — Apple-Grade Design Upgrade</h3><span class="quote">("Elevate MADCurator to Apple HIG standards")</span><p class="intent">The functional app worked but looked utilitarian.</p>
+<blockquote>Built cleanly on first try. 6 files modified, 0 new files. The monospace aesthetic preserved throughout — it's intentional, not default.</blockquote></div>
+<div class="event"><h3>11:30 — Camera Filter in MADCurator</h3><span class="quote">("in the app I should see the filters for Camera")</span><p class="intent">Now that every image knows its camera, the curator should let you filter by it.</p>
+<blockquote>Added camera_body to PhotoItem, FilterDimension, FilterState, FacetedOptions. Added "Camera" section to FilterSidebar. Added Camera metadata section to DetailView (body, film stock, medium, monochrome). App rebuilt successfully.</blockquote></div>
+<div class="event"><h3>11:15 — Pixel-Level Analysis</h3><span class="quote">("run programatic image analysis")</span><p class="intent">Gemini tells us *what's in the photo* — vibes, composition, mood.</p>
+<blockquote>Created <code>image_analysis.py</code>, added <code>image_analysis</code> table to schema. 8,763 images analyzed in ~310s.</blockquote></div>
+<div class="event"><h3>11:00 — Camera Provenance</h3><span class="quote">("analog where images taken with Leica MP camera with film")</span><p class="intent">Every photograph has a camera behind it, and every camera has a personality.</p>
+<blockquote>Added <code>camera_body</code>, <code>film_stock</code>, <code>medium</code>, <code>is_monochrome</code> columns to <code>images</code> table. Built migration system in <code>mad_database.py</code>. Populated all 8,807 images from category/subcategory mapping. 77 Analog shots detected as monochrome via Gemini grading_style.</blockquote></div>
+<div class="event"><h3>02:10 — Fixing MADCurator</h3><span class="quote">("the vibe label look wrong with some ]")</span><p class="intent">The native curator app was showing garbled vibe labels like <code>"Candid"]·11</code> instead of <code>Candid·11</code>.</p>
+<blockquote>Fixed 3 files: Models.swift, FilterSidebar.swift, Database.swift + PhotoStore.swift.</blockquote></div>
+<div class="event"><h3>02:00 — The `rendered/originals/` Saga</h3><span class="quote">("why does this folder still exists?")</span><p class="intent">Keep the rendered directory clean and organized.</p></div>
+<div class="event"><h3>01:45 — The DNG Purple Cast</h3><span class="quote">("this look like it is from DNG wrongly transformed")</span><p class="intent">Render all 3,841 DNG files properly.</p>
+<blockquote>Fixed <code>render_pipeline.py</code>. Also switched <code>photography_engine.py</code> from API key to Vertex AI ADC (the key was the one that got committed and removed). Fixed <code>IMAGE_DIR</code> path and <code>find_gemini_jpeg</code> to match flat layout.</blockquote></div>
+<div class="event"><h3>01:30 — Three Experiences</h3><span class="quote">("Build me a web gallery with three ways to see the photos")</span><p class="intent">The native curator app is for work — deciding what's good.</p>
+<blockquote>Built <code>export_gallery_data.py</code>, <code>serve_gallery.py</code> (port 3000), and 6 web files: <code>index.html</code>, <code>style.css</code>, <code>app.js</code>, <code>grid.js</code>, <code>drift.js</code>, <code>colors.js</code>. 634 photos with full semantic data. Three experiences ready for iteration.</blockquote></div>
+<div class="event"><h3>00:30 — Faceted Search</h3><span class="quote">("Create a way better navigation system with union and intersection simple queries")</span><p class="intent">The first sidebar was a vertical list of single-select pills — click one, see results, click another, lose the first.</p>
+<blockquote>Rewrote 4 files (Models, PhotoStore, FilterSidebar, ContentView). FlowLayout chips with counts. Empty sections auto-hide. ~2ms faceted recomputation for 9k images.</blockquote></div>
+<div class="event"><h3>00:15 — MADCurator: A Native App</h3><span class="quote">("Create a native app so it is faster? Apple style/rigor")</span><p class="intent">The curation interface needed to handle 9,011+ images with instant filtering, smooth scrolling, and keyboard-driven workflow.</p>
+<blockquote>Built <code>MADCurator.app</code> — SwiftUI, NavigationSplitView with sidebar/grid/detail, SQLite3 C API, NSCache for 2000 thumbnails, Keep/Reject with K/R keys, arrow navigation.</blockquote></div>
+<div class="event"><h3>00:00 — Scrubbing the Secret</h3><span class="quote">("IMPORTANT push asap to remove my api keys")</span><p class="intent">A Google API key had been committed in the initial git push as a fallback in `photography_engine.</p>
+<blockquote>Installed <code>git-filter-repo</code>, rewrote all history to replace the key with <code>REDACTED_API_KEY</code>, removed the fallback entirely (now env-var-only), force-pushed the cleaned history to GitHub. Key revocation recommended.</blockquote></div>
+<h2 class="date-header">2026-02-05</h2>
+<div class="event"><h3>23:10 — Designing the Curation Interface</h3><span class="quote">("Create an interface to navigate the images with all the tags")</span><p class="intent">With Gemini analyzing every photograph's exposure, composition, color palette, vibe, and setting — we have the metadata to make smart decisions.</p>
+<blockquote>Planned: thumbnail grid with filter pills (grading, vibe, time, setting, composition, exposure), keyboard-driven reject/keep workflow, progress tracker. Building once Gemini completes (~24h).</blockquote></div>
+<div class="event"><h3>23:00 — The Blind Test Results</h3><span class="quote">("OpenCV 5, Pillow 5, Imagen 4, Skipped 6")</span><p class="intent">Let the eyes decide, not the theory.</p>
+<blockquote>Decision: wait for Gemini analysis on all 9,011 images, then build a curation interface to reject weak images before generating any edits. Enhancement approach TBD based on curated subset.</blockquote></div>
+<div class="event"><h3>22:45 — The Enhancement Showdown</h3><span class="quote">("The edits are not that good, there is often a white balance problem")</span><p class="intent">The first 100 Imagen edits came back with persistent white balance issues.</p>
+<p class="discovered">Tested three approaches: Imagen with simplified prompts (guidance 30), OpenCV (GrayworldWB + CLAHE + auto gamma), and Pillow (grey world + autocontrast + brightness).</p>
+<blockquote>Built a blind test: 20 images, 4 columns (original + 3 shuffled enhancements), click your favorite. Served at <code>/blind-test</code>.</blockquote></div>
+<div class="event"><h3>22:20 — Telling the Story</h3><span class="quote">(Journal de Bord)</span><p class="intent">This project is a process, not just a result.</p>
+<blockquote>Created this document. Served at <code>/journal</code>. Updated every session.</blockquote></div>
+<div class="event"><h3>22:15 — Tracking Imagen Progress</h3><span class="quote">("Add all this tracking to the monitor page")</span><p class="intent">Three processes running simultaneously — Gemini analysis, gemini_edit, pro_edit — and no visibility into Imagen progress or rotation data.</p>
+<blockquote>Added per-variant progress bars (success/failed/filtered) and rotation recommendation pills to dashboard.</blockquote></div>
+<div class="event"><h3>22:10 — First Visual Comparison</h3><span class="quote">("Once you have 100, open the folders for me to inspect")</span><p class="intent">Before committing to 9,011 images worth of API calls, we need to see results.</p>
+<blockquote>Launched gemini_edit + pro_edit for 100 images each, from 4K source. Visual comparison pending.</blockquote></div>
+<div class="event"><h3>22:05 — Adding Rotation Detection</h3><span class="quote">("Add one question: should we rotate the image")</span><p class="intent">Some photos are misoriented — EXIF data lost, scanned film upside down.</p>
+<blockquote>Added <code>should_rotate</code> (none/cw90/ccw90/180) to prompt and DB. Restarted analysis for remaining 8,698 images.</blockquote></div>
+<div class="event"><h3>22:00 — Upgrading to 4K Source</h3><span class="quote">("Make sure we get the largest size")</span><p class="intent">Imagen 3 outputs at input resolution.</p>
+<blockquote>Changed source to full tier (3840px). All variants now 4K.</blockquote></div>
+<div class="event"><h3>21:55 — Naming the Four Variants</h3><span class="quote">("Why do you call it light_enhance?")</span><p class="intent">Names matter.</p>
+<blockquote>Renamed to <code>gemini_edit</code> + <code>pro_edit</code>. Dropped cinematic/dreamscape. Final 4: gemini_edit, pro_edit, nano_feel, cartoon.</blockquote></div>
+<div class="event"><h3>21:50 — The Two-Stage Architecture</h3><span class="quote">("The cartoon could be better on an improved edited image")</span><p class="intent">The key insight of the session.</p>
+<blockquote>Rewired <code>imagen_engine.py</code> into two stages. Stage 1: edits from original (Gemini-guided + generic). Stage 2: styles from the enhanced result.</blockquote></div>
+<div class="event"><h3>21:40 — Evaluating the Next Phase</h3><span class="quote">("What can you work on next?")</span><p class="intent">The Gemini analysis was going to take hours.</p>
+<p class="discovered">The Imagen engine had 5 hardcoded prompts and was completely ignoring Gemini's per-image editing advice.</p></div>
+<div class="event"><h3>21:30 — Seeing What the Machine Sees</h3><span class="quote">("I want to see one example of full data")</span><p class="intent">Schemas are abstract.</p>
+<blockquote>Added "Sample Analysis" section to dashboard — full Gemini JSON, syntax-highlighted, refreshing every 5s.</blockquote></div>
+<div class="event"><h3>21:20 — Auditing the Database Schema</h3><span class="quote">("Did we get all the infos we wanted?")</span><p class="intent">A gut check.</p>
+<p class="discovered">Three critical fields — <code>lighting_fix</code>, <code>color_fix</code>, and <code>overall_edit_prompt</code> — had no DB columns.</p>
+<blockquote>Added 3 columns, updated upsert, backfilled 156 rows from raw JSON. Restarted analysis.</blockquote></div>
+<div class="event"><h3>21:15 — Building the Live Dashboard</h3><span class="quote">("Build me a pretty minimal black and white web page")</span><p class="intent">We needed to see what was happening.</p>
+<blockquote>Created <code>generate_status_page.py</code> — live server mode (<code>--serve</code>) polls the DB every 5s. Stat cards, progress bar, category tables. All real-time.</blockquote></div>
+<div class="event"><h3>21:10 — Launching Gemini Analysis</h3><span class="quote">("Let's run all the images analysis now")</span><p class="intent">The rendering pipeline had already processed all 9,011 images into a 6-tier resolution pyramid.</p>
+<blockquote>Launched <code>photography_engine.py</code> on all 9,011 images. Gemini 2.5 Pro via Vertex AI, concurrency 5, exponential backoff with max 5 retries.</blockquote></div>
+<div class="event"><h3>20:30 — Wiring the AI Engines</h3><span class="quote">("Now the interesting part")</span><p class="intent">Two AI engines: one that sees (Gemini 2.</p>
+<blockquote>Built <code>photography_engine.py</code> (Gemini analysis) and <code>imagen_engine.py</code> (Imagen editing with 4 variant types).</blockquote></div>
+<div class="event"><h3>20:00 — The Rendering Pyramid</h3><span class="quote">("We need different sizes for different uses")</span><p class="intent">A 40MB RAW scan is useless for a thumbnail grid.</p>
+<blockquote>6 tiers × 9,011 images = 54,066 rendered files. ~52 GB total. Each tier in JPEG format with quality appropriate to its purpose.</blockquote></div>
+<div class="event"><h3>19:00 — Laying the Foundation</h3><span class="quote">("Build me a pipeline")</span><p class="intent">The starting point: 11,557 photographs in a folder, organized by medium — Analog, Digital, Monochrome, Osmo, G12.</p>
+<blockquote>Built <code>mad_database.py</code> (SQLite schema), <code>render_pipeline.py</code> (6-tier resolution pyramid), <code>mad_pipeline.py</code> (orchestrator). Registered 9,011 images. Rendered all tiers: thumb, micro, mobile, display, full, original.</blockquote></div>
+<footer>MADphotos &mdash; <a href="https://github.com/LAEH/MADphotos">github.com/LAEH/MADphotos</a></footer>
+</div>
+<script>
+(function() {
+  function getTheme() { return localStorage.getItem('mad-theme') || 'light'; }
+  function applyTheme(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    var icon = document.getElementById('themeIcon');
+    var label = document.getElementById('themeLabel');
+    if (icon) icon.textContent = t === 'dark' ? '\u2600' : '\u263E';
+    if (label) label.textContent = t === 'dark' ? 'Light Mode' : 'Dark Mode';
+  }
+  window.toggleTheme = function() {
+    var t = getTheme() === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('mad-theme', t);
+    applyTheme(t);
+  };
+  window.toggleSidebar = function() {
+    document.body.classList.toggle('sb-collapsed');
+    localStorage.setItem('mad-sidebar', document.body.classList.contains('sb-collapsed') ? 'collapsed' : 'expanded');
+  };
+  applyTheme(getTheme());
+  if (localStorage.getItem('mad-sidebar') === 'collapsed') {
+    document.body.classList.add('sb-collapsed');
+  }
+})();
+</script>
+
+</body>
+</html>

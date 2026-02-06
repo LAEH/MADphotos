@@ -704,3 +704,23 @@ Dashboard moved to `docs/state.html`. Added `.nojekyll` to bypass Jekyll process
 Removed the redundant Gemini Analysis progress section — that data was duplicated in the top cards. Redesigned top stat cards: replaced "Gemini AI", "Pixel Analysis", "GCS Uploads" with "AI Models Active" (shows X/10 models complete), "Enhanced" (enhancement plans with %), "Faces Found" (total faces + emotion count), "Vector Embeddings" (count × 3 models). Cards sorted by activity/interest.
 
 Mobile CSS completely reworked: hamburger menu for sidebar at <900px with backdrop blur, sticky top bar, cards always 2-column on mobile, tables scroll horizontally, hero collapses gracefully (hides tagline/mission on small screens). Media queries switched from max-width to min-width (mobile-first).
+
+### 19:10 — Landing Page: Mosaic Floats Right
+
+Rewrote the landing page hero entirely. Instead of a full-width dark overlay image, the mosaic is now a beautiful rounded rectangle (`border-radius: 20px`, `box-shadow: var(--shadow-lg)`) floating to the right of the title and subtitle text on desktop, taking the height of the text content. On mobile (<700px), it stacks on top as a wide banner. The title "9,011" + "photographs, unedited" sits left, the rounded mosaic card sits right. Clean Apple layout — text breathes, image is decorative not dominant.
+
+### 19:12 — Full Sidebar Sync + Collapse Toggle
+
+Unified the sidebar across all 7 pages: README, State, Journal, Instructions, Drift, Blind Test, Mosaics. All pages now share the identical sidebar structure with the same links. Added a collapsible sidebar system: on desktop, a "Hide sidebar" button at the bottom collapses the sidebar to zero width with a smooth CSS transition; a floating hamburger button appears at the top-left to bring it back. State persisted in `localStorage` so it survives page navigation. On mobile (<900px), the collapse button is hidden — mobile uses the existing hamburger/top-bar pattern instead.
+
+### 19:18 — Dashboard Cards: Element Table Redesign
+
+Replaced the 8 plain white stat cards with a dramatic two-section layout inspired by periodic table element cards:
+
+**3 Hero Cards** at the top — bold gradient backgrounds (blue, green, purple) with white text, showing Collection (9,011 photographs), Intelligence (total signals extracted across all models), and Output (rendered files + enhanced + AI variants).
+
+**17-Element Intelligence Grid** below — each model gets its own tinted card with a unique hue-based color scheme (HSL custom properties), showing: model name, description, image count, a mini progress bar, and a status badge (complete/in-progress/pending). All 17 models listed: Gemini 2.5 Pro, Pixel Analysis, DINOv2, SigLIP, CLIP, YuNet, YOLOv8n, NIMA, Depth Anything v2, Places365, Style Net, BLIP, EasyOCR, Emotions, Enhancement Engine, K-means LAB, EXIF Parser. Each card's description includes live stats like "3,247 faces found" or "avg 4.8 aesthetic score."
+
+### 19:18 — Static Site: All 6 Pages Generated
+
+Ran `generate_static()` — successfully output all 6 pages to `docs/`: state.html (75KB), journal.html (36KB), instructions.html (18KB), drift.html (44KB), blind-test.html (112KB), mosaics.html (24KB). All sidebar links properly rewritten from server routes (`/journal`) to static paths (`journal.html`). Every page has the collapsible sidebar, theme toggle, and hamburger menu.
