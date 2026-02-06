@@ -1119,46 +1119,6 @@ PAGE_HTML = r"""<!DOCTYPE html>
   }
   .subsection-title:first-child { margin-top: 0; }
 
-  /* ═══ DASHBOARD HERO CARDS ═══ */
-  .dash-hero {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: var(--space-3);
-    margin-bottom: var(--space-6);
-  }
-  .hero-card {
-    border-radius: var(--radius-lg);
-    padding: var(--space-6);
-    color: #FFFFFF;
-    position: relative;
-    overflow: hidden;
-    box-shadow: var(--shadow-md);
-    transition: transform var(--duration-fast), box-shadow var(--duration-fast);
-  }
-  .hero-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
-  .hero-card .hc-label {
-    font-size: var(--text-xs); font-weight: 700;
-    text-transform: uppercase; letter-spacing: var(--tracking-caps);
-    opacity: 0.7; margin-bottom: var(--space-2);
-  }
-  .hero-card .hc-value {
-    font-family: var(--font-display);
-    font-size: 44px; font-weight: 800;
-    letter-spacing: -0.03em; line-height: 1;
-    margin-bottom: 2px; font-variant-numeric: tabular-nums;
-  }
-  .hero-card .hc-unit {
-    font-size: var(--text-sm); opacity: 0.8;
-    margin-bottom: var(--space-3);
-  }
-  .hero-card .hc-detail {
-    font-size: var(--text-xs); opacity: 0.6;
-    line-height: var(--leading-relaxed);
-  }
-  .hc-blue { background: linear-gradient(135deg, #007AFF 0%, #0055CC 100%); }
-  .hc-green { background: linear-gradient(135deg, #34C759 0%, #1B8A3B 100%); }
-  .hc-purple { background: linear-gradient(135deg, #AF52DE 0%, #8944AB 100%); }
-
   /* ═══ ELEMENT GRID (model intelligence) ═══ */
   .el-section-title {
     font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700;
@@ -1169,18 +1129,17 @@ PAGE_HTML = r"""<!DOCTYPE html>
   }
   .el-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: var(--space-3);
   }
   .el-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
     border-radius: var(--radius-md);
     padding: var(--space-4);
     position: relative;
-    border-left: 3px solid hsl(var(--el-hue, 210), 70%, 50%);
     transition: transform var(--duration-fast), box-shadow var(--duration-fast);
   }
-  [data-theme="light"] .el-card { background: hsl(var(--el-hue, 210), 55%, 96%); }
-  [data-theme="dark"] .el-card { background: hsl(var(--el-hue, 210), 25%, 14%); }
   .el-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
   .el-card .el-num {
     position: absolute; top: var(--space-2); right: var(--space-3);
@@ -1191,8 +1150,13 @@ PAGE_HTML = r"""<!DOCTYPE html>
     font-family: var(--font-display); font-size: var(--text-sm); font-weight: 700;
     color: var(--fg); margin-bottom: 1px; padding-right: var(--space-6);
   }
+  .el-card .el-tech {
+    font-family: var(--font-mono); font-size: 9px; color: var(--muted);
+    margin-bottom: var(--space-1); letter-spacing: 0.02em;
+  }
   .el-card .el-desc {
-    font-size: 10px; color: var(--muted); margin-bottom: var(--space-2);
+    font-size: 10px; color: var(--fg-secondary); margin-bottom: var(--space-2);
+    line-height: var(--leading-relaxed);
   }
   .el-card .el-count {
     font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 800;
@@ -1204,7 +1168,7 @@ PAGE_HTML = r"""<!DOCTYPE html>
   }
   .el-card .el-fill {
     height: 100%; border-radius: 2px;
-    background: hsl(var(--el-hue, 210), 70%, 50%);
+    background: var(--fg);
     transition: width 1s var(--ease-default);
   }
   .el-card .el-pct {
@@ -1217,8 +1181,8 @@ PAGE_HTML = r"""<!DOCTYPE html>
     padding: 1px 5px; border-radius: 3px;
     vertical-align: middle; margin-left: var(--space-1);
   }
-  .el-badge.done { background: rgba(52,199,89,0.15); color: #34C759; }
-  .el-badge.active { background: rgba(0,122,255,0.15); color: #007AFF; }
+  .el-badge.done { background: var(--hover-overlay); color: var(--fg); }
+  .el-badge.active { background: var(--hover-overlay); color: var(--muted); }
   .el-badge.pending { background: var(--hover-overlay); color: var(--muted); }
 
   /* ═══ PROGRESS BARS ═══ */
@@ -1296,19 +1260,16 @@ PAGE_HTML = r"""<!DOCTYPE html>
   .three-col { display: grid; grid-template-columns: 1fr; gap: var(--space-6); }
 
   /* Mobile-first responsive */
-  h1 { font-size: var(--text-2xl); }
+  h1 { font-size: var(--text-3xl); }
   @media (max-width: 640px) {
-    .dash-hero { grid-template-columns: 1fr; }
-    .hero-card .hc-value { font-size: 36px; }
-    .el-grid { grid-template-columns: 1fr 1fr; }
+    h1 { font-size: var(--text-2xl); }
+    .el-grid { grid-template-columns: 1fr; }
   }
   @media (min-width: 641px) and (max-width: 900px) {
-    .dash-hero { grid-template-columns: 1fr 1fr; }
-    .hero-card .hc-value { font-size: 40px; }
-    .el-grid { grid-template-columns: repeat(3, 1fr); }
+    .el-grid { grid-template-columns: repeat(2, 1fr); }
   }
   @media (min-width: 640px) {
-    h1 { font-size: var(--text-3xl); }
+    h1 { font-size: 42px; }
   }
 
   @media (min-width: 768px) {
@@ -1617,29 +1578,7 @@ PAGE_HTML = r"""<!DOCTYPE html>
 
 <h1>System State</h1>
 <p class="subtitle" id="subtitle">System Dashboard</p>
-<p class="manifesto">We started with <strong>9,011 raw images</strong> and zero metadata. No labels, no edits, no captions. The mission: put them on your screen and make you feel something. We threw 17 AI models at every single frame. Not Photoshop. Not presets. Not batch filters. <strong>Per-image intelligence.</strong></p>
-
-<!-- ═══ DASHBOARD HERO ═══ -->
-<div class="dash-hero">
-  <div class="hero-card hc-blue">
-    <div class="hc-label">Collection</div>
-    <div class="hc-value" id="hc-total">&mdash;</div>
-    <div class="hc-unit">photographs</div>
-    <div class="hc-detail" id="hc-formats"></div>
-  </div>
-  <div class="hero-card hc-green">
-    <div class="hc-label">Intelligence</div>
-    <div class="hc-value" id="hc-signals">&mdash;</div>
-    <div class="hc-unit">signals extracted</div>
-    <div class="hc-detail" id="hc-intel-detail"></div>
-  </div>
-  <div class="hero-card hc-purple">
-    <div class="hc-label">Output</div>
-    <div class="hc-value" id="hc-output">&mdash;</div>
-    <div class="hc-unit">rendered files</div>
-    <div class="hc-detail" id="hc-output-detail"></div>
-  </div>
-</div>
+<p class="manifesto">We started with 9,011 raw images and zero metadata.<br>We will create the best UX UIs on photos.<br>Game ON.</p>
 
 <!-- ═══ MODEL INTELLIGENCE GRID ═══ -->
 <div style="margin-bottom:var(--space-8);">
@@ -2002,44 +1941,31 @@ PAGE_HTML = r"""<!DOCTYPE html>
       '<span class="live-dot"></span>' + d.timestamp;
     el("footer-ts").textContent = d.timestamp;
 
-    /* ── Hero cards ── */
-    el("hc-total").textContent = fmt(d.total);
-    var fmtStr = d.source_formats ? d.source_formats.map(function(f) { return f.name + ": " + fmt(f.count); }).join(" \u00B7 ") : "";
-    el("hc-formats").textContent = fmtStr + " \u00B7 5 cameras";
-
-    el("hc-signals").textContent = fmt(d.total_signals || 0);
-    var mc = d.models_complete || 0;
-    el("hc-intel-detail").textContent = "17 models \u00B7 " + mc + " complete \u00B7 " + fmt(d.face_total) + " faces \u00B7 " + fmt(d.vector_count * 3) + " vectors";
-
-    el("hc-output").textContent = fmt(d.total_tier_files);
-    var vtotal = d.ai_variants_total || 0;
-    el("hc-output-detail").textContent = d.total_rendered_human + " \u00B7 " + fmt(d.enhancement_count) + " enhanced \u00B7 " + fmt(vtotal) + " AI variants \u00B7 " + d.curation_pct.toFixed(0) + "% curated";
-
     /* ── Model intelligence grid ── */
-    el("el-sub").textContent = "17 models \u00D7 " + fmt(d.total) + " images \u2014 " + mc + " of 17 complete";
+    var mc = d.models_complete || 0;
+    el("el-sub").textContent = fmt(d.total) + " images \u00D7 17 models = " + fmt(d.total_signals || 0) + " signals \u2014 " + mc + " complete";
     var sigFD = d.signals && d.signals.face_detections ? d.signals.face_detections : {rows:0, images:0};
     var sigOD = d.signals && d.signals.object_detections ? d.signals.object_detections : {rows:0, images:0};
     var sigDC = d.signals && d.signals.dominant_colors ? d.signals.dominant_colors : {rows:0, images:0};
     var sigEX = d.signals && d.signals.exif_metadata ? d.signals.exif_metadata : {rows:0, images:0};
-    var sigIH = d.signals && d.signals.image_hashes ? d.signals.image_hashes : {rows:0, images:0};
     var models = [
-      {n:'01', name:'Gemini 2.5 Pro', desc:'Vibes, exposure, composition, edit prompts', hue:210, count:d.analyzed},
-      {n:'02', name:'Pixel Analysis', desc:'Luminance, WB shift, noise, clipping', hue:225, count:d.pixel_analyzed},
-      {n:'03', name:'DINOv2', desc:'Visual embeddings \u2014 768 dimensions', hue:145, count:d.vector_count},
-      {n:'04', name:'SigLIP', desc:'Semantic embeddings \u2014 768 dimensions', hue:160, count:d.vector_count},
-      {n:'05', name:'CLIP', desc:'Cross-modal embeddings \u2014 512 dimensions', hue:175, count:d.vector_count},
-      {n:'06', name:'YuNet', desc:'Face detection \u2014 ' + fmt(d.face_total) + ' faces found', hue:280, count: sigFD.processed || sigFD.images},
-      {n:'07', name:'YOLOv8n', desc:'Object detection \u2014 ' + fmt(sigOD.rows) + ' objects', hue:265, count: sigOD.processed || sigOD.images},
-      {n:'08', name:'NIMA', desc:'Aesthetic scoring \u2014 avg ' + (d.aesthetic_avg || 0).toFixed(1), hue:340, count:d.aesthetic_count},
-      {n:'09', name:'Depth Anything v2', desc:'Monocular depth estimation', hue:320, count:d.depth_count},
-      {n:'10', name:'Places365', desc:'Scene classification \u2014 365 categories', hue:300, count:d.scene_count},
-      {n:'11', name:'Style Net', desc:'Style classification', hue:285, count:d.style_count},
-      {n:'12', name:'BLIP', desc:'Image captioning', hue:30, count:d.caption_count},
-      {n:'13', name:'EasyOCR', desc:'Text detection \u2014 ' + fmt(d.ocr_texts || 0) + ' regions', hue:45, count:d.ocr_images || 0},
-      {n:'14', name:'Emotions', desc:'Facial emotion recognition', hue:350, count:d.emotion_count || 0},
-      {n:'15', name:'Enhancement', desc:'Camera-aware 6-step editing', hue:190, count:d.enhancement_count},
-      {n:'16', name:'K-means LAB', desc:'Dominant color extraction \u2014 ' + fmt(sigDC.rows) + ' colors', hue:60, count:sigDC.images},
-      {n:'17', name:'EXIF Parser', desc:'Metadata \u2014 ' + fmt(d.exif_gps || 0) + ' GPS coords', hue:200, count:sigEX.images}
+      {n:'01', name:'Gemini 2.5 Pro', tech:'Vertex AI \u00B7 Google Cloud', desc:'Structured per-image analysis: vibes, exposure, composition, grading style, rotation, per-image edit prompts, semantic pops, alt text', count:d.analyzed},
+      {n:'02', name:'Pixel Analysis', tech:'Python \u00B7 Pillow \u00B7 NumPy', desc:'Mean luminance, white balance shift (R/B channels), noise estimation, shadow/highlight clipping %, contrast ratio, estimated color temperature', count:d.pixel_analyzed},
+      {n:'03', name:'DINOv2', tech:'PyTorch \u00B7 Meta FAIR \u00B7 ViT-B/14', desc:'Self-supervised vision transformer. 768-dim embeddings capturing composition, texture, spatial layout. The artistic eye of similarity search', count:d.vector_count},
+      {n:'04', name:'SigLIP', tech:'PyTorch \u00B7 Google \u00B7 ViT-B/16', desc:'Sigmoid-loss image-language pre-training. 768-dim embeddings enabling text-to-image search across the entire collection', count:d.vector_count},
+      {n:'05', name:'CLIP', tech:'PyTorch \u00B7 OpenAI \u00B7 ViT-B/32', desc:'Contrastive language-image pre-training. 512-dim embeddings for cross-modal matching, duplicate detection, subject similarity', count:d.vector_count},
+      {n:'06', name:'YuNet', tech:'OpenCV DNN \u00B7 ONNX \u00B7 C++', desc:'Lightweight face detector. ' + fmt(d.face_total) + ' faces detected across ' + fmt(sigFD.images) + ' images with bounding box coordinates and confidence scores', count: sigFD.processed || sigFD.images},
+      {n:'07', name:'YOLOv8n', tech:'PyTorch \u00B7 Ultralytics \u00B7 COCO', desc:'Real-time object detection. ' + fmt(sigOD.rows) + ' objects detected across 80 COCO classes with bounding boxes and confidence thresholds', count: sigOD.processed || sigOD.images},
+      {n:'08', name:'NIMA', tech:'PyTorch \u00B7 TensorFlow origin \u00B7 MobileNet', desc:'Neural Image Assessment. Aesthetic quality scoring on 1\u201310 scale. Collection avg: ' + (d.aesthetic_avg || 0).toFixed(1) + ', range ' + (d.aesthetic_min || 0).toFixed(1) + '\u2013' + (d.aesthetic_max || 0).toFixed(1), count:d.aesthetic_count},
+      {n:'09', name:'Depth Anything v2', tech:'PyTorch \u00B7 Hugging Face \u00B7 ViT', desc:'Monocular depth estimation. Near/mid/far zone percentages and depth complexity score per image. No stereo pair needed', count:d.depth_count},
+      {n:'10', name:'Places365', tech:'PyTorch \u00B7 MIT CSAIL \u00B7 ResNet-50', desc:'Scene classification across 365 environment categories. Top-3 predictions + indoor/outdoor environment label per image', count:d.scene_count},
+      {n:'11', name:'Style Net', tech:'PyTorch \u00B7 Custom classifier', desc:'Photographic style classification: street, portrait, landscape, architecture, macro, abstract, documentary, still life', count:d.style_count},
+      {n:'12', name:'BLIP', tech:'PyTorch \u00B7 Salesforce \u00B7 ViT+LLM', desc:'Bootstrapped Language-Image Pre-training. Natural language captions generated per image for search and accessibility', count:d.caption_count},
+      {n:'13', name:'EasyOCR', tech:'PyTorch \u00B7 CRAFT + CRNN', desc:'Text detection and recognition. ' + fmt(d.ocr_texts || 0) + ' text regions found across ' + fmt(d.ocr_images || 0) + ' images. English language model on CPU', count:d.ocr_images || 0},
+      {n:'14', name:'Facial Emotions', tech:'PyTorch \u00B7 FER \u00B7 CNN', desc:'Emotion recognition on detected faces. 7 classes: angry, disgust, fear, happy, sad, surprise, neutral', count:d.emotion_count || 0},
+      {n:'15', name:'Enhancement Engine', tech:'Python \u00B7 Pillow \u00B7 Camera-aware', desc:'6-step per-image editing pipeline: white balance, exposure, shadows/highlights, contrast, saturation, sharpening. Parameters derived from pixel analysis + camera body', count:d.enhancement_count},
+      {n:'16', name:'K-means LAB', tech:'Python \u00B7 scikit-learn \u00B7 LAB space', desc:'Dominant color extraction via K-means clustering in perceptually uniform CIELAB space. ' + fmt(sigDC.rows) + ' color clusters with names mapped from nearest CSS4 colors', count:sigDC.images},
+      {n:'17', name:'EXIF Parser', tech:'Python \u00B7 Pillow \u00B7 piexif', desc:'Full metadata extraction: camera body, lens, ISO, shutter speed, aperture, focal length, date/time, GPS coordinates (' + fmt(d.exif_gps || 0) + ' geolocated)', count:sigEX.images}
     ];
     var elHtml = models.map(function(m) {
       var pctVal = d.total > 0 ? (m.count / d.total * 100) : 0;
@@ -2047,9 +1973,10 @@ PAGE_HTML = r"""<!DOCTYPE html>
       var bdg = status === 'done' ? '<span class="el-badge done">\u2713</span>' :
                 status === 'active' ? '<span class="el-badge active">' + pctVal.toFixed(0) + '%</span>' :
                 '<span class="el-badge pending">\u2014</span>';
-      return '<div class="el-card" style="--el-hue:' + m.hue + '">' +
+      return '<div class="el-card">' +
         '<div class="el-num">' + m.n + '</div>' +
         '<div class="el-model">' + m.name + '</div>' +
+        '<div class="el-tech">' + m.tech + '</div>' +
         '<div class="el-desc">' + m.desc + '</div>' +
         '<div class="el-count">' + fmt(m.count) + ' ' + bdg + '</div>' +
         '<div class="el-bar"><div class="el-fill" style="width:' + Math.min(pctVal, 100) + '%"></div></div>' +
