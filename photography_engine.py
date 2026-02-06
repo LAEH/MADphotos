@@ -33,12 +33,13 @@ import mad_database as db
 # ---------------------------------------------------------------------------
 
 BASE_DIR = Path(__file__).resolve().parent
-IMAGE_DIR = BASE_DIR / "rendered" / "originals" / "gemini" / "jpeg"
+IMAGE_DIR = BASE_DIR / "rendered" / "gemini" / "jpeg"
 MANIFEST_PATH = BASE_DIR / "rendered" / "manifest.json"
 
-API_KEY = os.environ.get("GOOGLE_API_KEY")
-if not API_KEY:
-    raise RuntimeError("GOOGLE_API_KEY environment variable is required")
+# Use Vertex AI with Application Default Credentials (same as imagen_engine)
+GCP_PROJECT = os.environ.get("GCP_PROJECT", "madbox-e4a35")
+GCP_LOCATION = os.environ.get("GCP_LOCATION", "us-central1")
+
 MODEL_ID = "gemini-2.5-pro"
 MAX_CONCURRENT = 5
 MAX_RETRIES = 5
@@ -89,6 +90,11 @@ client = None
 
 def find_gemini_jpeg(image_uuid: str, category: str, subcategory: str) -> Optional[Path]:
     """Find the gemini-tier JPEG for analysis."""
+    # Flat layout: rendered/gemini/jpeg/{uuid}.jpg
+    path = IMAGE_DIR / f"{image_uuid}.jpg"
+    if path.exists():
+        return path
+    # Legacy nested layout: rendered/gemini/jpeg/{category}/{subcategory}/{uuid}.jpg
     path = IMAGE_DIR / category / subcategory / f"{image_uuid}.jpg"
     if path.exists():
         return path
@@ -181,7 +187,7 @@ async def analyze_photo(
 
 async def run(args: argparse.Namespace) -> None:
     global client
-    client = genai.Client(api_key=API_KEY)
+    client = genai.Client(vertexai=True, project=GCP_PROJECT, location=GCP_LOCATION)
 
     conn = db.get_connection()
 

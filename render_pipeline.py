@@ -150,31 +150,39 @@ def save_manifest(manifest: dict) -> None:
 def decode_image(abs_path: Path) -> Image.Image:
     ext = abs_path.suffix.lower()
     if ext in RAW_EXTENSIONS:
-        import rawpy
-        raw = rawpy.imread(str(abs_path))
-        rgb = raw.postprocess(
-            use_camera_wb=True,
-            half_size=False,
-            no_auto_bright=True,
-            output_bps=8,
-            output_color=rawpy.ColorSpace.sRGB,
-            dcb_enhance=False,
-            fbdd_noise_reduction=rawpy.FBDDNoiseReductionMode.Off,
-        )
-        raw.close()
-        img = Image.fromarray(rgb)
-        try:
-            with Image.open(abs_path) as probe:
-                exif_orientation = probe.getexif().get(0x0112, 1)
-            img = _apply_orientation(img, exif_orientation)
-        except Exception:
-            pass
-        return img
+        return _decode_raw_sips(abs_path)
     else:
         img = Image.open(abs_path)
         img = ImageOps.exif_transpose(img)
         img.load()
         return img.convert("RGB")
+
+
+def _decode_raw_sips(abs_path: Path) -> Image.Image:
+    """Decode RAW/DNG using macOS sips (Apple's native RAW engine).
+
+    Converts to sRGB color space to avoid Display P3 color cast in JPEGs.
+    """
+    import subprocess
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(suffix=".tiff", delete=False) as tmp:
+        tmp_path = tmp.name
+    try:
+        subprocess.run(
+            ["sips", "-s", "format", "tiff",
+             "-m", "/System/Library/ColorSync/Profiles/sRGB Profile.icc",
+             str(abs_path), "--out", tmp_path],
+            capture_output=True, check=True,
+        )
+        img = Image.open(tmp_path)
+        img.load()
+        return img.convert("RGB")
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
 
 
 def _apply_orientation(img: Image.Image, orientation: int) -> Image.Image:
@@ -212,7 +220,7 @@ def render_tier(img: Image.Image, tier: TierConfig, out_dir: Path,
     outputs = []
 
     # JPEG
-    jpeg_dir = out_dir / tier.name / "jpeg" / category / subcategory
+    jpeg_dir = out_dir / tier.name / "jpeg"
     jpeg_dir.mkdir(parents=True, exist_ok=True)
     jpeg_path = jpeg_dir / f"{file_id}.jpg"
     tier_img.save(jpeg_path, format="JPEG", quality=tier.jpeg_quality,
@@ -226,7 +234,7 @@ def render_tier(img: Image.Image, tier: TierConfig, out_dir: Path,
 
     # WebP
     if tier.webp_quality is not None:
-        webp_dir = out_dir / tier.name / "webp" / category / subcategory
+        webp_dir = out_dir / tier.name / "webp"
         webp_dir.mkdir(parents=True, exist_ok=True)
         webp_path = webp_dir / f"{file_id}.webp"
         tier_img.save(webp_path, format="WEBP", quality=tier.webp_quality,
@@ -352,7 +360,7 @@ def main() -> None:
         output_dir = RENDERED_DIR / "ai_variants" / args.variant_type
     else:
         tiers = ORIGINAL_TIERS
-        output_dir = RENDERED_DIR / "originals"
+        output_dir = RENDERED_DIR
 
     if args.tiers == "variant":
         tiers = VARIANT_TIERS

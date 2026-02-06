@@ -40,8 +40,13 @@ CREATE TABLE IF NOT EXISTS images (
     orientation     TEXT NOT NULL,
     original_size_bytes INTEGER,
     exif_data       TEXT,
+    camera_body     TEXT,
+    film_stock      TEXT,
+    medium          TEXT,
+    is_monochrome   INTEGER DEFAULT 0,
     created_at      TEXT NOT NULL,
-    updated_at      TEXT NOT NULL
+    updated_at      TEXT NOT NULL,
+    curated_status  TEXT DEFAULT 'pending'
 );
 
 -- All rendered tiers (originals AND AI variants)
@@ -136,7 +141,168 @@ CREATE INDEX IF NOT EXISTS idx_tiers_gcs ON tiers(gcs_url);
 CREATE INDEX IF NOT EXISTS idx_variants_image ON ai_variants(image_uuid);
 CREATE INDEX IF NOT EXISTS idx_variants_type ON ai_variants(variant_type);
 CREATE INDEX IF NOT EXISTS idx_variants_status ON ai_variants(generation_status);
+
+-- Location intelligence (GPS, manual tags, propagated suggestions)
+CREATE TABLE IF NOT EXISTS image_locations (
+    image_uuid      TEXT PRIMARY KEY REFERENCES images(uuid),
+    location_name   TEXT,
+    latitude        REAL,
+    longitude       REAL,
+    source          TEXT,  -- 'gps_exif' / 'user_manual' / 'propagated'
+    confidence      REAL,
+    propagated_from TEXT,
+    accepted        INTEGER DEFAULT 0,
+    created_at      TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_locations_name ON image_locations(location_name);
+CREATE INDEX IF NOT EXISTS idx_locations_source ON image_locations(source);
+
+-- Per-image enhancement recipes (computed from pixel analysis + camera profile)
+CREATE TABLE IF NOT EXISTS enhancement_plans (
+    image_uuid          TEXT PRIMARY KEY,
+    version             INTEGER DEFAULT 1,
+    camera_body         TEXT,
+    plan_json           TEXT,
+    -- Key parameters (queryable)
+    wb_correction_r     REAL,
+    wb_correction_b     REAL,
+    gamma               REAL,
+    shadow_lift          REAL,
+    highlight_pull       REAL,
+    contrast_strength    REAL,
+    saturation_scale     REAL,
+    sharpen_radius       REAL,
+    sharpen_percent      REAL,
+    -- Execution tracking
+    status              TEXT DEFAULT 'planned',
+    source_tier         TEXT DEFAULT 'display',
+    output_path         TEXT,
+    -- Pre/post metrics for comparison
+    pre_brightness      REAL,
+    post_brightness     REAL,
+    pre_wb_shift_r      REAL,
+    post_wb_shift_r     REAL,
+    pre_contrast        REAL,
+    post_contrast       REAL,
+    -- Timestamps
+    planned_at          TEXT,
+    enhanced_at         TEXT,
+    reviewed_at         TEXT,
+    FOREIGN KEY (image_uuid) REFERENCES images(uuid)
+);
+CREATE INDEX IF NOT EXISTS idx_enhance_status ON enhancement_plans(status);
+CREATE INDEX IF NOT EXISTS idx_enhance_camera ON enhancement_plans(camera_body);
+
+-- V2 signal-aware enhancement recipes (uses depth, scene, style, Gemini, faces)
+CREATE TABLE IF NOT EXISTS enhancement_plans_v2 (
+    image_uuid          TEXT PRIMARY KEY,
+    camera_body         TEXT,
+    plan_json           TEXT,
+    -- Key parameters
+    wb_correction_r     REAL,
+    wb_correction_b     REAL,
+    gamma               REAL,
+    shadow_lift          REAL,
+    highlight_pull       REAL,
+    contrast_strength    REAL,
+    saturation_scale     REAL,
+    sharpen_radius       REAL,
+    sharpen_percent      REAL,
+    -- Signal-specific adjustments
+    depth_adjustment     TEXT,
+    scene_adjustment     TEXT,
+    style_adjustment     TEXT,
+    vibe_adjustment      TEXT,
+    face_adjustment      TEXT,
+    -- Execution tracking
+    status              TEXT DEFAULT 'planned',
+    source_tier         TEXT DEFAULT 'display',
+    output_path         TEXT,
+    -- Pre/post metrics
+    pre_brightness      REAL,
+    post_brightness     REAL,
+    pre_wb_shift_r      REAL,
+    post_wb_shift_r     REAL,
+    pre_contrast        REAL,
+    post_contrast       REAL,
+    -- Timestamps
+    planned_at          TEXT,
+    enhanced_at         TEXT,
+    FOREIGN KEY (image_uuid) REFERENCES images(uuid)
+);
+CREATE INDEX IF NOT EXISTS idx_enhance_v2_status ON enhancement_plans_v2(status);
+
+-- Programmatic image analysis (pixel-level metrics for auto-enhance)
+CREATE TABLE IF NOT EXISTS image_analysis (
+    image_uuid          TEXT PRIMARY KEY REFERENCES images(uuid),
+    mean_brightness     REAL,
+    std_brightness      REAL,
+    clip_low_pct        REAL,
+    clip_high_pct       REAL,
+    dynamic_range       REAL,
+    mean_saturation     REAL,
+    std_saturation      REAL,
+    mean_r              REAL,
+    mean_g              REAL,
+    mean_b              REAL,
+    wb_shift_r          REAL,
+    wb_shift_b          REAL,
+    color_cast          TEXT,
+    contrast_ratio      REAL,
+    noise_estimate      REAL,
+    dominant_hue        INTEGER,
+    is_low_key          INTEGER DEFAULT 0,
+    is_high_key         INTEGER DEFAULT 0,
+    shadow_pct          REAL,
+    midtone_pct         REAL,
+    highlight_pct       REAL,
+    shadow_mean         REAL,
+    midtone_mean        REAL,
+    highlight_mean      REAL,
+    est_color_temp      INTEGER,
+    shadow_wb_r         REAL,
+    shadow_wb_b         REAL,
+    highlight_wb_r      REAL,
+    highlight_wb_b      REAL,
+    histogram_json      TEXT,
+    analyzed_at         TEXT NOT NULL
+);
 """
+
+
+# ---------------------------------------------------------------------------
+# Migrations for existing databases
+# ---------------------------------------------------------------------------
+
+_MIGRATIONS = [
+    # v2: camera metadata on images table
+    ("images", "camera_body", "ALTER TABLE images ADD COLUMN camera_body TEXT"),
+    ("images", "film_stock", "ALTER TABLE images ADD COLUMN film_stock TEXT"),
+    ("images", "medium", "ALTER TABLE images ADD COLUMN medium TEXT"),
+    ("images", "is_monochrome", "ALTER TABLE images ADD COLUMN is_monochrome INTEGER DEFAULT 0"),
+    ("images", "curated_status", "ALTER TABLE images ADD COLUMN curated_status TEXT DEFAULT 'pending'"),
+    # v3: enriched image_analysis columns
+    ("image_analysis", "shadow_pct", "ALTER TABLE image_analysis ADD COLUMN shadow_pct REAL"),
+    ("image_analysis", "midtone_pct", "ALTER TABLE image_analysis ADD COLUMN midtone_pct REAL"),
+    ("image_analysis", "highlight_pct", "ALTER TABLE image_analysis ADD COLUMN highlight_pct REAL"),
+    ("image_analysis", "shadow_mean", "ALTER TABLE image_analysis ADD COLUMN shadow_mean REAL"),
+    ("image_analysis", "midtone_mean", "ALTER TABLE image_analysis ADD COLUMN midtone_mean REAL"),
+    ("image_analysis", "highlight_mean", "ALTER TABLE image_analysis ADD COLUMN highlight_mean REAL"),
+    ("image_analysis", "est_color_temp", "ALTER TABLE image_analysis ADD COLUMN est_color_temp INTEGER"),
+    ("image_analysis", "shadow_wb_r", "ALTER TABLE image_analysis ADD COLUMN shadow_wb_r REAL"),
+    ("image_analysis", "shadow_wb_b", "ALTER TABLE image_analysis ADD COLUMN shadow_wb_b REAL"),
+    ("image_analysis", "highlight_wb_r", "ALTER TABLE image_analysis ADD COLUMN highlight_wb_r REAL"),
+    ("image_analysis", "highlight_wb_b", "ALTER TABLE image_analysis ADD COLUMN highlight_wb_b REAL"),
+]
+
+
+def _run_migrations(conn: sqlite3.Connection) -> None:
+    """Add columns that don't exist yet (safe to run repeatedly)."""
+    for table, column, sql in _MIGRATIONS:
+        existing = {r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+        if column not in existing:
+            conn.execute(sql)
+    conn.commit()
 
 
 # ---------------------------------------------------------------------------
@@ -146,10 +312,12 @@ CREATE INDEX IF NOT EXISTS idx_variants_status ON ai_variants(generation_status)
 def get_connection(db_path: Optional[Path] = None) -> sqlite3.Connection:
     """Open (and initialize if needed) the database."""
     path = db_path or DB_PATH
-    conn = sqlite3.connect(str(path))
+    conn = sqlite3.connect(str(path), timeout=30)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
     # Run schema creation (IF NOT EXISTS makes it safe to run every time)
     conn.executescript(_SCHEMA_SQL)
+    _run_migrations(conn)
     # Ensure version row
     cur = conn.execute("SELECT version FROM schema_version LIMIT 1")
     if cur.fetchone() is None:
@@ -198,6 +366,48 @@ def upsert_image(conn: sqlite3.Connection, *, uuid: str, original_path: str,
           source_format, width, height, aspect, orientation,
           original_size_bytes, exif_data, now, now))
     conn.commit()
+
+
+# Camera metadata mapping: category/subcategory → (camera_body, film_stock, medium)
+CAMERA_MAP = {
+    ("Analog", None):       ("Leica MP", "Kodak Portra 400 VC", "scanned_film"),
+    ("Digital", None):      ("Leica M8", None, "digital"),
+    ("G12", None):          ("Canon G12", None, "digital"),
+    ("Monochrome", None):   ("Leica Monochrom", None, "digital"),
+    ("Osmo", "OsmoPro"):    ("DJI Osmo Pro", None, "digital"),
+    ("Osmo", "OsmoMemo"):   ("DJI Osmo Memo", None, "digital"),
+}
+
+
+def populate_camera_metadata(conn: sqlite3.Connection) -> int:
+    """Fill camera_body, film_stock, medium, is_monochrome from category mapping."""
+    updated = 0
+    for (cat, sub), (camera, film, medium) in CAMERA_MAP.items():
+        if sub:
+            where = "category = ? AND subcategory = ?"
+            params = [camera, film, medium, cat, sub]
+        else:
+            where = "category = ?"
+            params = [camera, film, medium, cat]
+        cur = conn.execute(f"""
+            UPDATE images SET camera_body = ?, film_stock = ?, medium = ?
+            WHERE {where} AND camera_body IS NULL
+        """, params)
+        updated += cur.rowcount
+
+    # Monochrome category: always monochrome (Leica Monochrom sensor)
+    conn.execute("UPDATE images SET is_monochrome = 1 WHERE category = 'Monochrome'")
+
+    # Analog monochrome: detect from Gemini grading_style or leave for pixel analysis
+    conn.execute("""
+        UPDATE images SET is_monochrome = 1, film_stock = 'Monochrome Film'
+        WHERE category = 'Analog' AND uuid IN (
+            SELECT image_uuid FROM gemini_analysis WHERE grading_style = 'Monochrome'
+        )
+    """)
+
+    conn.commit()
+    return updated
 
 
 def get_all_image_uuids(conn: sqlite3.Connection) -> set:

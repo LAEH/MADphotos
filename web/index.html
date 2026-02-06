@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MADphotos</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header id="header">
+        <div class="header-left">
+            <h1 class="logo">MADphotos</h1>
+            <span class="photo-count" id="photo-count"></span>
+        </div>
+        <nav class="tabs">
+            <button class="tab active" data-view="grille">La Grille</button>
+            <button class="tab" data-view="derive">La Dérive</button>
+            <button class="tab" data-view="couleurs">Les Couleurs</button>
+        </nav>
+    </header>
+
+    <main id="main">
+        <section id="view-grille" class="view active"></section>
+        <section id="view-derive" class="view"></section>
+        <section id="view-couleurs" class="view"></section>
+    </main>
+
+    <!-- Lightbox overlay -->
+    <div id="lightbox" class="lightbox hidden">
+        <div class="lightbox-backdrop"></div>
+        <div class="lightbox-content">
+            <button class="lightbox-close">&times;</button>
+            <img class="lightbox-img" src="" alt="">
+            <div class="lightbox-meta">
+                <p class="lightbox-alt"></p>
+                <div class="lightbox-tags"></div>
+                <div class="lightbox-palette"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script src="grid.js"></script>
+    <script src="drift.js"></script>
+    <script src="colors.js"></script>
+</body>
+</html>
