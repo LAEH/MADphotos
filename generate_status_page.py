@@ -523,12 +523,17 @@ def get_stats():
 
     # ── Advanced signal counts (OCR, captions, emotions, style) ─
     style_count = 0
+    top_styles = []  # type: list
     ocr_images = 0
     ocr_texts = 0
     caption_count = 0
     emotion_count = 0
+    top_emotions = []  # type: list
+    aspect_ratios = []  # type: list
     try:
         style_count = conn.execute("SELECT COUNT(*) FROM style_classification").fetchone()[0]
+        top_styles = [{"name": r[0], "count": r[1]} for r in conn.execute(
+            "SELECT style, COUNT(*) FROM style_classification GROUP BY style ORDER BY COUNT(*) DESC LIMIT 12").fetchall()]
     except Exception:
         pass
     try:
@@ -542,6 +547,24 @@ def get_stats():
         pass
     try:
         emotion_count = conn.execute("SELECT COUNT(DISTINCT image_uuid) FROM facial_emotions").fetchone()[0]
+        top_emotions = [{"name": r[0], "count": r[1]} for r in conn.execute(
+            "SELECT dominant_emotion, COUNT(*) FROM facial_emotions GROUP BY dominant_emotion ORDER BY COUNT(*) DESC").fetchall()]
+    except Exception:
+        pass
+    try:
+        ratio_rows = conn.execute("""
+            SELECT
+                CASE
+                    WHEN CAST(pixel_width AS REAL) / NULLIF(pixel_height, 0) > 1.1 THEN 'Landscape'
+                    WHEN CAST(pixel_width AS REAL) / NULLIF(pixel_height, 0) < 0.9 THEN 'Portrait'
+                    ELSE 'Square'
+                END AS ratio_type,
+                COUNT(*) as cnt
+            FROM exif_metadata
+            WHERE pixel_width > 0 AND pixel_height > 0
+            GROUP BY ratio_type ORDER BY cnt DESC
+        """).fetchall()
+        aspect_ratios = [{"name": r[0], "count": r[1]} for r in ratio_rows]
     except Exception:
         pass
 
@@ -650,10 +673,13 @@ def get_stats():
         "location_sources": location_sources,
         "location_accepted": location_accepted,
         "style_count": style_count,
+        "top_styles": top_styles,
         "ocr_images": ocr_images,
         "ocr_texts": ocr_texts,
         "caption_count": caption_count,
         "emotion_count": emotion_count,
+        "top_emotions": top_emotions,
+        "aspect_ratios": aspect_ratios,
         "models_complete": models_complete,
         "total_signals": total_signals,
     }
@@ -1351,32 +1377,74 @@ PAGE_HTML = r"""<!DOCTYPE html>
   .tag .tag-label { font-weight: 500; color: var(--fg-secondary); text-transform: capitalize; }
   .tag .tag-count {
     font-weight: 400;
-    color: var(--muted);
     font-size: 10px;
     font-variant-numeric: tabular-nums;
   }
-  /* Category-themed tags */
+  /* Category-themed tags — icon, label, AND count all tinted */
   .tag-cat-vibe { border-color: color-mix(in srgb, var(--apple-orange) 30%, transparent); }
   .tag-cat-vibe .tag-label { color: var(--apple-orange); }
   .tag-cat-vibe .tag-icon svg { color: var(--apple-orange); }
+  .tag-cat-vibe .tag-count { color: color-mix(in srgb, var(--apple-orange) 60%, var(--muted)); }
+
   .tag-cat-grading { border-color: color-mix(in srgb, var(--apple-blue) 30%, transparent); }
   .tag-cat-grading .tag-label { color: var(--apple-blue); }
   .tag-cat-grading .tag-icon svg { color: var(--apple-blue); }
+  .tag-cat-grading .tag-count { color: color-mix(in srgb, var(--apple-blue) 60%, var(--muted)); }
+
   .tag-cat-time { border-color: color-mix(in srgb, #d4a017 30%, transparent); }
   .tag-cat-time .tag-label { color: #d4a017; }
   .tag-cat-time .tag-icon svg { color: #d4a017; }
+  .tag-cat-time .tag-count { color: color-mix(in srgb, #d4a017 60%, var(--muted)); }
+
   .tag-cat-setting { border-color: color-mix(in srgb, var(--apple-green) 30%, transparent); }
   .tag-cat-setting .tag-label { color: var(--apple-green); }
   .tag-cat-setting .tag-icon svg { color: var(--apple-green); }
+  .tag-cat-setting .tag-count { color: color-mix(in srgb, var(--apple-green) 60%, var(--muted)); }
+
   .tag-cat-exposure { border-color: color-mix(in srgb, var(--apple-teal) 25%, transparent); }
   .tag-cat-exposure .tag-label { color: var(--apple-teal); }
   .tag-cat-exposure .tag-icon svg { color: var(--apple-teal); }
+  .tag-cat-exposure .tag-count { color: color-mix(in srgb, var(--apple-teal) 60%, var(--muted)); }
+
   .tag-cat-composition { border-color: color-mix(in srgb, var(--apple-purple) 25%, transparent); }
   .tag-cat-composition .tag-label { color: var(--apple-purple); }
   .tag-cat-composition .tag-icon svg { color: var(--apple-purple); }
+  .tag-cat-composition .tag-count { color: color-mix(in srgb, var(--apple-purple) 60%, var(--muted)); }
+
   .tag-cat-camera { border-color: color-mix(in srgb, #98989d 30%, transparent); }
   .tag-cat-camera .tag-label { color: #98989d; }
   .tag-cat-camera .tag-icon svg { color: #98989d; }
+  .tag-cat-camera .tag-count { color: color-mix(in srgb, #98989d 60%, var(--muted)); }
+
+  .tag-cat-depth { border-color: color-mix(in srgb, var(--apple-indigo) 30%, transparent); }
+  .tag-cat-depth .tag-label { color: var(--apple-indigo); }
+  .tag-cat-depth .tag-icon svg { color: var(--apple-indigo); }
+  .tag-cat-depth .tag-count { color: color-mix(in srgb, var(--apple-indigo) 60%, var(--muted)); }
+
+  .tag-cat-scene { border-color: color-mix(in srgb, var(--apple-teal) 25%, transparent); }
+  .tag-cat-scene .tag-label { color: var(--apple-teal); }
+  .tag-cat-scene .tag-icon svg { color: var(--apple-teal); }
+  .tag-cat-scene .tag-count { color: color-mix(in srgb, var(--apple-teal) 60%, var(--muted)); }
+
+  .tag-cat-style { border-color: color-mix(in srgb, var(--apple-purple) 25%, transparent); }
+  .tag-cat-style .tag-label { color: var(--apple-purple); }
+  .tag-cat-style .tag-icon svg { color: var(--apple-purple); }
+  .tag-cat-style .tag-count { color: color-mix(in srgb, var(--apple-purple) 60%, var(--muted)); }
+
+  .tag-cat-emotion { border-color: color-mix(in srgb, var(--apple-pink) 25%, transparent); }
+  .tag-cat-emotion .tag-label { color: var(--apple-pink); }
+  .tag-cat-emotion .tag-icon svg { color: var(--apple-pink); }
+  .tag-cat-emotion .tag-count { color: color-mix(in srgb, var(--apple-pink) 60%, var(--muted)); }
+
+  .tag-cat-object { border-color: color-mix(in srgb, var(--apple-green) 25%, transparent); }
+  .tag-cat-object .tag-label { color: var(--apple-green); }
+  .tag-cat-object .tag-icon svg { color: var(--apple-green); }
+  .tag-cat-object .tag-count { color: color-mix(in srgb, var(--apple-green) 60%, var(--muted)); }
+
+  .tag-cat-enhance { border-color: color-mix(in srgb, var(--apple-blue) 25%, transparent); }
+  .tag-cat-enhance .tag-label { color: var(--apple-blue); }
+  .tag-cat-enhance .tag-icon svg { color: var(--apple-blue); }
+  .tag-cat-enhance .tag-count { color: color-mix(in srgb, var(--apple-blue) 60%, var(--muted)); }
 
   /* Color dot inside tags (for dominant colors) */
   .tag .tag-cdot {
@@ -1566,8 +1634,9 @@ PAGE_HTML = r"""<!DOCTYPE html>
     <a href="#sec-cameras">Camera Fleet</a>
     <a href="#sec-advanced">Advanced Signals</a>
     <a href="#sec-pixel">Pixel Analysis</a>
-    <a href="#sec-vectors">Vector Store</a>
     <a href="#sec-insights">Gemini Insights</a>
+    <a href="#sec-vectors">Vector Store</a>
+    <a href="#sec-all-signals">All Signals</a>
     <a href="#sec-categories">Categories</a>
     <a href="#sec-tiers">Render Tiers</a>
     <a href="#sec-storage">Storage</a>
@@ -1630,16 +1699,7 @@ PAGE_HTML = r"""<!DOCTYPE html>
       <div style="font-size:var(--text-sm);color:var(--muted);margin-bottom:var(--space-2);">
         <span id="depth-count"></span> images analyzed
       </div>
-      <div class="depth-bar" id="depth-bar">
-        <div class="db-near" id="db-near" style="width:33%">Near</div>
-        <div class="db-mid" id="db-mid" style="width:33%">Mid</div>
-        <div class="db-far" id="db-far" style="width:34%">Far</div>
-      </div>
-      <div class="depth-legend">
-        <span class="dl-near">Near</span>
-        <span class="dl-mid">Mid-range</span>
-        <span class="dl-far">Far</span>
-      </div>
+      <div id="pills-depth-zones" class="tag-row"></div>
       <div class="subsection-title" style="margin-top:var(--space-3);">Complexity</div>
       <div id="pills-depth" class="tag-row"></div>
     </div>
@@ -1692,29 +1752,6 @@ PAGE_HTML = r"""<!DOCTYPE html>
   </div>
 </div>
 
-<!-- ═══ VECTOR STORE ═══ -->
-<div class="section" id="sec-vectors">
-  <div class="section-title">Vector Store</div>
-  <div id="vector-info" style="font-size:var(--text-sm);color:var(--muted);margin-bottom:var(--space-3);"></div>
-  <div class="model-cards">
-    <div class="model-card">
-      <div class="mc-name">DINOv2</div>
-      <div class="mc-dim">768 dimensions</div>
-      <div class="mc-desc">Self-supervised vision transformer. Sees composition, texture, spatial layout. The artistic eye.</div>
-    </div>
-    <div class="model-card">
-      <div class="mc-name">SigLIP</div>
-      <div class="mc-dim">768 dimensions</div>
-      <div class="mc-desc">Multimodal image-text model. Sees meaning, enables text search. The semantic brain.</div>
-    </div>
-    <div class="model-card">
-      <div class="mc-name">CLIP</div>
-      <div class="mc-dim">512 dimensions</div>
-      <div class="mc-desc">Subject matching model. Finds duplicates and similar scenes. The pattern matcher.</div>
-    </div>
-  </div>
-</div>
-
 <!-- ═══ GEMINI INSIGHTS ═══ -->
 <div class="section" id="sec-insights">
   <div class="section-title">Gemini Insights</div>
@@ -1752,16 +1789,60 @@ PAGE_HTML = r"""<!DOCTYPE html>
   </div>
 </div>
 
-<!-- ═══ CATEGORIES / SUBCATEGORIES ═══ -->
-<div class="section two-col" id="sec-categories">
-  <div>
-    <div class="subsection-title">Categories</div>
-    <div id="pills-cats" class="tag-row"></div>
+<!-- ═══ VECTOR STORE ═══ -->
+<div class="section" id="sec-vectors">
+  <div class="section-title">Vector Store</div>
+  <div id="vector-info" style="font-size:var(--text-sm);color:var(--muted);margin-bottom:var(--space-3);"></div>
+  <div class="model-cards">
+    <div class="model-card">
+      <div class="mc-name">DINOv2</div>
+      <div class="mc-dim">768 dimensions</div>
+      <div class="mc-desc">Self-supervised vision transformer. Sees composition, texture, spatial layout. The artistic eye.</div>
+    </div>
+    <div class="model-card">
+      <div class="mc-name">SigLIP</div>
+      <div class="mc-dim">768 dimensions</div>
+      <div class="mc-desc">Multimodal image-text model. Sees meaning, enables text search. The semantic brain.</div>
+    </div>
+    <div class="model-card">
+      <div class="mc-name">CLIP</div>
+      <div class="mc-dim">512 dimensions</div>
+      <div class="mc-desc">Subject matching model. Finds duplicates and similar scenes. The pattern matcher.</div>
+    </div>
   </div>
-  <div>
-    <div class="subsection-title">By Camera</div>
-    <div id="pills-subs" class="tag-row"></div>
+</div>
+
+<!-- ═══ ALL SIGNALS (Tags) ═══ -->
+<div class="section" id="sec-all-signals">
+  <div class="section-title">All Signal Tags</div>
+  <div class="two-col">
+    <div>
+      <div class="subsection-title">Style Classification</div>
+      <div id="pills-styles" class="tag-row"></div>
+    </div>
+    <div>
+      <div class="subsection-title">Top Objects</div>
+      <div id="pills-objects" class="tag-row"></div>
+    </div>
   </div>
+  <div class="two-col" style="margin-top:var(--space-4);">
+    <div>
+      <div class="subsection-title">Facial Emotions</div>
+      <div id="pills-emotions" class="tag-row"></div>
+    </div>
+    <div>
+      <div class="subsection-title">Dominant Colors</div>
+      <div id="pills-topcolors" class="tag-row"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CATEGORIES ═══ -->
+<div class="section" id="sec-categories">
+  <div class="subsection-title">By Camera</div>
+  <div id="pills-subs" class="tag-row"></div>
+  <div class="subsection-title" style="margin-top:var(--space-3);">Aspect Ratio</div>
+  <div id="pills-ratios" class="tag-row"></div>
 </div>
 
 <!-- ═══ RENDER TIERS ═══ -->
@@ -1989,35 +2070,32 @@ PAGE_HTML = r"""<!DOCTYPE html>
     /* Signal extraction table removed — data shown in model cards */
 
     /* ── Advanced Signals ── */
-    /* Depth */
+    /* Depth — zones as tags, not bar chart */
     el("depth-count").textContent = fmt(d.depth_count);
-    if (d.depth_avg_near || d.depth_avg_mid || d.depth_avg_far) {
-      el("db-near").style.width = d.depth_avg_near + "%";
-      el("db-near").textContent = d.depth_avg_near + "%";
-      el("db-mid").style.width = d.depth_avg_mid + "%";
-      el("db-mid").textContent = d.depth_avg_mid + "%";
-      el("db-far").style.width = d.depth_avg_far + "%";
-      el("db-far").textContent = d.depth_avg_far + "%";
-    }
-    tags(d.depth_complexity_buckets, 'pills-depth', 'depth');
+    var depthZones = [];
+    if (d.depth_avg_near) depthZones.push({name: 'Near ' + d.depth_avg_near + '%', count: d.depth_count});
+    if (d.depth_avg_mid) depthZones.push({name: 'Mid-Range ' + d.depth_avg_mid + '%', count: d.depth_count});
+    if (d.depth_avg_far) depthZones.push({name: 'Far ' + d.depth_avg_far + '%', count: d.depth_count});
+    tags(depthZones, 'pills-depth-zones', 'depth', 'depth');
+    tags(d.depth_complexity_buckets, 'pills-depth', 'depth', 'depth');
 
     /* Scenes */
     el("scene-count").textContent = fmt(d.scene_count);
-    tags(d.top_scenes, 'pills-scenes', 'scene');
-    tags(d.scene_environments, 'pills-environments', 'home');
+    tags(d.top_scenes, 'pills-scenes', 'scene', 'scene');
+    tags(d.scene_environments, 'pills-environments', 'home', 'scene');
 
     /* Enhancement */
     el("enhance-count").textContent = fmt(d.enhancement_count);
-    tags(d.enhancement_cameras, 'pills-enhance', 'camera');
+    tags(d.enhancement_cameras, 'pills-enhance', 'camera', 'enhance');
 
     /* Locations */
     el("location-count").textContent = fmt(d.location_count);
     el("exif-gps-count").textContent = fmt(d.exif_gps);
-    tags(d.location_sources, 'pills-locations', 'pin');
+    tags(d.location_sources, 'pills-locations', 'pin', 'setting');
 
     /* ── Pixel analysis — HF-style tags ── */
-    tags(d.color_cast, 'pills-cast', 'palette');
-    tags(d.color_temp, 'pills-temp', 'sun');
+    tags(d.color_cast, 'pills-cast', 'palette', 'exposure');
+    tags(d.color_temp, 'pills-temp', 'sun', 'time');
 
     /* ── Vector store ── */
     el("vector-info").innerHTML =
@@ -2036,8 +2114,14 @@ PAGE_HTML = r"""<!DOCTYPE html>
     tags(d.rotate_stats.map(function(r) { return {name: r.value, count: r.count}; }), "pills-rotate", "rotate");
 
     /* ── Categories ── */
-    tags(d.categories, "pills-cats", "camera", "camera");
     tags(d.subcategories, "pills-subs", "film", "camera");
+    tags(d.aspect_ratios || [], "pills-ratios", "frame", "composition");
+
+    /* ── All signal tags ── */
+    tags(d.top_styles || [], "pills-styles", "sparkle", "style");
+    tags(d.top_objects || [], "pills-objects", "eye", "object");
+    tags(d.top_emotions || [], "pills-emotions", "sparkle", "emotion");
+    colorTags(d.top_color_names || [], "pills-topcolors");
 
     /* ── Render tiers ── */
     el("tbl-tiers").innerHTML = d.tiers.map(function(t) {
