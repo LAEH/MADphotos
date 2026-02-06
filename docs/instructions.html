@@ -190,220 +190,240 @@
   </div>
 </nav>
 <div class="main-content">
-<h1>System Instructions</h1>
-<p style="font-size:var(--text-sm);color:var(--muted);margin-bottom:var(--space-6);">
-  Everything an AI assistant needs to know to work on this project effectively.
-</p>
+<style>
+  .inst-hero { text-align: center; margin-bottom: var(--space-8); padding: var(--space-8) 0 var(--space-4); }
+  .inst-hero h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; margin: 0; }
+  .inst-hero p { font-size: var(--text-sm); color: var(--muted); margin-top: var(--space-2); }
+  .inst-card {
+    background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    padding: var(--space-5) var(--space-6); margin-bottom: var(--space-4);
+    transition: border-color var(--duration-fast) var(--ease-default);
+  }
+  .inst-card:hover { border-color: var(--border-strong); }
+  .inst-card.inst-accent {
+    border-color: var(--apple-indigo);
+    background: linear-gradient(135deg, var(--card-bg) 0%, rgba(88,86,214,0.05) 100%);
+  }
+  .inst-card.inst-creative {
+    border-color: var(--apple-pink);
+    background: linear-gradient(135deg, var(--card-bg) 0%, rgba(255,55,95,0.04) 100%);
+  }
+  .inst-card.inst-status {
+    border-color: var(--apple-green);
+    background: linear-gradient(135deg, var(--card-bg) 0%, rgba(52,199,89,0.04) 100%);
+  }
+  .inst-card h2 { font-size: 16px; font-weight: 700; margin: 0 0 var(--space-3); letter-spacing: -0.01em; }
+  .inst-card h3 { font-size: 13px; font-weight: 600; margin: var(--space-4) 0 var(--space-2); color: var(--fg); }
+  .inst-card p, .inst-card li { font-size: var(--text-sm); color: var(--fg-secondary); line-height: var(--leading-relaxed); }
+  .inst-card ul { list-style: none; padding: 0; margin: var(--space-2) 0; }
+  .inst-card li { padding: var(--space-1) 0 var(--space-1) var(--space-4); position: relative; }
+  .inst-card li::before { content: "\2014"; position: absolute; left: 0; color: var(--muted); }
+  .inst-card table { width: 100%; border-collapse: collapse; font-size: var(--text-xs); margin: var(--space-2) 0; }
+  .inst-card th, .inst-card td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+  .inst-card th { font-weight: 600; color: var(--fg); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .inst-card code { font-family: var(--font-mono); font-size: 0.88em; color: var(--apple-blue); }
+  .inst-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+  @media (max-width: 900px) { .inst-grid { grid-template-columns: 1fr; } }
+  .inst-pill {
+    display: inline-block; font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.05em; padding: 2px 8px; border-radius: var(--radius-full);
+    margin-bottom: var(--space-2);
+  }
+  .inst-pill-indigo { color: var(--apple-indigo); background: color-mix(in srgb, var(--apple-indigo) 12%, transparent); }
+  .inst-pill-pink { color: var(--apple-pink); background: color-mix(in srgb, var(--apple-pink) 12%, transparent); }
+  .inst-pill-green { color: var(--apple-green); background: color-mix(in srgb, var(--apple-green) 12%, transparent); }
+  .inst-pill-blue { color: var(--apple-blue); background: color-mix(in srgb, var(--apple-blue) 12%, transparent); }
+  .inst-pill-orange { color: var(--apple-orange); background: color-mix(in srgb, var(--apple-orange) 12%, transparent); }
+  .inst-pill-teal { color: var(--apple-teal); background: color-mix(in srgb, var(--apple-teal) 12%, transparent); }
+  .app-trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); margin: var(--space-3) 0; }
+  .app-box { background: var(--hover-overlay); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); }
+  .app-box strong { display: block; font-size: 14px; margin-bottom: 4px; }
+  .app-box p { font-size: 12px; margin: 0; color: var(--muted); line-height: 1.5; }
+  @media (max-width: 700px) { .app-trio { grid-template-columns: 1fr; } }
+</style>
 
-<div style="background: linear-gradient(135deg, var(--card-bg) 0%, rgba(88,86,214,0.06) 100%);
-            border: 1px solid var(--apple-indigo); border-radius: var(--radius-lg);
-            padding: var(--space-6); margin-bottom: var(--space-8);">
+<div class="inst-hero">
+  <h1>System Instructions</h1>
+  <p>Everything needed to work on MADphotos effectively. Updated 2026-02-06.</p>
+</div>
 
-<h2 style="margin-top:0;">Project Briefing</h2>
-<p>This is <strong>MADphotos</strong> &mdash; a solo art project by <strong>LAEH</strong> to take 9,011 unedited photographs
-shot over a decade with five cameras and turn them into the most richly-understood image collection ever built.
-Every image gets every possible signal (AI analysis, pixel metrics, vector embeddings, depth, scenes, objects, faces, emotions, captions, OCR, colors, hashes, aesthetic scores). Then camera-aware enhancement. Then human curation. Then a public gallery that only shows the accepted best.</p>
+<!-- ═══ PROJECT BRIEFING ═══ -->
+<div class="inst-card inst-accent">
+  <span class="inst-pill inst-pill-indigo">Briefing</span>
+  <h2>MADphotos</h2>
+  <p>A solo art project by <strong>LAEH</strong>. 9,011 unedited photographs shot over a decade with five cameras, turned into the most richly-understood image collection ever built. Every image gets every possible signal. Then camera-aware enhancement. Then human curation. Then a public gallery that only shows the accepted best.</p>
 
-<h3>The Three Apps</h3>
-<ul>
-  <li><strong>See</strong> (MADCurator) &mdash; Native SwiftUI macOS app. The private power tool. 55 data fields per image, 18 filter dimensions, faceted search with boolean logic, Keep/Reject workflow. The human decides what&rsquo;s worth showing.</li>
-  <li><strong>Show</strong> &mdash; Public web gallery. 14 experiences: La Grille (filter grid), Le Bento (algorithmic mosaic), La Similarit&eacute; (semantic neighbors), La D&eacute;rive (structural drift), Les Couleurs (color space), Le Terrain de Jeu (connection game), Le Flot (curated stream), La Chambre Noire (signal layers), Les Visages (face exploration), La Boussole (4-axis compass), L&rsquo;Observatoire (data panels), La Carte (GPS map), La Machine &agrave; &Eacute;crire (text search), Le Pendule (taste test).</li>
-  <li><strong>State</strong> &mdash; This dashboard. Live system monitoring, Journal de Bord, signal inventory. The control room.</li>
-</ul>
+  <div class="app-trio">
+    <div class="app-box">
+      <strong>See</strong>
+      <p>MADCurator &mdash; native SwiftUI app. 55 fields, 18 filters, Keep/Reject workflow. The human decides.</p>
+    </div>
+    <div class="app-box">
+      <strong>Show</strong>
+      <p>Web gallery. 14 experiences: Grille, Bento, Similarit&eacute;, D&eacute;rive, Couleurs, Terrain de Jeu, Flot, Chambre Noire, Visages, Boussole, Observatoire, Carte, Machine &agrave; &Eacute;crire, Pendule.</p>
+    </div>
+    <div class="app-box">
+      <strong>State</strong>
+      <p>This dashboard. Live system monitoring, Journal de Bord, signal inventory. The control room.</p>
+    </div>
+  </div>
+</div>
 
-<h3>The Five Cameras</h3>
-<table>
-  <thead><tr><th>Camera</th><th>Type</th><th>Count</th><th>Key Characteristics</th></tr></thead>
-  <tbody>
-    <tr><td>Leica M8</td><td>Digital CCD</td><td>3,533</td><td>Known IR sensitivity &mdash; adds magenta to dark fabrics. Some warmth is CCD character, preserve it.</td></tr>
-    <tr><td>DJI Osmo Pro</td><td>Action camera</td><td>3,032</td><td>Wide lens, helmet-mounted. 1,459 have GPS. Best auto WB of the set.</td></tr>
-    <tr><td>Leica MP</td><td>Analog (Portra 400 VC)</td><td>1,126</td><td>Film grain (noise=4.3) is real silver halide &mdash; preserve, don&rsquo;t denoise. Warm shifts are film character.</td></tr>
-    <tr><td>Leica Monochrom</td><td>B&amp;W sensor</td><td>1,099</td><td><strong>NEVER color-correct.</strong> No Bayer filter = pure luminance. Only tone curves. Zero saturation always.</td></tr>
-    <tr><td>Canon G12 / DJI Memo</td><td>Compact</td><td>221</td><td>Worst auto WB (+0.167 red shift). Gets most aggressive correction (70%).</td></tr>
-  </tbody>
-</table>
+<!-- ═══ CREATIVE DIRECTION ═══ -->
+<div class="inst-card inst-creative">
+  <span class="inst-pill inst-pill-pink">Creative Direction</span>
+  <h2>Show Is an Art Experience</h2>
+  <p>Not just a gallery. Not a tech demo. Every experience must be designed by someone who is simultaneously the best developer, architect, ML engineer, exigent Apple-level minimalist designer, and deeply creative, emotionally intelligent curator.</p>
+  <ul>
+    <li><strong>Signal-aware storytelling.</strong> Two laughing faces side by side IS funny. A rose-themed image next to rose-accent colors IS pretty. Two grumpy people together IS a statement. Signals create emotional moments &mdash; surprise, beauty, humor, mystery, melancholy.</li>
+    <li><strong>Minimalist UI, maximally expressive content.</strong> Dark, sparse, no chrome. Let the images talk. Fewer images shown beautifully beats more images shown generically.</li>
+    <li><strong>Every experience should feel designed by someone who LOVES photography.</strong> An experience that makes you want to look at every single image.</li>
+  </ul>
+</div>
 
-<h3>Architecture: 9 Python Scripts</h3>
-<table>
-  <thead><tr><th>Script</th><th>Purpose</th><th>Key Detail</th></tr></thead>
-  <tbody>
-    <tr><td><code>mad_pipeline.py</code></td><td>Orchestrator</td><td>Runs phases in order. Entry point for full pipeline.</td></tr>
-    <tr><td><code>render_pipeline.py</code></td><td>6-tier resolution pyramid</td><td>Output: <code>rendered/{tier}/{format}/{uuid}.ext</code>. FLAT layout, no category subdirs.</td></tr>
-    <tr><td><code>photography_engine.py</code></td><td>Gemini 2.5 Pro analysis</td><td>Structured JSON: vibes, exposure, composition, grading, edit prompt. Uses Vertex AI + ADC.</td></tr>
-    <tr><td><code>imagen_engine.py</code></td><td>4 AI variants via Imagen 3</td><td>Two-stage: edits from original (gemini_edit, pro_edit), styles from gemini_edit (nano_feel, cartoon).</td></tr>
-    <tr><td><code>gcs_sync.py</code></td><td>Upload to GCS</td><td>Versioned: <code>v/{version}/{tier}/{format}/</code>. Supports original, enhanced, future variants.</td></tr>
-    <tr><td><code>mad_database.py</code></td><td>SQLite schema</td><td>23 tables, single source of truth. Deterministic UUID5 from DNS namespace + relative path.</td></tr>
-    <tr><td><code>enhance_engine.py</code></td><td>Camera-aware enhancement</td><td>6 steps: WB, exposure, shadow/highlight, contrast, saturation, sharpening. Per-camera profiles.</td></tr>
-    <tr><td><code>advanced_signals.py</code></td><td>11 ML models</td><td>Depth, scenes, style, aesthetic, faces, objects, colors, hashes, OCR, captions, emotions.</td></tr>
-    <tr><td><code>generate_status_page.py</code></td><td>Dashboard + Journal</td><td>This file. ~4,000 lines. Live server (<code>--serve</code>) + static generator.</td></tr>
-  </tbody>
-</table>
+<!-- ═══ STATUS ═══ -->
+<div class="inst-card inst-status">
+  <span class="inst-pill inst-pill-green">Status</span>
+  <h2>What&rsquo;s Done vs. What&rsquo;s Next</h2>
+  <p><strong>Done:</strong> Full pipeline. 16/16 signals extracted for 9,011 images. Enhancement v1 complete. GCS hosting live. Dashboard + Journal. MADCurator with 55 fields. Vector search (DINOv2 + SigLIP + CLIP). Web gallery with 14 experiences.</p>
+  <p><strong>In progress:</strong> Gemini analysis (6,203/9,011). 78 BLIP captions need retry. 309 faces without emotion labels.</p>
+  <p><strong>Next:</strong> Curate in MADCurator. Precompute DINOv2 structural neighbors. SigLIP text&rarr;image API. Location intelligence. Juicy cartoon experiences with Imagen variants.</p>
+</div>
 
-<h3>Critical Technical Rules</h3>
-<ul>
-  <li><strong>Python 3.9.6</strong> &mdash; Must use <code>from __future__ import annotations</code> and <code>Optional[X]</code>, NOT <code>X | None</code>.</li>
-  <li><strong>Vertex AI only</strong> &mdash; Both Gemini and Imagen use Application Default Credentials (ADC). NEVER use API keys (one was committed and had to be scrubbed from git history).</li>
-  <li><strong>Flat rendered layout</strong> &mdash; <code>rendered/{tier}/{format}/{uuid}.ext</code>. NEVER create <code>rendered/originals/</code> (plural) &mdash; this bug caused hours of cleanup.</li>
-  <li><strong>DNG color space</strong> &mdash; <code>sips</code> must convert with <code>-m sRGB Profile.icc</code> to avoid Display P3 purple cast on DNG/RAW files.</li>
-  <li><strong>GCS bucket structure</strong> &mdash; <code>v/{version}/{tier}/{format}/{uuid}.ext</code>. Public root: <code>https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/</code></li>
-  <li><strong>UUID namespace</strong> &mdash; DNS (6ba7b810-...), deterministic from relative path to <code>originals/</code>.</li>
-  <li><strong>google-genai 1.47.0</strong> &mdash; <code>edit_image()</code> requires <code>vertexai=True</code> client.</li>
-  <li><strong>Tiers</strong>: full (3840px), display (2048px), mobile (1280px), thumb (480px), micro (64px), gemini (2048px). Formats: JPEG always, WebP for display/mobile/thumb/micro.</li>
-  <li><strong>JPEGmini Pro</strong> &mdash; User runs it manually (GUI app) on serving tiers ONLY (display, mobile, thumb, micro). NOT on full/gemini/original.</li>
-</ul>
+<!-- ═══ CAMERAS + ARCHITECTURE ═══ -->
+<div class="inst-grid">
 
-<h3>Hard-Won Lessons</h3>
-<ul>
-  <li><strong>Monochrome sensor is sacred.</strong> The Leica Monochrom has no Bayer filter. Zero saturation, zero color correction, ever. Only tone curves (brightness, contrast, shadow/highlight).</li>
-  <li><strong>Film grain is an asset.</strong> Portra 400 VC has noise=4.3 (3&times; digital). That&rsquo;s real silver halide texture. Preserve it &mdash; never denoise film.</li>
-  <li><strong>CCD warmth is character.</strong> The Leica M8&rsquo;s CCD gives warm tones. Correct WB only 50% &mdash; too aggressive kills the look.</li>
-  <li><strong>Enhanced v1 &cong; v2.</strong> Signal-aware v2 enhancement adds negligible perceptual difference (mean pixel diff 0.50). V1 is the primary enhanced version.</li>
-  <li><strong>TensorFlow + PyTorch don&rsquo;t mix.</strong> Installing TF for DeepFace caused C++ mutex crashes in all PyTorch models. Solution: ViT emotion classifier on pure PyTorch.</li>
-  <li><strong>LAION aesthetic scores are useless.</strong> 91% of 9,011 images scored &ldquo;excellent&rdquo; (8.22&ndash;10.0). Needs recalibration or a different model.</li>
-  <li><strong>EasyOCR is CPU-bound and slow.</strong> 0.2 img/s single-threaded. Use <code>--shard N/M</code> for parallel workers (3&times; throughput).</li>
-  <li><strong>SQLite contention.</strong> Multiple writers need <code>PRAGMA busy_timeout=120000</code> and retry loops with exponential backoff.</li>
-  <li><strong>Vibe field is JSON array.</strong> In SwiftUI, parse with <code>JSONSerialization</code>, NOT comma-split. Otherwise you get bracket artifacts.</li>
-  <li><strong>gsutil rsync &ne; cp.</strong> The <code>-j</code> flag (content compression) works with <code>cp</code> but NOT with <code>rsync</code>.</li>
-</ul>
+<div class="inst-card">
+  <span class="inst-pill inst-pill-orange">Hardware</span>
+  <h2>Five Cameras</h2>
+  <table>
+    <thead><tr><th>Camera</th><th>Count</th><th>Rule</th></tr></thead>
+    <tbody>
+      <tr><td>Leica M8</td><td>3,533</td><td>CCD warmth is character. Correct WB only 50%.</td></tr>
+      <tr><td>DJI Osmo Pro</td><td>3,032</td><td>1,459 have GPS. Best auto WB.</td></tr>
+      <tr><td>Leica MP</td><td>1,126</td><td>Portra 400 VC. Film grain is sacred &mdash; never denoise.</td></tr>
+      <tr><td>Leica Monochrom</td><td>1,099</td><td><strong>NEVER color-correct.</strong> Pure luminance sensor.</td></tr>
+      <tr><td>G12 / Memo</td><td>221</td><td>Worst WB. Most aggressive correction (70%).</td></tr>
+    </tbody>
+  </table>
+</div>
 
-<h3>GCS Bucket &amp; Hosting</h3>
-<ul>
-  <li><strong>Project</strong>: madbox-e4a35, account: laeh@madbits.ai</li>
-  <li><strong>Bucket</strong>: <code>gs://myproject-public-assets/art/MADphotos/</code></li>
-  <li><strong>Versions uploaded</strong>: <code>original</code> (all serving tiers), <code>enhanced</code> (all serving tiers), <code>blind</code> (test images)</li>
-  <li><strong>Serving tiers on GCS</strong>: display, mobile, thumb, micro &times; JPEG + WebP = 8 directories per version</li>
-  <li><strong>Public URL pattern</strong>: <code>https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/{version}/{tier}/{format}/{uuid}.ext</code></li>
-  <li><strong>GitHub Pages</strong>: <code>docs/</code> folder, auto-deploy via GitHub Actions</li>
-</ul>
-
-<h3>MADCurator (SwiftUI App)</h3>
-<ul>
-  <li>Located at <code>MADCurator/</code> in the project root. Uses Swift Package Manager (<code>Package.swift</code>).</li>
-  <li>SQLite3 C API directly (no ORM). Reads from <code>mad_photos.db</code>.</li>
-  <li>55 data fields per PhotoItem, loaded via 9-table JOIN query.</li>
-  <li>18 filter dimensions: camera, category, vibe, grading, time, setting, composition, exposure, rotation, color, location, style, aesthetic, hasText, plus custom search.</li>
-  <li>Keyboard shortcuts: K (keep), R (reject), &larr;/&rarr; (navigate), E (toggle enhanced), Space (fullscreen), I (info panel), Y/N (accept/reject location).</li>
-  <li>Thumbnail cache: NSCache with 2,000 image limit.</li>
-  <li>Build: <code>cd MADCurator && swift build</code></li>
-</ul>
-
-<h3>Web Gallery (Show)</h3>
-<ul>
-  <li><code>export_gallery_data.py</code> &rarr; <code>web/data/photos.json</code></li>
-  <li><code>serve_gallery.py</code> &rarr; <code>http://localhost:3000</code></li>
-  <li>16 web files: index.html, style.css, app.js + 13 experience modules (grid, similarity, drift, colors, bento, game, stream, darkroom, faces, compass, observatory, map, typewriter, pendulum)</li>
-  <li>Dark (#0a0a0a), monospace, glassmorphism. No framework &mdash; vanilla HTML/CSS/JS.</li>
-  <li>Progressive loading: micro &rarr; thumb &rarr; display. Lazy via IntersectionObserver.</li>
-</ul>
-
-<h3>Journal de Bord</h3>
-<ul>
-  <li>File: <code>docs/journal.md</code>. Write to it after EVERY significant action. Not optional.</li>
-  <li>Format: <code>### HH:MM &mdash; Title *(&ldquo;user quote&rdquo;)*</code> with <code>**Intent.**</code> paragraphs, <code>&gt; blockquote</code> actions, <code>**Discovered.**</code> insights.</li>
-  <li>Group entries under <code>## YYYY-MM-DD</code> date headers.</li>
-  <li>The <code>/journal</code> page renders it as a timeline with auto-classified event type labels (Pipeline, AI, UI/UX, Deploy, etc.).</li>
-</ul>
-
-<h3>What&rsquo;s Done vs. What&rsquo;s Next</h3>
-<p><strong>Done:</strong> Full pipeline built and running. 16/16 signals extracted for all 9,011 images. Enhancement v1 complete. GCS hosting live (original + enhanced tiers). Dashboard with 17-element intelligence grid. MADCurator native app with 55 fields, 18 filters. Journal de Bord with event labels. Blind test system. Vector similarity search (DINOv2 + SigLIP + CLIP). Web gallery with 14 experiences: launcher, filter grid, bento mosaic, similarity, creative drift, color space, connection game, curated stream, signal darkroom, face wall, compass navigation, data observatory, GPS map, text search, taste test.</p>
-<p><strong>In progress:</strong> Gemini analysis (6,203/9,011). 78 BLIP captions need retry. 309 faces without emotion labels.</p>
-<p><strong>Next:</strong> Curate images in MADCurator (accept/reject). Precompute DINOv2 structural neighbors for creative drift. SigLIP text&rarr;image search API. Location intelligence (GPS propagation from 1,820 tagged images).</p>
+<div class="inst-card">
+  <span class="inst-pill inst-pill-blue">Architecture</span>
+  <h2>9 Python Scripts</h2>
+  <table>
+    <thead><tr><th>Script</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>mad_pipeline.py</code></td><td>Orchestrator</td></tr>
+      <tr><td><code>render_pipeline.py</code></td><td>6-tier resolution pyramid</td></tr>
+      <tr><td><code>photography_engine.py</code></td><td>Gemini 2.5 Pro structured analysis</td></tr>
+      <tr><td><code>imagen_engine.py</code></td><td>4 AI variants via Imagen 3</td></tr>
+      <tr><td><code>gcs_sync.py</code></td><td>Upload to GCS</td></tr>
+      <tr><td><code>mad_database.py</code></td><td>SQLite schema (24 tables)</td></tr>
+      <tr><td><code>enhance_engine.py</code></td><td>Camera-aware 6-step enhancement</td></tr>
+      <tr><td><code>advanced_signals.py</code></td><td>11 ML models</td></tr>
+      <tr><td><code>generate_status_page.py</code></td><td>Dashboard + Journal</td></tr>
+    </tbody>
+  </table>
+</div>
 
 </div>
 
-<h2>Development Principles</h2>
+<!-- ═══ TECHNICAL RULES ═══ -->
+<div class="inst-card">
+  <span class="inst-pill inst-pill-teal">Rules</span>
+  <h2>Critical Technical Rules</h2>
+  <div class="inst-grid" style="gap:var(--space-2);">
+    <ul>
+      <li><strong>Python 3.9.6</strong> &mdash; <code>from __future__ import annotations</code>, <code>Optional[X]</code> not <code>X | None</code></li>
+      <li><strong>Vertex AI + ADC only</strong> &mdash; NEVER API keys</li>
+      <li><strong>Flat layout</strong> &mdash; <code>rendered/{tier}/{format}/{uuid}.ext</code>. Never <code>rendered/originals/</code> (plural)</li>
+      <li><strong>DNG color</strong> &mdash; <code>sips -m sRGB Profile.icc</code> to avoid P3 purple cast</li>
+      <li><strong>UUID5</strong> &mdash; DNS namespace, deterministic from relative path</li>
+    </ul>
+    <ul>
+      <li><strong>Tiers</strong>: full (3840), display (2048), mobile (1280), thumb (480), micro (64), gemini (2048)</li>
+      <li><strong>GCS</strong> &mdash; <code>v/{version}/{tier}/{format}/{uuid}.ext</code></li>
+      <li><strong>google-genai 1.47</strong> &mdash; <code>edit_image()</code> needs <code>vertexai=True</code></li>
+      <li><strong>JPEGmini Pro</strong> &mdash; GUI app, serving tiers only (display/mobile/thumb/micro)</li>
+      <li><strong>Monochrome</strong> &mdash; zero saturation, zero color correction, ever</li>
+    </ul>
+  </div>
+</div>
 
-<h3>Vision</h3>
-<p>9,011 photographs. Every one should carry the richest possible set of reliable, valuable signals &mdash;
-extracted from every available open-source model and programmatic method. The goal is not just
-to organize images but to <strong>deeply understand</strong> each one: its technical properties,
-its semantic content, its emotional resonance, its relationship to every other image in the collection.</p>
-<p>Three apps serve three purposes: <strong>See</strong> (native macOS curator &mdash; the human decides),
-<strong>Show</strong> (public web gallery &mdash; the curated experience),
-<strong>State</strong> (this dashboard &mdash; the control room).</p>
+<!-- ═══ HOSTING ═══ -->
+<div class="inst-grid">
 
-<h2>Creative Direction for Show</h2>
-<p><strong>Show is not just a gallery &mdash; it is an art experience.</strong> Every experience must be designed by someone who is simultaneously the best developer, architect, ML engineer, Apple-level minimalist designer, and most importantly, a deeply creative, emotionally intelligent curator.</p>
-<ul>
-  <li><strong>Signal-aware storytelling.</strong> Two laughing faces side by side IS funny. A rose-themed image next to rose-accent colors IS pretty. Two grumpy people together IS a statement. Use signals not just for filtering but for creating emotional moments &mdash; surprise, beauty, humor, mystery, melancholy.</li>
-  <li><strong>Minimalist UI, maximally expressive content.</strong> Dark, sparse, no chrome. Let the images do the talking. Quality over quantity &mdash; fewer images shown beautifully beats more images shown generically.</li>
-  <li><strong>Every experience should feel designed by someone who LOVES photography.</strong> Not a tech demo. Not a data visualization. An experience that makes you want to look at every single image.</li>
-</ul>
+<div class="inst-card">
+  <h2>GCS Hosting</h2>
+  <ul>
+    <li><strong>Project:</strong> madbox-e4a35</li>
+    <li><strong>Bucket:</strong> <code>gs://myproject-public-assets/art/MADphotos/</code></li>
+    <li><strong>URL:</strong> <code>.../v/{version}/{tier}/{format}/{uuid}.ext</code></li>
+    <li><strong>Versions:</strong> original, enhanced, blind</li>
+  </ul>
+</div>
 
-<h2>Signal Completeness</h2>
-<ul>
-  <li><strong>100% coverage is the target.</strong> Every image must have every signal. After any pipeline run, verify all tables have full coverage. Partial = something failed silently.</li>
-  <li><strong>Check for gaps.</strong> Always run a count before declaring complete. Compare table rows against total image count.</li>
-  <li><strong>No duplicates.</strong> UUIDs are deterministic (UUID5, DNS namespace + relative path). Run <code>GROUP BY image_uuid HAVING COUNT(*) &gt; 1</code> to verify.</li>
-  <li><strong>New models welcome.</strong> When a better open-source model appears for any signal, integrate it. More signals = richer understanding.</li>
-</ul>
+<div class="inst-card">
+  <h2>Web Gallery (Show)</h2>
+  <ul>
+    <li><code>export_gallery_data.py</code> &rarr; 4 JSON files</li>
+    <li><code>serve_gallery.py</code> &rarr; localhost:3000</li>
+    <li>16 files: index.html, style.css, app.js + 13 modules</li>
+    <li>Dark, monospace, glassmorphism. Vanilla JS, no framework.</li>
+  </ul>
+</div>
 
-<h2>Performance</h2>
-<ul>
-  <li><strong>Batch processing.</strong> Always batch, never one-at-a-time. Use GPU/MPS where available.</li>
-  <li><strong>Incremental.</strong> Never reprocess completed images. Every script checks for existing results and skips. Processing can be interrupted and resumed.</li>
-  <li><strong>Parallel where possible.</strong> Independent phases run concurrently. Monitor throughput (images/second). If it drops, investigate.</li>
-</ul>
+</div>
 
-<h2>Data Integrity</h2>
-<ul>
-  <li><strong>Single source of truth.</strong> <code>mad_photos.db</code> is authoritative. All scripts read/write to it.</li>
-  <li><strong>Flat rendered layout.</strong> <code>rendered/{tier}/{format}/{uuid}.ext</code> &mdash; NO category subdirectories. Never create <code>rendered/originals/</code> (plural).</li>
-  <li><strong>DNG/RAW color space.</strong> Convert with <code>sips -m sRGB Profile.icc</code> to avoid Display P3 purple cast.</li>
-  <li><strong>Monochrome sensor.</strong> Leica Monochrom has no Bayer filter. NEVER color-correct Monochrome images.</li>
-  <li><strong>Deterministic UUIDs.</strong> UUID5 from DNS namespace + relative path. Every script must produce the same UUID for the same image.</li>
-</ul>
+<!-- ═══ SIGNAL INVENTORY ═══ -->
+<div class="inst-card">
+  <span class="inst-pill inst-pill-teal">Signals</span>
+  <h2>Signal Inventory &mdash; 16 Signals per Image</h2>
+  <table>
+    <thead><tr><th>Signal</th><th>Source</th><th>Status</th><th>Key Fields</th></tr></thead>
+    <tbody>
+      <tr><td>EXIF</td><td>Pillow</td><td>9,011</td><td>Camera, lens, focal, aperture, shutter, ISO, GPS</td></tr>
+      <tr><td>Pixel Analysis</td><td>NumPy/OpenCV</td><td>9,011</td><td>Brightness, saturation, contrast, noise, WB shifts</td></tr>
+      <tr><td>Dominant Colors</td><td>K-means (LAB)</td><td>9,011</td><td>5 clusters: hex, RGB, LAB, percentage</td></tr>
+      <tr><td>Faces</td><td>YuNet</td><td>9,011</td><td>Boxes, landmarks, confidence, area %</td></tr>
+      <tr><td>Objects</td><td>YOLOv8n</td><td>9,011</td><td>80 COCO classes, boxes, confidence</td></tr>
+      <tr><td>Hashes</td><td>imagehash</td><td>9,011</td><td>pHash, aHash, dHash, wHash, blur, sharpness</td></tr>
+      <tr><td>Vectors</td><td>DINOv2+SigLIP+CLIP</td><td>9,011</td><td>768d+768d+512d = 2,048 dims</td></tr>
+      <tr><td>Gemini</td><td>Gemini 2.5 Pro</td><td>6,203</td><td>Alt, vibes, exposure, composition, grading, edit prompt</td></tr>
+      <tr><td>Aesthetic</td><td>LAION (CLIP MLP)</td><td>9,011</td><td>Score 1&ndash;10 (91% &ldquo;excellent&rdquo; &mdash; needs better model)</td></tr>
+      <tr><td>Depth</td><td>Depth Anything v2</td><td>9,011</td><td>Near/mid/far %, complexity bucket</td></tr>
+      <tr><td>Scenes</td><td>Places365</td><td>9,011</td><td>Top 3 labels, indoor/outdoor</td></tr>
+      <tr><td>Style</td><td>Derived</td><td>9,011</td><td>street, portrait, landscape, macro, etc.</td></tr>
+      <tr><td>OCR</td><td>EasyOCR</td><td>9,011</td><td>Text regions, language, confidence</td></tr>
+      <tr><td>Captions</td><td>BLIP (Salesforce)</td><td>8,933</td><td>Natural language (78 retrying)</td></tr>
+      <tr><td>Emotions</td><td>ViT expression</td><td>1,367 faces</td><td>7-class scores per face</td></tr>
+      <tr><td>Enhancement</td><td>Camera engine</td><td>9,011</td><td>WB, gamma, shadows, contrast, saturation, sharpening</td></tr>
+    </tbody>
+  </table>
+</div>
 
-<h2>Code Quality</h2>
-<ul>
-  <li><strong>Python 3.9 compatibility.</strong> <code>from __future__ import annotations</code>, <code>Optional[X]</code> not <code>X | None</code>.</li>
-  <li><strong>Clean repository.</strong> No dead code, no commented-out blocks, no unused imports. Every file has a purpose.</li>
-  <li><strong>Error resilience.</strong> Never crash silently. Log failures, track them, continue. One bad image must not stop a 9,011-image batch.</li>
-</ul>
+<!-- ═══ INCREMENTAL INGESTION ═══ -->
+<div class="inst-card">
+  <span class="inst-pill inst-pill-orange">Pipeline</span>
+  <h2>New Image Ingestion</h2>
+  <p>User will add more images over time. <strong>Every script MUST handle incremental ingestion.</strong> Full process for new images:</p>
+  <p style="font-family:var(--font-mono);font-size:12px;color:var(--muted);line-height:1.8;">
+    register &rarr; render tiers &rarr; pixel analysis &rarr; Gemini analysis &rarr; signal extraction &rarr; vector embeddings &rarr; enhancement &rarr; export gallery data &rarr; curation
+  </p>
+  <ul>
+    <li>All scripts check for existing results and skip processed images</li>
+    <li>Processing can be interrupted and resumed at any point</li>
+    <li>After ingestion, re-run <code>export_gallery_data.py</code> to update web data</li>
+    <li>Consistency: same parameters, same models, same quality for all images</li>
+  </ul>
+</div>
 
-<h2>AI Analysis</h2>
-<ul>
-  <li><strong>Vertex AI + ADC only.</strong> Never use API keys. Both Gemini and Imagen use Application Default Credentials.</li>
-  <li><strong>Structured output.</strong> Keep raw JSON for future re-extraction. Parse into individual columns for fast queries.</li>
-  <li><strong>Source quality.</strong> Imagen uses <code>full</code> tier (3840px). Gemini uses <code>gemini</code> tier (2048px).</li>
-  <li><strong>Two-stage variants.</strong> Stage 1 from original. Stage 2 from gemini_edit. Chain preserves quality.</li>
-</ul>
-
-<h2>Dashboard &amp; Monitoring</h2>
-<ul>
-  <li><strong>Live polling every 5s.</strong> Dashboard reflects true system state at all times.</li>
-  <li><strong>Journal de Bord.</strong> Every significant action gets a journal entry. Format: <code>### HH:MM &mdash; Title</code>. This is the project narrative.</li>
-  <li><strong>Consistent UI.</strong> All label+count data uses pill/tag format. Sidebar on every page. These become filters.</li>
-</ul>
-
-<h2>Signal Inventory</h2>
-<table>
-  <thead><tr><th>Signal</th><th>Source</th><th>Status</th><th>Key Fields</th></tr></thead>
-  <tbody>
-    <tr><td>EXIF</td><td>Pillow</td><td>9,011 / 9,011</td><td>Camera, lens, focal length, aperture, shutter, ISO, GPS, flash, WB</td></tr>
-    <tr><td>Pixel Analysis</td><td>NumPy / OpenCV</td><td>9,011 / 9,011</td><td>Brightness, saturation, contrast, noise, WB shifts, color temp, histograms</td></tr>
-    <tr><td>Dominant Colors</td><td>K-means (LAB)</td><td>9,011 / 9,011</td><td>5 clusters: hex, RGB, LAB, percentage, CSS name</td></tr>
-    <tr><td>Face Detection</td><td>YuNet</td><td>9,011 / 9,011</td><td>Bounding boxes, 5 landmarks, confidence, face area %</td></tr>
-    <tr><td>Object Detection</td><td>YOLOv8n</td><td>9,011 / 9,011</td><td>80 COCO classes, bounding boxes, confidence</td></tr>
-    <tr><td>Perceptual Hashes</td><td>imagehash</td><td>9,011 / 9,011</td><td>pHash, aHash, dHash, wHash, blur, sharpness, entropy</td></tr>
-    <tr><td>Vectors</td><td>DINOv2 + SigLIP + CLIP</td><td>9,011 / 9,011</td><td>768d + 768d + 512d = 2,048 dimensions per image</td></tr>
-    <tr><td>Gemini Analysis</td><td>Gemini 2.5 Pro</td><td>6,203 / 9,011</td><td>Alt text, vibes, exposure, composition, grading, time, setting, pops, edit prompt</td></tr>
-    <tr><td>Aesthetic Scoring</td><td>LAION aesthetic (CLIP MLP)</td><td>9,011 / 9,011</td><td>Score 1&ndash;10, label (excellent/good/average/poor)</td></tr>
-    <tr><td>Depth Estimation</td><td>Depth Anything v2</td><td>9,011 / 9,011</td><td>Near/mid/far percentages, complexity bucket</td></tr>
-    <tr><td>Scene Classification</td><td>Places365 (ResNet50)</td><td>9,011 / 9,011</td><td>Top 3 scene labels, environment (indoor/outdoor)</td></tr>
-    <tr><td>Style Classification</td><td>Scene + composition derived</td><td>9,011 / 9,011</td><td>Style label (street, portrait, landscape, etc.)</td></tr>
-    <tr><td>OCR / Text Detection</td><td>EasyOCR</td><td>9,011 / 9,011</td><td>Detected text regions, language, confidence</td></tr>
-    <tr><td>Image Captions</td><td>BLIP (Salesforce)</td><td>8,933 / 9,011</td><td>Natural language caption per image (78 retrying)</td></tr>
-    <tr><td>Facial Emotions</td><td>ViT face expression</td><td>1,367 / 1,676 faces</td><td>Dominant emotion, 7-class scores per face</td></tr>
-    <tr><td>Enhancement Plans</td><td>Camera-aware engine</td><td>9,011 / 9,011</td><td>WB correction, gamma, shadows, highlights, contrast, saturation, sharpening</td></tr>
-  </tbody>
-</table>
-
-<h2>Future Signals</h2>
-<ul>
-  <li><strong>Segmentation</strong> &mdash; SAM (Segment Anything) for object masks</li>
-  <li><strong>Better aesthetic scoring</strong> &mdash; Current LAION model gives no discrimination (91% score &ldquo;excellent&rdquo;). Needs recalibration or alternative model.</li>
-</ul>
+<!-- ═══ JOURNAL ═══ -->
+<div class="inst-card">
+  <h2>Journal de Bord</h2>
+  <p>File: <code>docs/journal.md</code>. Write after EVERY significant action. Format: <code>### HH:MM &mdash; Title</code> under <code>## YYYY-MM-DD</code> headers. Include intent, what happened, what was learned. Rendered as timeline with auto-classified event type labels.</p>
+</div>
 
 <footer>MADphotos &mdash; <a href="https://github.com/LAEH/MADphotos">github.com/LAEH/MADphotos</a></footer>
 </div>
