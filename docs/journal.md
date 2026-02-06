@@ -6,21 +6,23 @@
 
 ## The Beginning
 
-There are 9,011 photographs sitting in a folder. Light captured over years — analog film scanned with grain and dust, digital frames from a Leica M8 and its CCD sensor, monochrome studies in shadow and form from the Leica Monochrom, quick Osmo clips frozen into stills. Landscapes and portraits. Some are good. Some are great. Most have never been seen by anyone.
+9,011 photographs. A decade of shooting. Five cameras: a Leica M8 with its IR-sensitive CCD, a Leica Monochrom that captures pure luminance with no Bayer filter, a Leica MP loaded with Kodak Portra 400 VC and scanned frame by frame, a DJI Osmo Pro strapped to a helmet, a Canon G12 in a back pocket. Most of these images have never been seen by anyone.
 
-The idea: run every image through a pipeline that understands it, improves it, transforms it. Not a batch filter — each photograph gets its own AI critic that studies the exposure, composition, color, mood. It identifies semantic pops: a red airplane against blue sky, the green flash of a cat's eye. It writes editing instructions specific to that image. Then an AI editor executes them. From that improved base, style variants bloom: analog film, cartoon illustration.
+Every single frame now runs through 10 AI models. Gemini 2.5 Pro reads each photograph and writes structured analysis — vibes, exposure, composition, color grading, per-image editing instructions. Three embedding models (DINOv2 for texture, SigLIP for semantics, CLIP for concepts) map every image into vector space. Depth Anything v2 estimates monocular depth. Places365 classifies the scene. A LAION aesthetic predictor scores visual quality. YuNet finds faces, then a ViT emotion classifier reads expressions. YOLOv8n detects objects. EasyOCR extracts text. BLIP writes captions. K-means clustering in LAB space pulls dominant colors. Imagen 3 generates four style variants per image.
 
-Everything tracked in SQLite. Uploaded to GCS. Served to the world.
+One database. 23 tables. Every signal queryable. Every image searchable by what it means.
 
 ---
 
 ## The Numbers
 
-- **9,011** photographs (5 categories: Digital, Osmo, Analog, Monochrome, G12)
-- **6 resolution tiers** per image: thumb, micro, mobile, display, full, original
-- **4 AI variant types** per image: gemini_edit, pro_edit, nano_feel, cartoon
-- **~52 GB** of rendered tier files
-- **1 SQLite database** to rule them all
+- **9,011** photographs across 5 camera bodies (3,533 M8 / 3,032 Osmo Pro / 1,126 MP / 1,099 Monochrom / 221 G12+Memo)
+- **10 AI models** per image: Gemini 2.5 Pro, DINOv2, SigLIP, CLIP, Depth Anything v2, Places365, BLIP, YuNet + ViT Emotions, YOLOv8n, EasyOCR
+- **6 resolution tiers** per image: micro (64px), thumb (480px), mobile (1280px), display (2048px), full (3840px), gemini (2048px)
+- **4 AI variant types**: gemini_edit, pro_edit, nano_feel, cartoon (via Imagen 3)
+- **~52 GB** rendered tier files
+- **23 SQLite tables**, one source of truth
+- **3 apps**: See (native curator), Show (web gallery), State (dashboard)
 
 ---
 
