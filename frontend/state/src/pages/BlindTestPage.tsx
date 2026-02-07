@@ -111,16 +111,12 @@ export function BlindTestPage() {
       </div>
 
       {/* Comparison grid */}
-      <div style={{
-        display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px',
-        borderRadius: 'var(--radius-lg)', overflow: 'hidden',
-        border: '1px solid var(--border)', marginBottom: 'var(--space-4)',
-      }}>
+      <div className="bt-grid">
         <div
+          className="bt-cell"
+          data-clickable={!revealed ? 'true' : undefined}
           onClick={() => handleChoice('a')}
           style={{
-            position: 'relative', cursor: revealed ? 'default' : 'pointer',
-            aspectRatio: '1', overflow: 'hidden',
             outline: choice === 'a' ? '3px solid var(--system-blue)' : 'none',
             outlineOffset: '-3px',
           }}
@@ -128,11 +124,11 @@ export function BlindTestPage() {
           <FadeImg
             src={leftSrc}
             alt="Option A"
-            style={{ aspectRatio: '1' }}
+            style={{ width: '100%', height: '100%' }}
           />
           <span style={{
             position: 'absolute', top: 'var(--space-2)', left: 'var(--space-2)',
-            fontSize: 'var(--text-xs)', fontWeight: 700, padding: '2px var(--space-2)',
+            fontSize: 'var(--text-sm)', fontWeight: 700, padding: 'var(--space-1) var(--space-3)',
             borderRadius: 'var(--radius-sm)', backdropFilter: 'blur(12px)',
             background: 'rgba(0,0,0,0.5)', color: '#fff', zIndex: 2,
           }}>
@@ -141,7 +137,7 @@ export function BlindTestPage() {
           {revealed && (
             <span style={{
               position: 'absolute', bottom: 'var(--space-2)', left: 'var(--space-2)',
-              fontSize: 'var(--text-xs)', fontWeight: 600, padding: '2px var(--space-2)',
+              fontSize: 'var(--text-sm)', fontWeight: 600, padding: 'var(--space-1) var(--space-3)',
               borderRadius: 'var(--radius-sm)', zIndex: 2,
               background: enhancedIsLeft ? 'var(--badge-green-bg)' : 'var(--badge-amber-bg)',
               color: enhancedIsLeft ? 'var(--badge-green-fg)' : 'var(--badge-amber-fg)',
@@ -151,10 +147,10 @@ export function BlindTestPage() {
           )}
         </div>
         <div
+          className="bt-cell"
+          data-clickable={!revealed ? 'true' : undefined}
           onClick={() => handleChoice('b')}
           style={{
-            position: 'relative', cursor: revealed ? 'default' : 'pointer',
-            aspectRatio: '1', overflow: 'hidden',
             outline: choice === 'b' ? '3px solid var(--system-blue)' : 'none',
             outlineOffset: '-3px',
           }}
@@ -162,11 +158,11 @@ export function BlindTestPage() {
           <FadeImg
             src={rightSrc}
             alt="Option B"
-            style={{ aspectRatio: '1' }}
+            style={{ width: '100%', height: '100%' }}
           />
           <span style={{
             position: 'absolute', top: 'var(--space-2)', right: 'var(--space-2)',
-            fontSize: 'var(--text-xs)', fontWeight: 700, padding: '2px var(--space-2)',
+            fontSize: 'var(--text-sm)', fontWeight: 700, padding: 'var(--space-1) var(--space-3)',
             borderRadius: 'var(--radius-sm)', backdropFilter: 'blur(12px)',
             background: 'rgba(0,0,0,0.5)', color: '#fff', zIndex: 2,
           }}>
@@ -175,7 +171,7 @@ export function BlindTestPage() {
           {revealed && (
             <span style={{
               position: 'absolute', bottom: 'var(--space-2)', right: 'var(--space-2)',
-              fontSize: 'var(--text-xs)', fontWeight: 600, padding: '2px var(--space-2)',
+              fontSize: 'var(--text-sm)', fontWeight: 600, padding: 'var(--space-1) var(--space-3)',
               borderRadius: 'var(--radius-sm)', zIndex: 2,
               background: !enhancedIsLeft ? 'var(--badge-green-bg)' : 'var(--badge-amber-bg)',
               color: !enhancedIsLeft ? 'var(--badge-green-fg)' : 'var(--badge-amber-fg)',
@@ -187,29 +183,18 @@ export function BlindTestPage() {
       </div>
 
       {/* Navigation */}
-      <div style={{ display: 'flex', gap: 'var(--space-3)', justifyContent: 'center' }}>
-        <button onClick={prev} disabled={index === 0} style={{
-          background: 'var(--card-bg)', border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-sm)', padding: 'var(--space-2) var(--space-4)',
-          cursor: index === 0 ? 'default' : 'pointer', color: index === 0 ? 'var(--muted)' : 'var(--fg)',
-          fontFamily: 'var(--font-sans)', fontSize: 'var(--text-sm)',
-          opacity: index === 0 ? 0.4 : 1,
-        }}>
+      <div className="bt-nav">
+        <button className="bt-btn" onClick={prev} disabled={index === 0}>
           Previous
         </button>
         {revealed && (
-          <button onClick={next} disabled={index === data.pairs.length - 1} style={{
-            background: 'var(--system-blue)', border: 'none',
-            borderRadius: 'var(--radius-sm)', padding: 'var(--space-2) var(--space-5)',
-            cursor: 'pointer', color: '#fff', fontWeight: 600,
-            fontFamily: 'var(--font-sans)', fontSize: 'var(--text-sm)',
-          }}>
+          <button className="bt-btn primary" onClick={next} disabled={index === data.pairs.length - 1}>
             Next
           </button>
         )}
         {!revealed && (
-          <span style={{ fontSize: 'var(--text-sm)', color: 'var(--muted)', alignSelf: 'center' }}>
-            Click the photo you think is enhanced
+          <span style={{ fontSize: 'var(--text-sm)', color: 'var(--muted)', textAlign: 'center' }}>
+            Tap the photo you think is enhanced
           </span>
         )}
       </div>

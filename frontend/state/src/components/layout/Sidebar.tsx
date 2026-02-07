@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import { useState, useCallback, useEffect } from 'react'
 import { ThemeToggle } from './ThemeToggle'
 
@@ -20,6 +20,8 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(() =>
     localStorage.getItem('mad-sidebar') === 'collapsed'
   )
+  const [isMobile, setIsMobile] = useState(false)
+  const location = useLocation()
 
   const toggleCollapse = useCallback(() => {
     setCollapsed(c => {
@@ -32,14 +34,50 @@ export function Sidebar() {
   // Close mobile menu on navigation
   const closeMobile = useCallback(() => setMobileOpen(false), [])
 
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [location.pathname])
+
+  // Track mobile vs desktop
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 900px)')
+    const handler = (e: MediaQueryListEvent | MediaQueryList) => {
+      setIsMobile(e.matches)
+      if (!e.matches) setMobileOpen(false)
+    }
+    handler(mq)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+
   // Sync body class for collapsed state
   useEffect(() => {
     document.body.classList.toggle('sb-collapsed', collapsed)
   }, [collapsed])
 
+  // Prevent body scroll when mobile menu open
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [mobileOpen])
+
+  // Desktop collapsed: only apply inline styles when NOT on mobile
+  const desktopCollapsedStyle = (collapsed && !isMobile) ? {
+    width: 0,
+    minWidth: 0,
+    overflow: 'hidden' as const,
+    padding: 0,
+    borderRight: 'none',
+  } : undefined
+
   return (
     <>
-      {/* Expand button — desktop collapsed */}
+      {/* Expand button -- desktop collapsed */}
       <button
         className="sb-expand"
         onClick={toggleCollapse}
@@ -53,21 +91,15 @@ export function Sidebar() {
 
       <nav
         className={`sidebar${mobileOpen ? ' open' : ''}`}
-        style={{
-          width: collapsed ? 0 : undefined,
-          minWidth: collapsed ? 0 : undefined,
-          overflow: collapsed ? 'hidden' : undefined,
-          padding: collapsed ? 0 : undefined,
-          borderRight: collapsed ? 'none' : undefined,
-        }}
+        style={desktopCollapsedStyle}
       >
         <div className="sb-title">MADphotos</div>
         <button
           className="sb-hamburger"
           onClick={() => setMobileOpen(o => !o)}
-          aria-label="Menu"
+          aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
         >
-          &#9776;
+          {mobileOpen ? '\u2715' : '\u2630'}
         </button>
 
         {navItems.map(item => (

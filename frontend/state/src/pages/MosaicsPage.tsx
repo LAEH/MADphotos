@@ -52,33 +52,18 @@ export function MosaicsPage() {
       </h1>
       <p style={{
         fontSize: 'var(--text-sm)', color: 'var(--muted)', marginBottom: 'var(--space-4)',
+        lineHeight: 'var(--leading-relaxed)',
       }}>
         Every photograph in the collection, tiled into ~4K square mosaics.
-        Each mosaic sorts the images by a different dimension. Click to zoom.
-        <span style={{ opacity: 0.6 }}> Scroll to zoom, drag to pan. Keys: +/- zoom, F fit, 1 actual size, Esc close.</span>
+        Each mosaic sorts the images by a different dimension. Tap to zoom.
       </p>
 
-      <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-        gap: 'var(--space-6)', marginTop: 'var(--space-4)',
-      }}>
+      <div className="mosaic-grid">
         {data.mosaics.map(m => (
           <div
             key={m.filename}
+            className="mosaic-card"
             onClick={() => openMosaic(imageUrl(`/rendered/mosaics/${m.filename}`), m.title)}
-            style={{
-              background: 'var(--card-bg)', border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-md)', cursor: 'pointer', overflow: 'hidden',
-              transition: 'transform var(--duration-fast), box-shadow var(--duration-fast)',
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.transform = 'translateY(-2px)'
-              e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.12)'
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.transform = 'none'
-              e.currentTarget.style.boxShadow = 'none'
-            }}
           >
             <FadeImg
               src={imageUrl(`/rendered/mosaics/${m.filename}`)}
@@ -128,6 +113,10 @@ function MosaicModal({ src, title, onClose }: { src: string; title: string; onCl
   const dragStart = useRef({ x: 0, y: 0 })
   const scrollStart = useRef({ x: 0, y: 0 })
 
+  // Touch pinch state
+  const lastPinchDist = useRef(0)
+  const pinchActive = useRef(false)
+
   const steps = [0.25, 0.33, 0.5, 0.67, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4]
 
   const zoom = useCallback((dir: number) => {
@@ -143,11 +132,15 @@ function MosaicModal({ src, title, onClose }: { src: string; title: string; onCl
     })
   }, [])
 
+  const zoomTo = useCallback((newScale: number) => {
+    setScale(Math.max(steps[0], Math.min(steps[steps.length - 1], newScale)))
+  }, [])
+
   const fit = useCallback(() => {
     const img = imgRef.current
     const vp = viewportRef.current
     if (!img?.naturalWidth || !vp) return
-    const s = Math.min(vp.clientWidth / img.naturalWidth, (vp.clientHeight - 48) / img.naturalHeight, 1)
+    const s = Math.min(vp.clientWidth / img.naturalWidth, (vp.clientHeight - 52) / img.naturalHeight, 1)
     setScale(s)
   }, [])
 
@@ -168,6 +161,7 @@ function MosaicModal({ src, title, onClose }: { src: string; title: string; onCl
     return () => window.removeEventListener('keydown', handleKey)
   }, [onClose, zoom, fit])
 
+  // Mouse wheel zoom
   useEffect(() => {
     const vp = viewportRef.current
     if (!vp) return
@@ -179,6 +173,7 @@ function MosaicModal({ src, title, onClose }: { src: string; title: string; onCl
     return () => vp.removeEventListener('wheel', handleWheel)
   }, [zoom])
 
+  // Mouse drag
   const onMouseDown = (e: React.MouseEvent) => {
     isDragging.current = true
     dragStart.current = { x: e.clientX, y: e.clientY }
@@ -202,49 +197,93 @@ function MosaicModal({ src, title, onClose }: { src: string; title: string; onCl
     }
   }, [])
 
+  // Touch pinch-to-zoom + drag
+  useEffect(() => {
+    const vp = viewportRef.current
+    if (!vp) return
+
+    const getTouchDist = (touches: TouchList) => {
+      if (touches.length < 2) return 0
+      const dx = touches[0].clientX - touches[1].clientX
+      const dy = touches[0].clientY - touches[1].clientY
+      return Math.sqrt(dx * dx + dy * dy)
+    }
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault()
+        pinchActive.current = true
+        lastPinchDist.current = getTouchDist(e.touches)
+      } else if (e.touches.length === 1) {
+        isDragging.current = true
+        dragStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+        scrollStart.current = { x: vp.scrollLeft, y: vp.scrollTop }
+      }
+    }
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && pinchActive.current) {
+        e.preventDefault()
+        const dist = getTouchDist(e.touches)
+        if (lastPinchDist.current > 0) {
+          const ratio = dist / lastPinchDist.current
+          setScale(prev => Math.max(steps[0], Math.min(steps[steps.length - 1], prev * ratio)))
+        }
+        lastPinchDist.current = dist
+      } else if (e.touches.length === 1 && isDragging.current && !pinchActive.current) {
+        const dx = e.touches[0].clientX - dragStart.current.x
+        const dy = e.touches[0].clientY - dragStart.current.y
+        vp.scrollLeft = scrollStart.current.x - dx
+        vp.scrollTop = scrollStart.current.y - dy
+      }
+    }
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) {
+        pinchActive.current = false
+        lastPinchDist.current = 0
+      }
+      if (e.touches.length === 0) {
+        isDragging.current = false
+      }
+    }
+
+    vp.addEventListener('touchstart', onTouchStart, { passive: false })
+    vp.addEventListener('touchmove', onTouchMove, { passive: false })
+    vp.addEventListener('touchend', onTouchEnd)
+    return () => {
+      vp.removeEventListener('touchstart', onTouchStart)
+      vp.removeEventListener('touchmove', onTouchMove)
+      vp.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [zoomTo])
+
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 9999,
-      background: 'rgba(0,0,0,0.92)', display: 'flex',
-      justifyContent: 'center', alignItems: 'center', flexDirection: 'column',
-    }}>
+    <div className="mosaic-modal">
       {/* Header */}
-      <div style={{
-        position: 'fixed', top: 0, left: 0, right: 0,
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        padding: 'var(--space-4) var(--space-5)',
-        background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(12px)',
-        zIndex: 10001,
-      }}>
-        <div style={{
-          fontSize: 'var(--text-sm)', fontWeight: 700, color: 'rgba(255,255,255,0.95)',
-          textTransform: 'uppercase', letterSpacing: 'var(--tracking-caps)',
-        }}>
+      <div className="mosaic-modal-header">
+        <div className="mosaic-modal-title">
           {title}
         </div>
-        <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-          <ModalBtn onClick={() => zoom(-1)}>-</ModalBtn>
-          <span style={{
-            fontSize: 'var(--text-xs)', color: 'rgba(255,255,255,0.6)',
-            minWidth: 48, textAlign: 'center', fontVariantNumeric: 'tabular-nums',
-          }}>
+        <div className="mosaic-modal-controls">
+          <button className="modal-btn modal-zoom-step" onClick={() => zoom(-1)}>-</button>
+          <span className="modal-zoom-label">
             {Math.round(scale * 100)}%
           </span>
-          <ModalBtn onClick={() => zoom(1)}>+</ModalBtn>
-          <ModalBtn onClick={fit}>Fit</ModalBtn>
-          <ModalBtn onClick={() => setScale(1)}>1:1</ModalBtn>
-          <ModalBtn onClick={onClose}>Close</ModalBtn>
+          <button className="modal-btn modal-zoom-step" onClick={() => zoom(1)}>+</button>
+          <button className="modal-btn" onClick={fit}>Fit</button>
+          <button className="modal-btn" onClick={() => setScale(1)}>1:1</button>
+          <button className="modal-btn" onClick={onClose}>Close</button>
         </div>
       </div>
 
       {/* Viewport */}
       <div
         ref={viewportRef}
+        className="mosaic-modal-viewport"
         onMouseDown={onMouseDown}
         style={{
-          position: 'fixed', inset: 0, overflow: 'auto',
           cursor: isDragging.current ? 'grabbing' : 'grab',
-          zIndex: 10000, paddingTop: 48,
         }}
       >
         <img
@@ -261,23 +300,5 @@ function MosaicModal({ src, title, onClose }: { src: string; title: string; onCl
         />
       </div>
     </div>
-  )
-}
-
-function ModalBtn({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)',
-        color: 'rgba(255,255,255,0.95)', padding: 'var(--space-1) var(--space-3)',
-        fontFamily: 'var(--font-sans)', fontSize: 'var(--text-sm)', cursor: 'pointer',
-        borderRadius: 'var(--radius-sm)', transition: 'background var(--duration-fast)',
-      }}
-      onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.25)'}
-      onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
-    >
-      {children}
-    </button>
   )
 }

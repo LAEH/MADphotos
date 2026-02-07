@@ -3,7 +3,7 @@ import { Sidebar } from './Sidebar'
 
 export function Layout() {
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
+    <div className="app-layout">
       <Sidebar />
       <div className="main-content">
         <Outlet />

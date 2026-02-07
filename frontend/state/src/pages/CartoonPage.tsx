@@ -90,28 +90,24 @@ export function CartoonPage() {
 
       <FilterBar items={categories} active={filter} onSelect={setFilter} />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--space-8)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--space-6)' }}>
         {filtered.map(pair => (
           <div key={pair.uuid} style={{
             background: 'var(--card-bg)', borderRadius: 'var(--radius-lg)',
             border: '1px solid var(--border)', overflow: 'hidden',
-            transition: 'box-shadow var(--duration-fast)',
           }}>
-            <div style={{
-              display: 'grid', gridTemplateColumns: '1fr 1fr',
-              position: 'relative',
-            }}>
+            <div className="cartoon-pair-grid">
               <div style={{ position: 'relative', overflow: 'hidden', aspectRatio: '1' }}>
                 <FadeImg
                   src={imageUrl(`/rendered/display/jpeg/${pair.uuid}.jpg`)}
                   alt="Original"
                   loading="lazy"
-                  style={{ aspectRatio: '1' }}
+                  style={{ aspectRatio: '1', width: '100%', height: '100%' }}
                 />
                 <span style={{
                   position: 'absolute', bottom: 'var(--space-2)', left: 'var(--space-2)',
                   fontSize: 'var(--text-xs)', fontWeight: 600, textTransform: 'uppercase',
-                  letterSpacing: 'var(--tracking-caps)', padding: '2px var(--space-2)',
+                  letterSpacing: 'var(--tracking-caps)', padding: 'var(--space-1) var(--space-2)',
                   borderRadius: 'var(--radius-sm)', backdropFilter: 'blur(12px)',
                   background: 'rgba(0,0,0,0.5)', color: '#fff', zIndex: 2,
                 }}>
@@ -123,22 +119,19 @@ export function CartoonPage() {
                   src={imageUrl(`/ai_variants/cartoon/${pair.category}/${pair.subcategory}/${pair.variant_uuid}.jpg`)}
                   alt="Cartoon"
                   loading="lazy"
-                  style={{ aspectRatio: '1' }}
+                  style={{ aspectRatio: '1', width: '100%', height: '100%' }}
                 />
                 <span style={{
                   position: 'absolute', bottom: 'var(--space-2)', left: 'var(--space-2)',
                   fontSize: 'var(--text-xs)', fontWeight: 600, textTransform: 'uppercase',
-                  letterSpacing: 'var(--tracking-caps)', padding: '2px var(--space-2)',
+                  letterSpacing: 'var(--tracking-caps)', padding: 'var(--space-1) var(--space-2)',
                   borderRadius: 'var(--radius-sm)', backdropFilter: 'blur(12px)',
                   background: 'linear-gradient(135deg, rgba(175,82,222,0.7), rgba(255,45,85,0.7))', color: '#fff', zIndex: 2,
                 }}>
                   Cartoon
                 </span>
               </div>
-              <div style={{
-                position: 'absolute', top: 0, left: '50%', width: 2, height: '100%',
-                background: 'var(--bg)', zIndex: 1,
-              }} />
+              <div className="cartoon-divider" />
             </div>
             <div style={{ padding: 'var(--space-3) var(--space-4)' }}>
               <div style={{ fontSize: 'var(--text-sm)', color: 'var(--fg-secondary)', lineHeight: 'var(--leading-relaxed)' }}>
