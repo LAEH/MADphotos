@@ -1,10 +1,7 @@
-# Image data (too large for git)
-originals/
-rendered/
-ai_variants/
+# Image data + database (all under images/)
+images/
 
-# Database files
-*.db
+# Database journal files (anywhere)
 *.db-journal
 *.db-wal
 *.db-shm
@@ -12,29 +9,19 @@ ai_variants/
 # Exports
 mad_photos_export.json
 
-# Vector store
-vectors.lance/
+# Model weights (in backend/models/)
+backend/models/
 
-# Model weights
-*.pth.tar
-*.onnx
-*.pt
-.places365_labels.txt
-.places365_resnet50.pth.tar
-face_detection_yunet_2023mar.onnx
-yolov8n.pt
-
-# Processing state files
-.faces_processed.json
-.objects_processed.json
+# Processing state files (in backend/)
+backend/.faces_processed.json
+backend/.objects_processed.json
 
 # Swift build artifacts
-MADCurator/.build/
-MADCurator/*.app
-MADCurator/mad_photos.db
+frontend/see/.build/
+frontend/see/*.app
 
 # Web gallery data (generated)
-web/data/
+frontend/show/data/
 
 # Python
 __pycache__/

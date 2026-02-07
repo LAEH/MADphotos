@@ -1066,3 +1066,23 @@ Full code inspection caught a bug: scene filter was only checking `scene1`, miss
 ### 14:45 — /sync-state: Custom Claude Code Agent
 
 Created the first custom Claude Code skill at `.claude/skills/sync-state/`. Two files: `SKILL.md` (the reconciliation protocol — 5 phases: collect, compare, report, journal, regenerate) and `snapshot.py` (Python script that queries DB + filesystem and outputs JSON with all 50 reconcilable values). The snapshot covers: image/camera/signal/detection counts, AI variant types, table counts, Python script inventory, web experience list, Swift filter dimensions, editable field count. Designed to be run as `/sync-state` at the end of every session — compares snapshot actuals against MEMORY.md, generate_status_page.py, and docs/index.html, then patches all deltas.
+
+### 11:30 — Repo Restructure: frontend/ + backend/
+
+Major repository reorganization from "everything at root" to a clear `frontend/` + `backend/` layout. Executed in 6 phases:
+
+**Phase 1-2: Frontend assets moved.** `web/` → `frontend/show/`, `docs/*.html` + `.nojekyll` + `hero-mosaic.jpg` → `frontend/state/`, `MADCurator/` → `frontend/see/`. Updated `firebase.json` (`public: "frontend/show"`), GitHub Pages deploy workflow (`path: frontend/state`), and `.gitignore`.
+
+**Phase 3: Shell scripts.** `run_after_render.sh` → `scripts/after_render.sh`, `run_full_reprocess.sh` → `scripts/full_reprocess.sh`. Updated internal script paths to use `$PROJ/backend/` references.
+
+**Phase 4: The big one — 19 Python scripts moved and renamed.** All scripts moved atomically to `backend/` with cleaner names: `mad_database.py` → `database.py`, `render_pipeline.py` → `render.py`, `photography_engine.py` → `gemini.py`, `imagen_engine.py` → `imagen.py`, `gcs_sync.py` → `upload.py`, `generate_status_page.py` → `dashboard.py`, `serve_gallery.py` → `serve_show.py`, etc. `database.py` now exports `PROJECT_ROOT = Path(__file__).resolve().parent.parent`, and all 12 scripts that import it use `db.PROJECT_ROOT` for path resolution. The 5 scripts with direct sqlite3 compute their own `PROJECT_ROOT`. Fixed the hardcoded absolute path in `vectors.py`. Updated all subprocess calls in `pipeline.py` and `completions.py` to use new script names.
+
+**Phase 5: Verification.** All 5 tests pass: `completions.py --status` (imports + DB + lancedb), `dashboard.py` (generates 6 pages to `frontend/state/`), `export_gallery.py --pretty` (writes 27.7 MB to `frontend/show/data/`), `serve_show.py` (paths resolve correctly), Swift build (compiles successfully).
+
+**Phase 6: Design tokens + docs.** Added spacing scale (4-64px), type scale (11-34px), and extended radius tokens to Show's `style.css`. Aligned State's CSS: renamed Apple colors to `--system-*` canonical names with legacy aliases, added `--text`, `--text-muted`, `--bg-elevated` semantic aliases alongside existing `--fg`/`--muted`/`--bg-secondary`. Updated MEMORY.md with new repo structure, README.md with directory tree and new script names, and dashboard.py instructions page.
+
+Naming conventions: dropped `mad_` prefix, `_engine` suffix, `generate_` prefix, `_pipeline` suffix. Named after what it IS (gemini, imagen) or what it DOES (upload, enhance, render).
+
+### 11:48 — Data Directory Consolidation: images/ + backend/models/
+
+Moved all data assets from project root into organized subdirectories. `originals/`, `rendered/`, `ai_variants/`, `vectors.lance/` now live under `images/`. The SQLite database `mad_photos.db` (3.1 GB) also moved to `images/` — it's data about images. Model weights (`face_detection_yunet_2023mar.onnx`, `yolov8n.pt`, `.places365_resnet50.pth.tar`, `.places365_labels.txt`) moved to `backend/models/`. Processing state files (`.faces_processed.json`, `.objects_processed.json`) moved to `backend/`. Updated all 19 Python scripts, 2 shell scripts, 1 Swift source file, and `.gitignore`. Updated 97,898 `tiers.local_path` DB rows via `REPLACE()`. Updated the `/sync-state` skill (both `SKILL.md` and `snapshot.py`) to use new paths. The root is now clean: just `frontend/`, `backend/`, `scripts/`, `docs/`, `images/`, config files.

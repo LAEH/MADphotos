@@ -1,0 +1,1522 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MADphotos Dashboard</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%23111'/></svg>">
+<style>
+  /* ═══════════════════════════════════════════════════════════
+     DESIGN TOKENS — Apple Human Interface Guidelines
+     ═══════════════════════════════════════════════════════════ */
+  :root {
+    /* ── Type scale (SF Pro) ── */
+    --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
+    --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif;
+    --font-mono: "SF Mono", ui-monospace, "Cascadia Code", "Fira Code", monospace;
+
+    --text-xs: 11px;
+    --text-sm: 13px;
+    --text-base: 15px;
+    --text-lg: 17px;
+    --text-xl: 20px;
+    --text-2xl: 22px;
+    --text-3xl: 28px;
+    --text-4xl: 34px;
+
+    --leading-tight: 1.2;
+    --leading-normal: 1.47;
+    --leading-relaxed: 1.6;
+
+    --tracking-tight: -0.01em;
+    --tracking-normal: 0;
+    --tracking-wide: 0.02em;
+    --tracking-caps: 0.06em;
+
+    /* ── Spacing scale (4px base) ── */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+
+    /* ── Radius ── */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 20px;
+    --radius-full: 9999px;
+
+    /* ── Shadows ── */
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 2px 8px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-lg: 0 4px 16px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+
+    /* ── Transitions ── */
+    --ease-default: cubic-bezier(0.25, 0.1, 0.25, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --duration-fast: 150ms;
+    --duration-normal: 250ms;
+
+    /* ── Apple system colors (canonical names from Show) ── */
+    --system-blue: #007AFF;
+    --system-green: #34C759;
+    --system-indigo: #5856D6;
+    --system-orange: #FF9500;
+    --system-pink: #FF2D55;
+    --system-purple: #AF52DE;
+    --system-red: #FF3B30;
+    --system-teal: #5AC8FA;
+    --system-yellow: #FFCC00;
+    --system-mint: #00C7BE;
+    --system-cyan: #32ADE6;
+    --system-brown: #A2845E;
+    /* Legacy aliases */
+    --apple-blue: var(--system-blue);
+    --apple-green: var(--system-green);
+    --apple-indigo: var(--system-indigo);
+    --apple-orange: var(--system-orange);
+    --apple-pink: var(--system-pink);
+    --apple-purple: var(--system-purple);
+    --apple-red: var(--system-red);
+    --apple-teal: var(--system-teal);
+    --apple-yellow: var(--system-yellow);
+    --apple-mint: var(--system-mint);
+    --apple-cyan: var(--system-cyan);
+    --apple-brown: var(--system-brown);
+
+    /* ── Spacing Scale (from Show) ── */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+
+    /* ── Type Scale (from Show) ── */
+    --text-xs: 11px;
+    --text-sm: 13px;
+    --text-base: 15px;
+    --text-lg: 17px;
+    --text-xl: 20px;
+    --text-2xl: 22px;
+    --text-3xl: 28px;
+    --text-4xl: 34px;
+
+    /* ── Sidebar width ── */
+    --sidebar-w: 220px;
+  }
+
+  /* ── Light theme (default) ── */
+  [data-theme="light"] {
+    --bg: #F5F5F7;
+    --bg-secondary: #FFFFFF;
+    --bg-elevated: #FFFFFF;
+    --bg-tertiary: #F2F2F7;
+    --fg: #1D1D1F;
+    --text: #1D1D1F;
+    --fg-secondary: #3A3A3C;
+    --text-dim: #3A3A3C;
+    --muted: #86868B;
+    --text-muted: #86868B;
+    --border: rgba(0,0,0,0.08);
+    --border-strong: rgba(0,0,0,0.14);
+    --card-bg: #FFFFFF;
+    --card-hover: #FAFAFA;
+    --bar-bg: rgba(0,0,0,0.06);
+    --bar-fill: #1D1D1F;
+    --pill-bg: #FFFFFF;
+    --pill-border: rgba(0,0,0,0.10);
+    --pill-hover: #F5F5F7;
+    --badge-green-bg: rgba(52,199,89,0.12);
+    --badge-green-fg: #248A3D;
+    --badge-amber-bg: rgba(255,149,0,0.12);
+    --badge-amber-fg: #C93400;
+    --badge-red-bg: rgba(255,59,48,0.12);
+    --badge-red-fg: #D70015;
+    --json-key: #1D1D1F;
+    --json-str: #6E6E73;
+    --json-num: #007AFF;
+    --tag-icon-bg: rgba(0,0,0,0.05);
+    --hover-overlay: rgba(0,0,0,0.03);
+    --sidebar-bg: #FFFFFF;
+    --sidebar-active-bg: rgba(0,0,0,0.04);
+    color-scheme: light;
+  }
+
+  /* ── Dark theme ── */
+  [data-theme="dark"] {
+    --bg: #1C1C1E;
+    --bg-secondary: #2C2C2E;
+    --bg-elevated: #2C2C2E;
+    --bg-tertiary: #3A3A3C;
+    --fg: #F5F5F7;
+    --text: #F5F5F7;
+    --fg-secondary: #D1D1D6;
+    --text-dim: #D1D1D6;
+    --muted: #98989D;
+    --text-muted: #98989D;
+    --border: rgba(255,255,255,0.08);
+    --border-strong: rgba(255,255,255,0.14);
+    --card-bg: #2C2C2E;
+    --card-hover: #3A3A3C;
+    --bar-bg: rgba(255,255,255,0.08);
+    --bar-fill: #F5F5F7;
+    --pill-bg: #2C2C2E;
+    --pill-border: rgba(255,255,255,0.12);
+    --pill-hover: #3A3A3C;
+    --badge-green-bg: rgba(48,209,88,0.16);
+    --badge-green-fg: #30D158;
+    --badge-amber-bg: rgba(255,159,10,0.16);
+    --badge-amber-fg: #FF9F0A;
+    --badge-red-bg: rgba(255,69,58,0.16);
+    --badge-red-fg: #FF453A;
+    --json-key: #F5F5F7;
+    --json-str: #98989D;
+    --json-num: #64D2FF;
+    --tag-icon-bg: rgba(255,255,255,0.08);
+    --hover-overlay: rgba(255,255,255,0.04);
+    --sidebar-bg: #2C2C2E;
+    --sidebar-active-bg: rgba(255,255,255,0.06);
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+    --shadow-md: 0 2px 8px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
+    --shadow-lg: 0 4px 16px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.2);
+    color-scheme: dark;
+  }
+
+  /* ═══ AI ANIMATIONS ═══ */
+  @keyframes ai-shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes ai-gradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* ═══ RESET ═══ */
+  html { scroll-behavior: smooth; }
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
+    background: var(--bg);
+    color: var(--fg);
+    display: flex;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* ═══ HERO ═══ */
+  .hero {
+    position: relative;
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    margin-bottom: var(--space-10);
+    min-height: 320px;
+    display: flex;
+    align-items: flex-end;
+  }
+  .hero-mosaic {
+    position: absolute; inset: 0;
+  }
+  .hero-mosaic img {
+    width: 100%; height: 100%; object-fit: cover;
+    filter: brightness(0.4) saturate(0.8);
+    transition: filter 0.5s;
+  }
+  .hero:hover .hero-mosaic img {
+    filter: brightness(0.5) saturate(0.9);
+  }
+  .hero-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(0deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.1) 100%);
+  }
+  .hero-content {
+    position: relative; z-index: 1;
+    padding: var(--space-10) var(--space-8);
+    max-width: 640px;
+  }
+  .hero-title {
+    font-family: var(--font-display);
+    font-size: 48px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #FFFFFF;
+    margin-bottom: var(--space-1);
+    line-height: 1.1;
+  }
+  .hero-count {
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    font-weight: 600;
+    color: rgba(255,255,255,0.7);
+    margin-bottom: var(--space-4);
+    letter-spacing: -0.01em;
+  }
+  .hero-tagline {
+    font-size: var(--text-base);
+    color: rgba(255,255,255,0.85);
+    line-height: var(--leading-relaxed);
+    margin-bottom: var(--space-3);
+  }
+  .hero-mission {
+    font-size: var(--text-sm);
+    color: rgba(255,255,255,0.6);
+    line-height: var(--leading-relaxed);
+    margin-bottom: var(--space-2);
+  }
+  .hero-mission em {
+    color: rgba(255,255,255,0.85);
+    font-style: italic;
+  }
+  @media (max-width: 700px) {
+    .hero { min-height: 200px; border-radius: var(--radius-lg); }
+    .hero-title { font-size: 28px; }
+    .hero-content { padding: var(--space-4); }
+    .hero-count { font-size: var(--text-base); }
+    .hero-tagline, .hero-mission { display: none; }
+  }
+  @media (max-width: 440px) {
+    .hero { min-height: 160px; border-radius: var(--radius-md); margin-bottom: var(--space-6); }
+    .hero-title { font-size: 24px; }
+    .hero-content { padding: var(--space-3); }
+  }
+
+  /* ═══ SIDEBAR ═══ */
+  .sidebar {
+    width: var(--sidebar-w);
+    min-width: var(--sidebar-w);
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--border);
+    padding: var(--space-5) 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+  .sidebar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 2px;
+    height: 100%;
+    background: linear-gradient(180deg,
+      var(--apple-blue) 0%,
+      var(--apple-purple) 35%,
+      var(--apple-pink) 65%,
+      var(--apple-orange) 100%
+    );
+    opacity: 0.35;
+    background-size: 100% 300%;
+    animation: ai-gradient 8s ease infinite;
+  }
+  .sidebar .sb-title {
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+    font-weight: 700;
+    letter-spacing: var(--tracking-tight);
+    padding: 0 var(--space-5) var(--space-4);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: var(--space-2);
+  }
+  .sidebar a {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-5);
+    padding-left: calc(var(--space-5) - 3px);
+    border-left: 3px solid transparent;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: var(--text-sm);
+    line-height: var(--leading-tight);
+    border-radius: 0;
+    transition: background var(--duration-fast) var(--ease-default),
+                color var(--duration-fast) var(--ease-default),
+                border-color var(--duration-fast) var(--ease-default);
+  }
+  .sidebar a:hover {
+    background: var(--sidebar-active-bg);
+    color: var(--fg);
+  }
+  .sidebar a.active {
+    color: var(--fg);
+    font-weight: 600;
+    background: var(--sidebar-active-bg);
+    border-left-color: var(--apple-blue);
+  }
+  .sidebar a.sb-sub {
+    padding-left: var(--space-8);
+    font-size: var(--text-xs);
+  }
+  .sidebar .sb-sep {
+    height: 1px;
+    background: var(--border);
+    margin: var(--space-2) var(--space-5);
+  }
+  .sidebar .sb-group {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-caps);
+    color: var(--muted);
+    padding: var(--space-3) var(--space-5) var(--space-1);
+  }
+  .sidebar .sb-toggle {
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .sidebar .sb-arrow {
+    font-size: 10px;
+    transition: transform var(--duration-fast) var(--ease-default);
+  }
+  .sidebar .sb-toggle.open .sb-arrow {
+    transform: rotate(90deg);
+  }
+  .sidebar .sb-collapsible {
+    overflow: hidden;
+    max-height: 500px;
+    transition: max-height 0.2s ease;
+  }
+  .sidebar .sb-collapsed {
+    max-height: 0;
+  }
+  .sidebar .sb-bottom {
+    margin-top: auto;
+    padding: var(--space-3) var(--space-5);
+    border-top: 1px solid var(--border);
+  }
+  .theme-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--muted);
+    cursor: pointer;
+    padding: var(--space-2) 0;
+    background: none;
+    border: none;
+    font-family: inherit;
+    width: 100%;
+    transition: color var(--duration-fast);
+  }
+  .theme-toggle:hover { color: var(--fg); }
+  .theme-toggle .theme-icon { font-size: 16px; }
+
+  /* ═══ MAIN CONTENT ═══ */
+  .main-content {
+    flex: 1;
+    padding: var(--space-4);
+    max-width: 1120px;
+    min-width: 0;
+    margin: 0 auto;
+    width: 100%;
+    animation: fade-up 0.5s var(--ease-default) both;
+  }
+
+  /* ── Mobile hamburger ── */
+  .sb-hamburger {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 36px; height: 36px;
+    background: none; border: none; cursor: pointer;
+    color: var(--fg); font-size: 20px;
+    border-radius: var(--radius-sm);
+    transition: background var(--duration-fast);
+  }
+  .sb-hamburger:hover { background: var(--sidebar-active-bg); }
+
+  @media (max-width: 900px) {
+    body { flex-direction: column; }
+    .sidebar {
+      width: 100%; min-width: unset; height: auto; position: sticky; top: 0;
+      z-index: 100; border-right: none; border-bottom: 1px solid var(--border);
+      flex-direction: row; flex-wrap: wrap; gap: 0; padding: var(--space-2) var(--space-3);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      background: color-mix(in srgb, var(--sidebar-bg) 85%, transparent);
+    }
+    .sidebar .sb-title {
+      width: auto; border-bottom: none; padding: 0 var(--space-2) 0 0;
+      margin-bottom: 0; font-size: var(--text-base);
+    }
+    .sb-hamburger { display: flex; margin-left: auto; }
+    .sidebar > a, .sidebar .sb-group, .sidebar .sb-sep,
+    .sidebar .sb-bottom, .sidebar .sb-collapsible,
+    .sidebar .sb-toggle { display: none; }
+    .sidebar.open > a { display: flex; width: 100%; }
+    .sidebar.open .sb-sep { display: block; width: 100%; }
+    .sidebar.open .sb-group { display: block; width: 100%; }
+    .sidebar.open .sb-bottom { display: block; width: 100%; }
+    .sidebar.open .sb-toggle { display: block; width: 100%; }
+    .main-content { padding: var(--space-4); }
+  }
+
+  @media (min-width: 901px) {
+    .main-content { padding: var(--space-10) var(--space-8); }
+  }
+
+  /* ═══ TYPOGRAPHY ═══ */
+  h1 {
+    font-family: var(--font-display);
+    font-size: 42px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    margin-bottom: var(--space-1);
+    color: var(--fg);
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-3);
+  }
+  .manifesto {
+    font-size: var(--text-sm);
+    line-height: var(--leading-relaxed);
+    color: var(--fg-secondary);
+    margin-bottom: 0;
+  }
+  .manifesto strong { color: var(--fg); font-weight: 700; }
+
+  /* ═══ HERO HEADER ═══ */
+  .state-hero {
+    margin-bottom: var(--space-8);
+    animation: fade-up 0.6s var(--ease-default) both;
+  }
+  .state-hero h1 { margin-bottom: var(--space-1); }
+  .live-dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    background: var(--apple-green);
+    border-radius: var(--radius-full);
+    margin-right: var(--space-2);
+    animation: pulse 2s ease infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.85); }
+  }
+
+  /* Section headings */
+  .section-title {
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    font-weight: 700;
+    letter-spacing: var(--tracking-tight);
+    color: var(--fg);
+    margin: 0 0 var(--space-5);
+    padding-bottom: var(--space-3);
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .section-title::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: 60px;
+    height: 2px;
+    background: linear-gradient(90deg, var(--apple-blue), var(--apple-purple));
+    border-radius: 1px;
+    opacity: 0.6;
+  }
+  .subsection-title {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-caps);
+    color: var(--muted);
+    margin: var(--space-4) 0 var(--space-2);
+  }
+  .subsection-title:first-child { margin-top: 0; }
+
+  /* ═══ ELEMENT GRID (model intelligence — compact) ═══ */
+  .el-section-title {
+    font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700;
+    letter-spacing: var(--tracking-tight); margin-bottom: var(--space-1);
+  }
+  .el-section-sub { display: none; }
+  .el-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 6px;
+  }
+  .el-card.status-done {
+    border-color: var(--border);
+  }
+  .el-card.status-active {
+    border-color: var(--apple-blue);
+    background: color-mix(in srgb, var(--apple-blue) 4%, var(--card-bg));
+  }
+  .el-card.status-pending {
+    opacity: 0.35;
+  }
+  .el-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+    position: relative;
+    transition: transform var(--duration-fast), box-shadow var(--duration-fast);
+    animation: fade-up 0.4s var(--ease-default) both;
+  }
+  .el-card:nth-child(n+4) { animation-delay: 60ms; }
+  .el-card:nth-child(n+7) { animation-delay: 120ms; }
+  .el-card:nth-child(n+10) { animation-delay: 180ms; }
+  .el-card:nth-child(n+13) { animation-delay: 240ms; }
+  .el-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+  .el-card .el-num {
+    position: absolute; top: 4px; right: 6px;
+    font-family: var(--font-mono); font-size: 8px;
+    color: var(--muted); font-weight: 600; opacity: 0.6;
+  }
+  .el-card .el-model {
+    font-family: var(--font-display); font-size: 11px; font-weight: 700;
+    color: var(--fg); margin-bottom: 0; padding-right: var(--space-4);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .el-card .el-tech {
+    font-family: var(--font-mono); font-size: 8px; color: var(--muted);
+    letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .el-card .el-desc { display: none; }
+  .el-card .el-count {
+    font-family: var(--font-display); font-size: var(--text-base); font-weight: 800;
+    color: var(--fg); line-height: 1; font-variant-numeric: tabular-nums;
+    margin-top: 4px;
+  }
+  .el-card .el-bar {
+    height: 2px; background: var(--border);
+    border-radius: 1px; margin-top: 4px; overflow: hidden;
+  }
+  .el-card .el-fill {
+    height: 100%; border-radius: 1px;
+    background: var(--fg);
+    transition: width 1s var(--ease-default);
+  }
+  .el-card.status-done .el-fill { background: var(--muted); }
+  .el-card.status-active .el-fill { background: var(--apple-blue); }
+  .el-card .el-pct { display: none; }
+  .el-badge {
+    display: inline-block; font-size: 8px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 0 4px; border-radius: 2px;
+    vertical-align: middle; margin-left: 3px;
+  }
+  .el-badge.done { background: color-mix(in srgb, var(--apple-green) 15%, transparent); color: var(--apple-green); font-weight: 700; }
+  .el-badge.active { background: color-mix(in srgb, var(--apple-blue) 15%, transparent); color: var(--apple-blue); font-weight: 700; animation: pulse-badge 2s ease-in-out infinite; }
+  .el-badge.pending { background: var(--hover-overlay); color: var(--muted); }
+  @keyframes pulse-badge { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+  @media (max-width: 600px) {
+    .el-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+  }
+
+
+  /* ═══ PROGRESS BARS ═══ */
+  .progress-wrap {
+    background: var(--bar-bg);
+    height: 8px;
+    width: 100%;
+    margin: var(--space-3) 0 var(--space-2);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+    position: relative;
+  }
+  .progress-fill {
+    background: var(--fg);
+    height: 100%;
+    border-radius: var(--radius-full);
+    transition: width 1s var(--ease-default);
+  }
+  .progress-fill.green { background: var(--apple-green); }
+  .progress-fill.amber { background: var(--apple-orange); }
+  .progress-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: var(--space-1);
+  }
+  .progress-info .pi-label {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .progress-info .pi-pct {
+    font-size: var(--text-sm);
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .rate {
+    font-size: var(--text-xs);
+    color: var(--muted);
+    margin-top: var(--space-1);
+  }
+
+  /* ═══ TABLES ═══ */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-4);
+  }
+  th {
+    text-align: left;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-caps);
+    color: var(--muted);
+    border-bottom: 1px solid var(--border-strong);
+    padding: var(--space-2) var(--space-3);
+  }
+  td {
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--border);
+  }
+  .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+  }
+  tr:hover td { background: var(--hover-overlay); }
+
+  /* ═══ LAYOUT ═══ */
+  .section { margin-bottom: var(--space-12); }
+  .two-col { display: grid; grid-template-columns: 1fr; gap: var(--space-6); }
+  .three-col { display: grid; grid-template-columns: 1fr; gap: var(--space-6); }
+
+  /* Mobile-first responsive */
+  h1 { font-size: var(--text-3xl); }
+  @media (max-width: 640px) {
+    h1 { font-size: var(--text-2xl); }
+    .el-grid { grid-template-columns: 1fr; }
+  }
+  @media (min-width: 641px) and (max-width: 900px) {
+    .el-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (min-width: 640px) {
+    h1 { font-size: 42px; }
+  }
+
+  @media (min-width: 768px) {
+    .two-col { grid-template-columns: 1fr 1fr; gap: var(--space-8); }
+    .three-col { grid-template-columns: 1fr 1fr 1fr; }
+  }
+  .table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: var(--space-4);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+  }
+  .table-wrap table {
+    min-width: 500px;
+    margin-bottom: 0;
+  }
+  .table-wrap td:last-child, .table-wrap th:last-child { padding-right: var(--space-4); }
+  .table-wrap td:first-child, .table-wrap th:first-child { padding-left: var(--space-4); }
+
+  /* ═══ HF-STYLE TAGS (pills with category icons) ═══ */
+  .tag-row {
+    display: flex;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+    margin: var(--space-2) 0;
+  }
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    background: var(--pill-bg);
+    border: 1px solid var(--pill-border);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-xs);
+    line-height: 1;
+    white-space: nowrap;
+    transition: background var(--duration-fast), border-color var(--duration-fast);
+    cursor: default;
+  }
+  .tag:hover {
+    background: var(--pill-hover);
+    border-color: var(--border-strong);
+  }
+  .tag .tag-icon {
+    flex-shrink: 0;
+    line-height: 0;
+    display: inline-flex;
+    align-items: center;
+  }
+  .tag .tag-icon svg {
+    width: 14px;
+    height: 14px;
+  }
+  .tag .tag-label { font-weight: 500; color: var(--fg-secondary); text-transform: capitalize; }
+  .tag .tag-count {
+    font-weight: 700;
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+    color: var(--fg);
+  }
+  .signal-group {
+    margin-bottom: var(--space-6);
+  }
+  .signal-group:last-child { margin-bottom: 0; }
+  .signal-group-label {
+    font-size: var(--text-lg);
+    font-weight: 700;
+    color: var(--fg);
+    margin-bottom: var(--space-3);
+    padding-bottom: var(--space-1);
+    border-bottom: 1px solid var(--border);
+  }
+  .signal-flow {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .signal-sub {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+  }
+  .signal-sub .tag-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    margin: 0;
+    flex: 1;
+    min-width: 0;
+  }
+  .signal-sub-label {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+    min-width: 100px;
+    flex-shrink: 0;
+  }
+  /* Only icon gets group color — border stays default, count stays black */
+  .tag-cat-scene .tag-icon svg { color: var(--apple-teal); }
+  .tag-cat-scene-env .tag-icon svg { color: color-mix(in srgb, var(--apple-teal) 70%, var(--apple-green)); }
+  .tag-cat-scene-set .tag-icon svg { color: color-mix(in srgb, var(--apple-teal) 60%, var(--apple-blue)); }
+  .tag-cat-scene-obj .tag-icon svg { color: color-mix(in srgb, var(--apple-teal) 50%, var(--apple-green)); }
+  .tag-cat-scene-loc .tag-icon svg { color: color-mix(in srgb, var(--apple-teal) 40%, var(--apple-blue)); }
+
+  .tag-cat-style .tag-icon svg { color: var(--apple-purple); }
+  .tag-cat-style-emo .tag-icon svg { color: var(--apple-pink); }
+  .tag-cat-style-grad .tag-icon svg { color: color-mix(in srgb, var(--apple-purple) 70%, var(--apple-blue)); }
+  .tag-cat-style-cls .tag-icon svg { color: color-mix(in srgb, var(--apple-purple) 60%, var(--apple-pink)); }
+  .tag-cat-style-cast .tag-icon svg { color: color-mix(in srgb, var(--apple-purple) 50%, var(--apple-orange)); }
+  .tag-cat-style-temp .tag-icon svg { color: color-mix(in srgb, var(--apple-purple) 40%, var(--apple-orange)); }
+  .tag-cat-style-exp .tag-icon svg { color: color-mix(in srgb, var(--apple-purple) 50%, var(--apple-blue)); }
+
+  .tag-cat-depth .tag-icon svg { color: var(--apple-indigo); }
+  .tag-cat-depth-comp .tag-icon svg { color: color-mix(in srgb, var(--apple-indigo) 70%, var(--apple-blue)); }
+  .tag-cat-depth-ratio .tag-icon svg { color: color-mix(in srgb, var(--apple-indigo) 50%, var(--apple-teal)); }
+
+  .tag-cat-camera .tag-icon svg { color: var(--muted); }
+  .tag-cat-camera-time .tag-icon svg { color: var(--fg-secondary); }
+  .tag-cat-camera-enh .tag-icon svg { color: var(--muted); opacity: 0.8; }
+  .tag-cat-camera-rot .tag-icon svg { color: var(--fg-secondary); opacity: 0.8; }
+
+  /* Color dot inside tags (for dominant colors) */
+  .tag .tag-cdot {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border-strong);
+    flex-shrink: 0;
+  }
+
+  .mini-legend {
+    display: flex;
+    gap: var(--space-4);
+    font-size: var(--text-xs);
+    color: var(--muted);
+    margin-top: var(--space-2);
+  }
+  .mini-legend span { display: flex; align-items: center; gap: var(--space-1); }
+  .mini-legend span::before {
+    content: '';
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: var(--radius-full);
+  }
+  .mini-legend .l-ok::before { background: var(--apple-green); }
+  .mini-legend .l-fail::before { background: var(--apple-red); }
+  .mini-legend .l-filtered::before { background: var(--muted); }
+
+  /* ═══ MODEL CARDS ═══ */
+  .model-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-3);
+    margin: var(--space-3) 0;
+  }
+  @media (max-width: 600px) {
+    .model-cards { grid-template-columns: 1fr; }
+  }
+  .model-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: var(--space-4) var(--space-5);
+    box-shadow: var(--shadow-sm);
+  }
+  .model-card .mc-name { font-weight: 700; font-size: var(--text-base); }
+  .model-card .mc-dim { font-size: var(--text-xs); color: var(--muted); margin-top: 2px; font-family: var(--font-mono); }
+  .model-card .mc-desc { font-size: var(--text-xs); color: var(--muted); margin-top: var(--space-2); line-height: var(--leading-relaxed); }
+
+  /* ═══ BADGES ═══ */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-sm);
+    gap: var(--space-1);
+  }
+  .badge.done { background: var(--badge-green-bg); color: var(--badge-green-fg); }
+  .badge.partial { background: var(--badge-amber-bg); color: var(--badge-amber-fg); }
+  .badge.empty { background: var(--badge-red-bg); color: var(--badge-red-fg); }
+
+  /* ═══ DISK / STORAGE ═══ */
+  .disk-row {
+    display: flex;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+    margin: var(--space-3) 0;
+  }
+  .disk-item {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-4);
+    box-shadow: var(--shadow-sm);
+  }
+  .disk-item .di-val {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: var(--text-lg);
+  }
+  .disk-item .di-label { font-size: var(--text-xs); color: var(--muted); }
+
+  /* ═══ SAMPLE JSON ═══ */
+  .sample-block {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: var(--space-5);
+    overflow-x: auto;
+    max-height: 500px;
+    overflow-y: auto;
+  }
+  .sample-block pre {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    line-height: var(--leading-relaxed);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .sample-header { font-size: var(--text-xs); color: var(--muted); margin-bottom: var(--space-3); }
+  .json-key { color: var(--json-key); font-weight: 600; }
+  .json-str { color: var(--json-str); }
+  .json-num { color: var(--json-num); font-weight: 600; }
+  .json-bool { color: var(--apple-purple); font-weight: 600; }
+  .json-null { color: var(--muted); }
+
+  /* ═══ DEPTH BAR ═══ */
+  .depth-bar {
+    display: flex;
+    height: 24px;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    margin: var(--space-2) 0;
+    box-shadow: var(--shadow-sm);
+  }
+  .depth-bar .db-near { background: var(--apple-blue); }
+  .depth-bar .db-mid { background: var(--apple-teal); }
+  .depth-bar .db-far { background: var(--apple-indigo); }
+  .depth-bar > div {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+    color: white;
+    min-width: 32px;
+    transition: width 1s var(--ease-default);
+  }
+  .depth-legend {
+    display: flex;
+    gap: var(--space-4);
+    font-size: var(--text-xs);
+    color: var(--muted);
+    margin-top: var(--space-1);
+  }
+  .depth-legend span { display: flex; align-items: center; gap: var(--space-1); }
+  .depth-legend span::before {
+    content: '';
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 2px;
+  }
+  .depth-legend .dl-near::before { background: var(--apple-blue); }
+  .depth-legend .dl-mid::before { background: var(--apple-teal); }
+  .depth-legend .dl-far::before { background: var(--apple-indigo); }
+
+  /* ═══ CAMERA TABLE ═══ */
+  .camera-table td:first-child { font-weight: 600; }
+  .wb-pos { color: var(--apple-red); }
+  .wb-neg { color: var(--apple-blue); }
+  .wb-zero { color: var(--muted); }
+
+  /* ═══ FOOTER ═══ */
+  footer {
+    margin-top: var(--space-16);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--border);
+    font-size: var(--text-xs);
+    color: var(--muted);
+  }
+  footer a { color: var(--muted); text-decoration: none; }
+  footer a:hover { color: var(--fg); }
+</style>
+</head>
+<body>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sb-title">MADphotos</div>
+  <button class="sb-hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+  <div class="sb-group sb-toggle" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('sb-collapsed')">
+    State <span class="sb-arrow">&#9656;</span>
+  </div>
+  <div class="sb-collapsible">
+    <a href="state.html" class="active sb-sub">Overview</a>
+    <a href="#sec-gemini" class="sb-sub">Models</a>
+    <a href="#sec-signals" class="sb-sub">Signals</a>
+    <a href="#sec-vectors" class="sb-sub">Vector Store</a>
+    <a href="#sec-cameras" class="sb-sub">Camera Fleet</a>
+    <a href="#sec-tiers" class="sb-sub">Render Tiers</a>
+    <a href="#sec-storage" class="sb-sub">Storage</a>
+    <a href="#sec-runs" class="sb-sub">Pipeline Runs</a>
+    <a href="#sec-sample" class="sb-sub">Sample Output</a>
+  </div>
+  <a href="journal.html">Journal de Bord</a>
+  <a href="instructions.html">System Instructions</a>
+  <div class="sb-sep"></div>
+  <div class="sb-group">Experiments</div>
+  <a href="drift.html">Similarity</a>
+  <a href="creative-drift.html">Drift</a>
+  <a href="blind-test.html">Blind Test</a>
+  <a href="mosaics.html">Mosaics</a>
+  <div class="sb-bottom">
+    <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">
+      <span class="theme-icon" id="themeIcon">&#9790;</span>
+      <span id="themeLabel">Dark Mode</span>
+    </button>
+  </div>
+</nav>
+
+<div class="main-content">
+
+<div class="state-hero">
+  <h1>System State</h1>
+  <p class="subtitle" id="subtitle">As of February 7, 2026 at 10:51 UTC</p>
+  <p class="manifesto">We started with 9,011 raw images and zero metadata.<br>We will create the best UX UIs on photos.<br>Game ON.</p>
+</div>
+
+<!-- ═══ MODELS ═══ -->
+<div class="section" id="sec-gemini" style="margin-bottom:var(--space-8);">
+  <div class="section-title">Models</div>
+  <div class="el-section-sub" id="el-sub">17 models &middot; every image</div>
+  <div class="el-grid" id="el-grid"></div>
+</div>
+
+<!-- ═══ SIGNALS — All tags grouped by meaning ═══ -->
+<div class="section" id="sec-signals">
+  <div class="section-title">Signals</div>
+
+  <!-- Scene & Setting -->
+  <div class="signal-group">
+    <div class="signal-group-label">Scene & Setting</div>
+    <div class="signal-flow">
+      <div class="signal-sub"><span class="signal-sub-label">Scene</span><div id="pills-scenes" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Environment</span><div id="pills-environments" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Setting</span><div id="pills-setting" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Objects</span><div id="pills-objects" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Location</span><div id="pills-locations" class="tag-row"></div></div>
+    </div>
+  </div>
+
+  <!-- Visual Style -->
+  <div class="signal-group">
+    <div class="signal-group-label">Visual Style</div>
+    <div class="signal-flow">
+      <div class="signal-sub"><span class="signal-sub-label">Vibes</span><div id="pills-vibes" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Emotions</span><div id="pills-emotions" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Grading</span><div id="pills-grading" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Style</span><div id="pills-styles" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Colors</span><div id="pills-topcolors" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Color Cast</span><div id="pills-cast" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Temperature</span><div id="pills-temp" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Exposure</span><div id="pills-exposure" class="tag-row"></div></div>
+    </div>
+  </div>
+
+  <!-- Structure -->
+  <div class="signal-group">
+    <div class="signal-group-label">Structure</div>
+    <div class="signal-flow">
+      <div class="signal-sub"><span class="signal-sub-label">Depth Zones</span><div id="pills-depth-zones" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Complexity</span><div id="pills-depth" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Composition</span><div id="pills-composition" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Aspect Ratio</span><div id="pills-ratios" class="tag-row"></div></div>
+    </div>
+  </div>
+
+  <!-- Context -->
+  <div class="signal-group">
+    <div class="signal-group-label">Context</div>
+    <div class="signal-flow">
+      <div class="signal-sub"><span class="signal-sub-label">Camera</span><div id="pills-subs" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Time of Day</span><div id="pills-time" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Enhancement</span><div id="pills-enhance" class="tag-row"></div></div>
+      <div class="signal-sub"><span class="signal-sub-label">Rotation</span><div id="pills-rotate" class="tag-row"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ VECTOR STORE ═══ -->
+<div class="section" id="sec-vectors">
+  <div class="section-title">Vector Store</div>
+  <div id="vector-info" style="font-size:var(--text-sm);color:var(--muted);margin-bottom:var(--space-3);"></div>
+  <div class="model-cards">
+    <div class="model-card">
+      <div class="mc-name">DINOv2</div>
+      <div class="mc-dim">768 dimensions</div>
+      <div class="mc-desc">Self-supervised vision transformer. Sees composition, texture, spatial layout. The artistic eye.</div>
+    </div>
+    <div class="model-card">
+      <div class="mc-name">SigLIP</div>
+      <div class="mc-dim">768 dimensions</div>
+      <div class="mc-desc">Multimodal image-text model. Sees meaning, enables text search. The semantic brain.</div>
+    </div>
+    <div class="model-card">
+      <div class="mc-name">CLIP</div>
+      <div class="mc-dim">512 dimensions</div>
+      <div class="mc-desc">Subject matching model. Finds duplicates and similar scenes. The pattern matcher.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CAMERA FLEET ═══ -->
+<div class="section" id="sec-cameras">
+  <div class="section-title">Camera Fleet</div>
+  <div class="table-wrap"><table class="camera-table">
+    <thead>
+      <tr>
+        <th>Camera</th>
+        <th class="num">Images</th>
+        <th>Medium</th>
+        <th>Film</th>
+        <th class="num">Lum</th>
+        <th class="num">WB Red</th>
+        <th class="num">WB Blue</th>
+        <th class="num">Noise</th>
+        <th class="num">Shadow%</th>
+      </tr>
+    </thead>
+    <tbody id="tbl-cameras"></tbody>
+  </table></div>
+</div>
+
+<!-- ═══ RENDER TIERS ═══ -->
+<div class="section" id="sec-tiers">
+  <div class="section-title">Render Tiers</div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Tier / Format</th><th class="num">Files</th><th class="num">Size</th></tr></thead>
+    <tbody id="tbl-tiers"></tbody>
+  </table></div>
+</div>
+
+<!-- ═══ DISK USAGE ═══ -->
+<div class="section" id="sec-storage">
+  <div class="section-title">Storage</div>
+  <div id="disk-info" class="disk-row"></div>
+</div>
+
+<!-- ═══ PIPELINE RUNS ═══ -->
+<div class="section" id="sec-runs">
+  <div class="section-title">Pipeline Runs</div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Phase</th><th>Status</th><th class="num">OK</th><th class="num">Failed</th><th>Started</th></tr></thead>
+    <tbody id="tbl-runs"></tbody>
+  </table></div>
+</div>
+
+<!-- ═══ SAMPLE ANALYSIS ═══ -->
+<div class="section" id="sec-sample">
+  <div class="section-title">Sample Analysis</div>
+  <div id="sample-meta" class="sample-header"></div>
+  <div class="sample-block">
+    <pre id="sample-json">Loading...</pre>
+  </div>
+</div>
+
+<footer>
+  MADphotos &mdash; <span id="footer-ts"></span> &mdash;
+  <a href="journal.html">Journal de Bord</a> &mdash;
+  <a href="https://github.com/LAEH/MADphotos">github.com/LAEH/MADphotos</a>
+</footer>
+
+</div><!-- /.main-content -->
+
+<script>
+(function() {
+  var POLL = 0;
+  var API  = "inline";
+  var prev = null;
+  var prevTime = null;
+
+  /* ── Theme toggle ── */
+  function getTheme() {
+    var s = localStorage.getItem('mad-theme');
+    if (s) return s;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  function applyTheme(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    var icon = document.getElementById('themeIcon');
+    var label = document.getElementById('themeLabel');
+    if (icon) icon.textContent = t === 'dark' ? '\u2600' : '\u263E';
+    if (label) label.textContent = t === 'dark' ? 'Light Mode' : 'Dark Mode';
+  }
+  window.toggleTheme = function() {
+    var t = getTheme() === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('mad-theme', t);
+    applyTheme(t);
+  };
+  applyTheme(getTheme());
+
+  /* ── Helpers ── */
+  function fmt(n) { return n != null ? n.toLocaleString() : "\u2014"; }
+  function el(id) { return document.getElementById(id); }
+
+  function flash(id) {
+    var e = el(id);
+    if (!e) return;
+    e.classList.add("updated");
+    setTimeout(function() { e.classList.remove("updated"); }, 1200);
+  }
+
+  function rows(data, cols) {
+    return data.map(function(r) {
+      return "<tr>" + cols.map(function(c) {
+        var cls = c.cls ? ' class="' + c.cls + '"' : "";
+        var v = typeof c.fn === "function" ? c.fn(r) : r[c.key];
+        if (typeof v === "number") v = fmt(v);
+        return "<td" + cls + ">" + (v || "\u2014") + "</td>";
+      }).join("") + "</tr>";
+    }).join("\n");
+  }
+
+  function badge(pct, total) {
+    if (total === 0) return '<span class="badge empty">not started</span>';
+    if (pct >= 100) return '<span class="badge done">complete</span>';
+    if (pct > 0) return '<span class="badge partial">' + pct.toFixed(1) + '%</span>';
+    return '<span class="badge empty">pending</span>';
+  }
+
+  /* ── SVG icon map ── */
+  var IC = {
+    camera:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>',
+    scene:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-3-3.87M9 21v-2a4 4 0 00-4-4H3"/><path d="M1 21h22"/><path d="M12 2l3 7h-6l3-7z"/><path d="M7 10l-3 5"/><path d="M17 10l3 5"/></svg>',
+    home:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>',
+    depth:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><path d="M7 7h10M9 12h6M11 17h2"/></svg>',
+    pin:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1118 0z"/><circle cx="12" cy="10" r="3"/></svg>',
+    palette: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="0.5" fill="currentColor"/><circle cx="17.5" cy="10.5" r="0.5" fill="currentColor"/><circle cx="8.5" cy="7.5" r="0.5" fill="currentColor"/><circle cx="6.5" cy="12" r="0.5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.93 0 1.4-.47 1.4-1.17 0-.31-.13-.6-.34-.82A1.2 1.2 0 0112.72 19H14a8 8 0 008-8c0-4.4-4.5-9-10-9z"/></svg>',
+    sun:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>',
+    star:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+    sunset:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 18a5 5 0 00-10 0"/><line x1="12" y1="9" x2="12" y2="2"/><line x1="4.22" y1="10.22" x2="5.64" y2="11.64"/><line x1="1" y1="18" x2="3" y2="18"/><line x1="21" y1="18" x2="23" y2="18"/><line x1="18.36" y1="11.64" x2="19.78" y2="10.22"/><line x1="23" y1="22" x2="1" y2="22"/></svg>',
+    bulb:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 00-4 12.7V17h8v-2.3A7 7 0 0012 2z"/></svg>',
+    frame:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="7" y="7" width="10" height="10"/></svg>',
+    sparkle: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"/></svg>',
+    rotate:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>',
+    film:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>',
+    box:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>',
+    eye:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>'
+  };
+
+  function tags(data, containerId, iconKey, category) {
+    var container = el(containerId);
+    if (!container) return;
+    if (!data || !data.length) {
+      container.innerHTML = '<span style="color:var(--muted);font-size:var(--text-xs)">No data</span>';
+      return;
+    }
+    var svg = IC[iconKey] || IC.eye;
+    var catClass = category ? ' tag-cat-' + category : '';
+    container.innerHTML = data.map(function(r) {
+      var label = r.name || r.value || "\u2014";
+      return '<div class="tag' + catClass + '">' +
+        '<span class="tag-icon">' + svg + '</span>' +
+        '<span class="tag-label">' + label + '</span>' +
+        '<span class="tag-count">' + fmt(r.count) + '</span>' +
+        '</div>';
+    }).join("");
+  }
+
+  /* Color dots tag (for dominant colors) */
+  function colorTags(data, containerId) {
+    var container = el(containerId);
+    if (!container) return;
+    if (!data || !data.length) {
+      container.innerHTML = '<span style="color:var(--muted);font-size:var(--text-xs)">No data</span>';
+      return;
+    }
+    container.innerHTML = data.map(function(c) {
+      var hex = c.hex || '#999';
+      return '<div class="tag">' +
+        '<span class="tag-cdot" style="background:' + hex + '"></span>' +
+        '<span class="tag-count">' + fmt(c.count) + '</span>' +
+        '</div>';
+    }).join("");
+  }
+
+  /* ════════════════════════════════════════════════════════════
+     UPDATE — main data binding
+     ════════════════════════════════════════════════════════════ */
+  function update(d) {
+    el("subtitle").innerHTML =
+      '<span class="live-dot"></span>' + d.timestamp;
+    el("footer-ts").textContent = d.timestamp;
+
+    /* ── Model intelligence grid ── */
+    var mc = d.models_complete || 0;
+    el("el-sub").textContent = fmt(d.total) + " images \u00D7 17 models = " + fmt(d.total_signals || 0) + " signals \u2014 " + mc + " complete";
+    var sigFD = d.signals && d.signals.face_detections ? d.signals.face_detections : {rows:0, images:0};
+    var sigOD = d.signals && d.signals.object_detections ? d.signals.object_detections : {rows:0, images:0};
+    var sigDC = d.signals && d.signals.dominant_colors ? d.signals.dominant_colors : {rows:0, images:0};
+    var sigEX = d.signals && d.signals.exif_metadata ? d.signals.exif_metadata : {rows:0, images:0};
+    var models = [
+      {n:'01', name:'Gemini 2.5 Pro', tech:'Vertex AI \u00B7 Google Cloud', desc:'Structured per-image analysis: vibes, exposure, composition, grading style, rotation, per-image edit prompts, semantic pops, alt text', count:d.analyzed},
+      {n:'02', name:'Pixel Analysis', tech:'Python \u00B7 Pillow \u00B7 NumPy', desc:'Mean luminance, white balance shift (R/B channels), noise estimation, shadow/highlight clipping %, contrast ratio, estimated color temperature', count:d.pixel_analyzed},
+      {n:'03', name:'DINOv2', tech:'PyTorch \u00B7 Meta FAIR \u00B7 ViT-B/14', desc:'Self-supervised vision transformer. 768-dim embeddings capturing composition, texture, spatial layout. The artistic eye of similarity search', count:d.vector_count},
+      {n:'04', name:'SigLIP', tech:'PyTorch \u00B7 Google \u00B7 ViT-B/16', desc:'Sigmoid-loss image-language pre-training. 768-dim embeddings enabling text-to-image search across the entire collection', count:d.vector_count},
+      {n:'05', name:'CLIP', tech:'PyTorch \u00B7 OpenAI \u00B7 ViT-B/32', desc:'Contrastive language-image pre-training. 512-dim embeddings for cross-modal matching, duplicate detection, subject similarity', count:d.vector_count},
+      {n:'06', name:'YuNet', tech:'OpenCV DNN \u00B7 ONNX \u00B7 C++', desc:'Lightweight face detector. ' + fmt(d.face_total) + ' faces detected across ' + fmt(sigFD.images) + ' images with bounding box coordinates and confidence scores', count: sigFD.processed || sigFD.images},
+      {n:'07', name:'YOLOv8n', tech:'PyTorch \u00B7 Ultralytics \u00B7 COCO', desc:'Real-time object detection. ' + fmt(sigOD.rows) + ' objects detected across 80 COCO classes with bounding boxes and confidence thresholds', count: sigOD.processed || sigOD.images},
+      {n:'08', name:'NIMA', tech:'PyTorch \u00B7 TensorFlow origin \u00B7 MobileNet', desc:'Neural Image Assessment. Aesthetic quality scoring on 1\u201310 scale. Collection avg: ' + (d.aesthetic_avg || 0).toFixed(1) + ', range ' + (d.aesthetic_min || 0).toFixed(1) + '\u2013' + (d.aesthetic_max || 0).toFixed(1), count:d.aesthetic_count},
+      {n:'09', name:'Depth Anything v2', tech:'PyTorch \u00B7 Hugging Face \u00B7 ViT', desc:'Monocular depth estimation. Near/mid/far zone percentages and depth complexity score per image. No stereo pair needed', count:d.depth_count},
+      {n:'10', name:'Places365', tech:'PyTorch \u00B7 MIT CSAIL \u00B7 ResNet-50', desc:'Scene classification across 365 environment categories. Top-3 predictions + indoor/outdoor environment label per image', count:d.scene_count},
+      {n:'11', name:'Style Net', tech:'PyTorch \u00B7 Custom classifier', desc:'Photographic style classification: street, portrait, landscape, architecture, macro, abstract, documentary, still life', count:d.style_count},
+      {n:'12', name:'BLIP', tech:'PyTorch \u00B7 Salesforce \u00B7 ViT+LLM', desc:'Bootstrapped Language-Image Pre-training. Natural language captions generated per image for search and accessibility', count:d.caption_count},
+      {n:'13', name:'EasyOCR', tech:'PyTorch \u00B7 CRAFT + CRNN', desc:'Text detection and recognition. ' + fmt(d.ocr_texts || 0) + ' text regions found across ' + fmt(d.ocr_images || 0) + ' images. English language model on CPU', count:d.ocr_images || 0},
+      {n:'14', name:'Facial Emotions', tech:'PyTorch \u00B7 FER \u00B7 CNN', desc:'Emotion recognition on detected faces. 7 classes: angry, disgust, fear, happy, sad, surprise, neutral', count:d.emotion_count || 0},
+      {n:'15', name:'Enhancement Engine', tech:'Python \u00B7 Pillow \u00B7 Camera-aware', desc:'6-step per-image editing pipeline: white balance, exposure, shadows/highlights, contrast, saturation, sharpening. Parameters derived from pixel analysis + camera body', count:d.enhancement_count},
+      {n:'16', name:'K-means LAB', tech:'Python \u00B7 scikit-learn \u00B7 LAB space', desc:'Dominant color extraction via K-means clustering in perceptually uniform CIELAB space. ' + fmt(sigDC.rows) + ' color clusters with names mapped from nearest CSS4 colors', count:sigDC.images},
+      {n:'17', name:'EXIF Parser', tech:'Python \u00B7 Pillow \u00B7 piexif', desc:'Full metadata extraction: camera body, lens, ISO, shutter speed, aperture, focal length, date/time, GPS coordinates (' + fmt(d.exif_gps || 0) + ' geolocated)', count:sigEX.images}
+    ];
+    var elHtml = models.map(function(m) {
+      var pctVal = d.total > 0 ? (m.count / d.total * 100) : 0;
+      var status = pctVal >= 99.5 ? 'done' : pctVal > 0 ? 'active' : 'pending';
+      var bdg = status === 'done' ? '<span class="el-badge done">\u2713</span>' :
+                status === 'active' ? '<span class="el-badge active">' + pctVal.toFixed(0) + '%</span>' :
+                '<span class="el-badge pending">\u2014</span>';
+      return '<div class="el-card status-' + status + '">' +
+        '<div class="el-num">' + m.n + '</div>' +
+        '<div class="el-model">' + m.name + '</div>' +
+        '<div class="el-tech">' + m.tech + '</div>' +
+        '<div class="el-desc">' + m.desc + '</div>' +
+        '<div class="el-count">' + fmt(m.count) + ' ' + bdg + '</div>' +
+        '<div class="el-bar"><div class="el-fill" style="width:' + Math.min(pctVal, 100) + '%"></div></div>' +
+        '<div class="el-pct">' + fmt(m.count) + ' / ' + fmt(d.total) + '</div>' +
+        '</div>';
+    }).join('');
+    el('el-grid').innerHTML = elHtml;
+
+    /* ── Camera fleet ── */
+    el("tbl-cameras").innerHTML = rows(d.cameras, [
+      {key: "body"},
+      {key: "count", cls: "num"},
+      {key: "medium"},
+      {key: "film"},
+      {key: "luminance", cls: "num"},
+      {fn: function(r) {
+        var cls = r.wb_r > 0.05 ? "wb-pos" : r.wb_r < -0.05 ? "wb-neg" : "wb-zero";
+        return '<span class="' + cls + '">' + (r.wb_r > 0 ? "+" : "") + r.wb_r.toFixed(3) + '</span>';
+      }, cls: "num"},
+      {fn: function(r) {
+        var cls = r.wb_b < -0.05 ? "wb-neg" : r.wb_b > 0.05 ? "wb-pos" : "wb-zero";
+        return '<span class="' + cls + '">' + (r.wb_b > 0 ? "+" : "") + r.wb_b.toFixed(3) + '</span>';
+      }, cls: "num"},
+      {key: "noise", cls: "num"},
+      {fn: function(r) { return r.shadow.toFixed(1) + "%"; }, cls: "num"}
+    ]);
+
+    /* Signal extraction table removed — data shown in model cards */
+
+    /* ── Signals (unified section, group-based colors) ── */
+
+    /* Scene & Setting — all teal family */
+    tags(d.top_scenes, 'pills-scenes', 'scene', 'scene');
+    tags(d.scene_environments, 'pills-environments', 'home', 'scene-env');
+    tags(d.settings, "pills-setting", "scene", 'scene-set');
+    tags(d.top_objects || [], "pills-objects", "eye", 'scene-obj');
+    tags(d.location_sources, 'pills-locations', 'pin', 'scene-loc');
+
+    /* Visual Style — all style/purple family */
+    tags(d.vibes, "pills-vibes", "sparkle", "style");
+    tags(d.top_emotions || [], "pills-emotions", "sparkle", "style-emo");
+    tags(d.grading, "pills-grading", "star", "style-grad");
+    tags(d.top_styles || [], "pills-styles", "sparkle", "style-cls");
+    colorTags(d.top_color_names || [], "pills-topcolors");
+    tags(d.color_cast, 'pills-cast', 'palette', 'style-cast');
+    tags(d.color_temp, 'pills-temp', 'sun', 'style-temp');
+    tags(d.exposure, "pills-exposure", "bulb", "style-exp");
+
+    /* Structure — all depth/indigo family */
+    var depthZones = [];
+    if (d.depth_avg_near) depthZones.push({name: 'Near ' + d.depth_avg_near + '%', count: d.depth_count});
+    if (d.depth_avg_mid) depthZones.push({name: 'Mid-Range ' + d.depth_avg_mid + '%', count: d.depth_count});
+    if (d.depth_avg_far) depthZones.push({name: 'Far ' + d.depth_avg_far + '%', count: d.depth_count});
+    tags(depthZones, 'pills-depth-zones', 'depth', 'depth');
+    tags(d.depth_complexity_buckets, 'pills-depth', 'depth', 'depth');
+    tags(d.composition, "pills-composition", "frame", "depth-comp");
+    tags(d.aspect_ratios || [], "pills-ratios", "frame", "depth-ratio");
+
+    /* Context — all camera/blue family */
+    tags(d.subcategories, "pills-subs", "film", "camera");
+    tags(d.time_of_day, "pills-time", "sunset", "camera-time");
+    tags(d.enhancement_cameras, 'pills-enhance', 'camera', 'camera-enh');
+    tags(d.rotate_stats.map(function(r) { return {name: r.value, count: r.count}; }), "pills-rotate", "rotate", "camera-rot");
+
+    /* ── Vector store ── */
+    el("vector-info").innerHTML =
+      fmt(d.vector_count) + ' images \u00D7 3 models \u2014 ' + d.vector_size + ' on disk' +
+      (d.vector_count >= d.total ? ' \u2014 <span class="badge done">complete</span>' :
+       d.vector_count > 0 ? ' \u2014 <span class="badge partial">' + (d.vector_count / d.total * 100).toFixed(1) + '%</span>' :
+       ' \u2014 <span class="badge empty">not started</span>');
+
+    /* ── Render tiers ── */
+    el("tbl-tiers").innerHTML = d.tiers.map(function(t) {
+      return "<tr><td>" + t.name + "</td><td class='num'>" + fmt(t.count) + "</td><td class='num'>" + t.size_human + "</td></tr>";
+    }).join("\n");
+
+    /* ── Disk / Storage ── */
+    var diskHtml = '';
+    diskHtml += '<div class="disk-item"><div class="di-val">' + d.total_rendered_human + '</div><div class="di-label">Rendered tiers</div></div>';
+    diskHtml += '<div class="disk-item"><div class="di-val">' + d.db_size + '</div><div class="di-label">Database</div></div>';
+    diskHtml += '<div class="disk-item"><div class="di-val">' + d.vector_size + '</div><div class="di-label">Vectors (LanceDB)</div></div>';
+    if (d.web_photo_count > 0) {
+      diskHtml += '<div class="disk-item"><div class="di-val">' + d.web_json_size + '</div><div class="di-label">Web gallery (' + fmt(d.web_photo_count) + ' photos)</div></div>';
+    }
+    el("disk-info").innerHTML = diskHtml;
+
+    /* ── Pipeline runs ── */
+    el("tbl-runs").innerHTML = rows(d.runs, [
+      {key: "phase"}, {key: "status"}, {key: "ok", cls: "num"},
+      {key: "failed", cls: "num"}, {key: "started"}
+    ]);
+
+    /* ── Sample JSON ── */
+    var sampleEl = el("sample-json");
+    var sampleMeta = el("sample-meta");
+    if (d.sample && d.sample.data) {
+      sampleMeta.textContent = d.sample.uuid + " \u2014 analyzed " + d.sample.time;
+      sampleEl.innerHTML = syntaxHighlight(JSON.stringify(d.sample.data, null, 2));
+    } else {
+      sampleMeta.textContent = "";
+      sampleEl.textContent = "No analyses yet";
+    }
+
+    prevTime = now;
+    prev = d;
+  }
+
+  function syntaxHighlight(json) {
+    json = json.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return json.replace(
+      /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+      function(match) {
+        var cls = "json-num";
+        if (/^"/.test(match)) {
+          cls = /:$/.test(match) ? "json-key" : "json-str";
+        } else if (/true|false/.test(match)) {
+          cls = "json-bool";
+        } else if (/null/.test(match)) {
+          cls = "json-null";
+        }
+        return '<span class="' + cls + '">' + match + '</span>';
+      }
+    );
+  }
+
+  function poll() {
+    fetch(API).then(function(r) { return r.json(); }).then(update)
+      .catch(function() {});
+  }
+
+  if (API === "inline") {
+    update({"timestamp": "2026-02-07 10:51:00 UTC", "total": 9011, "analyzed": 9011, "failed": 0, "pending": 0, "analysis_pct": 100.0, "pixel_analyzed": 9011, "pixel_pct": 100.0, "categories": [{"name": "Digital", "count": 3533}, {"name": "Osmo", "count": 3116}, {"name": "Analog", "count": 1126}, {"name": "Monochrome", "count": 1099}, {"name": "G12", "count": 137}], "subcategories": [{"name": "Leica Digital", "count": 3533}, {"name": "DJI Osmo Pro", "count": 3032}, {"name": "Leica Analog", "count": 1126}, {"name": "Leica Monochrom", "count": 1099}, {"name": "G12", "count": 137}, {"name": "DJI Osmo Memo", "count": 84}], "tiers": [{"name": "full/jpeg", "tier": "full", "format": "jpeg", "count": 9276, "size": 16901121969, "size_human": "15.7 GB"}, {"name": "original/jpeg", "tier": "original", "format": "jpeg", "count": 5138, "size": 16765399393, "size_human": "15.6 GB"}, {"name": "display/jpeg", "tier": "display", "format": "jpeg", "count": 9276, "size": 3839314853, "size_human": "3.6 GB"}, {"name": "display/webp", "tier": "display", "format": "webp", "count": 9276, "size": 1857008582, "size_human": "1.7 GB"}, {"name": "mobile/jpeg", "tier": "mobile", "format": "jpeg", "count": 9276, "size": 1418594772, "size_human": "1.3 GB"}, {"name": "mobile/webp", "tier": "mobile", "format": "webp", "count": 9276, "size": 767674764, "size_human": "732.1 MB"}, {"name": "thumb/jpeg", "tier": "thumb", "format": "jpeg", "count": 9276, "size": 223177774, "size_human": "212.8 MB"}, {"name": "thumb/webp", "tier": "thumb", "format": "webp", "count": 9276, "size": 142779904, "size_human": "136.2 MB"}, {"name": "micro/jpeg", "tier": "micro", "format": "jpeg", "count": 9276, "size": 8527295, "size_human": "8.1 MB"}, {"name": "micro/webp", "tier": "micro", "format": "webp", "count": 9276, "size": 5389416, "size_human": "5.1 MB"}, {"name": "gemini/jpeg", "tier": "gemini", "format": "jpeg", "count": 9276, "size": 4466278452, "size_human": "4.2 GB"}], "tier_coverage": [{"tier": "full", "images": 9011}, {"tier": "display", "images": 9011}, {"tier": "mobile", "images": 9011}, {"tier": "thumb", "images": 9011}, {"tier": "micro", "images": 9011}, {"tier": "gemini", "images": 9011}, {"tier": "original", "images": 5138}], "total_rendered_bytes": 46395267174, "total_rendered_human": "43.2 GB", "total_tier_files": 97898, "ai_variants_total": 216, "variant_summary": [{"type": "gemini_edit", "ok": 100, "fail": 0, "filtered": 0, "pending": 0, "total": 100, "pct": 1.11}, {"type": "light_enhance", "ok": 16, "fail": 0, "filtered": 0, "pending": 0, "total": 16, "pct": 0.18}, {"type": "pro_edit", "ok": 100, "fail": 0, "filtered": 0, "pending": 0, "total": 100, "pct": 1.11}], "gcs_uploads": 0, "cameras": [{"body": "Leica M8", "count": 3533, "medium": "digital", "film": "\u2014", "wb_r": 0.09, "wb_b": -0.085, "noise": 1.7, "shadow": 11.7, "luminance": 83.5}, {"body": "DJI Osmo Pro", "count": 3032, "medium": "digital", "film": "\u2014", "wb_r": 0.057, "wb_b": -0.046, "noise": 1.7, "shadow": 5.9, "luminance": 80.6}, {"body": "Leica MP", "count": 1126, "medium": "scanned_film", "film": "Kodak Portra 400 VC", "wb_r": 0.063, "wb_b": -0.061, "noise": 4.6, "shadow": 11.4, "luminance": 94.7}, {"body": "Leica Monochrom", "count": 1099, "medium": "digital", "film": "\u2014", "wb_r": 0, "wb_b": 0, "noise": 1.8, "shadow": 22.5, "luminance": 77.1}, {"body": "Canon G12", "count": 137, "medium": "digital", "film": "\u2014", "wb_r": 0.167, "wb_b": -0.139, "noise": 2.0, "shadow": 12.6, "luminance": 64.1}, {"body": "DJI Osmo Memo", "count": 84, "medium": "digital", "film": "\u2014", "wb_r": 0.041, "wb_b": -0.04, "noise": 2.3, "shadow": 1.8, "luminance": 109.6}], "source_formats": [{"name": "JPEG", "count": 5138}, {"name": "DNG", "count": 3841}, {"name": "RAW", "count": 32}], "monochrome_count": 1176, "color_cast": [{"name": "none", "count": 3946}, {"name": "warm", "count": 3457}, {"name": "cool", "count": 1531}, {"name": "magenta", "count": 44}, {"name": "green", "count": 33}], "color_temp": [{"name": "cool (5000-7000K)", "count": 5167}, {"name": "warm (<3500K)", "count": 1412}, {"name": "neutral (3500-5000K)", "count": 1280}, {"name": "very cool (>7000K)", "count": 1152}], "grading": [{"name": "Cinematic", "count": 4679}, {"name": "Natural", "count": 2973}, {"name": "Monochrome", "count": 1293}, {"name": "Pastel", "count": 66}], "time_of_day": [{"name": "Midday", "count": 4266}, {"name": "Night", "count": 3544}, {"name": "Golden Hour", "count": 1199}, {"name": "Dusk/Blue Hour", "count": 1}, {"name": "Blue Hour", "count": 1}], "settings": [{"name": "Exterior", "count": 6264}, {"name": "Interior", "count": 2353}, {"name": "Mixed", "count": 393}, {"name": "Indeterminate", "count": 1}], "exposure": [{"name": "Balanced", "count": 7502}, {"name": "Under", "count": 938}, {"name": "Over", "count": 571}], "composition": [{"name": "Rule of Thirds", "count": 6014}, {"name": "Negative Space", "count": 2984}, {"name": "Symmetry", "count": 8}, {"name": "Rule of Thirds|Negative Space", "count": 3}, {"name": "Leading Lines", "count": 1}, {"name": "Golden Ratio", "count": 1}], "vibes": [{"name": "Moody", "count": 6915}, {"name": "Gritty", "count": 5258}, {"name": "Nostalgic", "count": 3930}, {"name": "Urban", "count": 1353}, {"name": "Solitary", "count": 618}, {"name": "Dynamic", "count": 607}, {"name": "Candid", "count": 527}, {"name": "Contemplative", "count": 352}, {"name": "Pensive", "count": 351}, {"name": "Cozy", "count": 308}, {"name": "Intimate", "count": 281}, {"name": "Introspective", "count": 267}, {"name": "Serene", "count": 217}, {"name": "Peaceful", "count": 212}, {"name": "Sleek", "count": 182}, {"name": "Mysterious", "count": 166}, {"name": "Energetic", "count": 139}, {"name": "Abstract", "count": 138}, {"name": "Minimalist", "count": 132}, {"name": "Quiet", "count": 131}], "rotate_stats": [{"value": "unknown", "count": 8556}, {"value": "none", "count": 452}, {"value": "cw90", "count": 1}, {"value": "ccw90", "count": 1}, {"value": "180", "count": 1}], "has_edit_prompt": 630, "has_semantic_pops": 7454, "curation": [{"status": "pending", "count": 9011}], "kept": 0, "rejected": 0, "curated_total": 0, "curation_pct": 0.0, "vector_count": 9011, "vector_size": "70.8 MB", "runs": [{"phase": "gemini_analysis", "status": "completed", "ok": 632, "failed": 0, "started": "2026-02-07 07:40"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-07 07:39"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-07 07:34"}, {"phase": "gemini_analysis", "status": "completed", "ok": 2102, "failed": 633, "started": "2026-02-06 23:51"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 23:48"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 23:43"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 23:40"}, {"phase": "enhance", "status": "completed", "ok": 9256, "failed": 0, "started": "2026-02-06 13:33"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 13:31"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 13:30"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 13:26"}, {"phase": "enhance", "status": "completed", "ok": 20, "failed": 0, "started": "2026-02-06 13:24"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 13:23"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 12:54"}, {"phase": "gemini_analysis", "status": "started", "ok": 0, "failed": 0, "started": "2026-02-06 12:52"}], "recent": [{"uuid": "f4e79900", "style": "Cinematic", "alt": "In a sunbeam's embrace, a curious cat reaches for a world of pixelated color.", "time": "2026-02-07 08:41:27"}, {"uuid": "ef18a5f0", "style": "Natural", "alt": "A tabby cat finds a moment of quiet contemplation on a plush red cushion, bathed in the soft, bright light of a nearby window.", "time": "2026-02-07 08:41:24"}, {"uuid": "de8ea98a", "style": "Monochrome", "alt": "A lone figure walks through a snow-covered park, viewed through a veil of rain-streaked glass.", "time": "2026-02-07 08:41:21"}, {"uuid": "d8fff942", "style": "Cinematic", "alt": "A lone streetlamp stands sentinel, its light catching the silent chaos of a city snowstorm.", "time": "2026-02-07 08:41:14"}, {"uuid": "fe44f5f2", "style": "Cinematic", "alt": "Beneath the steel skeleton of the city, hazy night lights bleed into the fog.", "time": "2026-02-07 08:41:08"}, {"uuid": "fda9d927", "style": "Natural", "alt": "A view from a car on a curving highway ramp approaches the immense structure of the Brooklyn Bridge under a bright city sky.", "time": "2026-02-07 08:41:02"}, {"uuid": "fd520c5a", "style": "Natural", "alt": "A polished black sports car mirrors the gritty reality of its urban surroundings.", "time": "2026-02-07 08:41:00"}, {"uuid": "fd09e951", "style": "Natural", "alt": "Beneath a clear city sky, the artifice of filmmaking interrupts the everyday rhythm of the street.", "time": "2026-02-07 08:40:59"}], "sample": {"uuid": "f4e79900-0e12-5b4a-a136-6ef5ac5a9106", "time": "2026-02-07 08:41:27", "data": {"technical": {"exposure": "Balanced", "sharpness": "Tack Sharp", "lens_artifacts": ["Flare", "Compression"]}, "composition": {"technique": "Rule of Thirds", "depth": "Shallow Bokeh", "geometry": ["Leading Lines"]}, "color": {"palette": ["#E5B344", "#71685A", "#D96E3B", "#6A395F", "#9A1B1E"], "semantic_pops": [{"color": "Red", "object": "Cushion", "impact": "Medium"}], "grading_style": "Cinematic"}, "environment": {"time": "Golden Hour", "setting": "Interior", "weather": "Sunny"}, "narrative": {"faces": 1, "vibe": ["Nostalgic", "Moody", "Playful"], "alt_text": "In a sunbeam's embrace, a curious cat reaches for a world of pixelated color."}}}, "db_size": "2.9 GB", "web_json_size": "27.7 MB", "web_photo_count": 11, "signals": {"exif_metadata": {"rows": 9011, "images": 9011}, "dominant_colors": {"rows": 45051, "images": 9011}, "face_detections": {"rows": 3187, "images": 1676, "processed": 9011}, "object_detections": {"rows": 14534, "images": 5363, "processed": 9011}, "image_hashes": {"rows": 9011, "images": 9011}}, "exif_gps": 1820, "exif_iso": 7890, "face_images_with": 1676, "face_total": 3187, "top_objects": [{"name": "person", "count": 4752}, {"name": "car", "count": 3603}, {"name": "traffic light", "count": 1051}, {"name": "cat", "count": 977}, {"name": "truck", "count": 499}, {"name": "couch", "count": 422}, {"name": "chair", "count": 294}, {"name": "bus", "count": 229}, {"name": "tv", "count": 228}, {"name": "bed", "count": 209}, {"name": "clock", "count": 208}, {"name": "motorcycle", "count": 124}, {"name": "bicycle", "count": 118}, {"name": "umbrella", "count": 116}, {"name": "airplane", "count": 106}, {"name": "train", "count": 91}, {"name": "suitcase", "count": 87}, {"name": "laptop", "count": 83}, {"name": "bottle", "count": 81}, {"name": "bird", "count": 73}], "top_color_names": [{"name": "charcoal", "hex": "#403f3d", "count": 13562}, {"name": "black", "hex": "#131110", "count": 8373}, {"name": "gray", "hex": "#827d75", "count": 8344}, {"name": "silver", "hex": "#b8bcbb", "count": 4264}, {"name": "lavender", "hex": "#dee6eb", "count": 1527}, {"name": "brown", "hex": "#794b2a", "count": 1401}, {"name": "tan", "hex": "#beab89", "count": 1400}, {"name": "slate", "hex": "#6e8293", "count": 1270}, {"name": "beige", "hex": "#e9e8db", "count": 617}, {"name": "white", "hex": "#f7fafb", "count": 544}, {"name": "steel", "hex": "#487eb2", "count": 512}, {"name": "sky", "hex": "#90bbdd", "count": 445}, {"name": "rust", "hex": "#bb4923", "count": 414}, {"name": "ivory", "hex": "#f5f6f3", "count": 370}, {"name": "peach", "hex": "#eadaba", "count": 296}, {"name": "crimson", "hex": "#d72b3d", "count": 266}, {"name": "maroon", "hex": "#5e160a", "count": 250}, {"name": "coral", "hex": "#d28443", "count": 235}, {"name": "burgundy", "hex": "#661b1b", "count": 200}, {"name": "khaki", "hex": "#f0da8b", "count": 148}, {"name": "olive", "hex": "#91822b", "count": 117}, {"name": "teal", "hex": "#116390", "count": 90}, {"name": "salmon", "hex": "#d8806b", "count": 90}, {"name": "mint", "hex": "#c8e3d0", "count": 76}, {"name": "navy", "hex": "#072366", "count": 49}, {"name": "orange", "hex": "#dd9f1a", "count": 40}, {"name": "forest", "hex": "#387c2e", "count": 23}, {"name": "purple", "hex": "#932882", "count": 22}, {"name": "pink", "hex": "#eac3c5", "count": 20}, {"name": "gold", "hex": "#edd426", "count": 18}], "aesthetic_count": 9011, "aesthetic_avg": 0, "aesthetic_min": 0, "aesthetic_max": 0, "aesthetic_labels": [], "depth_count": 9011, "depth_avg_near": 54.2, "depth_avg_mid": 25.1, "depth_avg_far": 20.8, "depth_complexity_buckets": [{"name": "complex", "count": 7592}, {"name": "layered", "count": 1121}, {"name": "moderate", "count": 260}, {"name": "simple", "count": 38}], "scene_count": 9011, "top_scenes": [{"name": "veterinarians office", "count": 516}, {"name": "indoor", "count": 477}, {"name": "skyscraper", "count": 463}, {"name": "sky", "count": 420}, {"name": "crosswalk", "count": 399}, {"name": "parking lot", "count": 376}, {"name": "highway", "count": 367}, {"name": "downtown", "count": 321}, {"name": "discotheque", "count": 299}, {"name": "bridge", "count": 294}, {"name": "street", "count": 215}, {"name": "outdoor", "count": 202}, {"name": "elevator shaft", "count": 171}, {"name": "catacomb", "count": 144}, {"name": "aquarium", "count": 98}], "scene_environments": [{"name": "unknown", "count": 3642}, {"name": "outdoor", "count": 2817}, {"name": "indoor", "count": 2552}], "enhancement_count": 9011, "enhancement_statuses": [{"name": "enhanced", "count": 9011}], "enhancement_cameras": [{"name": "Leica M8", "count": 3533}, {"name": "DJI Osmo Pro", "count": 3032}, {"name": "Leica MP", "count": 1126}, {"name": "Leica Monochrom", "count": 1099}, {"name": "Canon G12", "count": 137}, {"name": "DJI Osmo Memo", "count": 84}], "location_count": 0, "location_sources": [], "location_accepted": 0, "style_count": 9011, "top_styles": [{"name": "documentary", "count": 2749}, {"name": "interior", "count": 1837}, {"name": "street", "count": 1375}, {"name": "monochrome", "count": 1176}, {"name": "analog", "count": 747}, {"name": "architecture", "count": 718}, {"name": "landscape", "count": 409}], "ocr_images": 7834, "ocr_texts": 10818, "caption_count": 9011, "emotion_count": 1676, "top_emotions": [{"name": "sad", "count": 1106}, {"name": "happy", "count": 758}, {"name": "neutral", "count": 666}, {"name": "angry", "count": 442}, {"name": "fear", "count": 172}, {"name": "surprise", "count": 43}], "aspect_ratios": [{"name": "Landscape", "count": 3867}, {"name": "Square", "count": 6}], "models_complete": 14, "total_signals": 192409});
+  } else {
+    poll();
+    setInterval(poll, POLL);
+  }
+
+  /* ── Scroll spy ── */
+  (function() {
+    var sectionLinks = document.querySelectorAll('.sidebar a[href^="#"]');
+    var sections = [];
+    sectionLinks.forEach(function(a) {
+      var id = a.getAttribute('href').slice(1);
+      var sec = document.getElementById(id);
+      if (sec) sections.push({el: sec, a: a});
+    });
+    function onScroll() {
+      var scrollY = window.scrollY;
+      var current = null;
+      sections.forEach(function(s) {
+        if (s.el.offsetTop - 120 <= scrollY) current = s;
+      });
+      sectionLinks.forEach(function(a) { a.classList.remove('active'); });
+      if (current) current.a.classList.add('active');
+    }
+    window.addEventListener('scroll', onScroll);
+    onScroll();
+  })();
+})();
+</script>
+</body>
+</html>
