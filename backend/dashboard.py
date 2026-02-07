@@ -1496,34 +1496,6 @@ PAGE_HTML = r"""<!DOCTYPE html>
     padding-bottom: var(--space-1);
     border-bottom: 1px solid var(--border);
   }
-  .signal-flow {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-  }
-  .signal-sub {
-    display: flex;
-    align-items: baseline;
-    gap: var(--space-2);
-  }
-  .signal-sub .tag-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-1);
-    margin: 0;
-    flex: 1;
-    min-width: 0;
-  }
-  .signal-sub-label {
-    font-size: var(--text-xs);
-    font-weight: 600;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    white-space: nowrap;
-    min-width: 100px;
-    flex-shrink: 0;
-  }
   /* Only icon gets group color — border stays default, count stays black */
   .tag-cat-scene .tag-icon svg { color: var(--apple-teal); }
   .tag-cat-scene-env .tag-icon svg { color: color-mix(in srgb, var(--apple-teal) 70%, var(--apple-green)); }
@@ -1770,50 +1742,22 @@ PAGE_HTML = r"""<!DOCTYPE html>
   <!-- Scene & Setting -->
   <div class="signal-group">
     <div class="signal-group-label">Scene & Setting</div>
-    <div class="signal-flow">
-      <div class="signal-sub"><span class="signal-sub-label">Scene</span><div id="pills-scenes" class="tag-row"></div></div>
-      <div class="signal-sub"><span class="signal-sub-label">Environment</span><div id="pills-environments" class="tag-row"></div></div>
-      <div class="signal-sub"><span class="signal-sub-label">Setting</span><div id="pills-setting" class="tag-row"></div></div>
-      <div class="signal-sub"><span class="signal-sub-label">Objects</span><div id="pills-objects" class="tag-row"></div></div>
-      <div class="signal-sub"><span class="signal-sub-label">Location</span><div id="pills-locations" class="tag-row"></div></div>
-    </div>
+    <div id="pills-scene-all" class="tag-row"></div>
   </div>
 
-  <!-- Visual Style -->
   <div class="signal-group">
     <div class="signal-group-label">Visual Style</div>
-    <div class="signal-flow">
-      <div class="signal-sub"><span class="signal-sub-label">Vibes</span><div id="pills-vibes" class="tag-row"></div></div>
-      <div class="signal-sub"><span class="signal-sub-label">Emotions</span><div id="pills-emotions" class="tag-row"></div></div>
-      <div class="signal-sub"><span class="signal-sub-label">Grading</span><div id="pills-grading" class="tag-row"></div></div>
-      <div class="signal-sub"><span class="signal-sub-label">Style</span><div id="pills-styles" class="tag-row"></div></div>
-      <div class="signal-sub"><span class="signal-sub-label">Colors</span><div id="pills-topcolors" class="tag-row"></div></div>
-      <div class="signal-sub"><span class="signal-sub-label">Color Cast</span><div id="pills-cast" class="tag-row"></div></div>
-      <div class="signal-sub"><span class="signal-sub-label">Temperature</span><div id="pills-temp" class="tag-row"></div></div>
-      <div class="signal-sub"><span class="signal-sub-label">Exposure</span><div id="pills-exposure" class="tag-row"></div></div>
-    </div>
+    <div id="pills-style-all" class="tag-row"></div>
   </div>
 
-  <!-- Structure -->
   <div class="signal-group">
     <div class="signal-group-label">Structure</div>
-    <div class="signal-flow">
-      <div class="signal-sub"><span class="signal-sub-label">Depth Zones</span><div id="pills-depth-zones" class="tag-row"></div></div>
-      <div class="signal-sub"><span class="signal-sub-label">Complexity</span><div id="pills-depth" class="tag-row"></div></div>
-      <div class="signal-sub"><span class="signal-sub-label">Composition</span><div id="pills-composition" class="tag-row"></div></div>
-      <div class="signal-sub"><span class="signal-sub-label">Aspect Ratio</span><div id="pills-ratios" class="tag-row"></div></div>
-    </div>
+    <div id="pills-structure-all" class="tag-row"></div>
   </div>
 
-  <!-- Context -->
   <div class="signal-group">
     <div class="signal-group-label">Context</div>
-    <div class="signal-flow">
-      <div class="signal-sub"><span class="signal-sub-label">Camera</span><div id="pills-subs" class="tag-row"></div></div>
-      <div class="signal-sub"><span class="signal-sub-label">Time of Day</span><div id="pills-time" class="tag-row"></div></div>
-      <div class="signal-sub"><span class="signal-sub-label">Enhancement</span><div id="pills-enhance" class="tag-row"></div></div>
-      <div class="signal-sub"><span class="signal-sub-label">Rotation</span><div id="pills-rotate" class="tag-row"></div></div>
-    </div>
+    <div id="pills-context-all" class="tag-row"></div>
   </div>
 </div>
 
@@ -2014,6 +1958,35 @@ PAGE_HTML = r"""<!DOCTYPE html>
     }).join("");
   }
 
+  /* Inline tag HTML builders (return strings, don't set innerHTML) */
+  function tagHtml(data, iconKey, category) {
+    if (!data || !data.length) return '';
+    var svg = IC[iconKey] || IC.eye;
+    var catClass = category ? ' tag-cat-' + category : '';
+    return data.map(function(r) {
+      var label = r.name || r.value || "\u2014";
+      return '<div class="tag' + catClass + '">' +
+        '<span class="tag-icon">' + svg + '</span>' +
+        '<span class="tag-label">' + label + '</span>' +
+        '<span class="tag-count">' + fmt(r.count) + '</span>' +
+        '</div>';
+    }).join("");
+  }
+  function colorTagHtml(data) {
+    if (!data || !data.length) return '';
+    return data.map(function(c) {
+      var hex = c.hex || '#999';
+      return '<div class="tag">' +
+        '<span class="tag-cdot" style="background:' + hex + '"></span>' +
+        '<span class="tag-count">' + fmt(c.count) + '</span>' +
+        '</div>';
+    }).join("");
+  }
+  function setTagRow(id, html) {
+    var c = el(id);
+    if (c) c.innerHTML = html || '<span style="color:var(--muted);font-size:var(--text-xs)">No data</span>';
+  }
+
   /* ════════════════════════════════════════════════════════════
      UPDATE — main data binding
      ════════════════════════════════════════════════════════════ */
@@ -2087,40 +2060,32 @@ PAGE_HTML = r"""<!DOCTYPE html>
 
     /* Signal extraction table removed — data shown in model cards */
 
-    /* ── Signals (unified section, group-based colors) ── */
+    /* ── Signals (flat inline layout, leaf categories removed) ── */
 
-    /* Scene & Setting — all teal family */
-    tags(d.top_scenes, 'pills-scenes', 'scene', 'scene');
-    tags(d.scene_environments, 'pills-environments', 'home', 'scene-env');
-    tags(d.settings, "pills-setting", "scene", 'scene-set');
-    tags(d.top_objects || [], "pills-objects", "eye", 'scene-obj');
-    tags(d.location_sources, 'pills-locations', 'pin', 'scene-loc');
+    /* Scene & Setting — teal family */
+    setTagRow('pills-scene-all',
+      tagHtml(d.top_scenes, 'scene', 'scene') +
+      tagHtml(d.scene_environments, 'home', 'scene-env') +
+      tagHtml(d.settings, 'scene', 'scene-set') +
+      tagHtml(d.top_objects || [], 'eye', 'scene-obj') +
+      tagHtml(d.location_sources, 'pin', 'scene-loc'));
 
-    /* Visual Style — all style/purple family */
-    tags(d.vibes, "pills-vibes", "sparkle", "style");
-    tags(d.top_emotions || [], "pills-emotions", "sparkle", "style-emo");
-    tags(d.grading, "pills-grading", "star", "style-grad");
-    tags(d.top_styles || [], "pills-styles", "sparkle", "style-cls");
-    colorTags(d.top_color_names || [], "pills-topcolors");
-    tags(d.color_cast, 'pills-cast', 'palette', 'style-cast');
-    tags(d.color_temp, 'pills-temp', 'sun', 'style-temp');
-    tags(d.exposure, "pills-exposure", "bulb", "style-exp");
+    /* Visual Style — purple family (no cast / temp / exposure) */
+    setTagRow('pills-style-all',
+      tagHtml(d.vibes, 'sparkle', 'style') +
+      tagHtml(d.top_emotions || [], 'sparkle', 'style-emo') +
+      tagHtml(d.grading, 'star', 'style-grad') +
+      tagHtml(d.top_styles || [], 'sparkle', 'style-cls') +
+      colorTagHtml(d.top_color_names || []));
 
-    /* Structure — all depth/indigo family */
-    var depthZones = [];
-    if (d.depth_avg_near) depthZones.push({name: 'Near ' + d.depth_avg_near + '%', count: d.depth_count});
-    if (d.depth_avg_mid) depthZones.push({name: 'Mid-Range ' + d.depth_avg_mid + '%', count: d.depth_count});
-    if (d.depth_avg_far) depthZones.push({name: 'Far ' + d.depth_avg_far + '%', count: d.depth_count});
-    tags(depthZones, 'pills-depth-zones', 'depth', 'depth');
-    tags(d.depth_complexity_buckets, 'pills-depth', 'depth', 'depth');
-    tags(d.composition, "pills-composition", "frame", "depth-comp");
-    tags(d.aspect_ratios || [], "pills-ratios", "frame", "depth-ratio");
+    /* Structure — composition only (no depth zones / complexity / aspect ratio) */
+    setTagRow('pills-structure-all',
+      tagHtml(d.composition, 'frame', 'depth-comp'));
 
-    /* Context — all camera/blue family */
-    tags(d.subcategories, "pills-subs", "film", "camera");
-    tags(d.time_of_day, "pills-time", "sunset", "camera-time");
-    tags(d.enhancement_cameras, 'pills-enhance', 'camera', 'camera-enh');
-    tags(d.rotate_stats.map(function(r) { return {name: r.value, count: r.count}; }), "pills-rotate", "rotate", "camera-rot");
+    /* Context — camera + time only (no enhancement / rotation) */
+    setTagRow('pills-context-all',
+      tagHtml(d.subcategories, 'film', 'camera') +
+      tagHtml(d.time_of_day, 'sunset', 'camera-time'));
 
     /* ── Vector store ── */
     el("vector-info").innerHTML =
