@@ -2296,7 +2296,6 @@ def page_shell(title, content, active="", extra_css="", extra_js=""):
     overflow-y: auto; display: flex; flex-direction: column;
     transition: width var(--duration-normal) var(--ease-default),
                 min-width var(--duration-normal) var(--ease-default);
-    position: relative;
   }}
   .sidebar::after {{
     content: '';
