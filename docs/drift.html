@@ -317,7 +317,7 @@
 (function() {
   var GCS = "https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/original";
   var history = [];
-  var currentUuid = "d954c95f-df2e-509f-942d-dafad6639f2e";
+  var currentUuid = "8b25edc5-60f9-560f-8963-2975a5caa5c6";
 
   function thumbUrl(uuid) { return GCS + "/thumb/jpeg/" + uuid + ".jpg"; }
   function displayUrl(uuid) { return GCS + "/display/jpeg/" + uuid + ".jpg"; }
@@ -443,7 +443,11 @@
 </div>
 <script>
 (function() {
-  function getTheme() { return localStorage.getItem('mad-theme') || 'light'; }
+  function getTheme() {
+    var s = localStorage.getItem('mad-theme');
+    if (s) return s;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
   function applyTheme(t) {
     document.documentElement.setAttribute('data-theme', t);
     var icon = document.getElementById('themeIcon');

@@ -1018,3 +1018,23 @@ Discovered 633 images still needed Gemini analysis: 7 entirely missing, 626 with
 ### 08:45 — Show: Full Verification Pass
 
 All 14 Show experiences verified as implemented and functional. Re-exported gallery data: 9,011 photos, 8,401 Gemini analyses, 1,676 face detections, 200 game rounds, 8,618 stream sequence entries. Every experience module (La Grille, Le Bento, La Similarite, La Derive, Les Couleurs, Le Terrain de Jeu, La Chambre Noire, Le Flot, Les Visages, La Boussole, L'Observatoire, La Carte, La Machine a Ecrire, Le Pendule) has a real implementation with proper CSS design system integration. The 2,077-line style.css covers all experiences with Apple HIG tokens, dark mode, immersive views, and accessibility (reduced motion). Gallery served locally via `serve_gallery.py` on port 3000, with `/rendered/` proxy for local tier images.
+
+---
+
+### 11:00 — GCS Discovery: 135,518 Images Already Uploaded
+
+Verified the GCS bucket `gs://myproject-public-assets/art/MADphotos/v/` — it's not empty at all. 72,113 original tier files (display/micro/mobile/thumb in jpeg+webp) and 63,100 enhanced tier files already uploaded. All publicly accessible via HTTPS. The DB's `gcs_uploads` table had 0 rows because these were uploaded outside of `gcs_sync.py` in a previous session.
+
+---
+
+### 11:15 — Show: Switched to GCS Public URLs
+
+Updated `export_gallery_data.py` to emit GCS public URLs instead of local `/rendered/` paths. `photos.json` now contains full `https://storage.googleapis.com/...` URLs for all image tiers (thumb, micro, display, mobile) plus enhanced variants (e_thumb, e_display). This means Show can now work as a fully static site served from anywhere — no local proxy server needed. Re-exported all data: 9,011 photos with all 9,011 Gemini analyses (100%), 20.7 MB total. Gemini analysis completed during the session — from 8,401 to 9,011 successful analyses.
+
+---
+
+### 11:20 — State App: OS Dark Mode Auto-Detection + Content Update
+
+All 7 State app pages (state, journal, instructions, drift, blind-test, mosaics, index) now auto-detect the OS color scheme preference via `window.matchMedia('(prefers-color-scheme: dark)')`. Previously dark mode only worked via manual toggle — if your Mac was in dark mode, the pages still showed light. Now they respect the system preference out of the box, with manual toggle still overriding via localStorage.
+
+Also updated `render_instructions()` with current status: Gemini 100% (was 70%), OCR complete (was 47%), GCS has 135,518 files uploaded. Updated `docs/index.html` Show description to list all 14 experiences (was only 3). Regenerated all 6 HTML pages.

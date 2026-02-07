@@ -430,7 +430,7 @@ body.sb-collapsed .sb-expand { display: flex; }
     </li>
     <li class="item-row" style="flex-direction:column;align-items:flex-start;gap:4px">
       <div class="item-name">Show</div>
-      <div class="item-desc" style="margin-top:0">The public experience. Three web viewing modes: <strong>La Grille</strong> (filterable grid), <strong>La D&eacute;rive</strong> (semantic drift via DINOv2, SigLIP, CLIP), <strong>Les Couleurs</strong> (color space exploration). Only accepted images shown.</div>
+      <div class="item-desc" style="margin-top:0">The public experience. 14 web experiences: La Grille, Le Bento, La Similarit&eacute;, La D&eacute;rive, Les Couleurs, Le Terrain de Jeu, La Chambre Noire, Le Flot, Les Visages, La Boussole, L&rsquo;Observatoire, La Carte, La Machine &agrave; &Eacute;crire, Le Pendule. All images served from GCS.</div>
     </li>
     <li class="item-row" style="flex-direction:column;align-items:flex-start;gap:4px">
       <div class="item-name">State</div>
@@ -561,15 +561,16 @@ function toggleSidebar() {
   localStorage.setItem("mad-sidebar", document.body.classList.contains("sb-collapsed") ? "collapsed" : "expanded");
 }
 
-/* Restore persisted state */
+/* Restore persisted state — auto-detect OS preference */
 (function() {
   var savedTheme = localStorage.getItem("mad-theme");
-  if (savedTheme) {
-    document.documentElement.setAttribute("data-theme", savedTheme);
-    if (savedTheme === "dark") {
-      document.getElementById("themeIcon").innerHTML = "&#9728;";
-      document.getElementById("themeLabel").textContent = "Light Mode";
-    }
+  if (!savedTheme) {
+    savedTheme = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  document.documentElement.setAttribute("data-theme", savedTheme);
+  if (savedTheme === "dark") {
+    document.getElementById("themeIcon").innerHTML = "&#9728;";
+    document.getElementById("themeLabel").textContent = "Light Mode";
   }
   if (localStorage.getItem("mad-sidebar") === "collapsed") {
     document.body.classList.add("sb-collapsed");

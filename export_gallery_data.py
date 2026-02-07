@@ -33,6 +33,8 @@ BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "web" / "data"
 OUTPUT_PATH = DATA_DIR / "photos.json"
 
+GCS_BASE = "https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v"
+
 SIMILARITY_NEIGHBORS = 6
 GAME_ROUNDS = 200
 STREAM_BREATHER_INTERVAL = 10
@@ -280,31 +282,12 @@ def load_exif(conn: Any) -> Dict[str, Dict]:
     return result
 
 
-def load_tiers(conn: Any) -> Dict[str, Dict[str, Dict[str, str]]]:
-    """Tier paths: uuid -> {tier_name: {format: local_path}}."""
-    rows = conn.execute("""
-        SELECT image_uuid, tier_name, format, local_path
-        FROM tiers
-        WHERE variant_id IS NULL
-          AND tier_name IN ('thumb', 'micro', 'display', 'mobile')
-    """).fetchall()
-    result = defaultdict(lambda: defaultdict(dict))
-    for r in rows:
-        result[r["image_uuid"]][r["tier_name"]][r["format"]] = r["local_path"]
-    return dict(result)
-
-
 # ── Build Photo Objects ──────────────────────────────────────────────────────
 
-def tier_url(tiers: Dict, tier_name: str, base: str) -> Optional[str]:
-    """Convert tier local_path to relative URL."""
-    t = tiers.get(tier_name, {})
-    path = t.get("webp") or t.get("jpeg")
-    if not path:
-        return None
-    if path.startswith(base):
-        return path[len(base):]
-    return path
+def gcs_url(uuid: str, tier: str, variant: str = "original", fmt: str = "webp") -> str:
+    """Construct GCS public URL for an image tier."""
+    ext = "webp" if fmt == "webp" else "jpg"
+    return f"{GCS_BASE}/{variant}/{tier}/{fmt}/{uuid}.{ext}"
 
 
 def build_photos(
@@ -312,11 +295,10 @@ def build_photos(
     gemini_lk: Dict, colors_lk: Dict, aesthetics_lk: Dict,
     depth_lk: Dict, scenes_lk: Dict, styles_lk: Dict, captions_lk: Dict,
     pixel_lk: Dict, faces_lk: Dict, emotions_lk: Dict, objects_lk: Dict,
-    ocr_lk: Dict, exif_lk: Dict, tiers_lk: Dict,
+    ocr_lk: Dict, exif_lk: Dict,
 ) -> Tuple[List[Dict], Dict]:
     """Build all photo objects and collect unique filter values."""
 
-    base = str(BASE_DIR)
     photos = []
     filters = {
         "vibes": set(),
@@ -331,7 +313,6 @@ def build_photos(
 
     for img in images:
         uuid = img["uuid"]
-        tiers = tiers_lk.get(uuid, {})
         gem = gemini_lk.get(uuid)
         palette = colors_lk.get(uuid, [])
         aes = aesthetics_lk.get(uuid)
@@ -430,11 +411,14 @@ def build_photos(
             "date": exif.get("date", ""),
             "gps": exif.get("gps"),
             "focal": exif.get("focal"),
-            # Tier URLs
-            "thumb": tier_url(tiers, "thumb", base),
-            "micro": tier_url(tiers, "micro", base),
-            "display": tier_url(tiers, "display", base),
-            "mobile": tier_url(tiers, "mobile", base),
+            # GCS URLs — original tiers
+            "thumb": gcs_url(uuid, "thumb"),
+            "micro": gcs_url(uuid, "micro"),
+            "display": gcs_url(uuid, "display"),
+            "mobile": gcs_url(uuid, "mobile"),
+            # GCS URLs — enhanced tiers
+            "e_thumb": gcs_url(uuid, "thumb", "enhanced"),
+            "e_display": gcs_url(uuid, "display", "enhanced"),
         }
         photos.append(photo)
 
@@ -801,16 +785,16 @@ def export(pretty: bool = False) -> None:
     objects_lk = load_objects(conn)
     ocr_lk = load_ocr(conn)
     exif_lk = load_exif(conn)
-    tiers_lk = load_tiers(conn)
     print(f"  All signal tables loaded")
 
     conn.close()
 
     print("Building photo objects...")
+    print(f"  Using GCS URLs: {GCS_BASE}/...")
     photos, filters = build_photos(
         images, gemini_lk, colors_lk, aesthetics_lk, depth_lk, scenes_lk,
         styles_lk, captions_lk, pixel_lk, faces_lk, emotions_lk, objects_lk,
-        ocr_lk, exif_lk, tiers_lk,
+        ocr_lk, exif_lk,
     )
 
     print(f"Exported {len(photos)} photos")

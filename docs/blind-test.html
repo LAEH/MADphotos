@@ -469,7 +469,11 @@
 </div>
 <script>
 (function() {
-  function getTheme() { return localStorage.getItem('mad-theme') || 'light'; }
+  function getTheme() {
+    var s = localStorage.getItem('mad-theme');
+    if (s) return s;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
   function applyTheme(t) {
     document.documentElement.setAttribute('data-theme', t);
     var icon = document.getElementById('themeIcon');

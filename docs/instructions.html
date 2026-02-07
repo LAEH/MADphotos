@@ -263,7 +263,7 @@
 
 <div class="inst-hero">
   <h1>System Instructions</h1>
-  <p>Everything needed to work on MADphotos effectively. Updated 2026-02-06.</p>
+  <p>Everything needed to work on MADphotos effectively. Updated 2026-02-07.</p>
 </div>
 
 <!-- ═══ PROJECT BRIEFING ═══ -->
@@ -304,10 +304,9 @@
 <div class="inst-card inst-status">
   <span class="inst-pill inst-pill-green">Status</span>
   <h2>What&rsquo;s Done vs. What&rsquo;s Next</h2>
-  <p><strong>Done (14/20):</strong> Rendering (97,898 tiers). EXIF. Pixel Analysis. Dominant Colors. Image Hashes. Vectors (DINOv2+SigLIP+CLIP). Aesthetic Scoring. Depth Estimation. Scene Classification. Style Classification. BLIP Captions. Facial Emotions. Enhancement Plans (v1+v2). &mdash; Dashboard + Journal. MADCurator. 14 web experiences. Master orchestrator (<code>mad_completions.py</code>).</p>
-  <p><strong>In progress (2/20):</strong> Gemini analysis (70%). OCR / Text Detection (47%).</p>
+  <p><strong>Done (17/20):</strong> Rendering (97,898 tiers). EXIF. Pixel Analysis. Dominant Colors. Image Hashes. Vectors (DINOv2+SigLIP+CLIP). Aesthetic Scoring. Depth Estimation. Scene Classification. Style Classification. BLIP Captions. Facial Emotions. Enhancement Plans (v1+v2). <strong>Gemini 2.5 Pro analysis (9,011/9,011 &mdash; 100%).</strong> OCR / Text Detection (16,704 detections). &mdash; Dashboard + Journal. MADCurator. 14 web experiences. GCS upload (135,518 files: 72k original + 63k enhanced). Gallery export with GCS public URLs.</p>
   <p><strong>Sparse signals (complete but partial by nature):</strong> Face Detections (1,676 images). Object Detections (5,363 images). OCR is also sparse &mdash; not every photo contains text.</p>
-  <p><strong>Next:</strong> Finish Gemini + OCR to 100%. GCS upload pipeline. Curate in MADCurator. Imagen AI variants at scale. Location intelligence from EXIF GPS.</p>
+  <p><strong>Next:</strong> Curate in MADCurator (accept/reject). Imagen AI variants at scale. Location intelligence from EXIF GPS. Deploy Show to Firebase.</p>
 </div>
 
 <!-- ═══ CAMERAS + ARCHITECTURE ═══ -->
@@ -436,12 +435,12 @@
       <tr><td>Objects</td><td>YOLOv8n</td><td class="done">5,363 images &check;</td><td>14,534 detections, 80 COCO classes</td></tr>
       <tr><td>Hashes</td><td>imagehash</td><td class="done">9,011 &check;</td><td>pHash, aHash, dHash, wHash, blur, sharpness</td></tr>
       <tr><td>Vectors</td><td>DINOv2+SigLIP+CLIP</td><td class="done">9,011 &check;</td><td>768d+768d+512d = 2,048 dims (LanceDB)</td></tr>
-      <tr><td>Gemini</td><td>Gemini 2.5 Pro</td><td>6,294/9,011</td><td>Alt, vibes, exposure, composition, grading, edit prompt</td></tr>
+      <tr><td>Gemini</td><td>Gemini 2.5 Pro</td><td class="done">9,011 &check;</td><td>Alt, vibes, exposure, composition, grading, edit prompt</td></tr>
       <tr><td>Aesthetic</td><td>LAION (CLIP MLP)</td><td class="done">9,011 &check;</td><td>Score 1&ndash;10</td></tr>
       <tr><td>Depth</td><td>Depth Anything v2</td><td class="done">9,011 &check;</td><td>Near/mid/far %, complexity bucket</td></tr>
       <tr><td>Scenes</td><td>Places365</td><td class="done">9,011 &check;</td><td>Top 3 labels, indoor/outdoor</td></tr>
       <tr><td>Style</td><td>Derived</td><td class="done">9,011 &check;</td><td>street, portrait, landscape, macro, etc.</td></tr>
-      <tr><td>OCR</td><td>EasyOCR</td><td>4,223/9,011</td><td>Text regions, language, confidence (sparse &mdash; not all images have text)</td></tr>
+      <tr><td>OCR</td><td>EasyOCR</td><td class="done">16,704 detections &check;</td><td>Text regions, language, confidence (sparse &mdash; not all images have text)</td></tr>
       <tr><td>Captions</td><td>BLIP (Salesforce)</td><td class="done">9,011 &check;</td><td>Natural language description</td></tr>
       <tr><td>Emotions</td><td>ViT expression</td><td class="done">1,676 &check;</td><td>7-class scores per face (3,185 emotion entries)</td></tr>
       <tr><td>Enhancement</td><td>Camera engine</td><td class="done">9,011 &check;</td><td>WB, gamma, shadows, contrast, saturation, sharpening</td></tr>
@@ -477,7 +476,11 @@
 </div>
 <script>
 (function() {
-  function getTheme() { return localStorage.getItem('mad-theme') || 'light'; }
+  function getTheme() {
+    var s = localStorage.getItem('mad-theme');
+    if (s) return s;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
   function applyTheme(t) {
     document.documentElement.setAttribute('data-theme', t);
     var icon = document.getElementById('themeIcon');

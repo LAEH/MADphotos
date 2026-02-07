@@ -33,7 +33,7 @@ The dashboard. The control room. Every signal, every model, every image — trac
 
 ### See
 
-The native power image viewer. MADCurator — SwiftUI on macOS, reading directly from the SQLite database. Full-resolution display, 55 fields, 18 filters. The human eye decides what's worth showing.
+The native power image viewer. See — SwiftUI on macOS, reading directly from the SQLite database. Full-resolution display, 55 fields, 18 filters. The human eye decides what's worth showing.
 
 ## The Pipeline
 
@@ -76,12 +76,48 @@ Additional scripts: `export_gallery_data.py` (web data export), `serve_gallery.p
 | Enhancement | Camera engine | WB, gamma, shadows, contrast, saturation, sharpening |
 | AI Variants | Imagen 3 | gemini_edit, pro_edit, nano_feel, cartoon |
 
+## Rendered Tiers
+
+Every image is rendered into a 6-tier resolution pyramid. AI variants get 4 tiers. **97,898 tier files** total.
+
+| Tier | Max px | Formats | Purpose |
+|------|--------|---------|---------|
+| full | 3840 | jpeg | Source for AI pipelines |
+| display | 2048 | jpeg, webp | Full-screen viewing |
+| mobile | 1280 | jpeg, webp | Mobile screens |
+| thumb | 480 | jpeg, webp | Grids, lists |
+| micro | 64 | jpeg, webp | Color swatches, placeholders |
+| gemini | 2048 | jpeg | Gemini analysis input |
+| original | native | jpeg | Unresized JPEG copies (5,138) |
+
+Layout: `rendered/{tier}/{format}/{uuid}.ext` — flat, no category subdirectories.
+
+## Status
+
+All 18 signal types complete. Zero gaps in the database.
+
+| Metric | Value |
+|--------|-------|
+| Images registered | 9,011 |
+| Gemini analyses | 9,011 / 9,011 (100%) |
+| Tier files | 97,898 |
+| GCS files uploaded | 135,518 (72k original + 63k enhanced) |
+| Face detections | 3,187 faces across 1,676 images |
+| Object detections | 14,534 across 5,363 images |
+| OCR detections | 16,704 across 7,834 images |
+| GPS-tagged images | 1,820 |
+| AI variants generated | 216 (gemini_edit, pro_edit, light_enhance) |
+| Database tables | 24 |
+| Database integrity | All checks pass — zero orphans |
+
 ## Infrastructure
 
-- **Database**: SQLite (`mad_photos.db`) — 24 tables, one source of truth
-- **Vector Store**: LanceDB (`vectors.lance/`) — 9,011 images × 3 embedding models
-- **Cloud**: GCS `gs://myproject-public-assets/art/MADphotos/` — versioned image hosting (original / enhanced / blind)
+- **Database**: SQLite (`mad_photos.db`) — 24 tables, WAL mode, one source of truth
+- **Vector Store**: LanceDB (`vectors.lance/`) — 9,011 images × 3 embedding models (DINOv2 768d + SigLIP 768d + CLIP 512d)
+- **Cloud**: GCS `gs://myproject-public-assets/art/MADphotos/v/{version}/{tier}/{format}/{uuid}.ext`
+- **GCP Project**: madbox-e4a35 — Vertex AI for Gemini + Imagen
 - **AI Models**: Gemini 2.5 Pro, Imagen 3, DINOv2, SigLIP, CLIP, YOLOv8n, YuNet, BLIP, EasyOCR, Depth Anything v2, Places365, LAION Aesthetic, ViT Emotion
-- **Platform**: macOS, Python 3.9, Apple Silicon (MPS acceleration)
-- **Web**: Vanilla JS, no framework — dark glassmorphism UI, 14 experience modules
+- **Platform**: macOS, Python 3.9.6, Apple Silicon (MPS acceleration)
+- **Web**: Vanilla JS, no framework — Apple HIG design system, 14 experience modules
 - **Hosting**: Firebase (Show), GitHub Pages (State), GCS (Images)
+- **Gallery data**: `export_gallery_data.py` → `web/data/photos.json` (20.7 MB, all signals, GCS URLs)
