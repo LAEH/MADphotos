@@ -490,7 +490,9 @@ def get_stats():
          "started": r["started_at"][:16].replace("T", " ") if r["started_at"] else ""}
         for r in conn.execute(
             "SELECT phase, status, images_processed, images_failed, started_at "
-            "FROM pipeline_runs ORDER BY started_at DESC LIMIT 15"
+            "FROM pipeline_runs "
+            "WHERE images_processed > 0 OR images_failed > 0 "
+            "ORDER BY started_at DESC LIMIT 15"
         ).fetchall()
     ]
 
