@@ -160,6 +160,10 @@ struct PhotoItem: Identifiable, Hashable {
         }
         return arr
     }
+    var emotionList: [String] {
+        guard let e = emotionsSummary, !e.isEmpty else { return [] }
+        return Array(Set(e.components(separatedBy: ", ").map { $0.trimmingCharacters(in: .whitespaces) }))
+    }
     var sizeLabel: String {
         String(format: "%.1f MB", Double(originalSize) / 1_048_576.0)
     }
@@ -237,11 +241,12 @@ enum QueryMode: String, CaseIterable {
     case intersection = "All"
 }
 
-enum FilterDimension {
+enum FilterDimension: Hashable {
     case category, subcategory, orientation, sourceFormat, camera
     case curation, analysis, grading, vibe, time, setting
     case exposure, depth, composition, search
     case location, style, aesthetic, hasText
+    case weather, scene, emotion
 }
 
 struct FilterState {
@@ -252,7 +257,6 @@ struct FilterState {
     var cameras: Set<String> = []
     var gradingStyles: Set<String> = []
     var vibes: Set<String> = []
-    var vibeMode: QueryMode = .union
     var timesOfDay: Set<String> = []
     var settings: Set<String> = []
     var exposures: Set<String> = []
@@ -261,11 +265,17 @@ struct FilterState {
     var curatedStatuses: Set<String> = []
     var analysisStatus: String?
     var searchText: String = ""
-    // New filter dimensions
     var locations: Set<String> = []
     var styles: Set<String> = []
     var aestheticBuckets: Set<String> = []
     var hasTextFilter: String?  // "yes" / "no" / nil
+    var weathers: Set<String> = []
+    var scenes: Set<String> = []
+    var emotions: Set<String> = []
+    var dimensionModes: [FilterDimension: QueryMode] = [:]
+
+    func mode(for dim: FilterDimension) -> QueryMode { dimensionModes[dim] ?? .union }
+    mutating func setMode(_ mode: QueryMode, for dim: FilterDimension) { dimensionModes[dim] = mode }
 
     var isActive: Bool {
         !categories.isEmpty || !subcategories.isEmpty || !orientations.isEmpty ||
@@ -274,7 +284,7 @@ struct FilterState {
         !exposures.isEmpty || !depths.isEmpty || !compositions.isEmpty ||
         !curatedStatuses.isEmpty || analysisStatus != nil || !searchText.isEmpty ||
         !locations.isEmpty || !styles.isEmpty || !aestheticBuckets.isEmpty ||
-        hasTextFilter != nil
+        hasTextFilter != nil || !weathers.isEmpty || !scenes.isEmpty || !emotions.isEmpty
     }
 
     mutating func toggle(_ keyPath: WritableKeyPath<FilterState, Set<String>>, _ value: String) {
@@ -288,12 +298,13 @@ struct FilterState {
     mutating func clear() {
         categories = []; subcategories = []; orientations = []
         sourceFormats = []; cameras = []; gradingStyles = []; vibes = []
-        vibeMode = .union
         timesOfDay = []; settings = []; exposures = []
         depths = []; compositions = []; curatedStatuses = []
         analysisStatus = nil; searchText = ""
         locations = []; styles = []; aestheticBuckets = []
         hasTextFilter = nil
+        weathers = []; scenes = []; emotions = []
+        dimensionModes = [:]
     }
 }
 
@@ -319,10 +330,12 @@ struct FacetedOptions {
     var exposures: [FacetOption] = []
     var depths: [FacetOption] = []
     var compositions: [FacetOption] = []
-    // New facets
     var locations: [FacetOption] = []
     var styles: [FacetOption] = []
     var aestheticBuckets: [FacetOption] = []
+    var weathers: [FacetOption] = []
+    var scenes: [FacetOption] = []
+    var emotions: [FacetOption] = []
 }
 
 // MARK: - Query Bar Chips

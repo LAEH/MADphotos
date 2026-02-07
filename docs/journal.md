@@ -1038,3 +1038,23 @@ Updated `export_gallery_data.py` to emit GCS public URLs instead of local `/rend
 All 7 State app pages (state, journal, instructions, drift, blind-test, mosaics, index) now auto-detect the OS color scheme preference via `window.matchMedia('(prefers-color-scheme: dark)')`. Previously dark mode only worked via manual toggle — if your Mac was in dark mode, the pages still showed light. Now they respect the system preference out of the box, with manual toggle still overriding via localStorage.
 
 Also updated `render_instructions()` with current status: Gemini 100% (was 70%), OCR complete (was 47%), GCS has 135,518 files uploaded. Updated `docs/index.html` Show description to list all 14 experiences (was only 3). Regenerated all 6 HTML pages.
+
+---
+
+## 2026-02-07
+
+### 14:00 — See: Union/Intersection Mode Toggles on All Gemini Dimensions
+
+Extended the See (MADCurator) filter system from having Any/All mode only on Vibes to supporting it on every Gemini-analysis dimension: Grading, Style, Time, Setting, Weather, Scene, Emotion, Exposure, Depth, and Composition. Replaced the old single `vibeMode` property with a generalized `dimensionModes: [FilterDimension: QueryMode]` dictionary on FilterState. The Any/All toggle now appears on any dimension when 2+ values are selected. This makes multi-value filtering consistent across the entire sidebar.
+
+### 14:05 — See: Weather, Scene, Emotion Filter Sections
+
+Added three missing filter dimensions to the sidebar: Weather (from Gemini `weather` field), Scene (from Places365 `scene_1` classification), and Emotion (from facial emotion aggregation). Scene is a single-value match like Setting; Emotion is multi-value like Vibes, supporting union/intersection mode. Added `emotionList` computed property to PhotoItem for deduplication. All three dimensions have full faceted counting and chip group support.
+
+### 14:10 — See: Inline Label Editing with DB Write-back
+
+Made 9 Gemini analysis fields editable inline in the detail view: Grading, Exposure, Sharpness, Composition, Depth, Time, Setting, Weather, and Alt Text. Hovering over a value reveals a pencil icon; clicking it switches to an inline TextField. Enter saves to `gemini_analysis` table via a new whitelisted `updateGeminiField()` method (SQL injection safe — only allowed column names pass through). Escape cancels. After save, the full photo list reloads from DB and filters reapply, keeping the current photo selected.
+
+### 14:15 — See: Vibe Add/Remove Editing
+
+Vibes are now editable: hovering over a vibe pill shows an X button to remove it, and a "+" button at the end lets you type a new vibe. Both write back to the DB as a JSON array via `updateVibes()`. The sidebar facet counts refresh immediately after edits. Clean build confirmed — all 5 files modified (Models, Database, PhotoStore, FilterSidebar, DetailView), zero compilation errors.

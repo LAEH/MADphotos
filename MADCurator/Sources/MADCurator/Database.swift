@@ -376,6 +376,41 @@ final class Database {
     }
 
     // ------------------------------------------------------------------
+    // Gemini label updates
+    // ------------------------------------------------------------------
+
+    func updateGeminiField(uuid: String, column: String, value: String?) {
+        let allowed: Set<String> = ["exposure", "sharpness", "composition_technique", "depth",
+                        "grading_style", "time_of_day", "setting", "weather", "alt_text"]
+        guard allowed.contains(column) else { return }
+        let sql = "UPDATE gemini_analysis SET \(column) = ? WHERE image_uuid = ?"
+        var stmt: OpaquePointer?
+        if sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK {
+            if let v = value, !v.isEmpty {
+                sqlite3_bind_text(stmt, 1, (v as NSString).utf8String, -1, nil)
+            } else {
+                sqlite3_bind_null(stmt, 1)
+            }
+            sqlite3_bind_text(stmt, 2, (uuid as NSString).utf8String, -1, nil)
+            sqlite3_step(stmt)
+            sqlite3_finalize(stmt)
+        }
+    }
+
+    func updateVibes(uuid: String, vibes: [String]) {
+        guard let data = try? JSONSerialization.data(withJSONObject: vibes),
+              let json = String(data: data, encoding: .utf8) else { return }
+        let sql = "UPDATE gemini_analysis SET vibe = ? WHERE image_uuid = ?"
+        var stmt: OpaquePointer?
+        if sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK {
+            sqlite3_bind_text(stmt, 1, (json as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(stmt, 2, (uuid as NSString).utf8String, -1, nil)
+            sqlite3_step(stmt)
+            sqlite3_finalize(stmt)
+        }
+    }
+
+    // ------------------------------------------------------------------
     // Filter option counts
     // ------------------------------------------------------------------
 

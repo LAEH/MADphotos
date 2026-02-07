@@ -2769,7 +2769,7 @@ def render_instructions():
     </div>
     <div class="app-box">
       <strong>See</strong>
-      <p>The native power image viewer. MADCurator &mdash; 55 fields, 18 filters, full-resolution display. The human eye decides what&rsquo;s worth showing.</p>
+      <p>The native power image viewer and editor. MADCurator &mdash; 55 fields, 21 filters with union/intersection modes, inline label editing (9 Gemini fields + vibes), full-resolution display. The human eye decides what&rsquo;s worth showing.</p>
     </div>
   </div>
 </div>
@@ -2792,7 +2792,8 @@ def render_instructions():
   <h2>What&rsquo;s Done vs. What&rsquo;s Next</h2>
   <p><strong>Done (17/20):</strong> Rendering (97,898 tiers). EXIF. Pixel Analysis. Dominant Colors. Image Hashes. Vectors (DINOv2+SigLIP+CLIP). Aesthetic Scoring. Depth Estimation. Scene Classification. Style Classification. BLIP Captions. Facial Emotions. Enhancement Plans (v1+v2). <strong>Gemini 2.5 Pro analysis (9,011/9,011 &mdash; 100%).</strong> OCR / Text Detection (16,704 detections). &mdash; Dashboard + Journal. MADCurator. 14 web experiences. GCS upload (135,518 files: 72k original + 63k enhanced). Gallery export with GCS public URLs.</p>
   <p><strong>Sparse signals (complete but partial by nature):</strong> Face Detections (1,676 images). Object Detections (5,363 images). OCR is also sparse &mdash; not every photo contains text.</p>
-  <p><strong>Next:</strong> Curate in MADCurator (accept/reject). Imagen AI variants at scale. Location intelligence from EXIF GPS. Deploy Show to Firebase.</p>
+  <p><strong>In progress:</strong> Curate in MADCurator (accept/reject + inline editing of 9 Gemini fields + vibe add/remove now live).</p>
+  <p><strong>Next:</strong> Imagen AI variants at scale. Location intelligence from EXIF GPS. Deploy Show to Firebase.</p>
 </div>
 
 <!-- ═══ CAMERAS + ARCHITECTURE ═══ -->
@@ -3458,7 +3459,7 @@ def render_journal():
 <div class="ev-labels"><span class="ev-label" style="--label-color:var(--apple-indigo)">Genesis</span></div>
 <h3>The Vision</h3>
 <p class="intent">9,011 unedited photographs taken over a decade with five cameras. The mission: augment every single image with every possible signal — AI analysis, pixel metrics, vector embeddings, depth maps, scene classification, object detection, face emotions, captions, color palettes. Then enhance each frame with camera-aware, signal-driven corrections.</p>
-<p>Three apps, one pipeline. <strong>Show</strong> — blow people's minds with experiences that are playful, elegant, smart, teasing, revealing. Continuously release new ways to see photographs, guided by signals and new ideas. <strong>State</strong> — the dashboard, the control room. Every signal, every model, every image tracked. <strong>See</strong> (MADCurator) — the native power image viewer. 55 fields, 18 filters, full-resolution. The human eye decides what's worth showing.</p>
+<p>Three apps, one pipeline. <strong>Show</strong> — blow people's minds with experiences that are playful, elegant, smart, teasing, revealing. Continuously release new ways to see photographs, guided by signals and new ideas. <strong>State</strong> — the dashboard, the control room. Every signal, every model, every image tracked. <strong>See</strong> (MADCurator) — the native power image viewer and editor. 55 fields, 21 filters with union/intersection modes, inline label editing, full-resolution. The human eye decides what's worth showing.</p>
 <blockquote>We started with 9,011 raw images and zero metadata. We will create the best experience on photos. Game ON.</blockquote>
 </div>"""
 

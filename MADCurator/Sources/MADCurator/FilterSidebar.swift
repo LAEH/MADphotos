@@ -98,55 +98,83 @@ struct FilterSidebar: View {
                 }
 
                 // Grading
-                facetSection("Grading", icon: "paintpalette", selected: store.filters.gradingStyles,
+                facetSectionWithMode("Grading", icon: "paintpalette", dimension: .grading,
+                             selected: store.filters.gradingStyles,
                              options: store.options.gradingStyles) {
                     store.toggleFilter(\.gradingStyles, $0)
                 }
 
-                // Vibe (with mode toggle)
+                // Vibe (with collapsible rare vibes)
                 vibeSection
 
-                // Style (NEW)
-                facetSection("Style", icon: "theatermasks", selected: store.filters.styles,
+                // Style
+                facetSectionWithMode("Style", icon: "theatermasks", dimension: .style,
+                             selected: store.filters.styles,
                              options: store.options.styles) {
                     store.toggleFilter(\.styles, $0)
                 }
 
-                // Aesthetic (NEW)
+                // Aesthetic
                 facetSection("Aesthetic", icon: "star", selected: store.filters.aestheticBuckets,
                              options: store.options.aestheticBuckets) {
                     store.toggleFilter(\.aestheticBuckets, $0)
                 }
 
-                // Has Text (NEW)
+                // Has Text
                 hasTextSection
 
                 // Time
-                facetSection("Time", icon: "clock", selected: store.filters.timesOfDay,
+                facetSectionWithMode("Time", icon: "clock", dimension: .time,
+                             selected: store.filters.timesOfDay,
                              options: store.options.timesOfDay) {
                     store.toggleFilter(\.timesOfDay, $0)
                 }
 
                 // Setting
-                facetSection("Setting", icon: "mappin", selected: store.filters.settings,
+                facetSectionWithMode("Setting", icon: "mappin", dimension: .setting,
+                             selected: store.filters.settings,
                              options: store.options.settings) {
                     store.toggleFilter(\.settings, $0)
                 }
 
+                // Weather
+                facetSectionWithMode("Weather", icon: "cloud.sun", dimension: .weather,
+                             selected: store.filters.weathers,
+                             options: store.options.weathers) {
+                    store.toggleFilter(\.weathers, $0)
+                }
+
+                // Scene
+                facetSectionWithMode("Scene", icon: "mountain.2", dimension: .scene,
+                             selected: store.filters.scenes,
+                             options: store.options.scenes) {
+                    store.toggleFilter(\.scenes, $0)
+                }
+
+                // Emotion
+                facetSectionWithMode("Emotion", icon: "face.smiling", dimension: .emotion,
+                             selected: store.filters.emotions,
+                             options: store.options.emotions) {
+                    store.toggleFilter(\.emotions, $0)
+                }
+
                 // Exposure
-                facetSection("Exposure", icon: "sun.max", selected: store.filters.exposures,
+                facetSectionWithMode("Exposure", icon: "sun.max", dimension: .exposure,
+                             selected: store.filters.exposures,
                              options: store.options.exposures) {
                     store.toggleFilter(\.exposures, $0)
                 }
 
                 // Depth
-                facetSection("Depth", icon: "cube", selected: store.filters.depths,
+                facetSectionWithMode("Depth", icon: "cube", dimension: .depth,
+                             selected: store.filters.depths,
                              options: store.options.depths) {
                     store.toggleFilter(\.depths, $0)
                 }
 
                 // Composition
-                facetSection("Composition", icon: "squareshape.split.3x3", selected: store.filters.compositions,
+                facetSectionWithMode("Composition", icon: "squareshape.split.3x3", dimension: .composition,
+                             selected: store.filters.compositions,
                              options: store.options.compositions) {
                     store.toggleFilter(\.compositions, $0)
                 }
@@ -180,6 +208,45 @@ struct FilterSidebar: View {
                         Text("·\(selected.count)")
                             .font(.system(.caption2, design: .monospaced))
                             .foregroundColor(.accentColor)
+                    }
+                }
+                FlowLayout(spacing: 4) {
+                    ForEach(options) { opt in
+                        FilterChip(label: display(opt.value), count: opt.count,
+                                   active: selected.contains(opt.value)) {
+                            toggle(opt.value)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Facet section with mode toggle
+
+    @ViewBuilder
+    private func facetSectionWithMode(_ title: String, icon: String,
+                                       dimension: FilterDimension,
+                                       selected: Set<String>,
+                                       options: [FacetOption],
+                                       display: @escaping (String) -> String = { $0 },
+                                       toggle: @escaping (String) -> Void) -> some View {
+        if !options.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 4) {
+                    sectionLabel(title, icon: icon, hasActive: !selected.isEmpty)
+                    if !selected.isEmpty {
+                        Text("·\(selected.count)")
+                            .font(.system(.caption2, design: .monospaced))
+                            .foregroundColor(.accentColor)
+                    }
+                    Spacer()
+                    if selected.count >= 2 {
+                        HStack(spacing: 0) {
+                            modeButton("Any", mode: .union, dim: dimension)
+                            modeButton("All", mode: .intersection, dim: dimension)
+                        }
+                        .background(RoundedRectangle(cornerRadius: 3).fill(Color.primary.opacity(0.06)))
                     }
                 }
                 FlowLayout(spacing: 4) {
@@ -237,10 +304,10 @@ struct FilterSidebar: View {
                             .foregroundColor(.accentColor)
                     }
                     Spacer()
-                    if !store.filters.vibes.isEmpty {
+                    if store.filters.vibes.count >= 2 {
                         HStack(spacing: 0) {
-                            modeButton("Any", mode: .union)
-                            modeButton("All", mode: .intersection)
+                            modeButton("Any", mode: .union, dim: .vibe)
+                            modeButton("All", mode: .intersection, dim: .vibe)
                         }
                         .background(RoundedRectangle(cornerRadius: 3).fill(Color.primary.opacity(0.06)))
                     }
@@ -280,14 +347,14 @@ struct FilterSidebar: View {
         }
     }
 
-    private func modeButton(_ label: String, mode: QueryMode) -> some View {
-        Button(action: { store.setVibeMode(mode) }) {
+    private func modeButton(_ label: String, mode: QueryMode, dim: FilterDimension) -> some View {
+        Button(action: { store.setMode(mode, for: dim) }) {
             Text(label)
                 .font(.system(.caption2, design: .monospaced))
                 .padding(.horizontal, 5)
                 .padding(.vertical, 2)
-                .background(store.filters.vibeMode == mode ? Color.accentColor : Color.clear)
-                .foregroundColor(store.filters.vibeMode == mode ? .white : .secondary)
+                .background(store.filters.mode(for: dim) == mode ? Color.accentColor : Color.clear)
+                .foregroundColor(store.filters.mode(for: dim) == mode ? .white : .secondary)
                 .cornerRadius(3)
         }
         .buttonStyle(.plain)

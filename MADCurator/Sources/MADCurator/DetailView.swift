@@ -163,20 +163,8 @@ struct DetailView: View {
                         locationSection
 
                         if photo.isAnalyzed {
-                            // Alt text — quoted block style
-                            if let alt = photo.altText, !alt.isEmpty {
-                                HStack(alignment: .top, spacing: 8) {
-                                    RoundedRectangle(cornerRadius: 1)
-                                        .fill(Color.accentColor.opacity(0.4))
-                                        .frame(width: 3)
-                                    Text(alt)
-                                        .font(.system(.caption, design: .monospaced))
-                                        .foregroundColor(.secondary)
-                                        .italic()
-                                        .textSelection(.enabled)
-                                }
-                                .padding(.horizontal, 4)
-                            }
+                            // Alt text — editable quoted block
+                            EditableAltText(photo: photo, store: store)
 
                             // BLIP caption (if different from alt text)
                             if let caption = photo.blipCaption, !caption.isEmpty {
@@ -229,44 +217,25 @@ struct DetailView: View {
                                 }
                             }
 
-                            // Gemini analysis
+                            // Gemini analysis — editable fields
                             MetaSection(title: "Analysis", icon: "eye") {
-                                MetaRow(label: "Grading", value: photo.gradingStyle)
-                                MetaRow(label: "Exposure", value: photo.exposure)
-                                MetaRow(label: "Sharpness", value: photo.sharpness)
-                                MetaRow(label: "Composition", value: photo.compositionTechnique)
-                                MetaRow(label: "Depth", value: photo.depth)
+                                EditableMetaRow(label: "Grading", value: photo.gradingStyle, column: "grading_style", photo: photo, store: store)
+                                EditableMetaRow(label: "Exposure", value: photo.exposure, column: "exposure", photo: photo, store: store)
+                                EditableMetaRow(label: "Sharpness", value: photo.sharpness, column: "sharpness", photo: photo, store: store)
+                                EditableMetaRow(label: "Composition", value: photo.compositionTechnique, column: "composition_technique", photo: photo, store: store)
+                                EditableMetaRow(label: "Depth", value: photo.depth, column: "depth", photo: photo, store: store)
                             }
 
                             MetaSection(title: "Environment", icon: "cloud.sun") {
-                                MetaRow(label: "Time", value: photo.timeOfDay)
-                                MetaRow(label: "Setting", value: photo.setting)
-                                MetaRow(label: "Weather", value: photo.weather)
+                                EditableMetaRow(label: "Time", value: photo.timeOfDay, column: "time_of_day", photo: photo, store: store)
+                                EditableMetaRow(label: "Setting", value: photo.setting, column: "setting", photo: photo, store: store)
+                                EditableMetaRow(label: "Weather", value: photo.weather, column: "weather", photo: photo, store: store)
                                 MetaRow(label: "Faces", value: photo.facesCount.map { String($0) })
                                 MetaRow(label: "Rotation", value: photo.shouldRotate)
                             }
 
-                            // Vibes as glass pills
-                            if !photo.vibeList.isEmpty {
-                                MetaSection(title: "Vibes", icon: "sparkles") {
-                                    FlowLayout(spacing: 4) {
-                                        ForEach(photo.vibeList, id: \.self) { vibe in
-                                            Text(vibe)
-                                                .font(.system(.caption2, design: .monospaced))
-                                                .padding(.horizontal, 8)
-                                                .padding(.vertical, 4)
-                                                .background(
-                                                    RoundedRectangle(cornerRadius: 5)
-                                                        .fill(.ultraThinMaterial)
-                                                        .overlay(
-                                                            RoundedRectangle(cornerRadius: 5)
-                                                                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5)
-                                                        )
-                                                )
-                                        }
-                                    }
-                                }
-                            }
+                            // Vibes — editable: remove with X, add with +
+                            EditableVibesSection(photo: photo, store: store)
                         } else {
                             MetaSection(title: "Analysis", icon: "eye") {
                                 HStack(spacing: 6) {
@@ -618,6 +587,208 @@ struct MetaRow: View {
                     .textSelection(.enabled)
             }
         }
+    }
+}
+
+// MARK: - Editable Meta Row
+
+struct EditableMetaRow: View {
+    let label: String
+    let value: String?
+    let column: String
+    let photo: PhotoItem
+    let store: PhotoStore
+    @State private var isEditing = false
+    @State private var editText = ""
+    @State private var isHovered = false
+
+    var body: some View {
+        if let v = value, !v.isEmpty {
+            HStack(alignment: .top) {
+                Text(label)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundColor(.secondary)
+                    .frame(width: 90, alignment: .trailing)
+                if isEditing {
+                    TextField(label, text: $editText, onCommit: {
+                        store.updateLabel(for: photo, column: column, value: editText.isEmpty ? nil : editText)
+                        isEditing = false
+                    })
+                    .textFieldStyle(.plain)
+                    .font(.system(.caption, design: .monospaced))
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 2)
+                    .background(RoundedRectangle(cornerRadius: 3).fill(Color.primary.opacity(0.06)))
+                    .onExitCommand { isEditing = false }
+                } else {
+                    Text(v)
+                        .font(.system(.caption, design: .monospaced))
+                        .textSelection(.enabled)
+                    Spacer()
+                    if isHovered {
+                        Button(action: {
+                            editText = v
+                            isEditing = true
+                        }) {
+                            Image(systemName: "pencil")
+                                .font(.system(size: 9))
+                                .foregroundColor(.secondary.opacity(0.6))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .onHover { hovering in isHovered = hovering }
+        }
+    }
+}
+
+// MARK: - Editable Alt Text
+
+struct EditableAltText: View {
+    let photo: PhotoItem
+    let store: PhotoStore
+    @State private var isEditing = false
+    @State private var editText = ""
+    @State private var isHovered = false
+
+    var body: some View {
+        if let alt = photo.altText, !alt.isEmpty {
+            HStack(alignment: .top, spacing: 8) {
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(Color.accentColor.opacity(0.4))
+                    .frame(width: 3)
+                if isEditing {
+                    TextField("Alt text", text: $editText, onCommit: {
+                        store.updateLabel(for: photo, column: "alt_text", value: editText.isEmpty ? nil : editText)
+                        isEditing = false
+                    })
+                    .textFieldStyle(.plain)
+                    .font(.system(.caption, design: .monospaced))
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 2)
+                    .background(RoundedRectangle(cornerRadius: 3).fill(Color.primary.opacity(0.06)))
+                    .onExitCommand { isEditing = false }
+                } else {
+                    Text(alt)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundColor(.secondary)
+                        .italic()
+                        .textSelection(.enabled)
+                    Spacer()
+                    if isHovered {
+                        Button(action: {
+                            editText = alt
+                            isEditing = true
+                        }) {
+                            Image(systemName: "pencil")
+                                .font(.system(size: 9))
+                                .foregroundColor(.secondary.opacity(0.6))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .padding(.horizontal, 4)
+            .onHover { hovering in isHovered = hovering }
+        }
+    }
+}
+
+// MARK: - Editable Vibes Section
+
+struct EditableVibesSection: View {
+    let photo: PhotoItem
+    let store: PhotoStore
+    @State private var isAdding = false
+    @State private var newVibeText = ""
+
+    var body: some View {
+        if !photo.vibeList.isEmpty || photo.isAnalyzed {
+            MetaSection(title: "Vibes", icon: "sparkles") {
+                FlowLayout(spacing: 4) {
+                    ForEach(photo.vibeList, id: \.self) { vibe in
+                        VibeEditPill(vibe: vibe, photo: photo, store: store)
+                    }
+                    if isAdding {
+                        TextField("+", text: $newVibeText, onCommit: {
+                            let trimmed = newVibeText.trimmingCharacters(in: .whitespaces)
+                            if !trimmed.isEmpty {
+                                var vibes = photo.vibeList
+                                vibes.append(trimmed)
+                                store.updateVibes(for: photo, vibes: vibes)
+                            }
+                            newVibeText = ""
+                            isAdding = false
+                        })
+                        .textFieldStyle(.plain)
+                        .font(.system(.caption2, design: .monospaced))
+                        .frame(width: 80)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(
+                            RoundedRectangle(cornerRadius: 5)
+                                .fill(Color.primary.opacity(0.06))
+                        )
+                        .onExitCommand {
+                            newVibeText = ""
+                            isAdding = false
+                        }
+                    } else {
+                        Button(action: { isAdding = true }) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 10))
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 4)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 5)
+                                        .strokeBorder(Color.primary.opacity(0.15), lineWidth: 0.5)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct VibeEditPill: View {
+    let vibe: String
+    let photo: PhotoItem
+    let store: PhotoStore
+    @State private var isHovered = false
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Text(vibe)
+                .font(.system(.caption2, design: .monospaced))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(.ultraThinMaterial)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 5)
+                                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5)
+                        )
+                )
+            if isHovered {
+                Button(action: {
+                    var vibes = photo.vibeList
+                    vibes.removeAll { $0 == vibe }
+                    store.updateVibes(for: photo, vibes: vibes)
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(.red.opacity(0.8))
+                }
+                .buttonStyle(.plain)
+                .offset(x: 4, y: -4)
+            }
+        }
+        .onHover { hovering in isHovered = hovering }
     }
 }
 

@@ -68,7 +68,7 @@ final class PhotoStore: ObservableObject {
         }
         if dim != .vibe && !f.vibes.isEmpty {
             let photoVibes = Set(p.vibeList)
-            if f.vibeMode == .union {
+            if f.mode(for: .vibe) == .union {
                 if f.vibes.isDisjoint(with: photoVibes) { return false }
             } else {
                 if !f.vibes.isSubset(of: photoVibes) { return false }
@@ -107,6 +107,25 @@ final class PhotoStore: ObservableObject {
             if ht == "yes" && !p.hasOCRText { return false }
             if ht == "no" && p.hasOCRText { return false }
         }
+        if dim != .weather && !f.weathers.isEmpty {
+            guard let w = p.weather, f.weathers.contains(w) else { return false }
+        }
+        if dim != .scene && !f.scenes.isEmpty {
+            let photoScenes = Set([p.scene1, p.scene2, p.scene3].compactMap { $0 })
+            if f.mode(for: .scene) == .union {
+                if f.scenes.isDisjoint(with: photoScenes) { return false }
+            } else {
+                if !f.scenes.isSubset(of: photoScenes) { return false }
+            }
+        }
+        if dim != .emotion && !f.emotions.isEmpty {
+            let photoEmotions = Set(p.emotionList)
+            if f.mode(for: .emotion) == .union {
+                if f.emotions.isDisjoint(with: photoEmotions) { return false }
+            } else {
+                if !f.emotions.isSubset(of: photoEmotions) { return false }
+            }
+        }
         if dim != .search && !f.searchText.isEmpty {
             let q = f.searchText.lowercased()
             let haystack = [p.altText, p.filename, p.folderPath, p.vibe,
@@ -133,10 +152,12 @@ final class PhotoStore: ObservableObject {
         options.exposures = facetOpt(\.exposure, excluding: .exposure)
         options.depths = facetOpt(\.depth, excluding: .depth)
         options.compositions = facetOpt(\.compositionTechnique, excluding: .composition)
-        // New facets
         options.locations = facetOpt(\.locationName, excluding: .location)
         options.styles = facetOpt(\.styleLabel, excluding: .style)
         options.aestheticBuckets = facetOpt(\.aestheticBucket, excluding: .aesthetic)
+        options.weathers = facetOpt(\.weather, excluding: .weather)
+        options.scenes = facetScenes()
+        options.emotions = facetEmotions()
     }
 
     private func facet(_ kp: KeyPath<PhotoItem, String>, excluding: FilterDimension) -> [FacetOption] {
@@ -164,6 +185,24 @@ final class PhotoStore: ObservableObject {
         return counts.sorted { $0.key < $1.key }.map { FacetOption(value: $0.key, count: $0.value) }
     }
 
+    private func facetScenes() -> [FacetOption] {
+        var counts: [String: Int] = [:]
+        for p in allPhotos where matchesFilters(p, excluding: .scene) {
+            for s in [p.scene1, p.scene2, p.scene3].compactMap({ $0 }) where !s.isEmpty {
+                counts[s, default: 0] += 1
+            }
+        }
+        return counts.sorted { $0.key < $1.key }.map { FacetOption(value: $0.key, count: $0.value) }
+    }
+
+    private func facetEmotions() -> [FacetOption] {
+        var counts: [String: Int] = [:]
+        for p in allPhotos where matchesFilters(p, excluding: .emotion) {
+            for e in p.emotionList { counts[e, default: 0] += 1 }
+        }
+        return counts.sorted { $0.key < $1.key }.map { FacetOption(value: $0.key, count: $0.value) }
+    }
+
     // MARK: - Filter actions
 
     func toggleFilter(_ keyPath: WritableKeyPath<FilterState, Set<String>>, _ value: String) {
@@ -181,9 +220,9 @@ final class PhotoStore: ObservableObject {
         applyFilters()
     }
 
-    func setVibeMode(_ mode: QueryMode) {
-        filters.vibeMode = mode
-        if !filters.vibes.isEmpty { applyFilters() }
+    func setMode(_ mode: QueryMode, for dim: FilterDimension) {
+        filters.setMode(mode, for: dim)
+        applyFilters()
     }
 
     func clearFilters() {
@@ -254,6 +293,28 @@ final class PhotoStore: ObservableObject {
         }
     }
 
+    // MARK: - Label editing
+
+    func updateLabel(for photo: PhotoItem, column: String, value: String?) {
+        database.updateGeminiField(uuid: photo.id, column: column, value: value)
+        allPhotos = database.loadPhotos()
+        applyFilters()
+        if let updated = allPhotos.first(where: { $0.id == photo.id }) {
+            selectedPhoto = updated
+            selectedIndex = filteredPhotos.firstIndex(of: updated) ?? selectedIndex
+        }
+    }
+
+    func updateVibes(for photo: PhotoItem, vibes: [String]) {
+        database.updateVibes(uuid: photo.id, vibes: vibes)
+        allPhotos = database.loadPhotos()
+        applyFilters()
+        if let updated = allPhotos.first(where: { $0.id == photo.id }) {
+            selectedPhoto = updated
+            selectedIndex = filteredPhotos.firstIndex(of: updated) ?? selectedIndex
+        }
+    }
+
     // MARK: - Query bar chip groups
 
     var chipGroups: [ChipGroup] {
@@ -280,15 +341,18 @@ final class PhotoStore: ObservableObject {
         addGroup("format", filters.sourceFormats, transform: { $0.uppercased() })
         addGroup("camera", filters.cameras)
         addGroup("grading", filters.gradingStyles)
-        addGroup("vibe", filters.vibes, mode: filters.vibeMode)
-        addGroup("time", filters.timesOfDay)
-        addGroup("setting", filters.settings)
-        addGroup("exposure", filters.exposures)
-        addGroup("depth", filters.depths)
-        addGroup("composition", filters.compositions)
+        addGroup("vibe", filters.vibes, mode: filters.mode(for: .vibe))
+        addGroup("time", filters.timesOfDay, mode: filters.mode(for: .time))
+        addGroup("setting", filters.settings, mode: filters.mode(for: .setting))
+        addGroup("exposure", filters.exposures, mode: filters.mode(for: .exposure))
+        addGroup("depth", filters.depths, mode: filters.mode(for: .depth))
+        addGroup("composition", filters.compositions, mode: filters.mode(for: .composition))
         addGroup("location", filters.locations)
-        addGroup("style", filters.styles)
+        addGroup("style", filters.styles, mode: filters.mode(for: .style))
         addGroup("aesthetic", filters.aestheticBuckets)
+        addGroup("weather", filters.weathers, mode: filters.mode(for: .weather))
+        addGroup("scene", filters.scenes, mode: filters.mode(for: .scene))
+        addGroup("emotion", filters.emotions, mode: filters.mode(for: .emotion))
         if let ht = filters.hasTextFilter {
             groups.append(ChipGroup(id: "hasText", chips: [
                 ActiveChip(id: "hasText:\(ht)", label: ht == "yes" ? "Has Text" : "No Text")
@@ -325,6 +389,9 @@ final class PhotoStore: ObservableObject {
         case "location": filters.locations.remove(val)
         case "style": filters.styles.remove(val)
         case "aesthetic": filters.aestheticBuckets.remove(val)
+        case "weather": filters.weathers.remove(val)
+        case "scene": filters.scenes.remove(val)
+        case "emotion": filters.emotions.remove(val)
         case "hasText": filters.hasTextFilter = nil
         case "search": filters.searchText = ""
         default: break
