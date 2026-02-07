@@ -1,12 +1,9 @@
 /* darkroom.js — La Chambre Noire: All signals for one image */
 
-let darkroomInitialized = false;
 let darkroomCurrentPhoto = null;
 let darkroomLayers = { colors: true, depth: false, objects: false, faces: false, ocr: false, meta: true };
 
 function initDarkroom() {
-    if (darkroomInitialized) return;
-    darkroomInitialized = true;
 
     const container = document.getElementById('view-darkroom');
     container.innerHTML = '';
@@ -73,9 +70,9 @@ function renderDarkroom(photo) {
         depthLayer.className = 'darkroom-layer darkroom-depth-overlay';
         depthLayer.innerHTML = `
             <div class="darkroom-depth-bar">
-                <div class="dd" style="width:${photo.near_pct || 0}%;background:rgba(0,200,255,0.5)">Near</div>
-                <div class="dd" style="width:${photo.mid_pct || 0}%;background:rgba(100,255,100,0.3)">Mid</div>
-                <div class="dd" style="width:${photo.far_pct || 0}%;background:rgba(255,100,100,0.3)">Far</div>
+                <div class="dd" style="width:${photo.near_pct || 0}%;background:var(--depth-near)">Near</div>
+                <div class="dd" style="width:${photo.mid_pct || 0}%;background:var(--depth-mid)">Mid</div>
+                <div class="dd" style="width:${photo.far_pct || 0}%;background:var(--depth-far)">Far</div>
             </div>
         `;
         imageArea.appendChild(depthLayer);

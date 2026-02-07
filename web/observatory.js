@@ -1,10 +1,6 @@
 /* observatory.js — L'Observatoire: Data visualization panels */
 
-let observatoryInitialized = false;
-
 function initObservatory() {
-    if (observatoryInitialized) return;
-    observatoryInitialized = true;
 
     const container = document.getElementById('view-observatory');
     container.innerHTML = '';
@@ -183,8 +179,7 @@ function renderOutlierPanel(el) {
 
 function createOutlierRow(label, photo) {
     const row = document.createElement('div');
-    row.className = 'obs-outlier-row';
-    row.style.cursor = 'pointer';
+    row.className = 'obs-outlier-row clickable-img';
 
     const thumb = document.createElement('img');
     thumb.src = photo.micro || photo.thumb;

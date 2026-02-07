@@ -1,22 +1,14 @@
 /* faces.js — Les Visages: Face crops + emotions */
 
-let facesInitialized = false;
-
-const EMOTION_COLORS = {
-    happy: '#34C759',
-    sad: '#5AC8FA',
-    angry: '#FF3B30',
-    surprise: '#FF9500',
-    fear: '#AF52DE',
-    disgust: '#8E8E93',
-    neutral: '#636366',
-    contempt: '#FF2D55',
-};
+/* Emotion colors resolved from CSS variables */
+const _rootStyle = getComputedStyle(document.documentElement);
+function emoColor(emotion) {
+    return _rootStyle.getPropertyValue('--emo-' + emotion).trim()
+        || _rootStyle.getPropertyValue('--system-gray-2').trim()
+        || 'rgb(99, 99, 102)';
+}
 
 function initFaces() {
-    if (facesInitialized) return;
-    facesInitialized = true;
-
     const container = document.getElementById('view-faces');
     container.innerHTML = '<div class="loading">Loading face data</div>';
 
@@ -52,7 +44,7 @@ function renderFaces(container) {
         const seg = document.createElement('div');
         seg.className = 'faces-mood-segment';
         seg.style.flex = count;
-        seg.style.background = EMOTION_COLORS[emo] || '#636366';
+        seg.style.background = emoColor(emo);
         seg.title = `${titleCase(emo)}: ${count} (${pct}%)`;
 
         const label = document.createElement('span');
@@ -81,7 +73,7 @@ function renderFaces(container) {
     for (const [emo, count] of sorted) {
         const btn = document.createElement('button');
         btn.className = 'glass-tag';
-        btn.style.borderLeft = '3px solid ' + (EMOTION_COLORS[emo] || '#636366');
+        btn.style.borderLeft = '3px solid ' + (emoColor(emo));
         btn.textContent = `${titleCase(emo)} (${count})`;
         btn.addEventListener('click', () => {
             filters.querySelectorAll('.glass-tag').forEach(b => b.classList.remove('active'));
@@ -115,7 +107,7 @@ function renderFaceGrid(grid, emotionFilter) {
 
             const card = document.createElement('div');
             card.className = 'face-card';
-            card.style.borderColor = EMOTION_COLORS[emo] || '#636366';
+            card.style.borderColor = emoColor(emo);
 
             // Use the full thumbnail but crop to face area via CSS
             const imgWrap = document.createElement('div');
@@ -139,7 +131,7 @@ function renderFaceGrid(grid, emotionFilter) {
             const label = document.createElement('div');
             label.className = 'face-label';
             label.textContent = titleCase(emo);
-            label.style.color = EMOTION_COLORS[emo] || '#636366';
+            label.style.color = emoColor(emo);
             card.appendChild(label);
 
             card.addEventListener('click', () => openLightbox(photo));

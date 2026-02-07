@@ -1,11 +1,8 @@
 /* pendulum.js — Le Pendule: Original vs Enhanced taste test */
 
-let pendulumInitialized = false;
 let pendulumState = null;
 
 function initPendulum() {
-    if (pendulumInitialized) return;
-    pendulumInitialized = true;
 
     const container = document.getElementById('view-pendulum');
     container.innerHTML = '';
@@ -120,9 +117,8 @@ function renderPendulumResults(container) {
     end.className = 'game-end';
 
     const title = document.createElement('div');
-    title.className = 'game-final-score';
+    title.className = 'game-final-score pendulum-results-title';
     title.textContent = 'Your Taste';
-    title.style.fontSize = '28px';
     end.appendChild(title);
 
     // Analyze choices

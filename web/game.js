@@ -1,12 +1,8 @@
 /* game.js — Le Terrain de Jeu: The connection game */
 
-let gameInitialized = false;
 let gameState = null;
 
 function initGame() {
-    if (gameInitialized) return;
-    gameInitialized = true;
-
     const container = document.getElementById('view-game');
     container.innerHTML = '<div class="loading">Loading game rounds</div>';
 
@@ -54,8 +50,10 @@ function startGame() {
         score: 0,
         streak: 0,
         maxStreak: 0,
-        timer: null,
-        timeLeft: 8,
+        rafId: null,
+        timerStart: 0,
+        timerDuration: 8000, /* ms */
+        answered: false,
     };
 
     renderRound();
@@ -81,7 +79,7 @@ function renderRound() {
         return;
     }
 
-    // Header: round counter + score + streak
+    /* Header: round counter + score + streak */
     const header = document.createElement('div');
     header.className = 'game-header';
     header.innerHTML = `
@@ -91,7 +89,7 @@ function renderRound() {
     `;
     container.appendChild(header);
 
-    // Timer bar
+    /* Timer bar — animated via rAF for 60fps */
     const timerBar = document.createElement('div');
     timerBar.className = 'game-timer-bar';
     const timerFill = document.createElement('div');
@@ -100,7 +98,7 @@ function renderRound() {
     timerBar.appendChild(timerFill);
     container.appendChild(timerBar);
 
-    // Two images side by side
+    /* Two images side by side */
     const pair = document.createElement('div');
     pair.className = 'game-pair';
 
@@ -108,20 +106,20 @@ function renderRound() {
         const card = document.createElement('div');
         card.className = 'game-photo-card';
         const img = document.createElement('img');
-        img.src = photo.mobile || photo.thumb;
+        loadProgressive(img, photo, 'mobile');
         img.alt = '';
         card.appendChild(img);
         pair.appendChild(card);
     }
     container.appendChild(pair);
 
-    // Question
+    /* Question */
     const question = document.createElement('p');
     question.className = 'game-question';
     question.textContent = 'What do these photographs have in common?';
     container.appendChild(question);
 
-    // Answer buttons: 1 correct + 5 wrong, shuffled
+    /* Answer buttons: 1 correct + 5 wrong, shuffled */
     const answers = shuffleArray([
         { text: round.answer, correct: true },
         ...round.wrong.slice(0, 5).map(w => ({ text: w, correct: false })),
@@ -139,37 +137,51 @@ function renderRound() {
     }
     container.appendChild(grid);
 
-    // Start timer
-    gs.timeLeft = 8;
-    timerFill.style.width = '100%';
+    /* Start rAF timer */
+    gs.answered = false;
+    gs.timerStart = performance.now();
 
-    if (gs.timer) clearInterval(gs.timer);
-    gs.timer = setInterval(() => {
-        gs.timeLeft -= 0.05;
-        const pct = Math.max(0, (gs.timeLeft / 8) * 100);
+    function tickTimer(now) {
+        if (gs.answered) return;
+
+        const elapsed = now - gs.timerStart;
+        const remaining = Math.max(0, 1 - elapsed / gs.timerDuration);
         const fill = document.getElementById('game-timer-fill');
-        if (fill) fill.style.width = pct + '%';
+        if (fill) fill.style.width = (remaining * 100) + '%';
 
-        if (gs.timeLeft <= 0) {
-            clearInterval(gs.timer);
-            // Time's up
+        if (remaining <= 0) {
+            /* Time's up */
             gs.streak = 0;
+            gs.answered = true;
             highlightCorrect(grid, round.answer);
+            grid.querySelectorAll('.game-answer-btn').forEach(b => b.disabled = true);
             setTimeout(() => { gs.current++; renderRound(); }, 1500);
+            return;
         }
-    }, 50);
+
+        gs.rafId = requestAnimationFrame(tickTimer);
+    }
+
+    gs.rafId = requestAnimationFrame(tickTimer);
+    registerTimer(gs.rafId);
 }
 
 function handleAnswer(btn, correct, correctAnswer, grid) {
     const gs = gameState;
-    clearInterval(gs.timer);
+    if (gs.answered) return;
+    gs.answered = true;
 
-    // Disable all buttons
+    /* Cancel timer animation */
+    if (gs.rafId) cancelAnimationFrame(gs.rafId);
+
+    /* Disable all buttons */
     grid.querySelectorAll('.game-answer-btn').forEach(b => b.disabled = true);
 
     if (correct) {
         btn.classList.add('correct');
-        const points = Math.ceil(gs.timeLeft) * (gs.streak + 1);
+        const elapsed = performance.now() - gs.timerStart;
+        const timeLeft = Math.max(0, gs.timerDuration - elapsed) / 1000;
+        const points = Math.ceil(timeLeft) * (gs.streak + 1);
         gs.score += points;
         gs.streak++;
         gs.maxStreak = Math.max(gs.maxStreak, gs.streak);

@@ -3,15 +3,11 @@
    a shape, a rhythm, a structure. A bridge matches a ribcage.
    A shoe matches a skateboard ramp. Same geometry, different worlds. */
 
-let deriveInitialized = false;
 let deriveHistory = [];
 let deriveCurrentId = null;
 
 async function initDerive() {
-    if (!deriveInitialized) {
-        deriveInitialized = true;
-        await loadDriftNeighbors();
-    }
+    await loadDriftNeighbors();
 
     const container = document.getElementById('view-derive');
     container.innerHTML = '';
@@ -129,7 +125,7 @@ function renderDerive(photo) {
     loadProgressive(img, photo, 'display');
     img.alt = photo.alt || photo.caption || '';
     img.addEventListener('click', () => openLightbox(photo));
-    img.style.cursor = 'pointer';
+    img.className = 'clickable-img';
     center.appendChild(img);
 
     // Minimal metadata — just a whisper of context

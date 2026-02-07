@@ -1,12 +1,9 @@
 /* similarity.js — La Similarit\u00e9: Navigate semantically connected photographs */
 
-let similarityInitialized = false;
 let similarityHistory = [];
 let similarityCurrentId = null;
 
 function initSimilarity() {
-    if (similarityInitialized) return;
-    similarityInitialized = true;
 
     const container = document.getElementById('view-similarity');
     container.innerHTML = '';
@@ -128,7 +125,7 @@ function renderSimilarity(photo) {
     loadProgressive(img, photo, 'display');
     img.alt = photo.alt || photo.caption || '';
     img.addEventListener('click', () => openLightbox(photo));
-    img.style.cursor = 'pointer';
+    img.className = 'clickable-img';
     center.appendChild(img);
 
     // Meta

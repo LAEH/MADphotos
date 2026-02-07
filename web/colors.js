@@ -1,14 +1,11 @@
 /* colors.js — Les Couleurs: Color space exploration */
 
-let colorsInitialized = false;
 let colorBuckets = [];
 let activeColorIdx = -1;
 
 const NUM_BUCKETS = 24;
 
 function initCouleurs() {
-    if (colorsInitialized) return;
-    colorsInitialized = true;
 
     buildColorBuckets();
 
@@ -53,6 +50,17 @@ function initCouleurs() {
     renderAllByColor();
 }
 
+function isGrayPalette(palette) {
+    if (!palette || palette.length === 0) return false;
+    return palette.every(hex => {
+        if (!hex || hex.length < 7) return true;
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        return (Math.max(r, g, b) - Math.min(r, g, b)) < 30;
+    });
+}
+
 function buildColorBuckets() {
     colorBuckets = [];
     const bucketSize = 360 / NUM_BUCKETS;
@@ -61,60 +69,33 @@ function buildColorBuckets() {
         const hueStart = i * bucketSize;
         const hueMid = hueStart + bucketSize / 2;
         colorBuckets.push({
-            hueStart: hueStart,
+            hueStart,
             hueEnd: hueStart + bucketSize,
             color: `hsl(${hueMid}, 65%, 50%)`,
             photos: [],
         });
     }
 
-    // Sort photos into buckets by dominant hue
+    /* Sort photos into buckets — single pass, gray detection shared */
+    const grayPhotos = [];
     for (const photo of APP.data.photos) {
-        const hue = photo.hue || 0;
-        // Also check if the photo has very low saturation (grayscale)
-        const palette = photo.palette || [];
-        const isGray = palette.every(hex => {
-            const r = parseInt(hex.slice(1, 3), 16);
-            const g = parseInt(hex.slice(3, 5), 16);
-            const b = parseInt(hex.slice(5, 7), 16);
-            const max = Math.max(r, g, b);
-            const min = Math.min(r, g, b);
-            return (max - min) < 30;
-        });
-
-        if (isGray) {
-            // Put grays in a special bucket (add after the loop)
+        if (isGrayPalette(photo.palette)) {
+            grayPhotos.push(photo);
             continue;
         }
-
-        const idx = Math.min(Math.floor(hue / (360 / NUM_BUCKETS)), NUM_BUCKETS - 1);
+        const hue = photo.hue || 0;
+        const idx = Math.min(Math.floor(hue / bucketSize), NUM_BUCKETS - 1);
         colorBuckets[idx].photos.push(photo);
     }
-
-    // Add grayscale bucket
-    const grayPhotos = APP.data.photos.filter(photo => {
-        const palette = photo.palette || [];
-        return palette.length > 0 && palette.every(hex => {
-            if (hex.length < 7) return true;
-            const r = parseInt(hex.slice(1, 3), 16);
-            const g = parseInt(hex.slice(3, 5), 16);
-            const b = parseInt(hex.slice(5, 7), 16);
-            const max = Math.max(r, g, b);
-            const min = Math.min(r, g, b);
-            return (max - min) < 30;
-        });
-    });
 
     if (grayPhotos.length > 0) {
         colorBuckets.push({
             hueStart: -1,
             hueEnd: -1,
-            color: '#666666',
+            color: _rs.getPropertyValue('--system-gray').trim() || '#8e8e93',
             photos: grayPhotos,
         });
     }
-
-    // Remove empty buckets from spectrum (but keep indexes stable for click)
 }
 
 function selectColorBand(idx) {
@@ -146,9 +127,6 @@ function renderAllByColor() {
 
     const grid = document.createElement('div');
     grid.className = 'colors-grid';
-    grid.style.display = 'flex';
-    grid.style.flexWrap = 'wrap';
-    grid.style.gap = '4px';
 
     const targetHeight = 160;
 
@@ -160,7 +138,6 @@ function renderAllByColor() {
         item.className = 'colors-grid-item';
         item.style.width = width + 'px';
         item.style.height = targetHeight + 'px';
-        item.style.flexGrow = '1';
 
         const img = createLazyImg(photo, 'thumb');
         lazyObserver.observe(img);
@@ -173,7 +150,7 @@ function renderAllByColor() {
             for (const pop of photo.pops.slice(0, 2)) {
                 popWrap.appendChild(createGlassTag(
                     pop.color + ' ' + pop.object,
-                    { color: colorNameToHex(pop.color) }
+                    { color: colorNameToCSS(pop.color) }
                 ));
             }
             item.appendChild(popWrap);
@@ -199,13 +176,8 @@ function renderColorBucket(idx) {
     title.className = 'colors-section-title';
 
     const swatch = document.createElement('span');
-    swatch.style.display = 'inline-block';
-    swatch.style.width = '10px';
-    swatch.style.height = '10px';
-    swatch.style.borderRadius = '50%';
+    swatch.className = 'color-swatch-sm';
     swatch.style.background = bucket.color;
-    swatch.style.marginRight = '8px';
-    swatch.style.verticalAlign = 'middle';
     title.appendChild(swatch);
     title.appendChild(document.createTextNode(
         photos.length + ' photos with this dominant color'
@@ -214,19 +186,14 @@ function renderColorBucket(idx) {
 
     if (photos.length === 0) {
         const empty = document.createElement('div');
-        empty.style.padding = '40px';
-        empty.style.color = 'var(--text-muted)';
-        empty.style.textAlign = 'center';
+        empty.className = 'empty-state';
         empty.textContent = 'No photos in this color range.';
         wrap.appendChild(empty);
         return;
     }
 
     const grid = document.createElement('div');
-    grid.className = 'colors-grid';
-    grid.style.display = 'flex';
-    grid.style.flexWrap = 'wrap';
-    grid.style.gap = '6px';
+    grid.className = 'colors-grid colors-grid-bucket';
 
     const targetHeight = 220;
 
@@ -238,7 +205,6 @@ function renderColorBucket(idx) {
         item.className = 'colors-grid-item';
         item.style.width = width + 'px';
         item.style.height = targetHeight + 'px';
-        item.style.flexGrow = '1';
 
         const img = createLazyImg(photo, 'thumb');
         lazyObserver.observe(img);
@@ -251,7 +217,7 @@ function renderColorBucket(idx) {
             for (const pop of photo.pops) {
                 popWrap.appendChild(createGlassTag(
                     pop.color + ' ' + pop.object,
-                    { color: colorNameToHex(pop.color) }
+                    { color: colorNameToCSS(pop.color) }
                 ));
             }
             item.appendChild(popWrap);
@@ -264,28 +230,33 @@ function renderColorBucket(idx) {
     wrap.appendChild(grid);
 }
 
-function colorNameToHex(name) {
+/* Resolve Apple system color from CSS variable */
+const _rs = getComputedStyle(document.documentElement);
+function colorNameToCSS(name) {
     const map = {
-        'red': '#e74c3c',
-        'orange': '#e67e22',
-        'yellow': '#f1c40f',
-        'green': '#2ecc71',
-        'blue': '#3498db',
-        'purple': '#9b59b6',
-        'pink': '#e91e8b',
-        'brown': '#8b6914',
-        'black': '#2c3e50',
-        'white': '#ecf0f1',
-        'gray': '#95a5a6',
-        'grey': '#95a5a6',
-        'gold': '#f39c12',
-        'silver': '#bdc3c7',
-        'teal': '#1abc9c',
-        'cyan': '#00bcd4',
-        'magenta': '#e91e63',
-        'cream': '#fffdd0',
-        'beige': '#f5f5dc',
-        'navy': '#2c3e6b',
+        'red': '--system-red',
+        'orange': '--system-orange',
+        'yellow': '--system-yellow',
+        'green': '--system-green',
+        'blue': '--system-blue',
+        'purple': '--system-purple',
+        'pink': '--system-pink',
+        'brown': '--system-brown',
+        'teal': '--system-teal',
+        'cyan': '--system-cyan',
+        'mint': '--system-mint',
+        'indigo': '--system-indigo',
+        'gray': '--system-gray',
+        'grey': '--system-gray',
+        'gold': '--system-yellow',
+        'magenta': '--system-pink',
     };
-    return map[(name || '').toLowerCase()] || '#888888';
+    const varName = map[(name || '').toLowerCase()];
+    if (varName) return _rs.getPropertyValue(varName).trim();
+    /* Fallback for non-system colors */
+    const fallbacks = {
+        'black': '#1c1c1e', 'white': '#f2f2f7', 'silver': '#aeaeb2',
+        'navy': '#2c3e6b', 'cream': '#fffdd0', 'beige': '#f5f5dc',
+    };
+    return fallbacks[(name || '').toLowerCase()] || _rs.getPropertyValue('--system-gray').trim();
 }

@@ -1,18 +1,12 @@
 /* map.js — La Carte: GPS-tagged photos on a dark map */
 
-let mapInitialized = false;
-
 function initMap() {
-    if (mapInitialized) return;
-    mapInitialized = true;
-
     const container = document.getElementById('view-map');
     container.innerHTML = '';
 
     const wrap = document.createElement('div');
     wrap.className = 'map-container';
 
-    // Get GPS photos
     const gpsPhotos = APP.data.photos.filter(p => p.gps && p.thumb);
 
     const header = document.createElement('div');
@@ -20,15 +14,18 @@ function initMap() {
     header.textContent = gpsPhotos.length + ' GPS-tagged photographs';
     wrap.appendChild(header);
 
-    // Canvas-based dot map
+    /* Retina-aware canvas */
+    const dpr = window.devicePixelRatio || 1;
+    const cssW = 1200, cssH = 600;
     const canvas = document.createElement('canvas');
     canvas.className = 'map-canvas';
     canvas.id = 'map-canvas';
-    canvas.width = 1200;
-    canvas.height = 600;
+    canvas.width = cssW * dpr;
+    canvas.height = cssH * dpr;
+    canvas.style.width = cssW + 'px';
+    canvas.style.height = cssH + 'px';
     wrap.appendChild(canvas);
 
-    // Photo strip below map
     const strip = document.createElement('div');
     strip.className = 'map-strip';
     strip.id = 'map-strip';
@@ -36,72 +33,75 @@ function initMap() {
 
     container.appendChild(wrap);
 
-    renderMapDots(canvas, gpsPhotos);
+    renderMapDots(canvas, gpsPhotos, dpr);
 }
 
-function renderMapDots(canvas, photos) {
+function renderMapDots(canvas, photos, dpr) {
     const ctx = canvas.getContext('2d');
     const w = canvas.width;
     const h = canvas.height;
 
-    // Dark background
-    ctx.fillStyle = '#0a0a0a';
-    ctx.fillRect(0, 0, w, h);
+    ctx.scale(dpr, dpr);
+    const lw = w / dpr;
+    const lh = h / dpr;
 
-    // Draw coastlines hint (simple world outline)
-    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    /* Dark background — read from immersive view container (forced dark) */
+    const mapEl = document.getElementById('view-map');
+    const mapStyle = getComputedStyle(mapEl);
+    ctx.fillStyle = mapStyle.getPropertyValue('--bg').trim() || '#000';
+    ctx.fillRect(0, 0, lw, lh);
+
+    /* World outline hint */
+    ctx.strokeStyle = mapStyle.getPropertyValue('--glass-border').trim() || 'rgba(255,255,255,0.06)';
     ctx.lineWidth = 0.5;
     ctx.beginPath();
-    ctx.rect(w * 0.01, h * 0.05, w * 0.98, h * 0.9);
+    ctx.rect(lw * 0.01, lh * 0.05, lw * 0.98, lh * 0.9);
     ctx.stroke();
 
-    // Grid lines
+    /* Grid lines */
     ctx.strokeStyle = 'rgba(255,255,255,0.03)';
     for (let i = 1; i < 6; i++) {
         ctx.beginPath();
-        ctx.moveTo(0, h * i / 6);
-        ctx.lineTo(w, h * i / 6);
+        ctx.moveTo(0, lh * i / 6);
+        ctx.lineTo(lw, lh * i / 6);
         ctx.stroke();
         ctx.beginPath();
-        ctx.moveTo(w * i / 6, 0);
-        ctx.lineTo(w * i / 6, h);
+        ctx.moveTo(lw * i / 6, 0);
+        ctx.lineTo(lw * i / 6, lh);
         ctx.stroke();
     }
 
-    // Plot photos as luminous dots
+    /* Plot photos as luminous dots */
     for (const photo of photos) {
         const [lat, lon] = photo.gps;
-        // Mercator-ish projection
-        const x = ((lon + 180) / 360) * w;
-        const y = ((90 - lat) / 180) * h;
+        const x = ((lon + 180) / 360) * lw;
+        const y = ((90 - lat) / 180) * lh;
 
-        // Color from dominant hue
         const hue = photo.hue || 0;
-        ctx.fillStyle = `hsla(${hue}, 70%, 60%, 0.7)`;
-        ctx.beginPath();
-        ctx.arc(x, y, 2.5, 0, Math.PI * 2);
-        ctx.fill();
 
-        // Glow
+        /* Glow first (behind dot) */
         ctx.fillStyle = `hsla(${hue}, 70%, 60%, 0.15)`;
         ctx.beginPath();
         ctx.arc(x, y, 6, 0, Math.PI * 2);
         ctx.fill();
+
+        /* Dot */
+        ctx.fillStyle = `hsla(${hue}, 70%, 60%, 0.7)`;
+        ctx.beginPath();
+        ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+        ctx.fill();
     }
 
-    // Click handler
+    /* Click handler — uses logical (CSS) coordinates */
     canvas.addEventListener('click', (e) => {
         const rect = canvas.getBoundingClientRect();
-        const scaleX = w / rect.width;
-        const scaleY = h / rect.height;
-        const cx = (e.clientX - rect.left) * scaleX;
-        const cy = (e.clientY - rect.top) * scaleY;
+        const cx = (e.clientX - rect.left) * (lw / rect.width);
+        const cy = (e.clientY - rect.top) * (lh / rect.height);
 
-        // Find nearby photos
         const nearby = photos.filter(p => {
             const [lat, lon] = p.gps;
-            const x = ((lon + 180) / 360) * w;
-            const y = ((90 - lat) / 180) * h;
+            const x = ((lon + 180) / 360) * lw;
+            const y = ((90 - lat) / 180) * lh;
             return Math.hypot(x - cx, y - cy) < 20;
         });
 
@@ -111,6 +111,7 @@ function renderMapDots(canvas, photos) {
 
 function renderMapStrip(photos) {
     const strip = document.getElementById('map-strip');
+    if (!strip) return;
     strip.innerHTML = '';
 
     for (const photo of photos.slice(0, 20)) {

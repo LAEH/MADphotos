@@ -1,13 +1,10 @@
 /* stream.js — Le Flot: Infinite curated visual stream */
 
-let streamInitialized = false;
 let streamIndex = 0;
 let streamLoading = false;
 const STREAM_BATCH = 20;
 
 function initStream() {
-    if (streamInitialized) return;
-    streamInitialized = true;
 
     const container = document.getElementById('view-stream');
     container.innerHTML = '<div class="loading">Loading stream</div>';

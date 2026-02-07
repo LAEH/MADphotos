@@ -1,11 +1,8 @@
 /* compass.js — La Boussole: Four-axis signal compass */
 
-let compassInitialized = false;
 let compassCurrentId = null;
 
 function initCompass() {
-    if (compassInitialized) return;
-    compassInitialized = true;
 
     const container = document.getElementById('view-compass');
     container.innerHTML = '';
@@ -93,15 +90,16 @@ function findCompositionMatch(photo, all) {
 }
 
 function findColorMatch(photo, all) {
-    // Closest hue
+    /* Closest hue — sample 500 without copying entire array */
     const hue = photo.hue || 0;
     let best = null, bestDist = 999;
-    const sample = shuffleArray([...all]).slice(0, 500);
-    for (const p of sample) {
+    const step = Math.max(1, Math.floor(all.length / 500));
+    for (let i = 0; i < all.length; i += step) {
+        const p = all[i];
         if (p.id === photo.id || !p.thumb) continue;
         let d = Math.abs((p.hue || 0) - hue);
         if (d > 180) d = 360 - d;
-        if (d < bestDist && d > 5) { // not too similar
+        if (d < bestDist && d > 5) {
             bestDist = d;
             best = p;
         }

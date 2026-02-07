@@ -758,6 +758,7 @@ PAGE_HTML = r"""<!DOCTYPE html>
 
     /* ── Transitions ── */
     --ease-default: cubic-bezier(0.25, 0.1, 0.25, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
     --duration-fast: 150ms;
     --duration-normal: 250ms;
 
@@ -846,6 +847,21 @@ PAGE_HTML = r"""<!DOCTYPE html>
     --shadow-md: 0 2px 8px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
     --shadow-lg: 0 4px 16px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.2);
     color-scheme: dark;
+  }
+
+  /* ═══ AI ANIMATIONS ═══ */
+  @keyframes ai-shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes ai-gradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
   }
 
   /* ═══ RESET ═══ */
@@ -954,6 +970,23 @@ PAGE_HTML = r"""<!DOCTYPE html>
     display: flex;
     flex-direction: column;
   }
+  .sidebar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 2px;
+    height: 100%;
+    background: linear-gradient(180deg,
+      var(--apple-blue) 0%,
+      var(--apple-purple) 35%,
+      var(--apple-pink) 65%,
+      var(--apple-orange) 100%
+    );
+    opacity: 0.35;
+    background-size: 100% 300%;
+    animation: ai-gradient 8s ease infinite;
+  }
   .sidebar .sb-title {
     font-family: var(--font-display);
     font-size: var(--text-lg);
@@ -988,6 +1021,10 @@ PAGE_HTML = r"""<!DOCTYPE html>
     font-weight: 600;
     background: var(--sidebar-active-bg);
     border-left-color: var(--apple-blue);
+  }
+  .sidebar a.sb-sub {
+    padding-left: var(--space-8);
+    font-size: var(--text-xs);
   }
   .sidebar .sb-sep {
     height: 1px;
@@ -1054,6 +1091,7 @@ PAGE_HTML = r"""<!DOCTYPE html>
     min-width: 0;
     margin: 0 auto;
     width: 100%;
+    animation: fade-up 0.5s var(--ease-default) both;
   }
 
   /* ── Mobile hamburger ── */
@@ -1124,6 +1162,7 @@ PAGE_HTML = r"""<!DOCTYPE html>
   /* ═══ HERO HEADER ═══ */
   .state-hero {
     margin-bottom: var(--space-8);
+    animation: fade-up 0.6s var(--ease-default) both;
   }
   .state-hero h1 { margin-bottom: var(--space-1); }
   .live-dot {
@@ -1149,6 +1188,18 @@ PAGE_HTML = r"""<!DOCTYPE html>
     margin: 0 0 var(--space-5);
     padding-bottom: var(--space-3);
     border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .section-title::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: 60px;
+    height: 2px;
+    background: linear-gradient(90deg, var(--apple-blue), var(--apple-purple));
+    border-radius: 1px;
+    opacity: 0.6;
   }
   .subsection-title {
     font-size: var(--text-xs);
@@ -1188,7 +1239,12 @@ PAGE_HTML = r"""<!DOCTYPE html>
     padding: 8px 10px;
     position: relative;
     transition: transform var(--duration-fast), box-shadow var(--duration-fast);
+    animation: fade-up 0.4s var(--ease-default) both;
   }
+  .el-card:nth-child(n+4) { animation-delay: 60ms; }
+  .el-card:nth-child(n+7) { animation-delay: 120ms; }
+  .el-card:nth-child(n+10) { animation-delay: 180ms; }
+  .el-card:nth-child(n+13) { animation-delay: 240ms; }
   .el-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
   .el-card .el-num {
     position: absolute; top: 4px; right: 6px;
@@ -1444,10 +1500,10 @@ PAGE_HTML = r"""<!DOCTYPE html>
   .tag-cat-depth-comp .tag-icon svg { color: color-mix(in srgb, var(--apple-indigo) 70%, var(--apple-blue)); }
   .tag-cat-depth-ratio .tag-icon svg { color: color-mix(in srgb, var(--apple-indigo) 50%, var(--apple-teal)); }
 
-  .tag-cat-camera .tag-icon svg { color: #86868b; }
-  .tag-cat-camera-time .tag-icon svg { color: #a1a1a6; }
-  .tag-cat-camera-enh .tag-icon svg { color: #6e6e73; }
-  .tag-cat-camera-rot .tag-icon svg { color: #98989d; }
+  .tag-cat-camera .tag-icon svg { color: var(--muted); }
+  .tag-cat-camera-time .tag-icon svg { color: var(--fg-secondary); }
+  .tag-cat-camera-enh .tag-icon svg { color: var(--muted); opacity: 0.8; }
+  .tag-cat-camera-rot .tag-icon svg { color: var(--fg-secondary); opacity: 0.8; }
 
   /* Color dot inside tags (for dominant colors) */
   .tag .tag-cdot {
@@ -1619,7 +1675,20 @@ PAGE_HTML = r"""<!DOCTYPE html>
 <nav class="sidebar" id="sidebar">
   <div class="sb-title">MADphotos</div>
   <button class="sb-hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')" aria-label="Menu">&#9776;</button>
-  <a href="/" class="active">State</a>
+  <div class="sb-group sb-toggle" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('sb-collapsed')">
+    State <span class="sb-arrow">&#9656;</span>
+  </div>
+  <div class="sb-collapsible">
+    <a href="/" class="active sb-sub">Overview</a>
+    <a href="#sec-gemini" class="sb-sub">Models</a>
+    <a href="#sec-signals" class="sb-sub">Signals</a>
+    <a href="#sec-vectors" class="sb-sub">Vector Store</a>
+    <a href="#sec-cameras" class="sb-sub">Camera Fleet</a>
+    <a href="#sec-tiers" class="sb-sub">Render Tiers</a>
+    <a href="#sec-storage" class="sb-sub">Storage</a>
+    <a href="#sec-runs" class="sb-sub">Pipeline Runs</a>
+    <a href="#sec-sample" class="sb-sub">Sample Output</a>
+  </div>
   <a href="/journal">Journal de Bord</a>
   <a href="/instructions">System Instructions</a>
   <div class="sb-sep"></div>
@@ -1628,20 +1697,6 @@ PAGE_HTML = r"""<!DOCTYPE html>
   <a href="/creative-drift">Drift</a>
   <a href="/blind-test">Blind Test</a>
   <a href="/mosaics">Mosaics</a>
-  <div class="sb-sep"></div>
-  <div class="sb-group sb-toggle" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('sb-collapsed')">
-    Dashboard <span class="sb-arrow">&#9656;</span>
-  </div>
-  <div class="sb-collapsible sb-collapsed">
-    <a href="#sec-gemini">Gemini Progress</a>
-    <a href="#sec-signals">Signals</a>
-    <a href="#sec-vectors">Vector Store</a>
-    <a href="#sec-cameras">Camera Fleet</a>
-    <a href="#sec-tiers">Render Tiers</a>
-    <a href="#sec-storage">Storage</a>
-    <a href="#sec-runs">Pipeline Runs</a>
-    <a href="#sec-sample">Sample Output</a>
-  </div>
   <div class="sb-bottom">
     <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">
       <span class="theme-icon" id="themeIcon">&#9790;</span>
@@ -1659,7 +1714,7 @@ PAGE_HTML = r"""<!DOCTYPE html>
 </div>
 
 <!-- ═══ MODELS ═══ -->
-<div class="section" style="margin-bottom:var(--space-8);">
+<div class="section" id="sec-gemini" style="margin-bottom:var(--space-8);">
   <div class="section-title">Models</div>
   <div class="el-section-sub" id="el-sub">17 models &middot; every image</div>
   <div class="el-grid" id="el-grid"></div>
@@ -2154,6 +2209,7 @@ def page_shell(title, content, active="", extra_css="", extra_js=""):
     --leading-normal: 1.47; --leading-relaxed: 1.6;
     --tracking-tight: -0.01em; --tracking-caps: 0.06em;
     --duration-fast: 150ms; --ease-default: cubic-bezier(0.25, 0.1, 0.25, 1);
+    --apple-purple: #AF52DE; --apple-pink: #FF2D55; --apple-orange: #FF9500;
   }}
   [data-theme="light"] {{
     --bg: #F5F5F7; --bg-secondary: #FFFFFF; --fg: #1D1D1F;
@@ -2171,6 +2227,15 @@ def page_shell(title, content, active="", extra_css="", extra_js=""):
     --sidebar-active-bg: rgba(255,255,255,0.06); --hover-overlay: rgba(255,255,255,0.04);
     color-scheme: dark;
   }}
+  @keyframes ai-gradient {{
+    0% {{ background-position: 0% 50%; }}
+    50% {{ background-position: 100% 50%; }}
+    100% {{ background-position: 0% 50%; }}
+  }}
+  @keyframes fade-up {{
+    from {{ opacity: 0; transform: translateY(12px); }}
+    to {{ opacity: 1; transform: translateY(0); }}
+  }}
   html {{ scroll-behavior: smooth; }}
   *, *::before, *::after {{ margin: 0; padding: 0; box-sizing: border-box; }}
   body {{
@@ -2186,6 +2251,13 @@ def page_shell(title, content, active="", extra_css="", extra_js=""):
     overflow-y: auto; display: flex; flex-direction: column;
     transition: width var(--duration-normal) var(--ease-default),
                 min-width var(--duration-normal) var(--ease-default);
+    position: relative;
+  }}
+  .sidebar::after {{
+    content: '';
+    position: absolute; top: 0; right: 0; width: 2px; height: 100%;
+    background: linear-gradient(180deg, var(--apple-blue) 0%, var(--apple-purple) 35%, var(--apple-pink) 65%, var(--apple-orange) 100%);
+    opacity: 0.35; background-size: 100% 300%; animation: ai-gradient 8s ease infinite;
   }}
   .sidebar .sb-title {{
     font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700;
@@ -2203,6 +2275,7 @@ def page_shell(title, content, active="", extra_css="", extra_js=""):
   .sidebar a.active {{
     color: var(--fg); font-weight: 600; background: var(--sidebar-active-bg);
   }}
+  .sidebar a.sb-sub {{ padding-left: var(--space-8); font-size: var(--text-xs); }}
   .sidebar .sb-sep {{ height: 1px; background: var(--border); margin: var(--space-2) var(--space-5); }}
   .sidebar .sb-group {{
     font-size: var(--text-xs); font-weight: 600; text-transform: uppercase;
@@ -2250,6 +2323,7 @@ def page_shell(title, content, active="", extra_css="", extra_js=""):
   .main-content {{
     flex: 1; padding: var(--space-10) var(--space-8);
     max-width: 900px; min-width: 0; margin: 0 auto;
+    animation: fade-up 0.5s var(--ease-default) both;
   }}
   @media (max-width: 900px) {{
     body {{ flex-direction: column; }}
@@ -2313,6 +2387,7 @@ def page_shell(title, content, active="", extra_css="", extra_js=""):
   <a href="/creative-drift"{_active("creative-drift")}>Drift</a>
   <a href="/blind-test"{_active("blind-test")}>Blind Test</a>
   <a href="/mosaics"{_active("mosaics")}>Mosaics</a>
+  <div class="sb-sep"></div>
   <div class="sb-bottom">
     <button class="sb-collapse" onclick="toggleSidebar()">&#x276E; Hide sidebar</button>
     <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">
@@ -2820,7 +2895,8 @@ def render_instructions():
     <li><code>serve_gallery.py</code> &rarr; localhost:3000</li>
     <li>18 files: index.html, style.css, app.js + 14 experience modules + data/</li>
     <li>La Grille, Le Bento, La Similarit&eacute;, La D&eacute;rive, Les Couleurs, Le Jeu, Chambre Noire, Le Flot, Les Visages, La Boussole, L&rsquo;Observatoire, La Carte, Machine &Agrave; &Eacute;crire, Le Pendule</li>
-    <li>Dark, monospace, glassmorphism. Vanilla JS, no framework.</li>
+    <li>Dark minimalist design system: 40+ CSS tokens (motion grammar, emotion colors, depth layers, category colors), Apple HIG curves, prefers-reduced-motion support</li>
+    <li>Vanilla JS, no framework. 60fps animations via rAF, IntersectionObserver lazy loading, timer leak prevention</li>
   </ul>
 </div>
 
@@ -4362,7 +4438,8 @@ def render_blind_test():
 var picks = {};
 var TOTAL = """ + str(total) + """;
 var METHOD_NAMES = { original: "Original", enhanced_v1: "Enhanced v1", enhanced_v2: "Enhanced v2" };
-var METHOD_COLORS = { original: "#86868B", enhanced_v1: "#007AFF", enhanced_v2: "#34C759" };
+var _cs = getComputedStyle(document.documentElement);
+var METHOD_COLORS = { original: _cs.getPropertyValue('--muted').trim() || "#86868B", enhanced_v1: _cs.getPropertyValue('--apple-blue').trim() || "#007AFF", enhanced_v2: _cs.getPropertyValue('--apple-green').trim() || "#34C759" };
 
 function updateScoreboard() {
   var n = Object.keys(picks).length;
@@ -4417,7 +4494,7 @@ function reveal() {
       '</div>';
   });
   if (skipped > 0) {
-    html += '<div style="text-align:center;margin-top:16px;font-size:13px;color:#86868B;">Skipped: ' + skipped + ' rows</div>';
+    html += '<div style="text-align:center;margin-top:16px;font-size:13px;color:var(--muted);">Skipped: ' + skipped + ' rows</div>';
   }
 
   var res = document.getElementById('results');

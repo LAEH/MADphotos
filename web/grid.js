@@ -1,47 +1,48 @@
 /* grid.js — La Grille: Semantic grid with justified rows, glass tags, filtering */
 
-let gridInitialized = false;
 let gridFilters = new Set();
-let gridFilterMode = 'any'; // 'any' = union, not used yet but ready
+let gridLastVisible = null; /* cached filtered results */
+
+const debouncedRenderGrid = debounce(renderGrid, 80);
 
 function initGrille() {
-    if (gridInitialized) return;
-    gridInitialized = true;
-
     const container = document.getElementById('view-grille');
     container.innerHTML = '';
 
-    // Filter bar
+    /* Filter bar */
     const filterBar = document.createElement('div');
     filterBar.className = 'filter-bar';
     filterBar.id = 'grid-filter-bar';
     container.appendChild(filterBar);
 
-    // Grid container
+    /* Grid container */
     const gridWrap = document.createElement('div');
     gridWrap.className = 'grid-container';
     gridWrap.id = 'grid-container';
     container.appendChild(gridWrap);
 
+    gridLastVisible = null;
     renderGrid();
     updateFilterBar();
 }
 
 function renderGrid() {
     const wrap = document.getElementById('grid-container');
+    if (!wrap) return;
     wrap.innerHTML = '';
 
     const photos = APP.data.photos;
     const targetRowHeight = 220;
     const gap = 4;
-    const containerWidth = wrap.clientWidth - 24; // padding
+    const containerWidth = wrap.clientWidth - 24;
 
-    // Filter photos
+    /* Filter photos — cache result */
     const visible = gridFilters.size === 0
         ? photos
         : photos.filter(p => matchesFilters(p));
+    gridLastVisible = visible;
 
-    // Build justified rows
+    /* Build justified rows */
     let row = [];
     let rowAspect = 0;
 
@@ -53,7 +54,6 @@ function renderGrid() {
         const rowWidth = rowAspect * targetRowHeight + (row.length - 1) * gap;
 
         if (rowWidth >= containerWidth && row.length >= 2) {
-            // Calculate actual height for this row
             const availableWidth = containerWidth - (row.length - 1) * gap;
             const rowHeight = availableWidth / rowAspect;
             renderRow(wrap, row, rowHeight, gap);
@@ -62,7 +62,7 @@ function renderGrid() {
         }
     }
 
-    // Render leftover row
+    /* Render leftover row */
     if (row.length > 0) {
         const height = Math.min(targetRowHeight, (containerWidth - (row.length - 1) * gap) / rowAspect);
         renderRow(wrap, row, height, gap);
@@ -85,14 +85,12 @@ function renderRow(container, items, height, gap) {
         lazyObserver.observe(img);
         item.appendChild(img);
 
-        // Overlay with tags
+        /* Overlay with tags */
         const overlay = document.createElement('div');
         overlay.className = 'grid-overlay';
 
         const tagRow = document.createElement('div');
-        tagRow.style.display = 'flex';
-        tagRow.style.flexWrap = 'wrap';
-        tagRow.style.gap = '3px';
+        tagRow.className = 'grid-overlay-tags';
 
         for (const vibe of (photo.vibes || []).slice(0, 3)) {
             tagRow.appendChild(createGlassTag(vibe, {
@@ -112,9 +110,7 @@ function renderRow(container, items, height, gap) {
         overlay.appendChild(tagRow);
         item.appendChild(overlay);
 
-        // Click to open lightbox
         item.addEventListener('click', () => openLightbox(photo));
-
         rowEl.appendChild(item);
     }
 
@@ -122,7 +118,6 @@ function renderRow(container, items, height, gap) {
 }
 
 function matchesFilters(photo) {
-    // All active filters must match (AND across dimensions)
     for (const f of gridFilters) {
         const [dim, val] = f.split(':');
         if (dim === 'vibe') {
@@ -153,15 +148,16 @@ function toggleFilter(dimension, value) {
     } else {
         gridFilters.add(key);
     }
-    renderGrid();
+    debouncedRenderGrid();
     updateFilterBar();
 }
 
 function updateFilterBar() {
     const bar = document.getElementById('grid-filter-bar');
+    if (!bar) return;
     bar.innerHTML = '';
 
-    // Always show quick filter groups
+    /* Quick filter groups */
     const groups = [
         { label: 'vibe', values: APP.data.vibes.slice(0, 12) },
         { label: 'grading', values: APP.data.gradings },
@@ -169,13 +165,10 @@ function updateFilterBar() {
         { label: 'setting', values: APP.data.settings },
     ];
 
-    // If filters are active, show active pills first
+    /* If filters are active, show active pills + count */
     if (gridFilters.size > 0) {
         const activeSection = document.createElement('div');
-        activeSection.style.display = 'flex';
-        activeSection.style.flexWrap = 'wrap';
-        activeSection.style.gap = '4px';
-        activeSection.style.alignItems = 'center';
+        activeSection.className = 'filter-active-section';
 
         for (const f of gridFilters) {
             const [dim, val] = f.split(':');
@@ -196,8 +189,8 @@ function updateFilterBar() {
         });
         activeSection.appendChild(clear);
 
-        // Count
-        const matchCount = APP.data.photos.filter(p => matchesFilters(p)).length;
+        /* Use cached count from last render */
+        const matchCount = gridLastVisible ? gridLastVisible.length : 0;
         const count = document.createElement('span');
         count.className = 'filter-count';
         count.textContent = matchCount + ' / ' + APP.data.count;
@@ -207,7 +200,7 @@ function updateFilterBar() {
         return;
     }
 
-    // Show quick filter groups as compact rows
+    /* Show quick filter groups as compact rows */
     for (const group of groups) {
         const label = document.createElement('span');
         label.className = 'filter-label';

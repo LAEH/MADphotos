@@ -906,3 +906,115 @@ The project had a recurring problem: analysis processes would hang, die silently
 Running processes finally producing real output. Gemini analysis at 70% (6,294/9,011). OCR running at 47% (4,223/9,011). All other signals at 100%. Emotions was already done — the 19% was misleading because only 1,676 images have faces, and all 1,676 have emotions.
 
 > Updated State dashboard with accurate numbers across the board. Signal Inventory table now shows BLIP Captions DONE (9,011), Facial Emotions DONE (1,676 images with faces), Gemini at 6,294, OCR at 4,223. Architecture section updated from "9 Python Scripts" to 10 with the new orchestrator. Next priorities: finish Gemini + OCR, then GCS upload pipeline.
+
+---
+
+### 02:00 — Expert Team: CSS Performance Overhaul
+
+Applied the 6-expert system (FPS, Smooth Animator, Logic & Resilience, Tech Stack, Clean Code, QA) to the entire Show codebase, starting with the foundation: `style.css` and `app.js`.
+
+> **CSS**: Removed `backdrop-filter: blur(12px)` from `.glass-tag` — this was the single worst performance killer, creating 100+ GPU blur passes on grid views. Replaced all 14 instances of `transition: all` with specific properties (`border-color, background, color, transform, opacity`). Added Apple HIG motion grammar (`--ease-out-expo`, `--ease-out-quart`, `--ease-spring`) and timing variables (`--duration-fast/normal/slow`). Added `content-visibility: hidden` for inactive views. Added `@media (prefers-reduced-motion: reduce)`. Added `will-change: transform` on animated elements.
+
+> **app.js**: Added `fetchJSON()` with HTTP status validation. Timer management (`registerTimer()`, `clearAllTimers()`) called on every view switch to prevent interval/rAF leaks. Progressive lightbox loading (micro → display). `hashchange` listener for browser back/forward. Error boundaries with try/catch around experience init. Scroll-to-top on view switch. Extracted constants.
+
+---
+
+### 02:30 — Expert Team: Experience Module Fixes
+
+Swept all 14 experience modules for the same issues.
+
+> **game.js**: Replaced `setInterval(50ms)` (20fps!) with `requestAnimationFrame` for the timer bar — now silky smooth at 60fps. Uses `performance.now()` for precise timing. Added `answered` guard preventing double-click exploits. Progressive image loading for game photos.
+
+> **bento.js**: Registered crossfade interval with `registerTimer()` so it gets cleaned up on view switch. Crossfade now uses `transitionend` event instead of blind `setTimeout(800)` — respects actual CSS transition timing and `prefers-reduced-motion`. Uses `loadProgressive()` for display-tier images.
+
+> **grid.js**: Added debounced filter rendering (80ms) so rapid tag clicks don't trigger 5000-photo re-layout per click. Cached `gridLastVisible` array eliminates double-filtering for count display.
+
+> **All modules**: Removed stale `*Initialized` flags from all 11 experience modules. These prevented re-initialization when navigating back to an experience, causing stale state. Now every experience rebuilds fresh on entry, and `clearAllTimers()` handles cleanup.
+
+> **compass.js**: Replaced `shuffleArray([...all]).slice(0, 500)` (copies entire 9k array to sample 500) with stride-based sampling — zero allocations.
+
+> **map.js**: Added retina canvas support (`devicePixelRatio`-aware sizing). Dots are now crisp on HiDPI displays.
+
+> **typewriter.js**: Replaced inline setTimeout debounce with shared `debounce()` utility from app.js.
+
+---
+
+### 03:00 — Design Token Audit: Hardcoded Styles → CSS Variables
+
+Scanned all 15 JS files for hardcoded styles that bypass the design system. Found 34 style assignments — 9 needed migration.
+
+> Added 13 new CSS tokens: `--emo-happy/sad/angry/surprise/fear/disgust/neutral/contempt` (emotion colors), `--color-error` (error red), `--depth-near/mid/far` (depth layer visualization). Migrated `faces.js` from hardcoded `EMOTION_COLORS` map to `emoColor()` that reads from CSS variables. Replaced inline `style="color:#ef5350"` in app.js error states with `.loading.error` CSS class. Migrated darkroom depth bars from hardcoded `rgba()` to `var(--depth-*)`. Made map canvas read `--bg` and `--glass-border` from CSS tokens. The remaining 25 assignments are legitimate dynamic values (computed widths, animation states, layout calculations) that can't be static tokens.
+
+---
+
+### 03:30 — Apple System Colors: Full Design System Migration
+
+Replaced every custom color in the Show web gallery with Apple's official system color palette. The app now has a single source of truth: 12 vibrant colors + 6 grays from Apple HIG, with automatic dark/light adaptation via `prefers-color-scheme`.
+
+> **`:root`**: Replaced all 8 custom category colors (`--c-vibe`, `--c-grading`, etc.) with references to system colors (`var(--system-orange)`, `var(--system-blue)`, etc.). Same for 8 emotion colors. Added `@media (prefers-color-scheme: dark)` with Apple's dark-mode hue shifts — the blue in dark is NOT the blue in light. The depth layer colors now use Apple cyan/green/red. Even the `--bg-elevated` and `--text` values aligned to Apple's gray scale.
+
+> **Glass tags**: All 8 category tag styles migrated from hardcoded `rgba()` to `color-mix(in srgb, var(--system-*) X%, transparent)`. This means when system colors shift between light/dark mode, every tag automatically adapts. No more maintaining parallel color values.
+
+> **Badges, game buttons, observatory bars**: All hardcoded hex colors replaced with system color references. Only one hex remains in the entire CSS: `--bg: #0a0a0a` — the photography app's true black background, intentionally darker than Apple's deepest gray.
+
+> **`colors.js`**: The `colorNameToHex()` function became `colorNameToCSS()` — it now reads Apple system colors from CSS variables at runtime. The gray bucket color reads `--system-gray`.
+
+---
+
+### 03:45 — State Dashboard: Sidebar Fix
+
+Fixed the broken "Gemini Progress" link in the State dashboard sidebar — the `#sec-gemini` anchor didn't exist on the page. Added `id="sec-gemini"` to the Models section. Restructured the sidebar so dashboard sub-items (Models, Signals, Vector Store, Camera Fleet, Render Tiers, Storage, Pipeline Runs, Sample Output) are now nested under a collapsible "State" group instead of being in a separate "Dashboard" section. Added `.sb-sub` CSS class for indented sub-navigation.
+
+---
+
+## 2026-02-07
+
+### 00:15 — Show: Light-First Design System Rewrite
+
+Complete rewrite of `web/style.css` — flipped from dark-only to a light-first design system with proper `@media (prefers-color-scheme: dark)`. Photography-immersive experiences (Le Bento, La Chambre Noire, Le Flot, La Carte) keep forced-dark via CSS custom property overrides on their container elements. Everything else gets clean, bright Apple-style surfaces in light mode.
+
+> **New token layer**: `--fill-primary/secondary/tertiary/quaternary` (Apple Fill Colors), `--shadow-sm/md/lg` (light vs dark shadow), `--header-bg` (frosted header), `--separator`, `--bg-tertiary`. Typography switched from monospace to system font as default. Radius bumped to 12px/8px. All surfaces, glass layers, and fills now respect both modes.
+
+> **AI-alive animations**: Added `@keyframes ai-shimmer` (traveling gradient), `ai-gradient` (cycling color gradient), `fade-up` (entrance reveal), `ai-pulse` (subtle breathing). Header gets a traveling blue→purple→pink accent line via `#header::after`. Loading indicator changed from spinner text to a shimmer gradient bar. Launcher cards cascade in with staggered `animation-delay`. Every view transition gets a `fade-up` entrance. Lazy images fade in via CSS attribute selector (`img[data-src] { opacity: 0 }`).
+
+---
+
+### 00:30 — Hardcoded Style Purge: 14 JS Files Fixed
+
+Audited all 15 JS experience modules for styles that bypass the CSS design system. Found 24 violations across 8 files — 14 high-priority, 8 medium, 2 low.
+
+> **grid.js**: Replaced two inline flex/wrap/gap blocks with `.grid-overlay-tags` and `.filter-active-section` CSS classes.
+
+> **colors.js**: Four fixes — grid inline styles → `.colors-grid` / `.colors-grid-bucket` classes, swatch 6-line inline styles → `.color-swatch-sm` class, empty state inline styles → `.empty-state` class.
+
+> **pendulum.js**: Replaced `style.fontSize = '28px'` with `.pendulum-results-title` CSS class.
+
+> **drift.js / similarity.js / observatory.js**: Replaced `style.cursor = 'pointer'` with shared `.clickable-img` CSS class.
+
+---
+
+### 00:40 — State App: AI-Alive Design Update
+
+Applied the AI-native design language to the State dashboard (`generate_status_page.py`). The State app now has the same sense of intelligence as Show.
+
+> **Sidebar AI accent**: Added a 2px animated gradient line (blue→purple→pink→orange) on the sidebar's right edge via `::after`, cycling with `ai-gradient` at 35% opacity. Both the main status CSS and the `page_shell()` shared layout get it.
+
+> **Animations**: Added `@keyframes ai-shimmer`, `fade-up`, and `ai-gradient` to both CSS contexts. State hero gets `fade-up 0.6s`. Main content areas animate in with `fade-up 0.5s`. Element grid cards stagger their entrance (4 groups, 60ms increments).
+
+> **Section title accent**: Every `.section-title` gets a 60px gradient underline (blue→purple) at 60% opacity via `::after` — a subtle visual signature.
+
+> **Token migration**: Fixed 4 hardcoded camera tag icon colors (`#86868b`, `#a1a1a6`, `#6e6e73`, `#98989d`) → `var(--muted)` / `var(--fg-secondary)`. Fixed `METHOD_COLORS` in blind-test JS from hardcoded hex to runtime `getComputedStyle()` reads of `--muted`, `--apple-blue`, `--apple-green`. Fixed skipped-row color from `#86868B` → `var(--muted)`.
+
+> Regenerated all 6 static HTML pages (state, journal, instructions, drift, blind-test, mosaics).
+
+---
+
+### 08:30 — Gemini Re-Analysis: 633 Images
+
+Discovered 633 images still needed Gemini analysis: 7 entirely missing, 626 with stale "reauthentication needed" errors from an expired OAuth session. Re-authenticated with `gcloud auth application-default login` and launched `photography_engine.py`. The engine has built-in retry with exponential backoff, and immediately started processing despite hitting Vertex AI rate limits (429 RESOURCE_EXHAUSTED). Current state: 8,439 good analyses out of 9,011.
+
+---
+
+### 08:45 — Show: Full Verification Pass
+
+All 14 Show experiences verified as implemented and functional. Re-exported gallery data: 9,011 photos, 8,401 Gemini analyses, 1,676 face detections, 200 game rounds, 8,618 stream sequence entries. Every experience module (La Grille, Le Bento, La Similarite, La Derive, Les Couleurs, Le Terrain de Jeu, La Chambre Noire, Le Flot, Les Visages, La Boussole, L'Observatoire, La Carte, La Machine a Ecrire, Le Pendule) has a real implementation with proper CSS design system integration. The 2,077-line style.css covers all experiences with Apple HIG tokens, dark mode, immersive views, and accessibility (reduced motion). Gallery served locally via `serve_gallery.py` on port 3000, with `/rendered/` proxy for local tier images.
