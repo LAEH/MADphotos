@@ -43,23 +43,7 @@ const CONFETTI_DEFS = [
 const CONFETTI_MIN = 25;
 
 /* ===== Filter helpers ===== */
-function hexToHue(hex) {
-    if (!hex || hex.length < 7) return -1;
-    const r = parseInt(hex.slice(1, 3), 16) / 255;
-    const g = parseInt(hex.slice(3, 5), 16) / 255;
-    const b = parseInt(hex.slice(5, 7), 16) / 255;
-    const max = Math.max(r, g, b), min = Math.min(r, g, b);
-    const d = max - min;
-    if (d < 0.08) return -1;
-    const l = (max + min) / 2;
-    const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-    if (s < 0.12) return -1;
-    let h;
-    if (max === r) h = ((g - b) / d + 6) % 6;
-    else if (max === g) h = (b - r) / d + 2;
-    else h = (r - g) / d + 4;
-    return h * 60;
-}
+/* hexToHue defined in app.js */
 
 function hueRange(photo, lo, hi) {
     if (!photo.palette || !photo.palette[0]) return false;
@@ -215,14 +199,14 @@ function buildConfettiSets() {
     return sets;
 }
 
-/* ===== Shell — nav + bomb + viewport ===== */
+/* ===== Shell — nav + viewport + floating bomb ===== */
 function renderConfettiShell(container) {
     container.innerHTML = '';
 
     const shell = document.createElement('div');
     shell.className = 'confetti-shell';
 
-    /* Left column: nav + bomb */
+    /* Left column: nav */
     const leftCol = document.createElement('div');
     leftCol.className = 'confetti-left';
 
@@ -243,15 +227,6 @@ function renderConfettiShell(container) {
     }
 
     leftCol.appendChild(nav);
-
-    /* Bomb button */
-    const bomb = document.createElement('button');
-    bomb.className = 'confetti-bomb';
-    bomb.textContent = '\uD83D\uDCA3';
-    bomb.title = 'Blow';
-    bomb.addEventListener('click', blowConfetti);
-    leftCol.appendChild(bomb);
-
     shell.appendChild(leftCol);
 
     /* Viewport */
@@ -320,8 +295,21 @@ function selectConfettiSet(idx) {
 function assembleSet(vp, set) {
     vp.innerHTML = '';
 
+    /* Wrapper holds mosaic + bomb so bomb anchors to mosaic edges */
+    const wrap = document.createElement('div');
+    wrap.className = 'confetti-mosaic-wrap';
+
     const mosaic = buildConfettiMosaic(set.photos);
-    vp.appendChild(mosaic);
+    wrap.appendChild(mosaic);
+
+    const bomb = document.createElement('button');
+    bomb.className = 'confetti-bomb';
+    bomb.textContent = '\uD83D\uDCA3';
+    bomb.title = 'Blow';
+    bomb.addEventListener('click', blowConfetti);
+    wrap.appendChild(bomb);
+
+    vp.appendChild(wrap);
 
     const label = document.createElement('div');
     label.className = 'confetti-label';

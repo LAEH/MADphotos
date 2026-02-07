@@ -13,6 +13,8 @@ const APP = {
     streamSequence: null,
     driftNeighbors: null,
     _activeTimers: [], /* track intervals for cleanup */
+    lightboxPhotos: [],
+    lightboxIndex: -1,
 };
 
 /* Experience registry */
@@ -153,6 +155,10 @@ function initRouter() {
         toggleSideMenu();
     });
 
+    document.getElementById('menu-btn').addEventListener('click', () => {
+        toggleSideMenu();
+    });
+
     document.getElementById('side-menu-backdrop').addEventListener('click', closeSideMenu);
 
     document.addEventListener('keydown', (e) => {
@@ -171,8 +177,12 @@ function initRouter() {
 }
 
 function switchView(name) {
-    /* Clean up previous view's timers */
+    /* Clean up previous view's timers and queues */
     clearAllTimers();
+    if (typeof _faceBatchQueue !== 'undefined') {
+        _faceBatchQueue.length = 0;
+        _faceBatchRunning = false;
+    }
 
     APP.currentView = name;
     location.hash = name;
@@ -259,26 +269,55 @@ function initLightbox() {
     const lb = document.getElementById('lightbox');
     const backdrop = lb.querySelector('.lightbox-backdrop');
     const closeBtn = lb.querySelector('.lightbox-close');
+    const prevBtn = lb.querySelector('.lightbox-prev');
+    const nextBtn = lb.querySelector('.lightbox-next');
 
     function close() {
         lb.classList.add('hidden');
+        APP.lightboxPhotos = [];
+        APP.lightboxIndex = -1;
     }
 
     backdrop.addEventListener('click', close);
     closeBtn.addEventListener('click', close);
+    prevBtn.addEventListener('click', (e) => { e.stopPropagation(); navigateLightbox(-1); });
+    nextBtn.addEventListener('click', (e) => { e.stopPropagation(); navigateLightbox(1); });
+
+    /* Capture phase so lightbox keys take priority over experience handlers */
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && !lb.classList.contains('hidden')) close();
-    });
+        if (lb.classList.contains('hidden')) return;
+        if (e.key === 'Escape') { close(); e.stopPropagation(); e.preventDefault(); }
+        else if (e.key === 'ArrowRight') { navigateLightbox(1); e.stopPropagation(); e.preventDefault(); }
+        else if (e.key === 'ArrowLeft') { navigateLightbox(-1); e.stopPropagation(); e.preventDefault(); }
+    }, true);
+
+    /* Touch swipe on lightbox content for mobile navigation */
+    let lbTouchX = 0;
+    const content = lb.querySelector('.lightbox-content');
+    content.addEventListener('touchstart', (e) => { lbTouchX = e.touches[0].clientX; }, { passive: true });
+    content.addEventListener('touchend', (e) => {
+        const dx = e.changedTouches[0].clientX - lbTouchX;
+        if (Math.abs(dx) > 50) navigateLightbox(dx > 0 ? -1 : 1);
+    }, { passive: true });
 }
 
-function openLightbox(photo) {
+function navigateLightbox(dir) {
+    if (APP.lightboxPhotos.length === 0 || APP.lightboxIndex < 0) return;
+    const newIdx = APP.lightboxIndex + dir;
+    if (newIdx < 0 || newIdx >= APP.lightboxPhotos.length) return;
+    APP.lightboxIndex = newIdx;
+    showLightboxPhoto(APP.lightboxPhotos[newIdx]);
+}
+
+function showLightboxPhoto(photo) {
     const lb = document.getElementById('lightbox');
     const img = lb.querySelector('.lightbox-img');
     const alt = lb.querySelector('.lightbox-alt');
     const tags = lb.querySelector('.lightbox-tags');
     const palette = lb.querySelector('.lightbox-palette');
+    const prevBtn = lb.querySelector('.lightbox-prev');
+    const nextBtn = lb.querySelector('.lightbox-next');
 
-    /* Progressive load: use shared loadProgressive for consistent fade-in */
     loadProgressive(img, photo, 'display');
     img.alt = photo.alt || photo.caption || '';
     alt.textContent = photo.caption || photo.alt || '';
@@ -296,7 +335,24 @@ function openLightbox(photo) {
     palette.innerHTML = '';
     palette.appendChild(createPaletteDots(photo.palette, 20));
 
-    lb.classList.remove('hidden');
+    /* Show/hide nav based on list context */
+    const hasList = APP.lightboxPhotos.length > 1;
+    prevBtn.hidden = !hasList || APP.lightboxIndex <= 0;
+    nextBtn.hidden = !hasList || APP.lightboxIndex >= APP.lightboxPhotos.length - 1;
+}
+
+function openLightbox(photo, photoList) {
+    if (photoList && photoList.length > 0) {
+        APP.lightboxPhotos = photoList;
+        APP.lightboxIndex = photoList.findIndex(p => p.id === photo.id);
+        if (APP.lightboxIndex < 0) APP.lightboxIndex = 0;
+    } else {
+        APP.lightboxPhotos = [];
+        APP.lightboxIndex = -1;
+    }
+
+    showLightboxPhoto(photo);
+    document.getElementById('lightbox').classList.remove('hidden');
 }
 
 /* ===== Image Reveal Helper ===== */

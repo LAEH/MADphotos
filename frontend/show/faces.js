@@ -41,12 +41,12 @@ function renderFacesView(container) {
 
     const filters = [
         { id: 'all',      label: 'All' },
-        { id: 'happy',    label: 'Happy' },
-        { id: 'sad',      label: 'Sad' },
-        { id: 'angry',    label: 'Angry' },
-        { id: 'fear',     label: 'Fear' },
-        { id: 'surprise', label: 'Surprise' },
-        { id: 'neutral',  label: 'Neutral' },
+        { id: 'happy',    label: '\uD83D\uDE04' },
+        { id: 'sad',      label: '\uD83D\uDE22' },
+        { id: 'angry',    label: '\uD83D\uDE21' },
+        { id: 'fear',     label: '\uD83D\uDE28' },
+        { id: 'surprise', label: '\uD83D\uDE32' },
+        { id: 'neutral',  label: '\uD83D\uDE10' },
     ];
 
     for (const f of filters) {
@@ -176,6 +176,8 @@ function renderFacesGrid() {
 
 /* Image cache — avoids re-loading the same thumbnail for multiple faces */
 const _faceImgCache = {};
+const _FACE_CACHE_MAX = 200;
+const _faceImgCacheKeys = [];
 
 function cropFaceToCanvas(canvas, img) {
     const fx = parseFloat(canvas.dataset.fx);
@@ -249,6 +251,11 @@ function processFaceBatch() {
         img.crossOrigin = 'anonymous';
         img.decoding = 'async';
         _faceImgCache[src] = img;
+        _faceImgCacheKeys.push(src);
+        if (_faceImgCacheKeys.length > _FACE_CACHE_MAX) {
+            const old = _faceImgCacheKeys.shift();
+            delete _faceImgCache[old];
+        }
         img.onload = () => cropFaceToCanvas(canvas, img);
         img.onerror = () => {
             canvas.classList.remove('face-crop-loading');

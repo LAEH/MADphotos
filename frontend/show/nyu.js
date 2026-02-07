@@ -103,7 +103,10 @@ function renderNyuMode() {
 function handleNyuKey(e) {
     if (APP.currentView !== 'nyu') return;
 
-    if (nyuMode === 'deck') {
+    if (nyuMode === 'reel') {
+        if (e.key === 'ArrowRight') { e.preventDefault(); scrollNyuReel(1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); scrollNyuReel(-1); }
+    } else if (nyuMode === 'deck') {
         if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); cycleNyuDeck(1); }
         else if (e.key === 'ArrowLeft') { e.preventDefault(); cycleNyuDeck(-1); }
     } else if (nyuMode === 'canvas') {
@@ -112,10 +115,15 @@ function handleNyuKey(e) {
     }
 }
 
-/* ===== REEL — Horizontal scroll carousel ===== */
+/* ===== REEL — Horizontal scroll carousel with nav arrows ===== */
+let nyuReelIdx = 0;
+
 function renderNyuReel(vp) {
+    nyuReelIdx = 0;
+
     const reel = document.createElement('div');
     reel.className = 'nyu-reel';
+    reel.id = 'nyu-reel';
 
     for (const photo of nyuPhotos) {
         const item = document.createElement('div');
@@ -129,11 +137,59 @@ function renderNyuReel(vp) {
         img.alt = photo.alt || photo.caption || '';
         item.appendChild(img);
 
-        item.addEventListener('click', () => openLightbox(photo));
+        item.addEventListener('click', () => openLightbox(photo, nyuPhotos));
         reel.appendChild(item);
     }
 
     vp.appendChild(reel);
+
+    /* Nav arrows */
+    const prevBtn = document.createElement('button');
+    prevBtn.className = 'nyu-reel-nav nyu-reel-prev';
+    prevBtn.innerHTML = '&#8249;';
+    prevBtn.addEventListener('click', () => scrollNyuReel(-1));
+    vp.appendChild(prevBtn);
+
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'nyu-reel-nav nyu-reel-next';
+    nextBtn.innerHTML = '&#8250;';
+    nextBtn.addEventListener('click', () => scrollNyuReel(1));
+    vp.appendChild(nextBtn);
+
+    /* Counter */
+    const counter = document.createElement('div');
+    counter.className = 'nyu-counter nyu-reel-counter';
+    counter.id = 'nyu-reel-counter';
+    counter.textContent = '1 / ' + nyuPhotos.length;
+    vp.appendChild(counter);
+
+    /* Track scroll position to update counter */
+    reel.addEventListener('scrollend', updateReelCounter);
+    reel.addEventListener('scroll', debounce(updateReelCounter, 150));
+}
+
+function scrollNyuReel(dir) {
+    const reel = document.getElementById('nyu-reel');
+    if (!reel) return;
+    const items = reel.querySelectorAll('.nyu-reel-item');
+    nyuReelIdx = Math.max(0, Math.min(nyuReelIdx + dir, items.length - 1));
+    items[nyuReelIdx].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    updateReelCounter();
+}
+
+function updateReelCounter() {
+    const reel = document.getElementById('nyu-reel');
+    const counter = document.getElementById('nyu-reel-counter');
+    if (!reel || !counter) return;
+    const items = reel.querySelectorAll('.nyu-reel-item');
+    const center = reel.scrollLeft + reel.clientWidth / 2;
+    let closest = 0, minDist = Infinity;
+    items.forEach((item, i) => {
+        const d = Math.abs(item.offsetLeft + item.offsetWidth / 2 - center);
+        if (d < minDist) { minDist = d; closest = i; }
+    });
+    nyuReelIdx = closest;
+    counter.textContent = (closest + 1) + ' / ' + nyuPhotos.length;
 }
 
 /* ===== GRID — Masonry rows ===== */
@@ -170,7 +226,7 @@ function renderNyuGrid(vp) {
             cell.appendChild(img);
             lazyObserver.observe(img);
 
-            cell.addEventListener('click', () => openLightbox(photo));
+            cell.addEventListener('click', () => openLightbox(photo, nyuPhotos));
             row.appendChild(cell);
         }
 
@@ -390,7 +446,7 @@ function renderNyuOverview(vp) {
         const delay = (dist / maxDist) * 600 + Math.random() * 150;
         cell.style.setProperty('--d', delay.toFixed(0) + 'ms');
 
-        cell.addEventListener('click', () => openLightbox(photo));
+        cell.addEventListener('click', () => openLightbox(photo, nyuPhotos));
         mosaic.appendChild(cell);
     }
 

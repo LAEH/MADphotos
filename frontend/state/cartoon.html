@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cartoon Variants — MADphotos</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%23111'/></svg>">
+<style>
+  :root {
+    --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
+    --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif;
+    --font-mono: "SF Mono", ui-monospace, "Cascadia Code", monospace;
+    --text-xs: 11px; --text-sm: 13px; --text-base: 15px; --text-lg: 17px;
+    --text-xl: 20px; --text-2xl: 22px; --text-3xl: 28px;
+    --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+    --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px;
+    --radius-sm: 6px; --radius-md: 10px; --radius-lg: 14px;
+    --sidebar-w: 220px;
+    --apple-blue: #007AFF; --apple-green: #34C759;
+    --leading-normal: 1.47; --leading-relaxed: 1.6;
+    --tracking-tight: -0.01em; --tracking-caps: 0.06em;
+    --duration-fast: 150ms; --ease-default: cubic-bezier(0.25, 0.1, 0.25, 1);
+    --apple-purple: #AF52DE; --apple-pink: #FF2D55; --apple-orange: #FF9500;
+  }
+  [data-theme="light"] {
+    --bg: #F5F5F7; --bg-secondary: #FFFFFF; --fg: #1D1D1F;
+    --fg-secondary: #3A3A3C; --muted: #86868B;
+    --border: rgba(0,0,0,0.08); --border-strong: rgba(0,0,0,0.14);
+    --card-bg: #FFFFFF; --sidebar-bg: #FFFFFF;
+    --sidebar-active-bg: rgba(0,0,0,0.04); --hover-overlay: rgba(0,0,0,0.03);
+    color-scheme: light;
+  }
+  [data-theme="dark"] {
+    --bg: #1C1C1E; --bg-secondary: #2C2C2E; --fg: #F5F5F7;
+    --fg-secondary: #D1D1D6; --muted: #98989D;
+    --border: rgba(255,255,255,0.08); --border-strong: rgba(255,255,255,0.14);
+    --card-bg: #2C2C2E; --sidebar-bg: #2C2C2E;
+    --sidebar-active-bg: rgba(255,255,255,0.06); --hover-overlay: rgba(255,255,255,0.04);
+    color-scheme: dark;
+  }
+  @keyframes ai-gradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  html { scroll-behavior: smooth; }
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: var(--font-sans); font-size: var(--text-base);
+    line-height: var(--leading-normal); background: var(--bg); color: var(--fg);
+    display: flex; min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  .sidebar {
+    width: var(--sidebar-w); min-width: var(--sidebar-w);
+    background: var(--sidebar-bg); border-right: 1px solid var(--border);
+    padding: var(--space-5) 0; position: sticky; top: 0; height: 100vh;
+    overflow-y: auto; display: flex; flex-direction: column;
+    transition: width var(--duration-normal) var(--ease-default),
+                min-width var(--duration-normal) var(--ease-default);
+  }
+  .sidebar::after {
+    content: '';
+    position: absolute; top: 0; right: 0; width: 2px; height: 100%;
+    background: linear-gradient(180deg, var(--apple-blue) 0%, var(--apple-purple) 35%, var(--apple-pink) 65%, var(--apple-orange) 100%);
+    opacity: 0.35; background-size: 100% 300%; animation: ai-gradient 8s ease infinite;
+  }
+  .sidebar .sb-title {
+    font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700;
+    letter-spacing: var(--tracking-tight); padding: 0 var(--space-5) var(--space-4);
+    border-bottom: 1px solid var(--border); margin-bottom: var(--space-2);
+  }
+  .sidebar a {
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: var(--space-2) var(--space-5); color: var(--muted);
+    text-decoration: none; font-size: var(--text-sm);
+    transition: background var(--duration-fast) var(--ease-default),
+                color var(--duration-fast) var(--ease-default);
+  }
+  .sidebar a:hover { background: var(--sidebar-active-bg); color: var(--fg); }
+  .sidebar a.active {
+    color: var(--fg); font-weight: 600; background: var(--sidebar-active-bg);
+  }
+  .sidebar a.sb-sub { padding-left: var(--space-8); font-size: var(--text-xs); }
+  .sidebar .sb-sep { height: 1px; background: var(--border); margin: var(--space-2) var(--space-5); }
+  .sidebar .sb-group {
+    font-size: var(--text-xs); font-weight: 600; text-transform: uppercase;
+    letter-spacing: var(--tracking-caps); color: var(--muted);
+    padding: var(--space-3) var(--space-5) var(--space-1);
+  }
+  .sidebar .sb-bottom {
+    margin-top: auto; padding: var(--space-3) var(--space-5);
+    border-top: 1px solid var(--border);
+  }
+  .theme-toggle {
+    display: flex; align-items: center; gap: var(--space-2);
+    font-size: var(--text-sm); color: var(--muted); cursor: pointer;
+    padding: var(--space-2) 0; background: none; border: none;
+    font-family: inherit; width: 100%;
+    transition: color var(--duration-fast);
+  }
+  .theme-toggle:hover { color: var(--fg); }
+  .theme-toggle .theme-icon { font-size: 16px; }
+  .sb-collapse {
+    display: flex; align-items: center; gap: var(--space-2);
+    font-size: var(--text-sm); color: var(--muted); cursor: pointer;
+    padding: var(--space-2) 0; background: none; border: none;
+    font-family: inherit; width: 100%; transition: color var(--duration-fast);
+    margin-bottom: var(--space-2); white-space: nowrap; overflow: hidden;
+  }
+  .sb-collapse:hover { color: var(--fg); }
+  .sb-expand {
+    display: none; position: fixed; top: var(--space-4); left: var(--space-4);
+    z-index: 50; width: 36px; height: 36px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--card-bg);
+    cursor: pointer; color: var(--muted); box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    align-items: center; justify-content: center; font-size: 18px;
+    transition: color var(--duration-fast), box-shadow var(--duration-fast);
+  }
+  .sb-expand:hover { color: var(--fg); box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
+  body.sb-collapsed .sidebar { width: 0; min-width: 0; overflow: hidden; padding: 0; border-right: none; }
+  body.sb-collapsed .sb-expand { display: flex; }
+  .sb-hamburger {
+    display: none; align-items: center; justify-content: center;
+    width: 36px; height: 36px; background: none; border: none;
+    cursor: pointer; color: var(--fg); font-size: 20px;
+    border-radius: var(--radius-sm); flex-shrink: 0;
+  }
+  .main-content {
+    flex: 1; padding: var(--space-10) var(--space-8);
+    max-width: 1200px; min-width: 0; margin: 0 auto;
+    animation: fade-up 0.5s var(--ease-default) both;
+  }
+  @media (max-width: 900px) {
+    body { flex-direction: column; }
+    body.sb-collapsed .sidebar {
+      width: 100%; min-width: unset; overflow: visible; padding: var(--space-2) var(--space-3);
+      border-right: none; border-bottom: 1px solid var(--border);
+    }
+    body.sb-collapsed .sb-expand { display: none; }
+    .sb-collapse { display: none !important; }
+    .sidebar { width: 100%; min-width: unset; height: auto; position: sticky; top: 0;
+               z-index: 100; border-right: none; border-bottom: 1px solid var(--border);
+               flex-direction: row; flex-wrap: wrap; padding: var(--space-2) var(--space-3);
+               backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+               background: color-mix(in srgb, var(--sidebar-bg) 85%, transparent); }
+    .sidebar .sb-title { width: auto; border-bottom: none; padding: 0 var(--space-2) 0 0; margin-bottom: 0; font-size: var(--text-base); }
+    .sb-hamburger { display: flex; margin-left: auto; }
+    .sidebar > a, .sidebar .sb-group, .sidebar .sb-sep, .sidebar .sb-bottom { display: none; }
+    .sidebar.open > a { display: flex; width: 100%; }
+    .sidebar.open .sb-sep { display: block; width: 100%; }
+    .sidebar.open .sb-bottom { display: block; width: 100%; }
+    .main-content { padding: var(--space-6); }
+  }
+  h1 { font-family: var(--font-display); font-size: var(--text-3xl); font-weight: 700;
+       letter-spacing: var(--tracking-tight); margin-bottom: var(--space-2); }
+  footer { margin-top: var(--space-10); padding-top: var(--space-4);
+           border-top: 1px solid var(--border); font-size: var(--text-xs); color: var(--muted); }
+  footer a { color: var(--muted); text-decoration: none; }
+
+  /* ── Cartoon page styles ── */
+  .hero { margin-bottom: var(--space-8); }
+  .hero .subtitle { font-size: var(--text-sm); color: var(--muted); }
+  .stats {
+    display: flex; gap: var(--space-6); margin: var(--space-4) 0;
+    font-size: var(--text-sm);
+  }
+  .stats .stat { display: flex; flex-direction: column; }
+  .stats .stat-val { font-size: var(--text-2xl); font-weight: 700; font-family: var(--font-display); }
+  .stats .stat-label { font-size: var(--text-xs); color: var(--muted); text-transform: uppercase; letter-spacing: var(--tracking-caps); }
+
+  .filter-bar {
+    display: flex; gap: var(--space-2); margin-bottom: var(--space-6); flex-wrap: wrap;
+  }
+  .filter-btn {
+    padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--card-bg); color: var(--muted);
+    font-size: var(--text-xs); font-family: inherit; cursor: pointer;
+    transition: all var(--duration-fast);
+  }
+  .filter-btn:hover { border-color: var(--border-strong); color: var(--fg); }
+  .filter-btn.active { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+
+  .pairs-grid {
+    display: grid; grid-template-columns: 1fr;
+    gap: var(--space-8);
+  }
+  .pair-card {
+    background: var(--card-bg); border-radius: var(--radius-lg);
+    border: 1px solid var(--border); overflow: hidden;
+    transition: box-shadow var(--duration-fast);
+  }
+  .pair-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+  .pair-images {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 0; position: relative;
+  }
+  .pair-images .img-wrap {
+    position: relative; overflow: hidden; aspect-ratio: 1;
+    background: var(--hover-overlay);
+  }
+  .pair-images .img-wrap img {
+    width: 100%; height: 100%; object-fit: cover;
+    transition: transform 0.3s var(--ease-default);
+  }
+  .pair-images .img-wrap:hover img { transform: scale(1.03); }
+  .pair-images .img-label {
+    position: absolute; bottom: var(--space-2); left: var(--space-2);
+    font-size: var(--text-xs); font-weight: 600; text-transform: uppercase;
+    letter-spacing: var(--tracking-caps);
+    padding: 2px var(--space-2); border-radius: var(--radius-sm);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  }
+  .pair-images .label-original {
+    background: rgba(0,0,0,0.5); color: #fff;
+  }
+  .pair-images .label-cartoon {
+    background: linear-gradient(135deg, rgba(175,82,222,0.7), rgba(255,45,85,0.7));
+    color: #fff;
+  }
+  .pair-images .divider {
+    position: absolute; top: 0; left: 50%; width: 2px; height: 100%;
+    background: var(--bg); z-index: 1;
+  }
+  .pair-info {
+    padding: var(--space-3) var(--space-4);
+  }
+  .pair-info .caption {
+    font-size: var(--text-sm); color: var(--fg-secondary); line-height: var(--leading-relaxed);
+  }
+  .pair-info .meta {
+    font-size: var(--text-xs); color: var(--muted); margin-top: var(--space-1);
+  }
+
+  @media (max-width: 600px) {
+    .pair-images { grid-template-columns: 1fr; }
+    .pair-images .divider { display: none; }
+  }
+</style>
+</head>
+<body>
+<button class="sb-expand" onclick="toggleSidebar()" title="Show sidebar">&#9776;</button>
+<nav class="sidebar" id="sidebar">
+  <div class="sb-title">MADphotos</div>
+  <button class="sb-hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+  <a href="state.html">State</a>
+  <a href="journal.html">Journal de Bord</a>
+  <a href="instructions.html">System Instructions</a>
+  <div class="sb-sep"></div>
+  <div class="sb-group">Experiments</div>
+  <a href="drift.html">Similarity</a>
+  <a href="creative-drift.html">Drift</a>
+  <a href="blind-test.html">Blind Test</a>
+  <a href="mosaics.html">Mosaics</a>
+  <a href="cartoon.html" class="active">Cartoon</a>
+  <div class="sb-sep"></div>
+  <div class="sb-bottom">
+    <button class="sb-collapse" onclick="toggleSidebar()">&#x276E; Hide sidebar</button>
+    <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">
+      <span class="theme-icon" id="themeIcon">&#9790;</span>
+      <span id="themeLabel">Dark Mode</span>
+    </button>
+  </div>
+</nav>
+<div class="main-content">
+
+<div class="hero">
+  <h1>Cartoon Variants</h1>
+  <p class="subtitle">Imagen 3 cel-shaded illustration transforms of curated photos</p>
+  <div class="stats">
+    <div class="stat"><span class="stat-val" id="totalCount">0</span><span class="stat-label">Pairs</span></div>
+    <div class="stat"><span class="stat-val" id="analogCount">0</span><span class="stat-label">Analog</span></div>
+    <div class="stat"><span class="stat-val" id="digitalCount">0</span><span class="stat-label">Digital</span></div>
+  </div>
+</div>
+
+<div class="filter-bar" id="filterBar"></div>
+<div class="pairs-grid" id="grid"></div>
+
+<footer>MADphotos &mdash; <a href="https://github.com/LAEH/MADphotos">github.com/LAEH/MADphotos</a></footer>
+</div>
+
+<script>
+var DATA = [{"u":"02138a73-dd5b-5d25-b55f-8d0f6b895535","v":"3f57381d-e5f0-557c-adc5-a43977eae93c","c":"Analog","s":"Landscape","t":"A cryptic, fiery-red symbol bleeds across the cold, stained concrete"},{"u":"02aadd77-ab16-52dd-be52-7c8e35f26f86","v":"61eefa22-1bf2-5ea7-bb7a-fcc6cb7552d0","c":"Analog","s":"Landscape","t":"A lifetime of stories etched into weathered hands, resting in quiet contemplation"},{"u":"0337dee7-9555-5d1b-8faa-e50a794ff5d2","v":"d9b3ca10-f875-587c-89de-90868a4ac703","c":"Analog","s":"Landscape","t":"A vast field of white cotton grass stretches towards ancient, mineral-streaked mountains"},{"u":"05356bc9-9ae5-548c-9468-a1254a6b4ba4","v":"019a67f8-2ba9-54de-b92f-28e976fc28dd","c":"Analog","s":"Landscape","t":"A large ferry rests in the hazy, sun-drenched port of Marseille"},{"u":"069808b2-0bc3-54f9-963a-47fda74a4568","v":"733983fe-4733-5541-bc47-cf580fece76e","c":"Analog","s":"Landscape","t":"A chasm of pure darkness cleaves a landscape of ancient, pockmarked stone"},{"u":"0781013d-4160-5c50-95f5-b0feab260aa5","v":"0efce87d-b5d0-59a5-8035-f6aca5644065","c":"Analog","s":"Landscape","t":"A young person with blonde hair and gold-rimmed sunglasses gazes into the warm, low sun"},{"u":"0d6a1e38-231e-5180-8772-421b5b67133d","v":"d412f563-63f1-5173-bbbc-4aaa0de5b2ce","c":"Analog","s":"Landscape","t":"A yellow beast slumbers in the concrete darkness of its industrial den"},{"u":"0daec958-b3c3-570e-b271-64e57060e00f","v":"27431d53-84e8-5e44-96d3-8da0c89cc885","c":"Analog","s":"Landscape","t":"The Empire State Building stands inverted in a melting winter puddle"},{"u":"152aeabd-802e-59f6-9b82-70ac2ae7ddcd","v":"63b13190-d304-5543-8438-570804f52098","c":"Analog","s":"Landscape","t":"A woman finds a moment of quiet repose on a crowded beach"},{"u":"16c66435-8e9c-50d8-b560-0bc9b6a01baa","v":"acfae2c5-b115-5387-9833-50a06ada37a5","c":"Analog","s":"Landscape","t":"Sun-bleached rock opens like a jagged mouth into a cool, dark secret"},{"u":"17b0a16f-1111-5783-b0f0-9bd7e6c7b7d4","v":"82c454c8-2e58-5325-b48c-48b1d1f5a992","c":"Analog","s":"Landscape","t":"A person gazes outward from the shadows, framed by intricate wrought iron grille"},{"u":"1a30eed3-ad59-52d5-955f-322bc05ae0ba","v":"decb1c91-75c5-51b9-831c-de862b678d93","c":"Analog","s":"Landscape","t":"A slice of New York reality, a yellow cab, rests against a dream of the city"},{"u":"1f69b779-13fc-5680-a64a-ba1d0e50e85b","v":"ad3e694b-5141-5885-92ee-a641cddf30c6","c":"Analog","s":"Landscape","t":"Amidst the cool grey of a city wall, a moment of youthful joy in the blur of basketball"},{"u":"22542381-fd77-53ba-8639-b862a40f5cc8","v":"3cce391b-fdba-57a2-aaa4-a57387845783","c":"Analog","s":"Landscape","t":"In the crimson glow of a hidden room, a photographer captures his own reflection"},{"u":"24a1165c-2845-5dc3-b4f7-d6dec24e1144","v":"69aa8b8e-0b51-5797-b128-66adcd2d3221","c":"Analog","s":"Landscape","t":"A quiet collection of forgotten things drifts across a still, grey canvas"},{"u":"27af56ca-c605-5c5f-8c6d-3b277ca58c25","v":"2d40b115-2935-5aab-b6b3-3bc2e2c7d8f1","c":"Analog","s":"Landscape","t":"A pensive figure is submerged in the deep crimson glow of a quiet, interior world"},{"u":"2bd7de85-f3b2-5e5a-bd50-ab27abf777b1","v":"bbdccaee-8b16-5cc8-96c1-c6d1f4533374","c":"Analog","s":"Landscape","t":"A man bathed in shadow gazes from a window, a quiet observer of the blue-hued world"},{"u":"31785424-b8a6-5760-85a6-28f054606c85","v":"ab6ad702-9868-5248-a5c3-527d843b36bf","c":"Analog","s":"Landscape","t":"A man flashes a cool sign under the warm glow of stadium lights"},{"u":"350c7a15-6016-57a8-8b03-bd25d82cc819","v":"9c771dde-90a2-5974-942a-eb3bdf687c68","c":"Analog","s":"Landscape","t":"Two figures in a mechanical crane ascend against a stark canvas of digital blue"},{"u":"3aca1bc8-fafb-552f-a37d-4475fb712a53","v":"1aaa1831-9ae7-5b36-b634-38550914d368","c":"Analog","s":"Landscape","t":"A mustachioed man offers a warm, knowing smile from behind a wooden counter"},{"u":"419d9553-362f-525a-a00e-f2275652da3e","v":"5ffe5a78-b0e8-580c-85a9-f7bb18872f9a","c":"Analog","s":"Landscape","t":"Harsh sunlight filters through an orange construction veil, casting deep shadows"},{"u":"45856875-5ca8-5405-8a88-a7ff5e3f0c9b","v":"a45ba274-e36f-5d7f-9f29-30a1dfeece75","c":"Analog","s":"Landscape","t":"In a sun-drenched Hawaiian cemetery, gravestones rest before a distant sugar mill"},{"u":"4915dac6-86a0-56e7-a140-516b34662ba0","v":"bfd3ceaf-8c5e-5934-946b-fc1c6b5cadbf","c":"Analog","s":"Landscape","t":"A man in a green uniform shirt, illuminated by harsh flash against darkness"},{"u":"5d4cfff8-5ee9-5c8a-8967-b096c260a6c8","v":"ac665aa2-8938-5e7a-990a-df69d52add04","c":"Analog","s":"Landscape","t":"A photographer's intense self-portrait on grainy film against a vibrant blue city"},{"u":"5d7ea178-0900-50e6-95d0-fd3d424fef6a","v":"0e92d31d-c705-5491-840d-9c141a224103","c":"Analog","s":"Landscape","t":"Bathed in the last warm light of day, a man with silver hair looks upward"},{"u":"6ab51006-ea73-5480-9257-c9564b1d19b9","v":"1ad98ba8-a10f-57cc-9c92-0f5914a5b05a","c":"Analog","s":"Landscape","t":"Suspended between shadow and light, workers ascend within concrete canyons"},{"u":"6b0d7016-ff1b-5f3b-98e5-0bdd3b396415","v":"2de79de0-9daa-5348-b2db-5c336ab2b3cd","c":"Analog","s":"Landscape","t":"A ghostly remnant of winter melts away on the cold grid of city pavement"},{"u":"75529711-ec21-5a39-a05a-4e63f90ad646","v":"4905a3f2-11d3-5158-8704-fc46207b811c","c":"Analog","s":"Landscape","t":"A wise tabby cat with piercing green eyes peers from a lush, verdant hideaway"},{"u":"75dcb213-9df1-5c48-b627-c8a5466bf9f6","v":"099ca129-be47-5c17-b4f8-a1eabc1318cb","c":"Analog","s":"Landscape","t":"A photographer's identity fractures within the warped reflection of an object"},{"u":"762a91e9-2058-52b6-bc2e-d10b2ac4dde0","v":"26dd0160-7f6b-5e69-95a4-032bea0deab9","c":"Analog","s":"Landscape","t":"A curious goose confronts the camera, a stark contrast to the soft, distant city"},{"u":"7b3d6f53-3825-53ed-8d71-eb08590ad6ca","v":"dde5eb8e-2cb7-5f42-ba83-fd234d022924","c":"Analog","s":"Landscape","t":"A vibrant, compressed tapestry of crushed cans tells a story of mass consumption"},{"u":"823d9d2d-c4b2-5e3b-8453-880067e73004","v":"eb5c50d9-5b74-5b6d-ae36-245d779d9191","c":"Analog","s":"Landscape","t":"Silhouetted against a brilliant blue sky, a bride and groom exchange vows"},{"u":"8409f0d9-338b-5098-b6a6-3177d73c68c2","v":"58db2923-e151-5a6c-9d0c-3338964fe65a","c":"Analog","s":"Landscape","t":"A fleeting smile captured in a grainy, timeless frame on a city street"},{"u":"856c7db3-e5db-5958-acda-acb5e9df321a","v":"73bdb0e4-eebd-5b20-860d-351dc7025f00","c":"Analog","s":"Landscape","t":"A confident, silver-haired man in sunglasses smiles warmly on a city street"},{"u":"8c10c660-1a40-5ef4-ba4e-a60bbe9b3e42","v":"3185393b-af6d-5025-922a-fd3dea3a8fea","c":"Analog","s":"Landscape","t":"Islands of weathered concrete float in a sea of cool blue"},{"u":"8f546b26-4947-5a0a-88e2-d8c5ef61a74c","v":"73c49c2a-7be2-57ce-9f68-02a538a149f1","c":"Analog","s":"Landscape","t":"In the chaotic heart of the city, a fleeting connection is celebrated"},{"u":"910aa8da-31f5-5d54-aa52-7dedc23f6362","v":"8b341c65-8b43-51ef-ba5c-1a5e1e0cb5c5","c":"Analog","s":"Landscape","t":"A photographer captures his own fleeting reflection amidst the anonymous flow"},{"u":"9281e76a-eab0-5c27-9a6b-57bc9e7a39a6","v":"24af6e5c-ffbb-52a5-bb1c-adecf0c5647d","c":"Analog","s":"Landscape","t":"An elder man gazes out of a car window at the fleeting world"},{"u":"95ec231b-7c16-5518-b4ef-633dd05e52f7","v":"f23b5420-16fc-532d-b6a5-9c82b42c7aec","c":"Analog","s":"Landscape","t":"Two white swans navigate the murky, algae-strewn waters of a forgotten canal"},{"u":"99baf290-7ab1-5bca-901d-736f9722ff8d","v":"bfea0a89-5744-5b11-a021-20f32bc61b93","c":"Analog","s":"Landscape","t":"A trio of costumed dreamers, led by a ukulele-playing squid-man"},{"u":"11a91e94-b949-5ed4-b8fb-f26d8d6200cb","v":"01468307-aaec-59ed-b8a8-f29163d76647","c":"Analog","s":"Portrait","t":"A man finds a moment of cool confidence in the harsh midday sun of a gritty alley"},{"u":"325e2ebd-6ef0-5846-a9df-e0ba4ec438cf","v":"eea858cb-9f79-5e3b-bb37-355ec758afc7","c":"Analog","s":"Portrait","t":"A young man pauses for a smoke on a sun-drenched stoop"},{"u":"345f3416-78cf-5657-9ab9-d74d95f6c025","v":"d56cac25-f7f5-5ae2-b914-c92f53b2b1aa","c":"Analog","s":"Portrait","t":"A man caught in a stark beam of sunlight on a city street corner"},{"u":"37af7f28-0bee-5660-99db-1508cc441a52","v":"36186674-196d-5060-a86f-d8d7cfb67562","c":"Analog","s":"Portrait","t":"A blacksmith, lost in concentration, forges metal in a haze of sweat and smoke"},{"u":"3f78c22d-6890-55be-8635-aa5d3ae139a7","v":"f063127f-6d90-57bb-a691-aea16ddfc1f8","c":"Analog","s":"Portrait","t":"A man pauses for a smoke in the fleeting golden light at a city underpass"},{"u":"4aacc2f1-52a9-5308-bb81-58d86d022ebe","v":"af049959-a711-5d89-877a-28d88c3ae9e0","c":"Analog","s":"Portrait","t":"A man bathed in the warm glow of the golden hour smiles gently in a park"},{"u":"5b40c0e4-cd27-58bc-ae29-cfb082078775","v":"07ca4bee-a854-5c17-b5fc-d6ce18066018","c":"Analog","s":"Portrait","t":"A woman's face on a weathered poster peels away, revealing the rough texture of time"},{"u":"5b5d452c-8540-5bcb-a724-0021fd866edc","v":"a3bea02e-c3af-5125-bfe7-de4ca890f65a","c":"Analog","s":"Portrait","t":"A young man sits in quiet contemplation, bathed in cool fluorescent glow"},{"u":"6c949567-015d-55da-97af-3b4019da0947","v":"8ca79aaf-fa1f-519a-bb7d-bd6951c96817","c":"Analog","s":"Portrait","t":"A man walks with purpose through the organized chaos of his urban garage"},{"u":"6d69271c-1fca-52df-90e8-922cb53d248e","v":"bcfe311d-d4a9-513d-a021-3a80ff3e3b52","c":"Analog","s":"Portrait","t":"Two friends share a smoke and a smile on a London street"},{"u":"8b8081f0-25aa-51df-898c-df5a47a9a8d3","v":"c0f8e7ee-1456-50d0-b6f7-aeb7418b36e5","c":"Analog","s":"Portrait","t":"A cryptic message glows in a diagonal slash of light, piercing profound darkness"},{"u":"0d39622c-3365-585b-9008-d30bf4a36322","v":"312328b6-d969-5518-9c0c-0d37d001f3b3","c":"Digital","s":"Landscape","t":"A man reveals his unwavering loyalty, etched in ink upon his back"},{"u":"100c62de-8905-5e0a-97aa-aee3a5d61c43","v":"3005d5f4-0fea-5a20-83f3-60a88a322c5c","c":"Digital","s":"Landscape","t":"A city's golden hour light glints across the powerful curves of a supercar"},{"u":"1491d19f-0513-5444-912c-37b647501b5d","v":"5cd3c588-d428-54ab-ac7d-06a710ec0389","c":"Digital","s":"Landscape","t":"A man with a mohawk sits centrally on a wooden barrier on a bustling street"},{"u":"18426732-9d26-5f2c-a9c9-055f1c8e7beb","v":"3c66d36e-e2b6-5845-aee7-cc17060210be","c":"Digital","s":"Landscape","t":"Two uniformed women walk in perfect sync down a sun-drenched city street"},{"u":"1fd14d20-e2d4-5e3b-b1c4-e487edb8a849","v":"157dddc9-4b4d-5d6f-a6fd-d5742348b60b","c":"Digital","s":"Landscape","t":"A boisterous sea of smiling faces surges toward the lens in monochrome"},{"u":"28ebe128-7052-5fd2-b7af-17e943b5dbe0","v":"5f04d12f-c5af-5d9e-a62a-6d11716e935b","c":"Digital","s":"Landscape","t":"An elderly man, lost in thought, sits amidst the bright, bustling chaos"},{"u":"2f4a671d-a9f8-5542-bf06-975448a3c583","v":"fe17a742-a56a-5e08-b82b-47a9dac747a0","c":"Digital","s":"Landscape","t":"A lone rider pauses amidst the concrete and color of the city"},{"u":"30bf40fb-2136-5c6f-959e-e7d14c0a3cfa","v":"b39726cf-f701-5d30-aa29-0f74f215bccd","c":"Digital","s":"Landscape","t":"A silver tabby cat rests majestically on a black leather chair"},{"u":"358c50ba-d745-53c6-abb1-c76caa41ffc0","v":"9ae55bf9-cada-5798-9b7e-f2f4de560485","c":"Digital","s":"Landscape","t":"A man's face, caught in a cage of light, gazes from the shadows"},{"u":"3c188b28-75b1-50be-8570-80019f3c8334","v":"96d8b111-b315-57c6-aa6f-5288d6de5aaa","c":"Digital","s":"Landscape","t":"A musician plays the harmonica against a tiled subway wall"},{"u":"4b90619b-a78c-5edf-a5b2-0426a2edbb81","v":"4dafeebb-7983-5b83-9710-19c1d8e128b3","c":"Digital","s":"Landscape","t":"A man sits against a vast stone wall, his direct gaze holding a lifetime"},{"u":"53c40bce-aac0-555f-a06b-960505d6f0e4","v":"7c90ba54-ff80-5ed8-a9ed-27a94cc23904","c":"Digital","s":"Landscape","t":"A tabby cat lets out a mighty roar beside a butterfly-adorned basketball"},{"u":"6120fe2e-45e6-5d32-a0f4-3c8ad1aaad63","v":"ebcb1d92-94d4-5a6e-8b1f-1e4c9fc3f7a4","c":"Digital","s":"Landscape","t":"A pensive feline rests upon a tapestry of color in the surrounding darkness"},{"u":"6427d76f-e77f-5113-b005-814b0bafad9d","v":"59ed85aa-237a-5de8-9b07-835002b7cc99","c":"Digital","s":"Landscape","t":"Two feline companions share a moment of quiet contemplation from their high-rise"},{"u":"644fe2f2-8a13-56f3-a4d9-e67731e38202","v":"e49f8fe2-35a6-538a-b4e0-653c51a59061","c":"Digital","s":"Landscape","t":"A small child on a toy car commands a vast, sun-drenched street"},{"u":"6510d39a-2200-585f-a911-47afb3f6e099","v":"2a28c626-fbd0-5ebc-b7bd-6e964163e1b9","c":"Digital","s":"Landscape","t":"An elderly man adjusts his glasses to study a paper at a bustling nighttime event"},{"u":"689d4708-3b6c-561d-8fff-71dd4c30d9f2","v":"379210c4-83ea-520a-8347-2d5d22408e94","c":"Digital","s":"Landscape","t":"A weathered silver coupe sits in a dusty lot as a police car cruises by"},{"u":"764a4d2f-1ced-5dbd-86cd-7cd0f30f6373","v":"d6a13819-524f-59fb-b94a-6f911ad68631","c":"Digital","s":"Landscape","t":"A contented tabby cat rests its head on a modern wooden chair, squinting blissfully"},{"u":"768cea9b-c03c-5f67-b03c-1d8a592e3eb4","v":"d6a11f12-7a80-5cbb-8c41-e28c1de59eba","c":"Digital","s":"Landscape","t":"A dark Bentley waits in a derelict lot, its polished form a stark contrast"},{"u":"7b704b67-1a2f-516f-b6a9-e24f6dc2b82e","v":"b6eb0785-4a88-53dc-bd59-c8997491933c","c":"Digital","s":"Landscape","t":"Three colleagues stand against the stark canvas of a city wall"},{"u":"8192f8c1-53d4-5f8d-9ae7-2ac21c3730a9","v":"3e72b071-fe42-5b23-aa56-73049815ce04","c":"Digital","s":"Landscape","t":"A young woman on a water-vending tricycle pauses under a white umbrella"},{"u":"5f05cb89-5b8e-5f9e-8d02-e69880b2a675","v":"33d79531-1228-5776-a31d-19af43ba3b43","c":"Digital","s":"Portrait","t":"Electric palms cast a vibrant, lonely glow against the city's night-clad wall"},{"u":"66685f1a-37ac-5b0d-a8af-a9ddd2c06a6d","v":"a0534b15-09fe-5d24-8e79-9c1be16606f8","c":"Digital","s":"Portrait","t":"A man captures a quiet, reflective moment in a mirror"}];
+
+(function() {
+  var grid = document.getElementById('grid');
+  var filterBar = document.getElementById('filterBar');
+
+  // Compute categories
+  var cats = {};
+  DATA.forEach(function(d) {
+    var key = d.c + '/' + d.s;
+    if (!cats[key]) cats[key] = 0;
+    cats[key]++;
+  });
+
+  // Stats
+  var analog = DATA.filter(function(d) { return d.c === 'Analog'; }).length;
+  var digital = DATA.filter(function(d) { return d.c === 'Digital'; }).length;
+  document.getElementById('totalCount').textContent = DATA.length;
+  document.getElementById('analogCount').textContent = analog;
+  document.getElementById('digitalCount').textContent = digital;
+
+  // Filter buttons
+  var allBtn = document.createElement('button');
+  allBtn.className = 'filter-btn active';
+  allBtn.textContent = 'All (' + DATA.length + ')';
+  allBtn.onclick = function() { render('all'); setActive(allBtn); };
+  filterBar.appendChild(allBtn);
+
+  var btns = [allBtn];
+  Object.keys(cats).sort().forEach(function(key) {
+    var btn = document.createElement('button');
+    btn.className = 'filter-btn';
+    btn.textContent = key + ' (' + cats[key] + ')';
+    btn.onclick = function() { render(key); setActive(btn); };
+    filterBar.appendChild(btn);
+    btns.push(btn);
+  });
+
+  function setActive(btn) {
+    btns.forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+  }
+
+  function origUrl(d) {
+    return '/rendered/display/jpeg/' + d.u + '.jpg';
+  }
+  function cartoonUrl(d) {
+    return '/ai_variants/cartoon/' + d.c + '/' + d.s + '/' + d.v + '.jpg';
+  }
+
+  function render(filter) {
+    var items = filter === 'all' ? DATA : DATA.filter(function(d) {
+      return d.c + '/' + d.s === filter;
+    });
+    grid.innerHTML = '';
+    items.forEach(function(d, i) {
+      var card = document.createElement('div');
+      card.className = 'pair-card';
+      card.style.animationDelay = Math.min(i * 50, 500) + 'ms';
+      card.innerHTML =
+        '<div class="pair-images">' +
+          '<div class="img-wrap"><img src="' + origUrl(d) + '" loading="lazy" alt="Original"><span class="img-label label-original">Original</span></div>' +
+          '<div class="divider"></div>' +
+          '<div class="img-wrap"><img src="' + cartoonUrl(d) + '" loading="lazy" alt="Cartoon"><span class="img-label label-cartoon">Cartoon</span></div>' +
+        '</div>' +
+        '<div class="pair-info">' +
+          '<div class="caption">' + d.t + '</div>' +
+          '<div class="meta">' + d.c + ' / ' + d.s + '</div>' +
+        '</div>';
+      grid.appendChild(card);
+    });
+  }
+
+  render('all');
+
+  // Theme
+  function getTheme() {
+    var s = localStorage.getItem('mad-theme');
+    if (s) return s;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  function applyTheme(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    var icon = document.getElementById('themeIcon');
+    var label = document.getElementById('themeLabel');
+    if (icon) icon.textContent = t === 'dark' ? '\u2600' : '\u263E';
+    if (label) label.textContent = t === 'dark' ? 'Light Mode' : 'Dark Mode';
+  }
+  window.toggleTheme = function() {
+    var t = getTheme() === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('mad-theme', t);
+    applyTheme(t);
+  };
+  window.toggleSidebar = function() {
+    document.body.classList.toggle('sb-collapsed');
+    localStorage.setItem('mad-sidebar', document.body.classList.contains('sb-collapsed') ? 'collapsed' : 'expanded');
+  };
+  applyTheme(getTheme());
+  if (localStorage.getItem('mad-sidebar') === 'collapsed') {
+    document.body.classList.add('sb-collapsed');
+  }
+})();
+</script>
+</body>
+</html>

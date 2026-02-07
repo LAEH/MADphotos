@@ -168,16 +168,12 @@ struct ThumbnailCell: View {
         .task(id: photo.id) {
             if let cached = store.loadThumbnail(for: photo) {
                 thumb = cached
-            } else {
-                let path = store.thumbnailPath(for: photo)
-                let loaded = await Task.detached {
-                    NSImage(contentsOfFile: path)
-                }.value
-                if let img = loaded {
-                    store.cacheThumbnail(img, for: photo)
-                    thumb = img
-                }
+                return
             }
+            let path = store.thumbnailPath(for: photo)
+            guard let img = await store.thumbnailLoader.load(path: path) else { return }
+            store.cacheThumbnail(img, for: photo)
+            thumb = img
         }
     }
 }

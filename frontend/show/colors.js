@@ -3,6 +3,7 @@
 
 let colorBuckets = [];
 let activeColorIdx = 0;
+let couleursSelected = [];
 
 const NUM_BUCKETS = 24;
 const _rs = getComputedStyle(document.documentElement);
@@ -140,6 +141,7 @@ function renderCouleursBento() {
     }
 
     selected = shuffleArray(selected);
+    couleursSelected = selected;
 
     const mobile = window.matchMedia('(max-width: 768px)').matches;
 
@@ -177,6 +179,6 @@ function makeCouleursTile(photo) {
     img.alt = '';
     tile.appendChild(img);
 
-    tile.addEventListener('click', () => openLightbox(photo));
+    tile.addEventListener('click', () => openLightbox(photo, couleursSelected));
     return tile;
 }

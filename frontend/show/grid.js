@@ -180,7 +180,7 @@ function renderSortRow(container, items, height, gap) {
                     return;
                 }
             }
-            openLightbox(photo);
+            openLightbox(photo, sortedPhotos);
         });
         rowEl.appendChild(item);
     }

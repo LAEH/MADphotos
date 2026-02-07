@@ -2,6 +2,41 @@ import Foundation
 import SwiftUI
 import AppKit
 
+actor ThumbnailLoader {
+    private let maxConcurrent = 8
+    private var active = 0
+    private var pending: [CheckedContinuation<Void, Never>] = []
+
+    private func acquireSlot() async {
+        if active < maxConcurrent {
+            active += 1
+            return
+        }
+        await withCheckedContinuation { cont in
+            pending.append(cont)
+        }
+    }
+
+    private func releaseSlot() {
+        if !pending.isEmpty {
+            pending.removeFirst().resume()
+        } else {
+            active -= 1
+        }
+    }
+
+    func load(path: String) async -> NSImage? {
+        guard !Task.isCancelled else { return nil }
+        await acquireSlot()
+        guard !Task.isCancelled else { releaseSlot(); return nil }
+        let img: NSImage? = await Task.detached(priority: .utility) {
+            NSImage(contentsOfFile: path)
+        }.value
+        releaseSlot()
+        return Task.isCancelled ? nil : img
+    }
+}
+
 @MainActor
 final class PhotoStore: ObservableObject {
     let database: Database
@@ -32,6 +67,7 @@ final class PhotoStore: ObservableObject {
     @Published var sortBy: SortOption = .random
     @Published var sortDescending: Bool = true
 
+    nonisolated let thumbnailLoader = ThumbnailLoader()
     private var thumbCache = NSCache<NSString, NSImage>()
 
     init(basePath: String) {

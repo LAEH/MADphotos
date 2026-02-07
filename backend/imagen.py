@@ -173,10 +173,14 @@ async def generate_single_variant(
         async with semaphore:
             start_ms = int(time.time() * 1000)
             try:
-                # Build reference image
+                # Build reference image — load bytes eagerly
+                source_bytes = source_path.read_bytes()
                 raw_ref = types.RawReferenceImage(
                     reference_id=1,
-                    reference_image=types.Image.from_file(location=str(source_path)),
+                    reference_image=types.Image(
+                        image_bytes=source_bytes,
+                        mime_type="image/jpeg",
+                    ),
                 )
 
                 # Build edit config

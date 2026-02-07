@@ -21,6 +21,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 WEB_DIR = PROJECT_ROOT / "frontend" / "show"
 STATE_DIR = PROJECT_ROOT / "frontend" / "state"
 RENDERED_DIR = PROJECT_ROOT / "images" / "rendered"
+AI_VARIANTS_DIR = PROJECT_ROOT / "images" / "ai_variants"
 
 
 class GalleryHandler(SimpleHTTPRequestHandler):
@@ -32,6 +33,16 @@ class GalleryHandler(SimpleHTTPRequestHandler):
         if self.path.startswith("/rendered/"):
             rel = self.path[len("/rendered/"):]
             file_path = RENDERED_DIR / rel
+            if file_path.is_file():
+                self._serve_file(file_path)
+                return
+            self.send_error(404)
+            return
+
+        # Serve AI variant images
+        if self.path.startswith("/ai_variants/"):
+            rel = self.path[len("/ai_variants/"):]
+            file_path = AI_VARIANTS_DIR / rel
             if file_path.is_file():
                 self._serve_file(file_path)
                 return

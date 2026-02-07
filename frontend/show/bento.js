@@ -217,7 +217,7 @@ function renderBentoGrid(layout, photos) {
         img.alt = '';
         tile.appendChild(img);
 
-        tile.addEventListener('click', () => openLightbox(photo));
+        tile.addEventListener('click', () => openLightbox(photo, bentoPhotos));
         grid.appendChild(tile);
     }
 

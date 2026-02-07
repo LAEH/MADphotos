@@ -1150,3 +1150,23 @@ Comprehensive mobile and touch audit of the entire Show web app, followed by fix
 **Performance.** Added `contain: layout style paint` to `.nyu-mosaic-cell` and `.confetti-cell` for paint isolation during assembly animations. Replaced `.drift-score` `width` animation (layout property) with `transform: scaleX()` via CSS custom property (compositor-only). Fixed bento.js keydown listener leak (now removes before adding). Added `decoding='async'` to pendulum.js image preload.
 
 **Accessibility.** `prefers-reduced-motion: reduce` covers all animations. `content-visibility: hidden` on inactive views. `-webkit-text-size-adjust: 100%` prevents iOS text inflation.
+
+---
+
+### 18:50 — Show: Lightbox Navigation, NYU Reel Arrows, Boom Glass Bomb, Faces Emoji Filters
+
+Four feature passes across the Show app.
+
+**Lightbox navigation.** The shared lightbox now supports prev/next navigation with arrow buttons, keyboard arrows, and touch swipe. `openLightbox(photo, photoList)` accepts an optional photo list for sequential browsing. NYU reel, grid, and overview all pass their photo arrays. Nav arrows auto-hide when at list boundaries or when opened without a list context. Capture-phase keydown ensures lightbox keys take priority over experience handlers.
+
+**NYU reel overhaul.** Added glass nav arrows (prev/next) flanking the reel, a counter showing current position ("3 / 24"), keyboard arrow support in reel mode, and `scrollNyuReel()` with `scrollIntoView` for smooth programmatic navigation. `updateReelCounter()` tracks scroll position via `scrollend`/debounced `scroll` events. Nav arrows hidden on mobile where swipe is native.
+
+**Boom glass bomb.** Moved the bomb button out of the left nav column into a `confetti-mosaic-wrap` container that wraps the mosaic grid. The bomb now sits on a 72px frosted glass disk (`backdrop-filter: blur(20px) saturate(1.4)`, semi-transparent `color-mix` background, `border: 1px solid var(--border)`, `box-shadow: var(--shadow-md)`) positioned at the bottom-left edge of the mosaic square with `transform: translateY(50%)` so it straddles the bottom edge.
+
+**Faces emoji filters.** Replaced text labels (Happy, Sad, Angry, etc.) with emoji icons in the emotion filter bar. Face image cache now has a 200-entry LRU cap to prevent memory growth. Added batch queue cleanup on view switch.
+
+**Header menu button.** Added a hamburger menu button to the header for direct sidebar access alongside the logo tap.
+
+**State dashboard.** Signal inventory now renders all tags flat inline per group (no subcategory labels). Removed leaf categories: Color Cast, Temperature, Exposure, Depth Zones, Complexity, Aspect Ratio, Enhancement, Rotation.
+
+**See app.** Added `ThumbnailLoader` actor with 8-slot concurrency limiter for cooperative thumbnail loading.
