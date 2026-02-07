@@ -1,0 +1,462 @@
+import { useFetch } from '../hooks/useFetch'
+import { Footer } from '../components/layout/Footer'
+
+interface Stats {
+  timestamp: string
+  total: number
+  analyzed: number
+  failed: number
+  pending: number
+  analysis_pct: number
+  pixel_analyzed: number
+  pixel_pct: number
+  categories: { name: string; count: number }[]
+  subcategories: { name: string; count: number }[]
+  tiers: { name: string; tier: string; format: string; count: number; size_human: string }[]
+  tier_coverage: { tier: string; images: number }[]
+  total_rendered_human: string
+  total_tier_files: number
+  ai_variants_total: number
+  variant_summary: { type: string; ok: number; fail: number; filtered: number; pending: number; total: number; pct: number }[]
+  gcs_uploads: number
+  cameras: { body: string; count: number; medium: string; film: string; wb_r: number; wb_b: number; noise: number; shadow: number; luminance: number }[]
+  source_formats: { name: string; count: number }[]
+  monochrome_count: number
+  grading: { name: string; count: number }[]
+  time_of_day: { name: string; count: number }[]
+  settings: { name: string; count: number }[]
+  exposure: { name: string; count: number }[]
+  composition: { name: string; count: number }[]
+  vibes: { name: string; count: number }[]
+  curation: { status: string; count: number }[]
+  kept: number
+  rejected: number
+  curated_total: number
+  curation_pct: number
+  vector_count: number
+  vector_size: string
+  runs: { phase: string; status: string; ok: number; failed: number; started: string }[]
+  signals: Record<string, { rows: number; images: number; processed?: number }>
+  aesthetic_count: number
+  aesthetic_avg: number
+  aesthetic_min?: number
+  aesthetic_max?: number
+  depth_count: number
+  depth_avg_near: number
+  depth_avg_mid: number
+  depth_avg_far: number
+  scene_count: number
+  top_scenes: { name: string; count: number }[]
+  scene_environments: { name: string; count: number }[]
+  enhancement_count: number
+  style_count: number
+  top_styles: { name: string; count: number }[]
+  ocr_images: number
+  ocr_texts: number
+  caption_count: number
+  emotion_count: number
+  top_emotions: { name: string; count: number }[]
+  top_objects: { name: string; count: number }[]
+  top_color_names: { name: string; hex: string; count: number }[]
+  face_images_with: number
+  face_total: number
+  exif_gps: number
+  exif_iso: number
+  models_complete: number
+  total_signals: number
+  db_size: string
+  web_json_size: string
+  web_photo_count: number
+  location_count: number
+  location_sources?: { name: string; count: number }[]
+  sample?: { uuid: string; time: string; data: Record<string, unknown> }
+}
+
+/* ── SVG Icons ── */
+const IC = {
+  scene:   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-3-3.87M9 21v-2a4 4 0 00-4-4H3"/><path d="M1 21h22"/><path d="M12 2l3 7h-6l3-7z"/><path d="M7 10l-3 5"/><path d="M17 10l3 5"/></svg>,
+  home:    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>,
+  eye:     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
+  sparkle: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"/></svg>,
+  star:    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
+  frame:   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="7" y="7" width="10" height="10"/></svg>,
+  film:    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>,
+  sunset:  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 18a5 5 0 00-10 0"/><line x1="12" y1="9" x2="12" y2="2"/><line x1="4.22" y1="10.22" x2="5.64" y2="11.64"/><line x1="1" y1="18" x2="3" y2="18"/><line x1="21" y1="18" x2="23" y2="18"/><line x1="18.36" y1="11.64" x2="19.78" y2="10.22"/><line x1="23" y1="22" x2="1" y2="22"/></svg>,
+}
+
+function fmt(n: number | null | undefined): string {
+  return n != null ? n.toLocaleString() : '\u2014'
+}
+
+function syntaxHighlight(json: string): string {
+  const escaped = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  return escaped.replace(
+    /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g,
+    (match) => {
+      let cls = 'json-num'
+      if (/^"/.test(match)) {
+        cls = /:$/.test(match) ? 'json-key' : 'json-str'
+      } else if (/true|false/.test(match)) {
+        cls = 'json-bool'
+      } else if (/null/.test(match)) {
+        cls = 'json-null'
+      }
+      return `<span class="${cls}">${match}</span>`
+    }
+  )
+}
+
+export function DashboardPage() {
+  const { data, loading, error } = useFetch<Stats>('/api/stats')
+
+  if (loading) return <div style={{ color: 'var(--muted)', padding: 'var(--space-10)' }}>Loading dashboard...</div>
+  if (error) return <div style={{ color: 'var(--system-red)', padding: 'var(--space-10)' }}>Error: {error}</div>
+  if (!data) return null
+
+  const s = data
+  const sigFD = s.signals?.face_detections || { rows: 0, images: 0, processed: 0 }
+  const sigOD = s.signals?.object_detections || { rows: 0, images: 0, processed: 0 }
+  const sigDC = s.signals?.dominant_colors || { rows: 0, images: 0 }
+  const sigEX = s.signals?.exif_metadata || { rows: 0, images: 0 }
+
+  /* ── 17 Models ── */
+  const models = [
+    { n: '01', name: 'Gemini 2.5 Pro', tech: 'Vertex AI \u00B7 Google Cloud', count: s.analyzed },
+    { n: '02', name: 'Pixel Analysis', tech: 'Python \u00B7 Pillow \u00B7 NumPy', count: s.pixel_analyzed },
+    { n: '03', name: 'DINOv2', tech: 'PyTorch \u00B7 Meta FAIR \u00B7 ViT-B/14', count: s.vector_count },
+    { n: '04', name: 'SigLIP', tech: 'PyTorch \u00B7 Google \u00B7 ViT-B/16', count: s.vector_count },
+    { n: '05', name: 'CLIP', tech: 'PyTorch \u00B7 OpenAI \u00B7 ViT-B/32', count: s.vector_count },
+    { n: '06', name: 'YuNet', tech: 'OpenCV DNN \u00B7 ONNX \u00B7 C++', count: sigFD.processed || sigFD.images },
+    { n: '07', name: 'YOLOv8n', tech: 'PyTorch \u00B7 Ultralytics \u00B7 COCO', count: sigOD.processed || sigOD.images },
+    { n: '08', name: 'NIMA', tech: 'PyTorch \u00B7 TensorFlow origin \u00B7 MobileNet', count: s.aesthetic_count },
+    { n: '09', name: 'Depth Anything v2', tech: 'PyTorch \u00B7 Hugging Face \u00B7 ViT', count: s.depth_count },
+    { n: '10', name: 'Places365', tech: 'PyTorch \u00B7 MIT CSAIL \u00B7 ResNet-50', count: s.scene_count },
+    { n: '11', name: 'Style Net', tech: 'PyTorch \u00B7 Custom classifier', count: s.style_count },
+    { n: '12', name: 'BLIP', tech: 'PyTorch \u00B7 Salesforce \u00B7 ViT+LLM', count: s.caption_count },
+    { n: '13', name: 'EasyOCR', tech: 'PyTorch \u00B7 CRAFT + CRNN', count: s.ocr_images || 0 },
+    { n: '14', name: 'Facial Emotions', tech: 'PyTorch \u00B7 FER \u00B7 CNN', count: s.emotion_count || 0 },
+    { n: '15', name: 'Enhancement Engine', tech: 'Python \u00B7 Pillow \u00B7 Camera-aware', count: s.enhancement_count },
+    { n: '16', name: 'K-means LAB', tech: 'Python \u00B7 scikit-learn \u00B7 LAB space', count: sigDC.images },
+    { n: '17', name: 'EXIF Parser', tech: 'Python \u00B7 Pillow \u00B7 piexif', count: sigEX.images },
+  ]
+
+  return (
+    <>
+      {/* ═══ HERO ═══ */}
+      <div className="state-hero">
+        <h1>System State</h1>
+        <p style={{ color: 'var(--muted)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-3)' }}>
+          <span className="live-dot" />{s.timestamp}
+        </p>
+        <p style={{ fontSize: 'var(--text-sm)', lineHeight: 'var(--leading-relaxed)', color: 'var(--fg-secondary)', margin: 0 }}>
+          We started with 9,011 raw images and zero metadata.<br />
+          We will create the best UX UIs on photos.<br />
+          <strong style={{ color: 'var(--fg)' }}>Game ON.</strong>
+        </p>
+      </div>
+
+      {/* ═══ MODELS ═══ */}
+      <div className="section">
+        <div className="section-title">Models</div>
+        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--muted)', marginBottom: 'var(--space-3)' }}>
+          {fmt(s.total)} images &times; 17 models = {fmt(s.total_signals)} signals &mdash; {s.models_complete} complete
+        </p>
+        <div className="el-grid">
+          {models.map(m => {
+            const pct = s.total > 0 ? (m.count / s.total * 100) : 0
+            const status = pct >= 99.5 ? 'done' : pct > 0 ? 'active' : 'pending'
+            return (
+              <div key={m.n} className={`el-card status-${status}`}>
+                <div className="el-num">{m.n}</div>
+                <div className="el-model">{m.name}</div>
+                <div className="el-tech">{m.tech}</div>
+                <div className="el-count">
+                  {fmt(m.count)}{' '}
+                  {status === 'done' ? (
+                    <span className="el-badge done">{'\u2713'}</span>
+                  ) : status === 'active' ? (
+                    <span className="el-badge active">{pct.toFixed(0)}%</span>
+                  ) : (
+                    <span className="el-badge pending">{'\u2014'}</span>
+                  )}
+                </div>
+                <div className="el-bar">
+                  <div className="el-fill" style={{ width: `${Math.min(pct, 100)}%` }} />
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* ═══ SIGNALS ═══ */}
+      <div className="section">
+        <div className="section-title">Signals</div>
+
+        <div className="signal-group">
+          <div className="signal-group-label">Scene & Setting</div>
+          <div className="tag-row">
+            <Tags items={s.top_scenes} icon={IC.scene} cat="scene" />
+            <Tags items={s.scene_environments} icon={IC.home} cat="scene-env" />
+            <Tags items={s.settings} icon={IC.scene} cat="scene-set" />
+            <Tags items={s.top_objects || []} icon={IC.eye} cat="scene-obj" />
+          </div>
+        </div>
+
+        <div className="signal-group">
+          <div className="signal-group-label">Visual Style</div>
+          <div className="tag-row">
+            <Tags items={s.vibes} icon={IC.sparkle} cat="style" />
+            <Tags items={s.top_emotions || []} icon={IC.sparkle} cat="style-emo" />
+            <Tags items={s.grading} icon={IC.star} cat="style-grad" />
+            <Tags items={s.top_styles || []} icon={IC.sparkle} cat="style-cls" />
+            <ColorTags items={s.top_color_names || []} />
+          </div>
+        </div>
+
+        <div className="signal-group">
+          <div className="signal-group-label">Structure</div>
+          <div className="tag-row">
+            <Tags items={s.composition} icon={IC.frame} cat="depth-comp" />
+          </div>
+        </div>
+
+        <div className="signal-group">
+          <div className="signal-group-label">Context</div>
+          <div className="tag-row">
+            <Tags items={s.subcategories} icon={IC.film} cat="camera" />
+            <Tags items={s.time_of_day} icon={IC.sunset} cat="camera-time" />
+          </div>
+        </div>
+      </div>
+
+      {/* ═══ VECTOR STORE ═══ */}
+      <div className="section">
+        <div className="section-title">Vector Store</div>
+        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--muted)', marginBottom: 'var(--space-3)' }}
+           dangerouslySetInnerHTML={{ __html:
+             `${fmt(s.vector_count)} images &times; 3 models &mdash; ${s.vector_size} on disk` +
+             (s.vector_count >= s.total ? ' &mdash; <span class="badge done">complete</span>' :
+              s.vector_count > 0 ? ` &mdash; <span class="badge partial">${(s.vector_count / s.total * 100).toFixed(1)}%</span>` :
+              ' &mdash; <span class="badge empty">not started</span>')
+           }}
+        />
+        <div className="model-cards">
+          <div className="model-card">
+            <div className="mc-name">DINOv2</div>
+            <div className="mc-dim">768 dimensions</div>
+            <div className="mc-desc">Self-supervised vision transformer. Sees composition, texture, spatial layout. The artistic eye.</div>
+          </div>
+          <div className="model-card">
+            <div className="mc-name">SigLIP</div>
+            <div className="mc-dim">768 dimensions</div>
+            <div className="mc-desc">Multimodal image-text model. Sees meaning, enables text search. The semantic brain.</div>
+          </div>
+          <div className="model-card">
+            <div className="mc-name">CLIP</div>
+            <div className="mc-dim">512 dimensions</div>
+            <div className="mc-desc">Subject matching model. Finds duplicates and similar scenes. The pattern matcher.</div>
+          </div>
+        </div>
+      </div>
+
+      {/* ═══ CAMERA FLEET ═══ */}
+      <div className="section">
+        <div className="section-title">Camera Fleet</div>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Camera</th>
+                <th className="num">Images</th>
+                <th>Medium</th>
+                <th>Film</th>
+                <th className="num">Lum</th>
+                <th className="num">WB Red</th>
+                <th className="num">WB Blue</th>
+                <th className="num">Noise</th>
+                <th className="num">Shadow%</th>
+              </tr>
+            </thead>
+            <tbody>
+              {s.cameras.map(cam => (
+                <tr key={cam.body}>
+                  <td style={{ fontWeight: 600 }}>{cam.body}</td>
+                  <td className="num">{fmt(cam.count)}</td>
+                  <td>{cam.medium}</td>
+                  <td>{cam.film || '\u2014'}</td>
+                  <td className="num">{cam.luminance}</td>
+                  <td className="num">
+                    <span className={cam.wb_r > 0.05 ? 'wb-pos' : cam.wb_r < -0.05 ? 'wb-neg' : 'wb-zero'}>
+                      {cam.wb_r > 0 ? '+' : ''}{cam.wb_r.toFixed(3)}
+                    </span>
+                  </td>
+                  <td className="num">
+                    <span className={cam.wb_b < -0.05 ? 'wb-neg' : cam.wb_b > 0.05 ? 'wb-pos' : 'wb-zero'}>
+                      {cam.wb_b > 0 ? '+' : ''}{cam.wb_b.toFixed(3)}
+                    </span>
+                  </td>
+                  <td className="num">{cam.noise}</td>
+                  <td className="num">{cam.shadow.toFixed(1)}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ═══ RENDER TIERS ═══ */}
+      <div className="section">
+        <div className="section-title">Render Tiers</div>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Tier / Format</th>
+                <th className="num">Files</th>
+                <th className="num">Size</th>
+              </tr>
+            </thead>
+            <tbody>
+              {s.tiers.map(t => (
+                <tr key={t.name}>
+                  <td>{t.name}</td>
+                  <td className="num">{fmt(t.count)}</td>
+                  <td className="num">{t.size_human}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ═══ STORAGE ═══ */}
+      <div className="section">
+        <div className="section-title">Storage</div>
+        <div className="disk-row">
+          <div className="disk-item">
+            <div className="di-val">{s.total_rendered_human}</div>
+            <div className="di-label">Rendered tiers</div>
+          </div>
+          <div className="disk-item">
+            <div className="di-val">{s.db_size}</div>
+            <div className="di-label">Database</div>
+          </div>
+          <div className="disk-item">
+            <div className="di-val">{s.vector_size}</div>
+            <div className="di-label">Vectors (LanceDB)</div>
+          </div>
+          {s.web_photo_count > 0 && (
+            <div className="disk-item">
+              <div className="di-val">{s.web_json_size}</div>
+              <div className="di-label">Web gallery ({fmt(s.web_photo_count)} photos)</div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ═══ AI VARIANTS ═══ */}
+      {s.variant_summary.length > 0 && (
+        <div className="section">
+          <div className="section-title">AI Variants</div>
+          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--muted)', marginBottom: 'var(--space-3)' }}>
+            {fmt(s.ai_variants_total)} total variants across {s.variant_summary.length} types
+          </p>
+          <div className="model-cards">
+            {s.variant_summary.map(v => (
+              <div key={v.type} className="model-card">
+                <div className="mc-name" style={{ textTransform: 'capitalize' }}>{v.type.replace(/_/g, ' ')}</div>
+                <div className="mc-dim">{v.total} variants &middot; {v.pct.toFixed(1)}% of collection</div>
+                <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', marginTop: 'var(--space-2)' }}>
+                  <span className="badge done">{v.ok} ok</span>
+                  {v.fail > 0 && <span className="badge empty">{v.fail} fail</span>}
+                  {v.filtered > 0 && <span className="badge partial">{v.filtered} filtered</span>}
+                  {v.pending > 0 && <span className="badge partial">{v.pending} pending</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ═══ PIPELINE RUNS ═══ */}
+      {s.runs.length > 0 && (
+        <div className="section">
+          <div className="section-title">Pipeline Runs</div>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Phase</th>
+                  <th>Status</th>
+                  <th className="num">OK</th>
+                  <th className="num">Failed</th>
+                  <th>Started</th>
+                </tr>
+              </thead>
+              <tbody>
+                {s.runs.map((run, i) => (
+                  <tr key={i}>
+                    <td style={{ fontWeight: 600 }}>{run.phase}</td>
+                    <td>
+                      <span className={`badge ${run.status === 'completed' ? 'done' : run.status === 'failed' ? 'empty' : 'partial'}`}>
+                        {run.status}
+                      </span>
+                    </td>
+                    <td className="num">{fmt(run.ok)}</td>
+                    <td className="num" style={{ color: run.failed > 0 ? 'var(--system-red)' : undefined }}>{fmt(run.failed)}</td>
+                    <td style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)' }}>{run.started}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ SAMPLE ANALYSIS ═══ */}
+      {s.sample && s.sample.data && (
+        <div className="section">
+          <div className="section-title">Sample Analysis</div>
+          <div className="sample-header">{s.sample.uuid} &mdash; analyzed {s.sample.time}</div>
+          <div className="sample-block">
+            <pre dangerouslySetInnerHTML={{ __html: syntaxHighlight(JSON.stringify(s.sample.data, null, 2)) }} />
+          </div>
+        </div>
+      )}
+
+      <Footer />
+    </>
+  )
+}
+
+/* ── Tag Components ── */
+
+function Tags({ items, icon, cat }: { items: { name: string; count: number }[]; icon: React.ReactNode; cat: string }) {
+  if (!items?.length) return null
+  return (
+    <>
+      {items.map(item => (
+        <div key={item.name} className={`tag tag-cat-${cat}`}>
+          <span className="tag-icon">{icon}</span>
+          <span className="tag-label">{item.name}</span>
+          <span className="tag-count">{fmt(item.count)}</span>
+        </div>
+      ))}
+    </>
+  )
+}
+
+function ColorTags({ items }: { items: { name: string; hex: string; count: number }[] }) {
+  if (!items?.length) return null
+  return (
+    <>
+      {items.map(item => (
+        <div key={item.name} className="tag">
+          <span className="tag-cdot" style={{ background: item.hex }} />
+          <span className="tag-count">{fmt(item.count)}</span>
+        </div>
+      ))}
+    </>
+  )
+}
