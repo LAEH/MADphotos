@@ -1058,3 +1058,11 @@ Made 9 Gemini analysis fields editable inline in the detail view: Grading, Expos
 ### 14:15 — See: Vibe Add/Remove Editing
 
 Vibes are now editable: hovering over a vibe pill shows an X button to remove it, and a "+" button at the end lets you type a new vibe. Both write back to the DB as a JSON array via `updateVibes()`. The sidebar facet counts refresh immediately after edits. Clean build confirmed — all 5 files modified (Models, Database, PhotoStore, FilterSidebar, DetailView), zero compilation errors.
+
+### 14:30 — Code Audit: Scene Filter Bug Fixed
+
+Full code inspection caught a bug: scene filter was only checking `scene1`, missing `scene2` and `scene3` matches. Fixed `matchesFilters()` to check all three scene classifications with union/intersection mode support. Added `facetScenes()` method that counts scene1/scene2/scene3 values. Also identified 8 pre-existing stale claims across project documents (emotion count off by 2, GCS table empty, variant types mismatch, script count 19 not 10, web file count off by 1).
+
+### 14:45 — /sync-state: Custom Claude Code Agent
+
+Created the first custom Claude Code skill at `.claude/skills/sync-state/`. Two files: `SKILL.md` (the reconciliation protocol — 5 phases: collect, compare, report, journal, regenerate) and `snapshot.py` (Python script that queries DB + filesystem and outputs JSON with all 50 reconcilable values). The snapshot covers: image/camera/signal/detection counts, AI variant types, table counts, Python script inventory, web experience list, Swift filter dimensions, editable field count. Designed to be run as `/sync-state` at the end of every session — compares snapshot actuals against MEMORY.md, generate_status_page.py, and docs/index.html, then patches all deltas.
