@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -362,8 +362,8 @@ body.sb-collapsed .sb-expand { display: flex; }
   <div class="sb-bottom">
     <button class="sb-collapse" onclick="toggleSidebar()">&#x276E; Hide sidebar</button>
     <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">
-      <span id="themeIcon">&#9790;</span>
-      <span id="themeLabel">Dark Mode</span>
+      <span id="themeIcon">&#9788;</span>
+      <span id="themeLabel">Light Mode</span>
     </button>
   </div>
 </nav>
@@ -565,7 +565,7 @@ function toggleSidebar() {
 (function() {
   var savedTheme = localStorage.getItem("mad-theme");
   if (!savedTheme) {
-    savedTheme = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    savedTheme = "dark";
   }
   document.documentElement.setAttribute("data-theme", savedTheme);
   if (savedTheme === "dark") {

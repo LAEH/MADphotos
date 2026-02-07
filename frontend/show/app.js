@@ -24,7 +24,7 @@ const EXPERIENCES = [
     { id: 'bento',       name: 'Bento',            init: 'initBento' },
     { id: 'nyu',         name: 'NYU',              init: 'initNyu' },
     { id: 'game',        name: 'Couple',            init: 'initGame' },
-    { id: 'confetti',    name: 'Les Confettis',    init: 'initConfetti' },
+    { id: 'confetti',    name: 'Boom',             init: 'initConfetti' },
 ];
 
 /* ===== Device Detection & Gating ===== */
@@ -104,6 +104,16 @@ function buildSideMenu() {
     if (!list) return;
     list.innerHTML = '';
 
+    /* About link — opens State dashboard in new tab */
+    const aboutLi = document.createElement('li');
+    aboutLi.className = 'side-menu-item side-menu-about';
+    aboutLi.textContent = 'About';
+    aboutLi.addEventListener('click', () => {
+        window.open('https://laeh.github.io/MADphotos/state.html', '_blank');
+        closeSideMenu();
+    });
+    list.appendChild(aboutLi);
+
     for (const exp of EXPERIENCES) {
         const li = document.createElement('li');
         li.className = 'side-menu-item';
@@ -171,7 +181,7 @@ function switchView(name) {
     const expNameEl = document.getElementById('header-exp-name');
     const exp = EXPERIENCES.find(e => e.id === name);
     if (expNameEl) {
-        expNameEl.textContent = exp ? exp.name : '';
+        expNameEl.textContent = exp ? '\u201C' + exp.name + '\u201D' : '';
     }
 
     /* Update side menu active state */
@@ -488,7 +498,7 @@ async function init() {
     if (hash && validViews.includes(hash)) {
         switchView(hash);
     } else {
-        switchView(EXPERIENCES[0].id);
+        switchView('confetti');
     }
 }
 

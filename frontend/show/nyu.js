@@ -190,6 +190,19 @@ function renderNyuDeckView(vp) {
     const stack = document.createElement('div');
     stack.className = 'nyu-stack';
     stack.id = 'nyu-stack';
+
+    /* Touch/swipe support for mobile — swipe to navigate deck */
+    let touchStartX = 0, touchStartY = 0;
+    stack.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY; }, {passive: true});
+    stack.addEventListener('touchend', e => {
+        const dx = e.changedTouches[0].clientX - touchStartX;
+        const dy = e.changedTouches[0].clientY - touchStartY;
+        if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+            if (dx > 0) cycleNyuDeck(-1);
+            else cycleNyuDeck(1);
+        }
+    }, {passive: true});
+
     vp.appendChild(stack);
 
     const counter = document.createElement('div');
@@ -269,6 +282,18 @@ function renderNyuCanvas(vp) {
     const canvas = document.createElement('div');
     canvas.className = 'nyu-canvas';
     canvas.id = 'nyu-canvas';
+
+    /* Touch/swipe support for mobile — swipe to navigate canvas */
+    let canvasTouchStartX = 0, canvasTouchStartY = 0;
+    canvas.addEventListener('touchstart', e => { canvasTouchStartX = e.touches[0].clientX; canvasTouchStartY = e.touches[0].clientY; }, {passive: true});
+    canvas.addEventListener('touchend', e => {
+        const dx = e.changedTouches[0].clientX - canvasTouchStartX;
+        const dy = e.changedTouches[0].clientY - canvasTouchStartY;
+        if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+            if (dx > 0) stepNyuCanvas(-1);
+            else stepNyuCanvas(1);
+        }
+    }, {passive: true});
 
     const imgWrap = document.createElement('div');
     imgWrap.className = 'nyu-canvas-img-wrap';

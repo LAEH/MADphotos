@@ -1128,3 +1128,25 @@ Committed all changes to GitHub (`b7b53f8`): 37 files, +6,866 / -3,702 lines. De
 Simplified the Show launcher from verbose card-per-experience HTML to a streamlined layout. Removed inline card markup from `index.html` (134 lines cut), moved experience metadata into `app.js` for dynamic rendering. Header redesigned: split logo into `MAD` + `photos` spans for typographic styling, replaced tab nav with experience name display. Removed photo count from header.
 
 Major experience refinements across 6 modules: `bento.js` (+224 lines — layout improvements), `confetti.js` (+447 lines — interaction overhaul), `faces.js` (+230 lines — emotion grid polish), `compass.js` (+75 lines — axis calibration), `grid.js` (+65 lines — filter/sort refinements). `style.css` consolidated from 810 lines of changes — removed redundant rules, tightened token usage. Created `/ship` deploy agent skill for automated journal + commit + push + Firebase deploy pipeline.
+
+---
+
+### 18:02 — Show: Adaptive UI Overhaul — Full Mobile/Touch Pass
+
+Comprehensive mobile and touch audit of the entire Show web app, followed by fixes across 11 JS files and `style.css` (+564 lines changed).
+
+**Touch/swipe support.** Added `touchstart`/`touchend` gesture handlers to 7 experiences: bento (swipe to cycle layouts), compass (swipe to shuffle), confetti (swipe to navigate vibes), game (vertical swipe to advance pairs), nyu deck+canvas (swipe to navigate), pendulum (swipe to choose side). Grid gets a two-tap mechanism — first tap reveals the overlay with tags, second tap opens lightbox. All touch listeners use `{passive: true}` to avoid scroll blocking.
+
+**Hover guard.** Moved all 35+ `:hover` rules exclusively inside `@media (hover: hover) and (pointer: fine)` guard block. Original hover rules replaced with comment references. Prevents sticky-hover on touch devices.
+
+**Viewport and safe areas.** Added `viewport-fit=cover` to meta tag. All 12 viewport-height containers now have `100dvh` fallback after `100vh` for iOS Safari URL bar. Body, header, and bottom bars (jeu-bar, nyu-nav) use `env(safe-area-inset-*)` for notched devices.
+
+**Tap targets.** Every interactive element audited against 44x44px minimum. Fixed: theme-toggle, sort-size-btn, drift-breadcrumb-item, confetti-nav-btn, lightbox-close, bento-nav, nyu-nav-btn, confetti-bomb — all at 44px across all breakpoints including phone.
+
+**Font floor.** Mobile `@media (max-width: 768px)` overrides small tokens: `--text-2xs`/`--text-xs`/`--text-caption` floored at 13px, `--text-sm` at 14px. Replaced 4 hardcoded `14px` font-size values with `var(--text-sm)` token.
+
+**Responsive breakpoints.** 768px tablet: drift 2-col, bento full-width, compass stacked, confetti horizontal nav. 480px phone: drift 1-col, game vertical stack, compass single-column, faces horizontal-scroll filters, sort bar wrapped.
+
+**Performance.** Added `contain: layout style paint` to `.nyu-mosaic-cell` and `.confetti-cell` for paint isolation during assembly animations. Replaced `.drift-score` `width` animation (layout property) with `transform: scaleX()` via CSS custom property (compositor-only). Fixed bento.js keydown listener leak (now removes before adding). Added `decoding='async'` to pendulum.js image preload.
+
+**Accessibility.** `prefers-reduced-motion: reduce` covers all animations. `content-visibility: hidden` on inactive views. `-webkit-text-size-adjust: 100%` prevents iOS text inflation.

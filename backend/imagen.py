@@ -46,10 +46,10 @@ IMAGEN_MODEL = "imagen-3.0-capability-001"
 UUID_NAMESPACE = uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
 
 # Rate limiting: Vertex AI default ~5 req/min for image generation
-MAX_CONCURRENT = 3
+MAX_CONCURRENT = 1
 MAX_RETRIES = 5
-BASE_BACKOFF = 2.0  # seconds, doubles each retry
-DELAY_BETWEEN_CALLS = 1.5  # seconds
+BASE_BACKOFF = 5.0  # seconds, doubles each retry
+DELAY_BETWEEN_CALLS = 15.0  # seconds — ~4 req/min to stay within quota
 
 # ---------------------------------------------------------------------------
 # 5 Variant Configurations
@@ -133,11 +133,12 @@ def generate_variant_id(image_uuid: str, variant_type: str) -> str:
 
 def get_display_tier_path(image_uuid: str, category: str, subcategory: str) -> Optional[Path]:
     """Find the display-tier JPEG for an image (used as source for Imagen)."""
-    path = RENDERED_DIR / "originals" / "display" / "jpeg" / category / subcategory / f"{image_uuid}.jpg"
+    # Flat structure: rendered/display/jpeg/{uuid}.jpg
+    path = RENDERED_DIR / "display" / "jpeg" / f"{image_uuid}.jpg"
     if path.exists():
         return path
     # Fallback: check gemini tier
-    path2 = RENDERED_DIR / "originals" / "gemini" / "jpeg" / category / subcategory / f"{image_uuid}.jpg"
+    path2 = RENDERED_DIR / "gemini" / "jpeg" / f"{image_uuid}.jpg"
     if path2.exists():
         return path2
     return None
@@ -175,7 +176,7 @@ async def generate_single_variant(
                 # Build reference image
                 raw_ref = types.RawReferenceImage(
                     reference_id=1,
-                    reference_image=types.Image.from_file(str(source_path)),
+                    reference_image=types.Image.from_file(location=str(source_path)),
                 )
 
                 # Build edit config
@@ -333,7 +334,7 @@ async def run(args: argparse.Namespace) -> None:
     # Collect images that need processing
     all_images = []
     for vtype in variant_types:
-        needed = db.get_ungenerated_variants(conn, vtype)
+        needed = db.get_ungenerated_variants(conn, vtype, kept_only=args.kept_only)
         for img in needed:
             if img not in all_images:
                 all_images.append(img)
@@ -392,6 +393,8 @@ def main() -> None:
                         help=f"Max concurrent API calls (default: {MAX_CONCURRENT})")
     parser.add_argument("--max-retries", type=int, default=MAX_RETRIES,
                         help=f"Max retries per variant (default: {MAX_RETRIES})")
+    parser.add_argument("--kept-only", action="store_true",
+                        help="Only process images with curated_status='kept'")
     args = parser.parse_args()
     asyncio.run(run(args))
 

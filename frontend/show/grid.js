@@ -1,5 +1,5 @@
 /* grid.js — Sort: Top 1,000 photographs with glass sort bar.
-   Sort by aesthetic, time, vibe, scene, color, light.
+   Sort by aesthetic, vibe, scene, color, light.
    Adjustable grid density (S/M/L). */
 
 let sortMethod = 'aesthetic';
@@ -26,7 +26,6 @@ function initGrille() {
 
     const methods = [
         { id: 'aesthetic', label: 'Aesthetic' },
-        { id: 'time',     label: 'Time' },
         { id: 'vibe',     label: 'Vibe' },
         { id: 'scene',    label: 'Scene' },
         { id: 'color',    label: 'Color' },
@@ -85,18 +84,9 @@ function applySortMethod(method) {
     const pool = APP.data.photos.filter(p => p.thumb);
     const top1000 = [...pool].sort((a, b) => (b.aesthetic || 0) - (a.aesthetic || 0)).slice(0, 1000);
 
-    const timeOrder = ['dawn', 'golden hour', 'morning', 'afternoon', 'evening', 'blue hour', 'night'];
-
     switch (method) {
         case 'aesthetic':
             sortedPhotos = top1000;
-            break;
-        case 'time':
-            sortedPhotos = [...top1000].sort((a, b) => {
-                const ai = timeOrder.indexOf(a.time);
-                const bi = timeOrder.indexOf(b.time);
-                return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
-            });
             break;
         case 'vibe':
             sortedPhotos = [...top1000].sort((a, b) => {
@@ -180,7 +170,18 @@ function renderSortRow(container, items, height, gap) {
         lazyObserver.observe(img);
         item.appendChild(img);
 
-        item.addEventListener('click', () => openLightbox(photo));
+        /* Tap-to-toggle overlay on mobile (hover doesn't work on touch) */
+        item.addEventListener('click', (e) => {
+            if ('ontouchstart' in window) {
+                if (!item.classList.contains('tapped')) {
+                    document.querySelectorAll('.grid-item.tapped').forEach(el => el.classList.remove('tapped'));
+                    item.classList.add('tapped');
+                    e.stopPropagation();
+                    return;
+                }
+            }
+            openLightbox(photo);
+        });
         rowEl.appendChild(item);
     }
 

@@ -175,7 +175,7 @@ function renderDerive(photo) {
             // Subtle similarity score indicator
             const scoreBar = document.createElement('div');
             scoreBar.className = 'drift-score';
-            scoreBar.style.width = Math.round(score * 100) + '%';
+            scoreBar.style.setProperty('--score', score.toFixed(2));
             card.appendChild(scoreBar);
 
             card.addEventListener('click', () => navigateDerive(nPhoto.id));

@@ -19,6 +19,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 WEB_DIR = PROJECT_ROOT / "frontend" / "show"
+STATE_DIR = PROJECT_ROOT / "frontend" / "state"
 RENDERED_DIR = PROJECT_ROOT / "images" / "rendered"
 
 
@@ -31,6 +32,16 @@ class GalleryHandler(SimpleHTTPRequestHandler):
         if self.path.startswith("/rendered/"):
             rel = self.path[len("/rendered/"):]
             file_path = RENDERED_DIR / rel
+            if file_path.is_file():
+                self._serve_file(file_path)
+                return
+            self.send_error(404)
+            return
+
+        # Serve state app files
+        if self.path.startswith("/state/"):
+            rel = self.path[len("/state/"):]
+            file_path = STATE_DIR / rel
             if file_path.is_file():
                 self._serve_file(file_path)
                 return

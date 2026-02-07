@@ -1,6 +1,6 @@
 /* confetti.js — Les Confettis: Themed sets with diversity-sampled mosaics.
-   Vertical emoji nav on left, mosaic center, click to reshuffle.
-   Viewport-fixed layout. No page scroll. */
+   Vertical emoji nav on left, bomb to blow, mosaic center.
+   Click image → glass overlay. Viewport-fixed layout. */
 
 let confettiSets = [];
 let confettiActiveIdx = -1;
@@ -21,7 +21,7 @@ const CONFETTI_DEFS = [
     { emoji: '\uD83C\uDF19', label: 'Nuit',       pool: p => p.time === 'night' },
     { emoji: '\uD83C\uDF0A', label: 'Cr\u00E9puscule',  pool: p => p.time === 'blue hour' },
 
-    /* Object sets — COCO detection labels */
+    /* Object sets */
     { emoji: '\uD83D\uDC31', label: 'Chats',     pool: p => objHas(p, 'cat') },
     { emoji: '\uD83D\uDC15', label: 'Chiens',    pool: p => objHas(p, 'dog') },
     { emoji: '\uD83D\uDE97', label: 'Routes',    pool: p => objHas(p, 'car', 'truck', 'bus', 'motorcycle') },
@@ -50,10 +50,10 @@ function hexToHue(hex) {
     const b = parseInt(hex.slice(5, 7), 16) / 255;
     const max = Math.max(r, g, b), min = Math.min(r, g, b);
     const d = max - min;
-    if (d < 0.08) return -1; /* achromatic */
+    if (d < 0.08) return -1;
     const l = (max + min) / 2;
     const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-    if (s < 0.12) return -1; /* too desaturated */
+    if (s < 0.12) return -1;
     let h;
     if (max === r) h = ((g - b) / d + 6) % 6;
     else if (max === g) h = (b - r) / d + 2;
@@ -66,7 +66,7 @@ function hueRange(photo, lo, hi) {
     const h = hexToHue(photo.palette[0]);
     if (h < 0) return false;
     if (lo <= hi) return h >= lo && h <= hi;
-    return h >= lo || h <= hi; /* wraps around 360 */
+    return h >= lo || h <= hi;
 }
 
 function objHas(photo, ...labels) {
@@ -85,27 +85,20 @@ function vibeHas(photo, ...vibes) {
     });
 }
 
-/* ===== Diversity sampling — avoid similar images ===== */
+/* ===== Diversity sampling ===== */
 function diverseSample(pool, count) {
     if (pool.length <= count) return shuffleArray([...pool]);
 
-    /* Sort by aesthetic, take generous candidate pool */
     const sorted = [...pool].sort((a, b) => (b.aesthetic || 0) - (a.aesthetic || 0));
     const candidates = sorted.slice(0, Math.min(pool.length, count * 5));
     const neighbors = APP.driftNeighbors || {};
 
-    /* Pre-build neighbor ID sets for O(1) lookup */
     const neighborIds = {};
     for (const c of candidates) {
         const nList = neighbors[c.id];
-        if (nList) {
-            neighborIds[c.id] = new Set(nList.map(n => n.uuid || n.id || n));
-        } else {
-            neighborIds[c.id] = new Set();
-        }
+        neighborIds[c.id] = nList ? new Set(nList.map(n => n.uuid || n.id || n)) : new Set();
     }
 
-    /* Track selected features for diversity scoring */
     const selected = [];
     const selIds = new Set();
     const selScenes = {};
@@ -126,7 +119,6 @@ function diverseSample(pool, count) {
         }
     }
 
-    /* Seed with highest aesthetic */
     addToSelected(candidates[0]);
 
     while (selected.length < count) {
@@ -138,31 +130,25 @@ function diverseSample(pool, count) {
             if (selIds.has(c.id)) continue;
 
             let score = 0;
-
-            /* Neighbor penalty: how many selected photos are visual neighbors? */
             const cNeighbors = neighborIds[c.id];
             let neighborOverlap = 0;
             if (cNeighbors && cNeighbors.size > 0) {
                 for (const s of selected) {
                     if (cNeighbors.has(s.id)) neighborOverlap++;
-                    /* Check reverse too */
                     if (neighborIds[s.id] && neighborIds[s.id].has(c.id)) neighborOverlap++;
                 }
             }
             score -= neighborOverlap * 50;
 
-            /* Scene diversity: penalize repeated scenes */
             const cScene = c.scene || '';
             score -= (selScenes[cScene] || 0) * 8;
 
-            /* Vibe diversity */
             if (c.vibes) {
                 let vibeOverlap = 0;
                 for (const v of c.vibes) vibeOverlap += (selVibes[v] || 0);
                 score -= vibeOverlap * 3;
             }
 
-            /* Palette hue diversity: reward unique hues */
             if (c.palette && c.palette[0]) {
                 const h = hexToHue(c.palette[0]);
                 if (h >= 0 && selHues.length > 0) {
@@ -175,7 +161,6 @@ function diverseSample(pool, count) {
                 }
             }
 
-            /* Aesthetic bonus (small, as tiebreaker) */
             score += (c.aesthetic || 0) * 2;
 
             if (score > bestScore) {
@@ -199,11 +184,9 @@ function initConfetti() {
     confettiActiveIdx = -1;
     confettiAnimating = false;
 
-    /* Load neighbor data for diversity, then build */
     loadDriftNeighbors().then(() => {
         confettiSets = buildConfettiSets();
         renderConfettiShell(container);
-        /* Auto-select first set */
         if (confettiSets.length > 0) selectConfettiSet(0);
     });
 }
@@ -216,17 +199,14 @@ function buildConfettiSets() {
         const matches = pool.filter(def.pool);
         if (matches.length < CONFETTI_MIN) continue;
 
-        /* Pick perfect-square target */
         const n = matches.length >= 80 ? 64
                 : matches.length >= 55 ? 49
                 : matches.length >= 40 ? 36 : 25;
 
-        const selected = diverseSample(matches, n);
-
         sets.push({
             emoji: def.emoji,
             label: def.label,
-            photos: selected,
+            photos: diverseSample(matches, n),
         });
 
         if (sets.length >= 14) break;
@@ -235,12 +215,16 @@ function buildConfettiSets() {
     return sets;
 }
 
-/* ===== Shell — vertical nav + viewport ===== */
+/* ===== Shell — nav + bomb + viewport ===== */
 function renderConfettiShell(container) {
     container.innerHTML = '';
 
     const shell = document.createElement('div');
     shell.className = 'confetti-shell';
+
+    /* Left column: nav + bomb */
+    const leftCol = document.createElement('div');
+    leftCol.className = 'confetti-left';
 
     /* Vertical nav */
     const nav = document.createElement('nav');
@@ -258,12 +242,35 @@ function renderConfettiShell(container) {
         nav.appendChild(btn);
     }
 
-    shell.appendChild(nav);
+    leftCol.appendChild(nav);
+
+    /* Bomb button */
+    const bomb = document.createElement('button');
+    bomb.className = 'confetti-bomb';
+    bomb.textContent = '\uD83D\uDCA3';
+    bomb.title = 'Blow';
+    bomb.addEventListener('click', blowConfetti);
+    leftCol.appendChild(bomb);
+
+    shell.appendChild(leftCol);
 
     /* Viewport */
     const vp = document.createElement('div');
     vp.className = 'confetti-viewport';
     vp.id = 'confetti-viewport';
+
+    /* Touch/swipe support for mobile — swipe to navigate vibes */
+    let touchStartX = 0, touchStartY = 0;
+    vp.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY; }, {passive: true});
+    vp.addEventListener('touchend', e => {
+        const dx = e.changedTouches[0].clientX - touchStartX;
+        const dy = e.changedTouches[0].clientY - touchStartY;
+        if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+            if (dx > 0) selectConfettiSet((confettiActiveIdx - 1 + confettiSets.length) % confettiSets.length);
+            else selectConfettiSet((confettiActiveIdx + 1) % confettiSets.length);
+        }
+    }, {passive: true});
+
     shell.appendChild(vp);
 
     container.appendChild(shell);
@@ -282,7 +289,7 @@ function handleConfettiKey(e) {
         selectConfettiSet((confettiActiveIdx - 1 + confettiSets.length) % confettiSets.length);
     } else if (e.key === ' ' || e.key === 'Enter') {
         e.preventDefault();
-        reshuffleConfetti();
+        blowConfetti();
     }
 }
 
@@ -292,7 +299,6 @@ function selectConfettiSet(idx) {
     confettiAnimating = true;
     confettiActiveIdx = idx;
 
-    /* Update nav */
     document.querySelectorAll('.confetti-nav-btn').forEach(btn => {
         btn.classList.toggle('active', parseInt(btn.dataset.idx) === idx);
     });
@@ -303,7 +309,6 @@ function selectConfettiSet(idx) {
     const existing = document.getElementById('confetti-mosaic');
 
     if (existing) {
-        /* Scatter out current, then build new */
         existing.classList.remove('assembled');
         existing.classList.add('scattering');
         setTimeout(() => assembleSet(vp, confettiSets[idx]), 450);
@@ -318,7 +323,6 @@ function assembleSet(vp, set) {
     const mosaic = buildConfettiMosaic(set.photos);
     vp.appendChild(mosaic);
 
-    /* Label */
     const label = document.createElement('div');
     label.className = 'confetti-label';
     label.textContent = set.label;
@@ -359,45 +363,145 @@ function buildConfettiMosaic(photos) {
         img.alt = '';
         cell.appendChild(img);
 
+        /* Click cell → open glass preview */
+        cell.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openConfettiPreview(photo);
+        });
+
         const col = i % cols;
         const row = Math.floor(i / cols);
         const dist = Math.sqrt((col - cx) ** 2 + (row - cy) ** 2);
 
-        /* Scatter: random ring */
+        /* Scatter vars */
         const angle = Math.random() * Math.PI * 2;
         const scatter = 300 + Math.random() * 500;
         cell.style.setProperty('--sx', (Math.cos(angle) * scatter).toFixed(0) + 'px');
         cell.style.setProperty('--sy', (Math.sin(angle) * scatter).toFixed(0) + 'px');
         cell.style.setProperty('--sr', ((Math.random() - 0.5) * 540).toFixed(0) + 'deg');
 
-        /* Assembly: center first */
+        /* Assembly delay: center first */
         const delay = (dist / maxDist) * 700 + Math.random() * 150;
         cell.style.setProperty('--d', delay.toFixed(0) + 'ms');
 
-        /* Scatter-out: fast random burst */
+        /* Scatter-out delay */
         cell.style.setProperty('--d-out', (Math.random() * 250).toFixed(0) + 'ms');
 
         mosaic.appendChild(cell);
     }
 
-    mosaic.addEventListener('click', reshuffleConfetti);
     return mosaic;
 }
 
-/* ===== Reshuffle — scatter, rebuild, reassemble ===== */
-function reshuffleConfetti() {
+/* ===== Blow — magical rearrange in the air ===== */
+function blowConfetti() {
     if (confettiAnimating || confettiActiveIdx < 0) return;
     confettiAnimating = true;
 
     const mosaic = document.getElementById('confetti-mosaic');
     if (!mosaic) { confettiAnimating = false; return; }
 
-    mosaic.classList.remove('assembled');
-    mosaic.classList.add('scattering');
+    const cells = [...mosaic.querySelectorAll('.confetti-cell')];
+    if (cells.length === 0) { confettiAnimating = false; return; }
 
+    const n = cells.length;
+    const cols = parseInt(mosaic.style.getPropertyValue('--m-cols'));
+    const cx = (cols - 1) / 2;
+    const cy = ((Math.ceil(n / cols)) - 1) / 2;
+    const maxDist = Math.sqrt(cx * cx + cy * cy) || 1;
+
+    /* Phase 1: lift — each cell floats to a nearby random spot */
+    mosaic.classList.remove('assembled');
+    mosaic.classList.add('floating');
+
+    cells.forEach((cell, i) => {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 60 + Math.random() * 120;
+        const rot = (Math.random() - 0.5) * 40;
+        cell.style.setProperty('--fx', (Math.cos(angle) * dist).toFixed(0) + 'px');
+        cell.style.setProperty('--fy', (Math.sin(angle) * dist).toFixed(0) + 'px');
+        cell.style.setProperty('--fr', rot.toFixed(0) + 'deg');
+        cell.style.setProperty('--fd', (i * 8).toFixed(0) + 'ms');
+    });
+
+    /* Phase 2: after floating, shuffle images and settle back */
     setTimeout(() => {
-        const vp = document.getElementById('confetti-viewport');
-        if (!vp) { confettiAnimating = false; return; }
-        assembleSet(vp, confettiSets[confettiActiveIdx]);
-    }, 500);
+        /* Collect current photos from cells */
+        const imgs = cells.map(c => c.querySelector('img'));
+        const srcs = imgs.map(img => img.src);
+
+        /* Shuffle sources */
+        for (let i = srcs.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [srcs[i], srcs[j]] = [srcs[j], srcs[i]];
+        }
+
+        /* Assign shuffled images */
+        imgs.forEach((img, i) => {
+            img.src = srcs[i];
+        });
+
+        /* Phase 3: settle back to grid */
+        mosaic.classList.remove('floating');
+        mosaic.classList.add('assembled');
+
+        /* Re-set assembly delays from center outward */
+        cells.forEach((cell, i) => {
+            const col = i % cols;
+            const row = Math.floor(i / cols);
+            const d = Math.sqrt((col - cx) ** 2 + (row - cy) ** 2);
+            const delay = (d / maxDist) * 400 + Math.random() * 100;
+            cell.style.setProperty('--d', delay.toFixed(0) + 'ms');
+        });
+
+        setTimeout(() => {
+            confettiAnimating = false;
+        }, 600);
+    }, 600);
+}
+
+/* ===== Glass preview overlay ===== */
+function openConfettiPreview(photo) {
+    /* Remove existing */
+    let overlay = document.getElementById('confetti-preview');
+    if (overlay) overlay.remove();
+
+    overlay = document.createElement('div');
+    overlay.className = 'confetti-preview';
+    overlay.id = 'confetti-preview';
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'confetti-preview-backdrop';
+    overlay.appendChild(backdrop);
+
+    const img = document.createElement('img');
+    img.className = 'confetti-preview-img';
+    loadProgressive(img, photo, 'display');
+    img.alt = photo.caption || photo.alt || '';
+    overlay.appendChild(img);
+
+    /* Click outside image to close */
+    backdrop.addEventListener('click', () => closeConfettiPreview());
+    document.addEventListener('keydown', confettiPreviewKeyHandler);
+
+    document.body.appendChild(overlay);
+
+    requestAnimationFrame(() => {
+        overlay.classList.add('open');
+    });
+}
+
+function confettiPreviewKeyHandler(e) {
+    if (e.key === 'Escape') {
+        closeConfettiPreview();
+    }
+}
+
+function closeConfettiPreview() {
+    const overlay = document.getElementById('confetti-preview');
+    if (!overlay) return;
+    document.removeEventListener('keydown', confettiPreviewKeyHandler);
+
+    overlay.classList.remove('open');
+    setTimeout(() => overlay.remove(), 300);
 }

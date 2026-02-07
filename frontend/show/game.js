@@ -31,6 +31,17 @@ function initGame() {
     const wrap = document.createElement('div');
     wrap.className = 'jeu-container';
 
+    /* Touch/swipe support for mobile — swipe up/down to vote */
+    let touchStartX = 0, touchStartY = 0;
+    wrap.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY; }, {passive: true});
+    wrap.addEventListener('touchend', e => {
+        const dx = e.changedTouches[0].clientX - touchStartX;
+        const dy = e.changedTouches[0].clientY - touchStartY;
+        if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 50) {
+            nextJeuPair();
+        }
+    }, {passive: true});
+
     const pairEl = document.createElement('div');
     pairEl.className = 'jeu-pair';
     pairEl.id = 'jeu-pair';

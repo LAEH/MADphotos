@@ -526,16 +526,19 @@ def upsert_variant(conn: sqlite3.Connection, *, variant_id: str, image_uuid: str
 
 def get_ungenerated_variants(conn: sqlite3.Connection,
                              variant_type: Optional[str] = None,
-                             include_failed: bool = True) -> List[Dict]:
+                             include_failed: bool = True,
+                             kept_only: bool = False) -> List[Dict]:
     """Return image UUIDs that need a variant generated.
 
     By default also retries 'failed' variants (only skips 'success' and 'filtered').
+    If kept_only=True, only returns images with curated_status='kept'.
     """
+    curated_filter = "AND i.curated_status = 'kept'" if kept_only else ""
     if variant_type:
         skip_statuses = ("success", "filtered")
         if not include_failed:
             skip_statuses = ("success", "filtered", "failed")
-        rows = conn.execute("""
+        rows = conn.execute(f"""
             SELECT i.uuid, i.original_path, i.category, i.subcategory
             FROM images i
             WHERE NOT EXISTS (
@@ -544,12 +547,14 @@ def get_ungenerated_variants(conn: sqlite3.Connection,
                   AND v.variant_type = ?
                   AND v.generation_status IN (?, ?)
             )
+            {curated_filter}
             ORDER BY i.uuid
         """, (variant_type, skip_statuses[0], skip_statuses[1])).fetchall()
     else:
-        rows = conn.execute("""
+        rows = conn.execute(f"""
             SELECT DISTINCT i.uuid, i.original_path, i.category, i.subcategory
             FROM images i
+            WHERE 1=1 {curated_filter}
             ORDER BY i.uuid
         """).fetchall()
     return [dict(r) for r in rows]

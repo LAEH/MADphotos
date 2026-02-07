@@ -65,6 +65,20 @@ function renderPendulumRound() {
         ? [{ src: enhancedSrc, isEnhanced: true }, { src: originalSrc, isEnhanced: false }]
         : [{ src: originalSrc, isEnhanced: false }, { src: enhancedSrc, isEnhanced: true }];
 
+    /* Touch/swipe support for mobile — swipe left = pick left, swipe right = pick right */
+    let touchStartX = 0, touchStartY = 0;
+    pair.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY; }, {passive: true});
+    pair.addEventListener('touchend', e => {
+        const dx = e.changedTouches[0].clientX - touchStartX;
+        const dy = e.changedTouches[0].clientY - touchStartY;
+        if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+            const chosenSide = dx > 0 ? sides[0] : sides[1];
+            ps.choices.push({ photoId: photo.id, choseEnhanced: chosenSide.isEnhanced });
+            ps.current++;
+            renderPendulumRound();
+        }
+    }, {passive: true});
+
     for (const side of sides) {
         const card = document.createElement('div');
         card.className = 'pendulum-choice';
@@ -73,6 +87,7 @@ function renderPendulumRound() {
         img.className = 'img-loading';
         img.alt = '';
         const preload = new Image();
+        preload.decoding = 'async';
         preload.onload = () => {
             img.src = side.src;
             if (typeof revealImg === 'function') revealImg(img);
