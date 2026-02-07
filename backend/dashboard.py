@@ -569,19 +569,32 @@ def get_stats():
     except Exception:
         pass
 
-    # Total models completed (how many analysis phases hit 100%)
+    # Total models completed (17 displayed models)
     # Use 'processed' for detection models (images with + without detections)
     face_processed = signals.get('face_detections', {}).get('processed', signals.get('face_detections', {}).get('images', 0))
     obj_processed = signals.get('object_detections', {}).get('processed', signals.get('object_detections', {}).get('images', 0))
-    models_complete = sum(1 for c in [
-        pixel_analyzed, analyzed,
-        aesthetic_count, depth_count, scene_count, style_count,
-        caption_count, enhancement_count, vector_count,
-        signals.get('exif_metadata', {}).get('rows', 0),
-        signals.get('dominant_colors', {}).get('images', 0),
-        face_processed, obj_processed,
-        signals.get('image_hashes', {}).get('rows', 0),
-    ] if c >= total)
+    face_images_with = signals.get('face_detections', {}).get('images', 0)
+    # Each (count, denominator) pair — most use total, Facial Emotions uses face count
+    model_checks = [
+        (analyzed, total),           # 01 Gemini
+        (pixel_analyzed, total),     # 02 Pixel Analysis
+        (vector_count, total),       # 03 DINOv2
+        (vector_count, total),       # 04 SigLIP
+        (vector_count, total),       # 05 CLIP
+        (face_processed, total),     # 06 YuNet
+        (obj_processed, total),      # 07 YOLOv8n
+        (aesthetic_count, total),    # 08 NIMA
+        (depth_count, total),        # 09 Depth Anything
+        (scene_count, total),        # 10 Places365
+        (style_count, total),        # 11 Style Net
+        (caption_count, total),      # 12 BLIP
+        (ocr_images, total),         # 13 EasyOCR
+        (emotion_count, face_images_with or 1),  # 14 Facial Emotions (vs face images)
+        (enhancement_count, total),  # 15 Enhancement Engine
+        (signals.get('dominant_colors', {}).get('images', 0), total),  # 16 K-means LAB
+        (signals.get('exif_metadata', {}).get('images', 0), total),    # 17 EXIF Parser
+    ]
+    models_complete = sum(1 for count, denom in model_checks if denom > 0 and count >= denom)
 
     # Total signals extracted across all models
     total_signals = sum([

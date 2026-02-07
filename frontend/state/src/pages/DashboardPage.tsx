@@ -120,13 +120,15 @@ export function DashboardPage() {
   const sigEX = s.signals?.exif_metadata || { rows: 0, images: 0 }
 
   /* ── 17 Models ── */
-  const models = [
+  // Facial Emotions only applies to images with faces, not all images
+  const faceProcessed = sigFD.processed || sigFD.images
+  const models: { n: string; name: string; tech: string; count: number; of?: number }[] = [
     { n: '01', name: 'Gemini 2.5 Pro', tech: 'Vertex AI \u00B7 Google Cloud', count: s.analyzed },
     { n: '02', name: 'Pixel Analysis', tech: 'Python \u00B7 Pillow \u00B7 NumPy', count: s.pixel_analyzed },
     { n: '03', name: 'DINOv2', tech: 'PyTorch \u00B7 Meta FAIR \u00B7 ViT-B/14', count: s.vector_count },
     { n: '04', name: 'SigLIP', tech: 'PyTorch \u00B7 Google \u00B7 ViT-B/16', count: s.vector_count },
     { n: '05', name: 'CLIP', tech: 'PyTorch \u00B7 OpenAI \u00B7 ViT-B/32', count: s.vector_count },
-    { n: '06', name: 'YuNet', tech: 'OpenCV DNN \u00B7 ONNX \u00B7 C++', count: sigFD.processed || sigFD.images },
+    { n: '06', name: 'YuNet', tech: 'OpenCV DNN \u00B7 ONNX \u00B7 C++', count: faceProcessed },
     { n: '07', name: 'YOLOv8n', tech: 'PyTorch \u00B7 Ultralytics \u00B7 COCO', count: sigOD.processed || sigOD.images },
     { n: '08', name: 'NIMA', tech: 'PyTorch \u00B7 TensorFlow origin \u00B7 MobileNet', count: s.aesthetic_count },
     { n: '09', name: 'Depth Anything v2', tech: 'PyTorch \u00B7 Hugging Face \u00B7 ViT', count: s.depth_count },
@@ -134,7 +136,7 @@ export function DashboardPage() {
     { n: '11', name: 'Style Net', tech: 'PyTorch \u00B7 Custom classifier', count: s.style_count },
     { n: '12', name: 'BLIP', tech: 'PyTorch \u00B7 Salesforce \u00B7 ViT+LLM', count: s.caption_count },
     { n: '13', name: 'EasyOCR', tech: 'PyTorch \u00B7 CRAFT + CRNN', count: s.ocr_images || 0 },
-    { n: '14', name: 'Facial Emotions', tech: 'PyTorch \u00B7 FER \u00B7 CNN', count: s.emotion_count || 0 },
+    { n: '14', name: 'Facial Emotions', tech: 'PyTorch \u00B7 FER \u00B7 CNN', count: s.emotion_count || 0, of: sigFD.images },
     { n: '15', name: 'Enhancement Engine', tech: 'Python \u00B7 Pillow \u00B7 Camera-aware', count: s.enhancement_count },
     { n: '16', name: 'K-means LAB', tech: 'Python \u00B7 scikit-learn \u00B7 LAB space', count: sigDC.images },
     { n: '17', name: 'EXIF Parser', tech: 'Python \u00B7 Pillow \u00B7 piexif', count: sigEX.images },
@@ -163,7 +165,8 @@ export function DashboardPage() {
         </p>
         <div className="el-grid">
           {models.map(m => {
-            const pct = s.total > 0 ? (m.count / s.total * 100) : 0
+            const denom = m.of ?? s.total
+            const pct = denom > 0 ? (m.count / denom * 100) : 0
             const status = pct >= 99.5 ? 'done' : pct > 0 ? 'active' : 'pending'
             return (
               <div key={m.n} className={`el-card status-${status}`}>
