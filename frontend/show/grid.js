@@ -1,28 +1,36 @@
-/* grid.js — Sort: Top 1,000 photographs with sort controls.
-   Centered justified grid, no filters. */
+/* grid.js — Sort: Top 1,000 photographs with glass sort bar.
+   Sort by aesthetic, time, vibe, scene, color, light.
+   Adjustable grid density (S/M/L). */
 
 let sortMethod = 'aesthetic';
 let sortedPhotos = [];
+let gridSize = 'M';
+
+const GRID_SIZES = { S: 140, M: 220, L: 320 };
 
 function initGrille() {
     const container = document.getElementById('view-grille');
     container.innerHTML = '';
 
-    /* Select top 1000 by aesthetic */
     const pool = APP.data.photos.filter(p => p.thumb);
     sortedPhotos = [...pool].sort((a, b) => (b.aesthetic || 0) - (a.aesthetic || 0)).slice(0, 1000);
     sortMethod = 'aesthetic';
 
-    /* Sort bar */
+    /* Glass sort bar */
     const sortBar = document.createElement('div');
     sortBar.className = 'sort-bar';
     sortBar.id = 'sort-bar';
 
+    const inner = document.createElement('div');
+    inner.className = 'sort-bar-inner';
+
     const methods = [
         { id: 'aesthetic', label: 'Aesthetic' },
-        { id: 'time',      label: 'Time' },
-        { id: 'vibe',      label: 'Vibe' },
-        { id: 'scene',     label: 'Scene' },
+        { id: 'time',     label: 'Time' },
+        { id: 'vibe',     label: 'Vibe' },
+        { id: 'scene',    label: 'Scene' },
+        { id: 'color',    label: 'Color' },
+        { id: 'light',    label: 'Light' },
     ];
 
     for (const m of methods) {
@@ -31,12 +39,34 @@ function initGrille() {
         btn.dataset.sort = m.id;
         btn.textContent = m.label;
         btn.addEventListener('click', () => applySortMethod(m.id));
-        sortBar.appendChild(btn);
+        inner.appendChild(btn);
     }
 
+    /* Separator */
+    const sep = document.createElement('div');
+    sep.className = 'sort-sep';
+    inner.appendChild(sep);
+
+    /* Grid size toggle */
+    for (const size of ['S', 'M', 'L']) {
+        const btn = document.createElement('button');
+        btn.className = 'sort-size-btn' + (size === gridSize ? ' active' : '');
+        btn.dataset.size = size;
+        btn.textContent = size;
+        btn.addEventListener('click', () => {
+            gridSize = size;
+            document.querySelectorAll('.sort-size-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.size === size);
+            });
+            renderSortGrid();
+        });
+        inner.appendChild(btn);
+    }
+
+    sortBar.appendChild(inner);
     container.appendChild(sortBar);
 
-    /* Grid wrap — centered with max-width */
+    /* Grid wrap */
     const gridWrap = document.createElement('div');
     gridWrap.className = 'sort-grid-wrap';
     gridWrap.id = 'sort-grid-wrap';
@@ -80,10 +110,23 @@ function applySortMethod(method) {
                 return (a.scene || '\uffff').localeCompare(b.scene || '\uffff');
             });
             break;
+        case 'color':
+            sortedPhotos = [...top1000].sort((a, b) => {
+                const ha = a.palette && a.palette[0] ? hexToHue(a.palette[0]) : 999;
+                const hb = b.palette && b.palette[0] ? hexToHue(b.palette[0]) : 999;
+                return ha - hb;
+            });
+            break;
+        case 'light':
+            sortedPhotos = [...top1000].sort((a, b) => {
+                const la = a.palette && a.palette[0] ? hexToLightness(a.palette[0]) : 50;
+                const lb = b.palette && b.palette[0] ? hexToLightness(b.palette[0]) : 50;
+                return la - lb;
+            });
+            break;
     }
 
     renderSortGrid();
-    /* Scroll back to top after sort change */
     document.getElementById('view-grille').scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -92,7 +135,7 @@ function renderSortGrid() {
     if (!wrap) return;
     wrap.innerHTML = '';
 
-    const targetRowHeight = 280;
+    const targetRowHeight = GRID_SIZES[gridSize] || 220;
     const gap = 4;
     const containerWidth = Math.min(wrap.clientWidth || 1100, 1100);
 

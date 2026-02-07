@@ -1120,3 +1120,11 @@ Four new web experiences added to Show: **Les Confetti** (confetti.js), **Les Do
 ### 17:00 — Deploy
 
 Committed all changes to GitHub (`b7b53f8`): 37 files, +6,866 / -3,702 lines. Deployed Show to Firebase Hosting at `https://madphotos-efbfb.web.app`. Updated journal, README, and regenerated State dashboard pages.
+
+---
+
+### 17:24 — Show: Launcher Redesign + Experience Polish
+
+Simplified the Show launcher from verbose card-per-experience HTML to a streamlined layout. Removed inline card markup from `index.html` (134 lines cut), moved experience metadata into `app.js` for dynamic rendering. Header redesigned: split logo into `MAD` + `photos` spans for typographic styling, replaced tab nav with experience name display. Removed photo count from header.
+
+Major experience refinements across 6 modules: `bento.js` (+224 lines — layout improvements), `confetti.js` (+447 lines — interaction overhaul), `faces.js` (+230 lines — emotion grid polish), `compass.js` (+75 lines — axis calibration), `grid.js` (+65 lines — filter/sort refinements). `style.css` consolidated from 810 lines of changes — removed redundant rules, tightened token usage. Created `/ship` deploy agent skill for automated journal + commit + push + Firebase deploy pipeline.

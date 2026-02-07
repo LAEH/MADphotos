@@ -1,6 +1,6 @@
 /* compass.js — La Boussole: Four-axis signal compass.
-   Viewport-fixed cross layout. Center image prominent,
-   four directional suggestions dimmed around it. */
+   Grid layout: top/bottom wide bars, left/right narrow, center hero.
+   Landscape images only. Desktop/iPad landscape only. */
 
 let compassCurrentId = null;
 
@@ -8,8 +8,10 @@ function initCompass() {
     const container = document.getElementById('view-compass');
     container.innerHTML = '';
 
-    const photos = APP.data.photos.filter(p => p.thumb && (p.vibes || []).length > 0);
-    const start = randomFrom(photos.length ? photos : APP.data.photos);
+    const photos = APP.data.photos.filter(p =>
+        p.thumb && p.style !== 'portrait' && p.orientation !== 'portrait' && (p.vibes || []).length > 0
+    );
+    const start = randomFrom(photos.length ? photos : APP.data.photos.filter(p => p.thumb));
     renderCompass(start);
 }
 
@@ -18,11 +20,14 @@ function renderCompass(photo) {
     const container = document.getElementById('view-compass');
     container.innerHTML = '';
 
-    const layout = document.createElement('div');
-    layout.className = 'compass-cross';
+    const grid = document.createElement('div');
+    grid.className = 'compass-grid';
 
-    /* Find one neighbor per axis */
-    const allPhotos = APP.data.photos;
+    /* Landscape-only pool */
+    const allPhotos = APP.data.photos.filter(p =>
+        p.thumb && p.style !== 'portrait' && p.orientation !== 'portrait'
+    );
+
     const axes = [
         { key: 'north', label: 'Composition', finder: findCompositionMatch },
         { key: 'east',  label: 'Color',       finder: findColorMatch },
@@ -35,44 +40,45 @@ function renderCompass(photo) {
         matches[axis.key] = { photo: axis.finder(photo, allPhotos), label: axis.label };
     }
 
-    /* North */
+    /* Build grid children with grid-area */
     const north = buildCompassArm('north', matches.north);
-    layout.appendChild(north);
+    north.style.gridArea = 'north';
+    grid.appendChild(north);
 
-    /* Middle row: west — center — east */
-    const mid = document.createElement('div');
-    mid.className = 'compass-mid';
+    const west = buildCompassArm('west', matches.west);
+    west.style.gridArea = 'west';
+    grid.appendChild(west);
 
-    mid.appendChild(buildCompassArm('west', matches.west));
-
-    /* Center */
     const center = document.createElement('div');
     center.className = 'compass-center';
+    center.style.gridArea = 'center';
     const centerImg = document.createElement('img');
     centerImg.className = 'compass-center-img clickable-img';
     loadProgressive(centerImg, photo, 'display');
     centerImg.alt = photo.caption || photo.alt || '';
     centerImg.addEventListener('click', () => openLightbox(photo));
     center.appendChild(centerImg);
-    mid.appendChild(center);
+    grid.appendChild(center);
 
-    mid.appendChild(buildCompassArm('east', matches.east));
+    const east = buildCompassArm('east', matches.east);
+    east.style.gridArea = 'east';
+    grid.appendChild(east);
 
-    layout.appendChild(mid);
-
-    /* South */
     const south = buildCompassArm('south', matches.south);
-    layout.appendChild(south);
+    south.style.gridArea = 'south';
+    grid.appendChild(south);
 
-    container.appendChild(layout);
+    container.appendChild(grid);
 
-    /* Random button — floating */
+    /* Random button */
     const randomBtn = document.createElement('button');
     randomBtn.className = 'compass-random';
     randomBtn.textContent = 'random';
     randomBtn.addEventListener('click', () => {
-        const photos = APP.data.photos.filter(p => p.thumb && (p.vibes || []).length > 0);
-        renderCompass(randomFrom(photos));
+        const pool = APP.data.photos.filter(p =>
+            p.thumb && p.style !== 'portrait' && p.orientation !== 'portrait' && (p.vibes || []).length > 0
+        );
+        renderCompass(randomFrom(pool));
     });
     container.appendChild(randomBtn);
 }
@@ -88,7 +94,7 @@ function buildCompassArm(direction, match) {
 
     const img = document.createElement('img');
     img.className = 'compass-arm-img';
-    loadProgressive(img, match.photo, 'mobile');
+    loadProgressive(img, match.photo, 'thumb');
     img.alt = match.photo.caption || match.photo.alt || '';
 
     const overlay = document.createElement('div');
@@ -99,7 +105,6 @@ function buildCompassArm(direction, match) {
     label.textContent = match.label;
     overlay.appendChild(label);
 
-    /* Show the shared trait */
     const trait = getSharedTrait(direction, match.photo);
     if (trait) {
         const traitEl = document.createElement('span');
@@ -127,9 +132,9 @@ function getSharedTrait(direction, photo) {
 }
 
 function findCompositionMatch(photo, all) {
-    if (!photo.composition) return randomFrom(all.filter(p => p.thumb && p.id !== photo.id));
+    if (!photo.composition) return randomFrom(all.filter(p => p.id !== photo.id));
     const matches = all.filter(p =>
-        p.id !== photo.id && p.thumb && p.composition === photo.composition && p.scene !== photo.scene
+        p.id !== photo.id && p.composition === photo.composition && p.scene !== photo.scene
     );
     return matches.length ? randomFrom(matches) : null;
 }
@@ -140,7 +145,7 @@ function findColorMatch(photo, all) {
     const step = Math.max(1, Math.floor(all.length / 500));
     for (let i = 0; i < all.length; i += step) {
         const p = all[i];
-        if (p.id === photo.id || !p.thumb) continue;
+        if (p.id === photo.id) continue;
         let d = Math.abs((p.hue || 0) - hue);
         if (d > 180) d = 360 - d;
         if (d < bestDist && d > 5) {
@@ -153,19 +158,19 @@ function findColorMatch(photo, all) {
 
 function findMoodMatch(photo, all) {
     const vibes = photo.vibes || [];
-    if (!vibes.length) return randomFrom(all.filter(p => p.thumb && p.id !== photo.id));
+    if (!vibes.length) return randomFrom(all.filter(p => p.id !== photo.id));
     const v = vibes[0];
     const matches = all.filter(p =>
-        p.id !== photo.id && p.thumb && (p.vibes || []).includes(v) && p.category !== photo.category
+        p.id !== photo.id && (p.vibes || []).includes(v) && p.category !== photo.category
     );
     return matches.length ? randomFrom(matches) : null;
 }
 
 function findMeaningMatch(photo, all) {
     const objs = photo.objects || [];
-    if (!objs.length) return randomFrom(all.filter(p => p.thumb && p.id !== photo.id));
+    if (!objs.length) return randomFrom(all.filter(p => p.id !== photo.id));
     const matches = all.filter(p => {
-        if (p.id === photo.id || !p.thumb) return false;
+        if (p.id === photo.id) return false;
         return (p.objects || []).some(o => objs.includes(o)) && p.scene !== photo.scene;
     });
     return matches.length ? randomFrom(matches) : null;

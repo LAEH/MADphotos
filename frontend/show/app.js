@@ -7,7 +7,7 @@ const LAZY_MARGIN = '300px'; /* IntersectionObserver preload distance */
 const APP = {
     data: null,
     photoMap: {},
-    currentView: 'launcher',
+    currentView: null,
     faces: null,
     gameRounds: null,
     streamSequence: null,
@@ -17,36 +17,19 @@ const APP = {
 
 /* Experience registry */
 const EXPERIENCES = [
-    { id: 'grille',      name: 'Sort',            init: 'initGrille' },
-    { id: 'bento',       name: 'Le Bento',        init: 'initBento' },
-    { id: 'similarity',  name: 'La Similarit\u00e9', init: 'initSimilarity' },
-    { id: 'couleurs',    name: 'Les Couleurs',    init: 'initCouleurs' },
-    { id: 'game',        name: 'Le Jeu',          init: 'initGame' },
-    { id: 'domino',      name: 'Le Domino',       init: 'initDomino' },
-    { id: 'stream',      name: 'Le Flot',         init: 'initStream' },
-    { id: 'faces',       name: 'Les Visages',     init: 'initFaces' },
-    { id: 'compass',     name: 'La Boussole',     init: 'initCompass' },
-    { id: 'nyu',         name: 'NYU',             init: 'initNyu' },
-    { id: 'confetti',    name: 'Les Confettis',   init: 'initConfetti' },
+    { id: 'grille',      name: 'Sort By',         init: 'initGrille' },
+    { id: 'couleurs',    name: 'Colors',           init: 'initCouleurs' },
+    { id: 'faces',       name: 'Faces',            init: 'initFaces' },
+    { id: 'compass',     name: 'Relations',        init: 'initCompass' },
+    { id: 'bento',       name: 'Bento',            init: 'initBento' },
+    { id: 'nyu',         name: 'NYU',              init: 'initNyu' },
+    { id: 'game',        name: 'Couple',            init: 'initGame' },
+    { id: 'confetti',    name: 'Les Confettis',    init: 'initConfetti' },
 ];
 
 /* ===== Device Detection & Gating ===== */
 function isMobile() {
     return window.matchMedia('(max-width: 768px)').matches;
-}
-
-function updateDeviceGating() {
-    const mobile = isMobile();
-    document.querySelectorAll('.exp-card[data-device]').forEach(card => {
-        const device = card.dataset.device;
-        const disabled = (mobile && device === 'desktop') || (!mobile && device === 'mobile');
-        card.classList.toggle('exp-card-disabled', disabled);
-        if (disabled) {
-            card.dataset.disabledMsg = mobile ? 'Desktop only' : 'Mobile only';
-        } else {
-            card.dataset.disabledMsg = '';
-        }
-    });
 }
 
 /* ===== Data Loading (with error handling) ===== */
@@ -62,7 +45,7 @@ async function loadData() {
         for (const photo of APP.data.photos) {
             APP.photoMap[photo.id] = photo;
         }
-        document.getElementById('photo-count').textContent = APP.data.count + ' photos';
+        /* photo count removed — header shows experiment name instead */
         return APP.data;
     } catch (err) {
         document.getElementById('view-grille').innerHTML =
@@ -115,18 +98,55 @@ function clearAllTimers() {
 }
 
 /* ===== Router ===== */
+/* ===== Side Menu ===== */
+function buildSideMenu() {
+    const list = document.getElementById('side-menu-list');
+    if (!list) return;
+    list.innerHTML = '';
+
+    for (const exp of EXPERIENCES) {
+        const li = document.createElement('li');
+        li.className = 'side-menu-item';
+        li.dataset.view = exp.id;
+        li.textContent = exp.name;
+        li.addEventListener('click', () => {
+            switchView(exp.id);
+            closeSideMenu();
+        });
+        list.appendChild(li);
+    }
+}
+
+function toggleSideMenu() {
+    const menu = document.getElementById('side-menu');
+    const backdrop = document.getElementById('side-menu-backdrop');
+    const open = menu.classList.toggle('open');
+    backdrop.classList.toggle('open', open);
+}
+
+function closeSideMenu() {
+    document.getElementById('side-menu').classList.remove('open');
+    document.getElementById('side-menu-backdrop').classList.remove('open');
+}
+
+function updateSideMenuActive(viewId) {
+    document.querySelectorAll('.side-menu-item').forEach(item => {
+        item.classList.toggle('active', item.dataset.view === viewId);
+    });
+}
+
 function initRouter() {
+    buildSideMenu();
+
     document.getElementById('logo-home').addEventListener('click', (e) => {
         e.preventDefault();
-        switchView('launcher');
+        toggleSideMenu();
     });
 
-    document.querySelectorAll('.exp-card').forEach(card => {
-        card.addEventListener('click', () => {
-            if (card.classList.contains('exp-card-disabled')) return;
-            const view = card.dataset.view;
-            if (view) switchView(view);
-        });
+    document.getElementById('side-menu-backdrop').addEventListener('click', closeSideMenu);
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeSideMenu();
     });
 
     window.addEventListener('hashchange', () => {
@@ -134,11 +154,6 @@ function initRouter() {
         if (hash && hash !== APP.currentView) {
             const validViews = EXPERIENCES.map(e => e.id);
             if (validViews.includes(hash)) {
-                const card = document.querySelector(`.exp-card[data-view="${hash}"]`);
-                if (card && card.classList.contains('exp-card-disabled')) {
-                    switchView('launcher');
-                    return;
-                }
                 switchView(hash);
             }
         }
@@ -150,28 +165,17 @@ function switchView(name) {
     clearAllTimers();
 
     APP.currentView = name;
-    location.hash = name === 'launcher' ? '' : name;
+    location.hash = name;
 
-    /* Update tabs */
-    const tabsContainer = document.getElementById('tabs');
-    tabsContainer.innerHTML = '';
-
-    if (name !== 'launcher') {
-        const exp = EXPERIENCES.find(e => e.id === name);
-
-        const backBtn = document.createElement('button');
-        backBtn.className = 'tab';
-        backBtn.textContent = 'All';
-        backBtn.addEventListener('click', () => switchView('launcher'));
-        tabsContainer.appendChild(backBtn);
-
-        if (exp) {
-            const current = document.createElement('button');
-            current.className = 'tab active';
-            current.textContent = exp.name;
-            tabsContainer.appendChild(current);
-        }
+    /* Update header — show experiment name */
+    const expNameEl = document.getElementById('header-exp-name');
+    const exp = EXPERIENCES.find(e => e.id === name);
+    if (expNameEl) {
+        expNameEl.textContent = exp ? exp.name : '';
     }
+
+    /* Update side menu active state */
+    updateSideMenuActive(name);
 
     /* Toggle views */
     document.querySelectorAll('.view').forEach(v => {
@@ -179,7 +183,6 @@ function switchView(name) {
     });
 
     /* Trigger experience init */
-    const exp = EXPERIENCES.find(e => e.id === name);
     if (exp && typeof window[exp.init] === 'function') {
         try {
             window[exp.init]();
@@ -417,6 +420,33 @@ const lazyObserver = new IntersectionObserver((entries) => {
     }
 }, { rootMargin: LAZY_MARGIN });
 
+/* ===== Color Utilities ===== */
+function hexToHue(hex) {
+    if (!hex || hex.length < 7) return -1;
+    const r = parseInt(hex.slice(1, 3), 16) / 255;
+    const g = parseInt(hex.slice(3, 5), 16) / 255;
+    const b = parseInt(hex.slice(5, 7), 16) / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    const d = max - min;
+    if (d < 0.08) return -1;
+    const l = (max + min) / 2;
+    const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (s < 0.12) return -1;
+    let h;
+    if (max === r) h = ((g - b) / d + 6) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    return h * 60;
+}
+
+function hexToLightness(hex) {
+    if (!hex || hex.length < 7) return 50;
+    const r = parseInt(hex.slice(1, 3), 16) / 255;
+    const g = parseInt(hex.slice(3, 5), 16) / 255;
+    const b = parseInt(hex.slice(5, 7), 16) / 255;
+    return (Math.max(r, g, b) + Math.min(r, g, b)) / 2 * 100;
+}
+
 /* ===== Utilities ===== */
 function randomFrom(arr) {
     return arr[Math.floor(Math.random() * arr.length)];
@@ -451,13 +481,14 @@ async function init() {
 
     initRouter();
     initLightbox();
-    updateDeviceGating();
-    window.addEventListener('resize', debounce(updateDeviceGating, 250));
 
+    /* Navigate to hash or default to first experience */
     const hash = location.hash.slice(1);
     const validViews = EXPERIENCES.map(e => e.id);
     if (hash && validViews.includes(hash)) {
         switchView(hash);
+    } else {
+        switchView(EXPERIENCES[0].id);
     }
 }
 

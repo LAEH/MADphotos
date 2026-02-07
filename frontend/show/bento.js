@@ -1,9 +1,66 @@
-/* bento.js — Le Bento: Elevated mosaic card.
-   A single beautiful composition of ~8 images in a centered card
-   with generous space around it. Horizontal on desktop, vertical
-   on mobile. Crossfades individual tiles. */
+/* bento.js — Le Bento: Irregular mosaic of mixed portrait & landscape images.
+   Multiple layout templates. Crossfade tiles. Desktop only. */
 
 let bentoPhotos = [];
+let bentoLayout = null;
+let bentoLayoutIdx = -1;
+
+const BENTO_LAYOUTS = [
+    /* "Classic" — 8 images, 4x4 grid */
+    {
+        cols: 4, rows: 4, count: 8,
+        cells: [
+            { r: 1, c: 1, rs: 2, cs: 2, pref: 'landscape' },
+            { r: 1, c: 3, rs: 2, cs: 1, pref: 'portrait' },
+            { r: 1, c: 4, rs: 1, cs: 1 },
+            { r: 2, c: 4, rs: 2, cs: 1, pref: 'portrait' },
+            { r: 3, c: 1, rs: 2, cs: 1, pref: 'portrait' },
+            { r: 3, c: 2, rs: 1, cs: 2, pref: 'landscape' },
+            { r: 4, c: 2, rs: 1, cs: 2, pref: 'landscape' },
+            { r: 4, c: 4, rs: 1, cs: 1 },
+        ]
+    },
+    /* "Stagger" — 7 images, 4x3 grid */
+    {
+        cols: 4, rows: 3, count: 7,
+        cells: [
+            { r: 1, c: 1, rs: 1, cs: 2, pref: 'landscape' },
+            { r: 1, c: 3, rs: 1, cs: 1 },
+            { r: 1, c: 4, rs: 2, cs: 1, pref: 'portrait' },
+            { r: 2, c: 1, rs: 2, cs: 1, pref: 'portrait' },
+            { r: 2, c: 2, rs: 1, cs: 2, pref: 'landscape' },
+            { r: 3, c: 2, rs: 1, cs: 1 },
+            { r: 3, c: 3, rs: 1, cs: 2, pref: 'landscape' },
+        ]
+    },
+    /* "Panoramic" — 7 images, 5x3 grid */
+    {
+        cols: 5, rows: 3, count: 7,
+        cells: [
+            { r: 1, c: 1, rs: 1, cs: 3, pref: 'landscape' },
+            { r: 1, c: 4, rs: 1, cs: 2, pref: 'landscape' },
+            { r: 2, c: 1, rs: 2, cs: 1, pref: 'portrait' },
+            { r: 2, c: 2, rs: 1, cs: 2, pref: 'landscape' },
+            { r: 2, c: 4, rs: 1, cs: 2, pref: 'landscape' },
+            { r: 3, c: 2, rs: 1, cs: 2, pref: 'landscape' },
+            { r: 3, c: 4, rs: 1, cs: 2, pref: 'landscape' },
+        ]
+    },
+    /* "Tower" — 8 images, 3x4 grid */
+    {
+        cols: 3, rows: 4, count: 8,
+        cells: [
+            { r: 1, c: 1, rs: 2, cs: 1, pref: 'portrait' },
+            { r: 1, c: 2, rs: 1, cs: 2, pref: 'landscape' },
+            { r: 2, c: 2, rs: 1, cs: 1 },
+            { r: 2, c: 3, rs: 2, cs: 1, pref: 'portrait' },
+            { r: 3, c: 1, rs: 1, cs: 2, pref: 'landscape' },
+            { r: 4, c: 1, rs: 1, cs: 1 },
+            { r: 4, c: 2, rs: 1, cs: 1 },
+            { r: 4, c: 3, rs: 1, cs: 1 },
+        ]
+    },
+];
 
 function initBento() {
     const container = document.getElementById('view-bento');
@@ -12,10 +69,7 @@ function initBento() {
 
     generateBento();
 
-    /* Crossfade one tile every 20s */
     registerTimer(setInterval(crossfadeOneTile, 20000));
-
-    /* Space reshuffles */
     document.addEventListener('keydown', bentoKeyHandler);
 }
 
@@ -24,24 +78,49 @@ function bentoKeyHandler(e) {
     if (e.code === 'Space') {
         e.preventDefault();
         generateBento();
+    } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        bentoCycle(1);
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        bentoCycle(-1);
     }
 }
 
-function generateBento() {
-    const photos = APP.data.photos.filter(p => p.thumb && p.aesthetic);
-    const sorted = [...photos].sort((a, b) => (b.aesthetic || 0) - (a.aesthetic || 0));
-    const pool = sorted.slice(0, 200);
+function bentoCycle(dir) {
+    bentoLayoutIdx = (bentoLayoutIdx + dir + BENTO_LAYOUTS.length) % BENTO_LAYOUTS.length;
+    generateBentoWithLayout(bentoLayoutIdx);
+}
 
-    /* Pick 8 images with chromatic harmony */
+function generateBentoWithLayout(idx) {
+    bentoLayoutIdx = idx;
+    bentoLayout = BENTO_LAYOUTS[idx];
+    _fillBento();
+}
+
+function generateBento() {
+    bentoLayoutIdx = Math.floor(Math.random() * BENTO_LAYOUTS.length);
+    bentoLayout = BENTO_LAYOUTS[bentoLayoutIdx];
+    _fillBento();
+}
+
+function _fillBento() {
+    const n = bentoLayout.count;
+
+    const photos = APP.data.photos.filter(p => p.thumb && p.display && p.aesthetic);
+    const sorted = [...photos].sort((a, b) => (b.aesthetic || 0) - (a.aesthetic || 0));
+    const pool = sorted.slice(0, 300);
+
+    /* Pick n images with chromatic harmony */
     const seed = randomFrom(pool);
     const selected = [seed];
     const remaining = pool.filter(p => p.id !== seed.id);
 
-    for (let i = 0; i < 7 && remaining.length > 0; i++) {
+    for (let i = 1; i < n && remaining.length > 0; i++) {
         let bestIdx = 0;
         let bestScore = -1;
 
-        for (let j = 0; j < Math.min(remaining.length, 50); j++) {
+        for (let j = 0; j < Math.min(remaining.length, 80); j++) {
             const candidate = remaining[j];
             let colorDist = Math.abs((seed.hue || 0) - (candidate.hue || 0));
             if (colorDist > 180) colorDist = 360 - colorDist;
@@ -60,48 +139,91 @@ function generateBento() {
     }
 
     bentoPhotos = selected;
-    renderBentoGrid(selected);
+    renderBentoGrid(bentoLayout, selected);
 }
 
-function renderBentoGrid(photos) {
+function matchPhotosToLayout(cells, photos) {
+    const portraits = [];
+    const landscapes = [];
+
+    for (const p of photos) {
+        const isPortrait = p.orientation === 'portrait' || p.style === 'portrait';
+        if (isPortrait) portraits.push(p);
+        else landscapes.push(p);
+    }
+
+    shuffleArray(portraits);
+    shuffleArray(landscapes);
+
+    const matched = [];
+
+    for (const cell of cells) {
+        let photo;
+        if (cell.pref === 'portrait' && portraits.length > 0) {
+            photo = portraits.shift();
+        } else if (cell.pref === 'landscape' && landscapes.length > 0) {
+            photo = landscapes.shift();
+        } else {
+            photo = (landscapes.length > 0 ? landscapes : portraits).shift();
+        }
+        matched.push(photo || null);
+    }
+
+    return matched;
+}
+
+function renderBentoGrid(layout, photos) {
     const container = document.getElementById('view-bento');
     container.innerHTML = '';
+
+    const matched = matchPhotosToLayout(layout.cells, photos);
 
     const wrap = document.createElement('div');
     wrap.className = 'bento-wrap';
 
-    const card = document.createElement('div');
-    card.className = 'bento-card';
-    card.id = 'bento-grid';
+    const grid = document.createElement('div');
+    grid.className = 'bento-grid';
+    grid.id = 'bento-grid';
+    grid.style.setProperty('--bento-cols', layout.cols);
+    grid.style.setProperty('--bento-rows', layout.rows);
+    grid.style.aspectRatio = layout.cols / layout.rows;
 
-    const mobile = window.matchMedia('(max-width: 768px)').matches;
+    for (let i = 0; i < matched.length; i++) {
+        const cell = layout.cells[i];
+        const photo = matched[i];
+        if (!photo) continue;
 
-    if (mobile) {
-        /* Vertical: 4 rows of 2 */
-        const rows = [[0,1],[2,3],[4,5],[6,7]];
-        for (const [a, b] of rows) {
-            const row = document.createElement('div');
-            row.className = 'bento-row';
-            if (photos[a]) row.appendChild(makeBentoTile(photos[a]));
-            if (photos[b]) row.appendChild(makeBentoTile(photos[b]));
-            card.appendChild(row);
-        }
-    } else {
-        /* Horizontal: 2 rows of 4 */
-        const rows = [[0,1,2,3],[4,5,6,7]];
-        for (const indices of rows) {
-            const row = document.createElement('div');
-            row.className = 'bento-row';
-            for (const i of indices) {
-                if (photos[i]) row.appendChild(makeBentoTile(photos[i]));
-            }
-            card.appendChild(row);
-        }
+        const tile = document.createElement('div');
+        tile.className = 'bento-tile';
+        tile.dataset.id = photo.id;
+        tile.style.gridRow = cell.r + ' / ' + (cell.r + cell.rs);
+        tile.style.gridColumn = cell.c + ' / ' + (cell.c + cell.cs);
+
+        const img = document.createElement('img');
+        loadProgressive(img, photo, 'display');
+        img.alt = '';
+        tile.appendChild(img);
+
+        tile.addEventListener('click', () => openLightbox(photo));
+        grid.appendChild(tile);
     }
 
-    wrap.appendChild(card);
+    wrap.appendChild(grid);
 
-    /* Regenerate button */
+    /* Navigation arrows */
+    const prevBtn = document.createElement('button');
+    prevBtn.className = 'bento-nav bento-nav-prev';
+    prevBtn.innerHTML = '&#8249;';
+    prevBtn.addEventListener('click', () => bentoCycle(-1));
+    wrap.appendChild(prevBtn);
+
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'bento-nav bento-nav-next';
+    nextBtn.innerHTML = '&#8250;';
+    nextBtn.addEventListener('click', () => bentoCycle(1));
+    wrap.appendChild(nextBtn);
+
+    /* Regen button */
     const btn = document.createElement('button');
     btn.className = 'bento-regen';
     btn.textContent = '\uD83C\uDFB2';
@@ -109,20 +231,6 @@ function renderBentoGrid(photos) {
     wrap.appendChild(btn);
 
     container.appendChild(wrap);
-}
-
-function makeBentoTile(photo) {
-    const tile = document.createElement('div');
-    tile.className = 'bento-tile';
-    tile.dataset.id = photo.id;
-
-    const img = document.createElement('img');
-    loadProgressive(img, photo, 'display');
-    img.alt = '';
-    tile.appendChild(img);
-
-    tile.addEventListener('click', () => openLightbox(photo));
-    return tile;
 }
 
 function crossfadeOneTile() {
@@ -136,7 +244,7 @@ function crossfadeOneTile() {
     const oldId = tile.dataset.id;
 
     const currentIds = new Set(bentoPhotos.map(p => p.id));
-    const pool = APP.data.photos.filter(p => p.thumb && p.aesthetic && !currentIds.has(p.id));
+    const pool = APP.data.photos.filter(p => p.thumb && p.display && p.aesthetic && !currentIds.has(p.id));
     if (pool.length === 0) return;
 
     const newPhoto = randomFrom(pool);
