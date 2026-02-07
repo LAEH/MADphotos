@@ -102,8 +102,9 @@ function applySortMethod(method) {
             break;
         case 'color':
             sortedPhotos = [...top1000].sort((a, b) => {
-                const ha = a.palette && a.palette[0] ? hexToHue(a.palette[0]) : 999;
-                const hb = b.palette && b.palette[0] ? hexToHue(b.palette[0]) : 999;
+                /* Use precomputed hue from most-saturated palette color */
+                const ha = (a.hue != null && a.hue > 0) ? a.hue : 999;
+                const hb = (b.hue != null && b.hue > 0) ? b.hue : 999;
                 return ha - hb;
             });
             break;

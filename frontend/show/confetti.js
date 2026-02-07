@@ -199,35 +199,12 @@ function buildConfettiSets() {
     return sets;
 }
 
-/* ===== Shell — nav + viewport + floating bomb ===== */
+/* ===== Shell — radial dial + viewport ===== */
 function renderConfettiShell(container) {
     container.innerHTML = '';
 
     const shell = document.createElement('div');
     shell.className = 'confetti-shell';
-
-    /* Left column: nav */
-    const leftCol = document.createElement('div');
-    leftCol.className = 'confetti-left';
-
-    /* Vertical nav */
-    const nav = document.createElement('nav');
-    nav.className = 'confetti-nav';
-    nav.id = 'confetti-nav';
-
-    for (let i = 0; i < confettiSets.length; i++) {
-        const set = confettiSets[i];
-        const btn = document.createElement('button');
-        btn.className = 'confetti-nav-btn';
-        btn.dataset.idx = i;
-        btn.textContent = set.emoji;
-        btn.title = set.label;
-        btn.addEventListener('click', () => selectConfettiSet(i));
-        nav.appendChild(btn);
-    }
-
-    leftCol.appendChild(nav);
-    shell.appendChild(leftCol);
 
     /* Viewport */
     const vp = document.createElement('div');
@@ -248,6 +225,33 @@ function renderConfettiShell(container) {
 
     shell.appendChild(vp);
 
+    /* Radial dial — bomb center + orbiting emoji buttons */
+    const dial = document.createElement('div');
+    dial.className = 'confetti-dial';
+    dial.id = 'confetti-dial';
+
+    const bomb = document.createElement('button');
+    bomb.className = 'confetti-bomb';
+    bomb.textContent = '\uD83D\uDCA3';
+    bomb.title = 'Blow';
+    bomb.addEventListener('click', blowConfetti);
+    dial.appendChild(bomb);
+
+    const count = confettiSets.length;
+    for (let i = 0; i < count; i++) {
+        const set = confettiSets[i];
+        const btn = document.createElement('button');
+        btn.className = 'confetti-dial-btn';
+        btn.dataset.idx = i;
+        btn.textContent = set.emoji;
+        btn.title = set.label;
+        const angle = (i / count) * 360 - 90; /* start from top */
+        btn.style.setProperty('--dial-angle', angle + 'deg');
+        btn.addEventListener('click', () => selectConfettiSet(i));
+        dial.appendChild(btn);
+    }
+
+    shell.appendChild(dial);
     container.appendChild(shell);
 
     document.removeEventListener('keydown', handleConfettiKey);
@@ -274,7 +278,7 @@ function selectConfettiSet(idx) {
     confettiAnimating = true;
     confettiActiveIdx = idx;
 
-    document.querySelectorAll('.confetti-nav-btn').forEach(btn => {
+    document.querySelectorAll('.confetti-dial-btn').forEach(btn => {
         btn.classList.toggle('active', parseInt(btn.dataset.idx) === idx);
     });
 
@@ -295,19 +299,11 @@ function selectConfettiSet(idx) {
 function assembleSet(vp, set) {
     vp.innerHTML = '';
 
-    /* Wrapper holds mosaic + bomb so bomb anchors to mosaic edges */
     const wrap = document.createElement('div');
     wrap.className = 'confetti-mosaic-wrap';
 
     const mosaic = buildConfettiMosaic(set.photos);
     wrap.appendChild(mosaic);
-
-    const bomb = document.createElement('button');
-    bomb.className = 'confetti-bomb';
-    bomb.textContent = '\uD83D\uDCA3';
-    bomb.title = 'Blow';
-    bomb.addEventListener('click', blowConfetti);
-    wrap.appendChild(bomb);
 
     vp.appendChild(wrap);
 

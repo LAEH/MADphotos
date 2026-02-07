@@ -1202,3 +1202,25 @@ Two passes: mobile interaction improvements, then a full performance audit with 
 4. **Scripts deferred.** All 10 `<script>` tags in `index.html` now carry `defer`, unblocking HTML parsing while preserving execution order. Cache-busted to v=12.
 
 5. **Tiered backdrop-filter.** Auto-detection in `app.js` sets `tier-a` (Safari, capable devices with ≥4 cores) or `tier-b` (Chrome Android, low-end). Tier-b replaces all `backdrop-filter: blur()` with solid semi-transparent backgrounds across header, menus, nav bars, overlays, and buttons. 13 elements covered in a single rule block at end of `style.css`.
+
+---
+
+### 20:59 — Show: Square + Caption experiences, Confetti radial nav, Bento diversity, Lightbox cleanup, Fullscreen toggle
+
+Six feature areas in a single session, pushing from 9 to 11 Show experiences.
+
+**New experience: Square.** Scrabble-board tile grid of square-cropped images (`square.js`, ~160 lines). 12 emoji-labeled category filters (Best, Rouge, Vert, Bleu, Mono, Serein, Intense, Doré, Animaux, Nature, Urbain, Nuit). Responsive tile count: 9 (phone), 16 (tablet), 25 (desktop). Each tile carries an aesthetic score badge. Shake button shuffles with a jiggle animation — CSS custom properties `--shake-x/y/r` per tile. Premium cells (corners + center) get a gold `color-mix` inset border. Assembly animation staggers tiles with `--sq-delay`.
+
+**New experience: Caption.** Typographic tapestry (`caption.js`, ~170 lines). 200 photo captions flow as a dense justified text wall — each phrase is an inline `<span>` separated by thin interpuncts (`·`). Five size tiers from `text-xs` to `text-xl italic` based on aesthetic score. Variable opacity (0.3–1.0) creates depth. On hover, all siblings dim to 12% and a floating 180×130px preview image materializes above the cursor following mouse movement. Click opens lightbox. Touch: first tap highlights, second opens. Stagger-reveal on entry with 8ms delays.
+
+**Confetti radial nav redesign.** Replaced the vertical left-column emoji nav (which overflowed iPad Pro 11" landscape) with a floating radial dial. Bomb sits at center of a 160px disk, emoji buttons orbit at 66px radius using `transform: rotate(N) translateX(R) rotate(-N)` to stay upright. Responsive: dial moves to bottom-center on mobile, shrinks to 140px/120px. Removed `.confetti-left`, `.confetti-nav`, `.confetti-nav-btn` — replaced with `.confetti-dial`, `.confetti-dial-btn`.
+
+**Bento diversity fix.** `_fillBento()` pool expanded from top 300 to top 800 by aesthetic. Search window widened from 80 to 200 candidates. Selection now alternates between chromatic harmony (even picks) and vibe/scene diversity (odd picks) — bonus for scenes and vibes not yet represented. Result: each bento shows images from more varied contexts.
+
+**Lightbox cleanup.** `.lightbox-meta` set to `display: none` — no caption, tags, or palette. Image max-height increased to 90vh (85dvh on mobile). One CSS rule, fully reversible.
+
+**Fullscreen toggle.** Button added to header between logo and theme toggle — expand/collapse SVG icons toggle via `:root.is-fullscreen`. Uses Fullscreen API with webkit fallback. Hidden on iOS Safari where the API isn't supported. PWA meta tags (`apple-mobile-web-app-capable`, `black-translucent` status bar) enable standalone mode from home screen.
+
+**Fixes.** Sort By color sort now uses precomputed `photo.hue` (from most-saturated palette color) instead of `hexToHue(palette[0])` which returned -1 for achromatic images. Sort bar text contrast improved: unselected buttons use `color: var(--text); opacity: 0.55` instead of `color: var(--text-dim)` for better readability on glass. About link corrected to `https://laeh.github.io/MADphotos/`. Export pipeline: `squarable: true` added to photo objects.
+
+9 files changed (7 modified, 2 new). +503 / -112 lines.

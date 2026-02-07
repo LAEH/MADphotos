@@ -110,24 +110,45 @@ function _fillBento() {
 
     const photos = APP.data.photos.filter(p => p.thumb && p.display && p.aesthetic);
     const sorted = [...photos].sort((a, b) => (b.aesthetic || 0) - (a.aesthetic || 0));
-    const pool = sorted.slice(0, 300);
+    const pool = sorted.slice(0, 800);
 
-    /* Pick n images with chromatic harmony */
+    /* Pick n images with chromatic harmony + vibe/scene diversity */
     const seed = randomFrom(pool);
     const selected = [seed];
     const remaining = pool.filter(p => p.id !== seed.id);
+    const usedScenes = new Set(seed.scene ? [seed.scene] : []);
+    const usedVibes = new Set(seed.vibes || []);
 
     for (let i = 1; i < n && remaining.length > 0; i++) {
         let bestIdx = 0;
         let bestScore = -1;
+        const useDiversity = i % 2 === 1; /* odd picks: scene/vibe diversity */
 
-        for (let j = 0; j < Math.min(remaining.length, 80); j++) {
+        for (let j = 0; j < Math.min(remaining.length, 200); j++) {
             const candidate = remaining[j];
+            let score = 0;
+
+            /* Chromatic harmony (always contributes) */
             let colorDist = Math.abs((seed.hue || 0) - (candidate.hue || 0));
             if (colorDist > 180) colorDist = 360 - colorDist;
             const harmonyScore = colorDist < 60 ? 10 : (colorDist > 150 ? 8 : 3);
-            const aestheticBonus = (candidate.aesthetic || 5) / 2;
-            const score = harmonyScore + aestheticBonus;
+            score += harmonyScore;
+
+            /* Aesthetic bonus */
+            score += (candidate.aesthetic || 5) / 2;
+
+            if (useDiversity) {
+                /* Bonus for different scene */
+                if (candidate.scene && !usedScenes.has(candidate.scene)) score += 8;
+                /* Bonus for different vibes */
+                if (candidate.vibes) {
+                    let newVibes = 0;
+                    for (const v of candidate.vibes) {
+                        if (!usedVibes.has(v)) newVibes++;
+                    }
+                    score += newVibes * 3;
+                }
+            }
 
             if (score > bestScore) {
                 bestScore = score;
@@ -135,8 +156,11 @@ function _fillBento() {
             }
         }
 
-        selected.push(remaining[bestIdx]);
+        const pick = remaining[bestIdx];
+        selected.push(pick);
         remaining.splice(bestIdx, 1);
+        if (pick.scene) usedScenes.add(pick.scene);
+        if (pick.vibes) { for (const v of pick.vibes) usedVibes.add(v); }
     }
 
     bentoPhotos = selected;

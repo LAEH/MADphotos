@@ -38,6 +38,8 @@ const EXPERIENCES = [
     { id: 'nyu',         name: 'NYU',              init: 'initNyu' },
     { id: 'game',        name: 'Couple',            init: 'initGame' },
     { id: 'confetti',    name: 'Boom',             init: 'initConfetti' },
+    { id: 'square',      name: 'Square',           init: 'initSquare' },
+    { id: 'caption',     name: 'Caption',          init: 'initCaption' },
 ];
 
 /* ===== Device Detection & Gating ===== */
@@ -122,7 +124,7 @@ function buildSideMenu() {
     aboutLi.className = 'side-menu-item side-menu-about';
     aboutLi.textContent = 'About';
     aboutLi.addEventListener('click', () => {
-        window.open('https://laeh.github.io/MADphotos/state.html', '_blank');
+        window.open('https://laeh.github.io/MADphotos/', '_blank');
         closeSideMenu();
     });
     list.appendChild(aboutLi);
@@ -546,6 +548,39 @@ function debounce(fn, ms) {
     };
 }
 
+/* ===== Fullscreen Toggle ===== */
+function toggleFullscreen() {
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+        const el = document.documentElement;
+        if (el.requestFullscreen) el.requestFullscreen();
+        else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    } else {
+        if (document.exitFullscreen) document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+    }
+}
+
+function updateFullscreenIcon() {
+    const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    document.documentElement.classList.toggle('is-fullscreen', isFs);
+}
+
+function initFullscreen() {
+    const btn = document.getElementById('fullscreen-toggle');
+    if (!btn) return;
+
+    /* Hide on iOS Safari — Fullscreen API not supported */
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    if (isIOS || (!document.documentElement.requestFullscreen && !document.documentElement.webkitRequestFullscreen)) {
+        btn.style.display = 'none';
+        return;
+    }
+
+    btn.addEventListener('click', toggleFullscreen);
+    document.addEventListener('fullscreenchange', updateFullscreenIcon);
+    document.addEventListener('webkitfullscreenchange', updateFullscreenIcon);
+}
+
 /* ===== Init ===== */
 async function init() {
     document.getElementById('view-grille').innerHTML = '<div class="loading">Curating your photographs</div>';
@@ -558,6 +593,7 @@ async function init() {
 
     initRouter();
     initLightbox();
+    initFullscreen();
 
     /* Navigate to hash or default to first experience */
     const hash = location.hash.slice(1);

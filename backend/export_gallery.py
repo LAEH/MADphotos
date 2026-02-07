@@ -419,6 +419,8 @@ def build_photos(
             # GCS URLs — enhanced tiers
             "e_thumb": gcs_url(uuid, "thumb", "enhanced"),
             "e_display": gcs_url(uuid, "display", "enhanced"),
+            # Square experience
+            "squarable": True,
         }
         photos.append(photo)
 

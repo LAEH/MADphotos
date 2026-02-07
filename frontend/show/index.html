@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>MADphotos — Show</title>
     <link rel="stylesheet" href="style.css?v=12">
 </head>
@@ -16,6 +18,10 @@
             <span class="header-exp-name" id="header-exp-name"></span>
         </div>
         <div class="header-right">
+            <button id="fullscreen-toggle" class="fullscreen-toggle" aria-label="Toggle fullscreen">
+                <svg class="fs-icon-expand" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"/></svg>
+                <svg class="fs-icon-collapse" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v4H2M10 6h4V2M10 14v-4h4M6 10H2v4"/></svg>
+            </button>
             <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">
                 <svg class="theme-icon-sun" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1M3.4 3.4l.7.7M11.9 11.9l.7.7M3.4 12.6l.7-.7M11.9 4.1l.7-.7"/></svg>
                 <svg class="theme-icon-moon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 8.5a5.5 5.5 0 0 1-7-7 5.5 5.5 0 1 0 7 7z"/></svg>
@@ -38,6 +44,8 @@
         <section id="view-nyu" class="view"></section>
         <section id="view-game" class="view"></section>
         <section id="view-confetti" class="view"></section>
+        <section id="view-square" class="view"></section>
+        <section id="view-caption" class="view"></section>
     </main>
 
     <div id="lightbox" class="lightbox hidden">
@@ -71,5 +79,7 @@
     <script src="compass.js?v=12" defer></script>
     <script src="nyu.js?v=12" defer></script>
     <script src="confetti.js?v=12" defer></script>
+    <script src="square.js?v=12" defer></script>
+    <script src="caption.js?v=12" defer></script>
 </body>
 </html>
