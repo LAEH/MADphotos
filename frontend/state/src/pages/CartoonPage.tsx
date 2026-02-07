@@ -1,8 +1,17 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, type ImgHTMLAttributes } from 'react'
 import { useFetch } from '../hooks/useFetch'
 import { imageUrl } from '../config'
 import { FilterBar } from '../components/ui/FilterBar'
 import { Footer } from '../components/layout/Footer'
+
+function FadeImg({ style, ...props }: ImgHTMLAttributes<HTMLImageElement>) {
+  const [loaded, setLoaded] = useState(false)
+  return (
+    <div className={`img-wrap${loaded ? ' loaded' : ''}`} style={{ width: '100%', height: '100%', ...style }}>
+      <img {...props} onLoad={() => setLoaded(true)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+    </div>
+  )
+}
 
 interface CartoonPair {
   uuid: string
@@ -92,36 +101,36 @@ export function CartoonPage() {
               display: 'grid', gridTemplateColumns: '1fr 1fr',
               position: 'relative',
             }}>
-              <div style={{ position: 'relative', overflow: 'hidden', aspectRatio: '1', background: 'var(--hover-overlay)' }}>
-                <img
+              <div style={{ position: 'relative', overflow: 'hidden', aspectRatio: '1' }}>
+                <FadeImg
                   src={imageUrl(`/rendered/display/jpeg/${pair.uuid}.jpg`)}
                   alt="Original"
                   loading="lazy"
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s' }}
+                  style={{ aspectRatio: '1' }}
                 />
                 <span style={{
                   position: 'absolute', bottom: 'var(--space-2)', left: 'var(--space-2)',
                   fontSize: 'var(--text-xs)', fontWeight: 600, textTransform: 'uppercase',
                   letterSpacing: 'var(--tracking-caps)', padding: '2px var(--space-2)',
                   borderRadius: 'var(--radius-sm)', backdropFilter: 'blur(12px)',
-                  background: 'rgba(0,0,0,0.5)', color: '#fff',
+                  background: 'rgba(0,0,0,0.5)', color: '#fff', zIndex: 2,
                 }}>
                   Original
                 </span>
               </div>
-              <div style={{ position: 'relative', overflow: 'hidden', aspectRatio: '1', background: 'var(--hover-overlay)' }}>
-                <img
+              <div style={{ position: 'relative', overflow: 'hidden', aspectRatio: '1' }}>
+                <FadeImg
                   src={imageUrl(`/ai_variants/cartoon/${pair.category}/${pair.subcategory}/${pair.variant_uuid}.jpg`)}
                   alt="Cartoon"
                   loading="lazy"
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s' }}
+                  style={{ aspectRatio: '1' }}
                 />
                 <span style={{
                   position: 'absolute', bottom: 'var(--space-2)', left: 'var(--space-2)',
                   fontSize: 'var(--text-xs)', fontWeight: 600, textTransform: 'uppercase',
                   letterSpacing: 'var(--tracking-caps)', padding: '2px var(--space-2)',
                   borderRadius: 'var(--radius-sm)', backdropFilter: 'blur(12px)',
-                  background: 'linear-gradient(135deg, rgba(175,82,222,0.7), rgba(255,45,85,0.7))', color: '#fff',
+                  background: 'linear-gradient(135deg, rgba(175,82,222,0.7), rgba(255,45,85,0.7))', color: '#fff', zIndex: 2,
                 }}>
                   Cartoon
                 </span>

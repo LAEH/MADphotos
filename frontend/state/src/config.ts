@@ -43,6 +43,7 @@ export function dataUrl(apiPath: string): string {
     '/api/instructions': 'data/instructions.json',
     '/api/mosaics': 'data/mosaics.json',
     '/api/cartoon': 'data/cartoon.json',
+    '/api/blind-test': 'data/blind_test.json',
   }
   const staticPath = map[apiPath]
   if (staticPath) return `${import.meta.env.BASE_URL}${staticPath}`

@@ -1,7 +1,16 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, type ImgHTMLAttributes } from 'react'
 import { useFetch } from '../hooks/useFetch'
 import { imageUrl } from '../config'
 import { Footer } from '../components/layout/Footer'
+
+function FadeImg({ className, style, ...props }: ImgHTMLAttributes<HTMLImageElement>) {
+  const [loaded, setLoaded] = useState(false)
+  return (
+    <div className={`img-wrap${loaded ? ' loaded' : ''}`} style={{ aspectRatio: '1', ...style }}>
+      <img {...props} onLoad={() => setLoaded(true)} />
+    </div>
+  )
+}
 
 interface Mosaic {
   title: string
@@ -71,14 +80,14 @@ export function MosaicsPage() {
               e.currentTarget.style.boxShadow = 'none'
             }}
           >
-            <img
+            <FadeImg
               src={imageUrl(`/rendered/mosaics/${m.filename}`)}
               alt={m.title}
               loading="lazy"
               decoding="async"
               width={400}
               height={400}
-              style={{ width: '100%', display: 'block', aspectRatio: '1', objectFit: 'cover' }}
+              style={{ aspectRatio: '1' }}
             />
             <div style={{ padding: 'var(--space-3) var(--space-4)' }}>
               <div style={{

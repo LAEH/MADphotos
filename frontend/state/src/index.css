@@ -837,6 +837,39 @@ ol:has(.pipeline-item) {
 .mini-legend .l-fail::before { background: var(--system-red); }
 .mini-legend .l-filtered::before { background: var(--muted); }
 
+/* ── Image loading skeleton + fade reveal ── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.img-wrap {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-tertiary);
+}
+.img-wrap::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 25%, var(--hover-overlay) 50%, transparent 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  z-index: 1;
+  opacity: 1;
+  transition: opacity 0.4s;
+}
+.img-wrap.loaded::before {
+  opacity: 0;
+  pointer-events: none;
+}
+.img-wrap img {
+  opacity: 0;
+  transition: opacity 0.5s var(--ease-default);
+}
+.img-wrap.loaded img {
+  opacity: 1;
+}
+
 /* Layout helpers */
 .two-col { display: grid; grid-template-columns: 1fr; gap: var(--space-6); }
 @media (min-width: 768px) {
