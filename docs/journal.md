@@ -1170,3 +1170,13 @@ Four feature passes across the Show app.
 **State dashboard.** Signal inventory now renders all tags flat inline per group (no subcategory labels). Removed leaf categories: Color Cast, Temperature, Exposure, Depth Zones, Complexity, Aspect Ratio, Enhancement, Rotation.
 
 **See app.** Added `ThumbnailLoader` actor with 8-slot concurrency limiter for cooperative thumbnail loading.
+
+---
+
+### 19:03 — Compass Edge-to-Edge, Faces Crop Fix, State React SPA Backend
+
+**Compass redesign.** Removed all padding, border-radius, and gaps from the compass grid — images now bleed edge-to-edge across the full viewport. Center hero uses `object-fit: cover` instead of `contain` for a more immersive fill. Arm filter tightened from `style !== 'portrait'` to `aspect >= 1.2` for more reliably landscape-oriented photos. All breakpoints updated: phone layout goes single-column with `gap: 2px; padding: 0`.
+
+**Faces quality filter.** Added confidence threshold (`conf >= 0.75`) and minimum area gate (`w * h >= 0.005`) to filter out low-quality and tiny face detections. Square crop logic hardened: size clamped to image dimensions, center position clamped so crop never extends past image bounds — fixes partial-face edge artifacts.
+
+**State React SPA backend.** Dashboard API expanded with 5 endpoints: `/api/stats`, `/api/journal`, `/api/instructions`, `/api/mosaics`, `/api/cartoon`. `serve_show.py` now delegates all `/api/*` routes to dashboard.py functions, serves the Vite-built State SPA from `dist/` with client-side routing fallback, and handles `/api/similarity/:uuid` and `/api/drift/:uuid` vector search routes. State `index.html` replaced with React SPA entry point (Vite + TypeScript).

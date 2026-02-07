@@ -13,7 +13,7 @@ function initCompass() {
     container.innerHTML = '';
 
     compassPool = APP.data.photos.filter(p =>
-        p.thumb && p.style !== 'portrait' && p.orientation !== 'portrait'
+        p.thumb && (p.aspect || (p.w && p.h ? p.w / p.h : 0)) >= 1.2
     );
 
     const vibePool = compassPool.filter(p => (p.vibes || []).length > 0);

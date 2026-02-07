@@ -2,7 +2,8 @@
 """
 serve_gallery.py — Local dev server for the MADphotos web gallery.
 
-Serves web/ files and proxies /rendered/ to local rendered images.
+Serves web/ files, rendered images, AI variants, State dashboard (React SPA),
+and API endpoints.
 
 Usage:
     python3 serve_gallery.py          # http://localhost:3000
@@ -11,6 +12,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import mimetypes
 import os
 from functools import partial
@@ -20,6 +22,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 WEB_DIR = PROJECT_ROOT / "frontend" / "show"
 STATE_DIR = PROJECT_ROOT / "frontend" / "state"
+STATE_DIST = STATE_DIR / "dist"  # Vite build output
 RENDERED_DIR = PROJECT_ROOT / "images" / "rendered"
 AI_VARIANTS_DIR = PROJECT_ROOT / "images" / "ai_variants"
 
@@ -28,7 +31,21 @@ class GalleryHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(WEB_DIR), **kwargs)
 
+    def _json_response(self, data):
+        body = json.dumps(data).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_GET(self):
+        # ── API routes ──
+        if self.path.startswith("/api/"):
+            self._handle_api()
+            return
+
         # Serve rendered images
         if self.path.startswith("/rendered/"):
             rel = self.path[len("/rendered/"):]
@@ -49,18 +66,99 @@ class GalleryHandler(SimpleHTTPRequestHandler):
             self.send_error(404)
             return
 
-        # Serve state app files
-        if self.path.startswith("/state/"):
-            rel = self.path[len("/state/"):]
-            file_path = STATE_DIR / rel
+        # Serve State React SPA (Vite build)
+        if self.path.startswith("/state"):
+            self._serve_state()
+            return
+
+        # Default: serve from web/ (Show app)
+        super().do_GET()
+
+    def _handle_api(self):
+        """Delegate API requests to dashboard.py logic."""
+        try:
+            from dashboard import (get_stats, get_journal_html,
+                                   get_instructions_html, get_mosaics_data,
+                                   get_cartoon_data, similarity_search, drift_search)
+        except ImportError:
+            # Try relative import path
+            import sys
+            sys.path.insert(0, str(Path(__file__).resolve().parent))
+            from dashboard import (get_stats, get_journal_html,
+                                   get_instructions_html, get_mosaics_data,
+                                   get_cartoon_data, similarity_search, drift_search)
+
+        if self.path == "/api/stats":
+            self._json_response(get_stats())
+        elif self.path == "/api/journal":
+            self._json_response({"html": get_journal_html()})
+        elif self.path == "/api/instructions":
+            self._json_response({"html": get_instructions_html()})
+        elif self.path == "/api/mosaics":
+            self._json_response({"mosaics": get_mosaics_data()})
+        elif self.path == "/api/cartoon":
+            self._json_response({"pairs": get_cartoon_data()})
+        elif self.path.startswith("/api/similarity/"):
+            uuid_part = self.path[16:]
+            if uuid_part == "random":
+                import random
+                try:
+                    from dashboard import _get_lance
+                    tbl, df = _get_lance()
+                    if tbl is not None:
+                        self._json_response({"uuid": random.choice(df["uuid"].tolist())})
+                    else:
+                        self._json_response({"error": "no vectors"})
+                except Exception:
+                    self._json_response({"error": "no vectors"})
+            else:
+                result = similarity_search(uuid_part)
+                self._json_response(result or {"error": "not found"})
+        elif self.path.startswith("/api/drift/"):
+            uuid_part = self.path[11:]
+            if uuid_part == "random":
+                import random
+                try:
+                    from dashboard import _get_lance
+                    tbl, df = _get_lance()
+                    if tbl is not None:
+                        self._json_response({"uuid": random.choice(df["uuid"].tolist())})
+                    else:
+                        self._json_response({"error": "no vectors"})
+                except Exception:
+                    self._json_response({"error": "no vectors"})
+            else:
+                result = drift_search(uuid_part)
+                self._json_response(result or {"error": "not found"})
+        else:
+            self.send_error(404)
+
+    def _serve_state(self):
+        """Serve State React SPA with fallback to index.html for client-side routing."""
+        # Strip /state prefix and optional trailing content
+        path = self.path
+        if path == "/state":
+            path = "/state/"
+
+        rel = path[len("/state/"):]
+        if not rel:
+            rel = "index.html"
+
+        # Try Vite dist first, then raw state dir
+        for base_dir in [STATE_DIST, STATE_DIR]:
+            file_path = base_dir / rel
             if file_path.is_file():
                 self._serve_file(file_path)
                 return
-            self.send_error(404)
-            return
 
-        # Default: serve from web/
-        super().do_GET()
+        # SPA fallback: serve index.html for any unmatched /state/* route
+        for base_dir in [STATE_DIST, STATE_DIR]:
+            index = base_dir / "index.html"
+            if index.is_file():
+                self._serve_file(index)
+                return
+
+        self.send_error(404)
 
     def _serve_file(self, file_path: Path):
         mime, _ = mimetypes.guess_type(str(file_path))

@@ -4538,15 +4538,99 @@ function reveal() {
 # Server
 # ---------------------------------------------------------------------------
 
+def get_journal_html():
+    """Return just the journal content HTML (styles + body) without page shell."""
+    if not JOURNAL_PATH.exists():
+        return "<p>No journal found.</p>"
+    # render_journal() returns page_shell("Journal de Bord", content, active="journal")
+    # We need to call the inner logic. Easier: call render_journal and extract <div class="main-content">
+    # Actually, let's build the content directly by reusing the render_journal logic.
+    # The render_journal function builds journal_content = f"""<style>...</style>{body}"""
+    # and then returns page_shell("Journal de Bord", journal_content, active="journal")
+    # We can just call it and extract what we need, or duplicate the content building.
+    # Simplest approach: since render_journal() calls page_shell() which wraps in full HTML,
+    # let's instead build a content-only version.
+    full_html = render_journal()
+    # Extract the main-content div contents
+    import re as _re
+    m = _re.search(r'<div class="main-content">(.*?)<footer', full_html, _re.DOTALL)
+    if m:
+        return m.group(1).strip()
+    # Fallback: return everything between </nav> and </body>
+    m = _re.search(r'</nav>\s*<div class="main-content">(.*?)</div>\s*<script', full_html, _re.DOTALL)
+    if m:
+        return m.group(1).strip()
+    return "<p>Could not parse journal content.</p>"
+
+
+def get_instructions_html():
+    """Return just the instructions content HTML without page shell."""
+    full_html = render_instructions()
+    import re as _re
+    m = _re.search(r'<div class="main-content">(.*?)<footer', full_html, _re.DOTALL)
+    if m:
+        return m.group(1).strip()
+    return "<p>Could not parse instructions content.</p>"
+
+
+def get_mosaics_data():
+    """Return mosaics catalog as a list of dicts."""
+    meta_path = MOSAIC_DIR / "mosaics.json"
+    if meta_path.exists():
+        mosaics = json.loads(meta_path.read_text())
+        return [{"title": m["title"], "description": m["desc"],
+                 "filename": m["file"], "count": m["count"]} for m in mosaics]
+    return []
+
+
+def get_cartoon_data():
+    """Return cartoon pairs from the database."""
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.row_factory = sqlite3.Row
+    pairs = []
+    try:
+        for r in conn.execute("""
+            SELECT v.image_uuid, v.variant_id, i.category, i.subcategory,
+                   COALESCE(g.alt_text, '') as caption
+            FROM ai_variants v
+            JOIN images i ON v.image_uuid = i.uuid
+            LEFT JOIN gemini_analysis g ON v.image_uuid = g.image_uuid
+            WHERE v.variant_type = 'cartoon' AND v.generation_status = 'success'
+            ORDER BY i.category, i.subcategory, v.image_uuid
+        """).fetchall():
+            pairs.append({
+                "uuid": r["image_uuid"],
+                "variant_uuid": r["variant_id"],
+                "category": r["category"],
+                "subcategory": r["subcategory"] or "Landscape",
+                "caption": r["caption"],
+            })
+    except Exception:
+        pass
+    conn.close()
+    return pairs
+
+
 class Handler(BaseHTTPRequestHandler):
+    def _json_response(self, data):
+        body = json.dumps(data).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_GET(self):
         if self.path == "/api/stats":
-            data = json.dumps(get_stats()).encode()
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.end_headers()
-            self.wfile.write(data)
+            self._json_response(get_stats())
+        elif self.path == "/api/journal":
+            self._json_response({"html": get_journal_html()})
+        elif self.path == "/api/instructions":
+            self._json_response({"html": get_instructions_html()})
+        elif self.path == "/api/mosaics":
+            self._json_response({"mosaics": get_mosaics_data()})
+        elif self.path == "/api/cartoon":
+            self._json_response({"pairs": get_cartoon_data()})
         elif self.path == "/mosaics":
             html = render_mosaics().encode()
             self.send_response(200)

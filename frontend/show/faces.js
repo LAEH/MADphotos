@@ -25,6 +25,9 @@ function renderFacesView(container) {
         const photo = APP.photoMap[uuid];
         if (!photo || !photo.thumb) continue;
         for (const face of faceList) {
+            /* Skip low-confidence or tiny faces (noise) */
+            if ((face.conf || 0) < 0.75) continue;
+            if ((face.w || 0) * (face.h || 0) < 0.005) continue;
             const emo = face.emo || 'neutral';
             if (!facesData[emo]) facesData[emo] = [];
             facesData[emo].push({ photo, face });
@@ -201,18 +204,17 @@ function cropFaceToCanvas(canvas, img) {
     cw = Math.min(iw - cx, cw + padX * 2);
     ch = Math.min(ih - cy, ch + padY * 2);
 
-    /* Make square */
-    const size = Math.max(cw, ch);
+    /* Make square — clamp position so the crop stays fully inside the image */
+    let size = Math.max(cw, ch);
+    size = Math.min(size, iw, ih); /* can't exceed image dimensions */
     const centerX = cx + cw / 2;
     const centerY = cy + ch / 2;
-    cx = Math.max(0, centerX - size / 2);
-    cy = Math.max(0, centerY - size / 2);
-    cw = Math.min(iw - cx, size);
-    ch = Math.min(ih - cy, size);
+    cx = Math.max(0, Math.min(centerX - size / 2, iw - size));
+    cy = Math.max(0, Math.min(centerY - size / 2, ih - size));
 
     const drawSize = canvas.width;
     const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, cx, cy, cw, ch, 0, 0, drawSize, drawSize);
+    ctx.drawImage(img, cx, cy, size, size, 0, 0, drawSize, drawSize);
 
     canvas.classList.remove('face-crop-loading');
     canvas.classList.add('face-crop-loaded');
