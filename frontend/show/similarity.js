@@ -78,8 +78,10 @@ function renderSimilarity(photo) {
             const crumb = document.createElement('div');
             crumb.className = 'drift-breadcrumb-item';
             const cImg = document.createElement('img');
+            cImg.className = 'img-loading';
             cImg.src = bPhoto.micro || bPhoto.thumb;
             cImg.alt = '';
+            cImg.onload = () => revealImg(cImg);
             crumb.appendChild(cImg);
             crumb.addEventListener('click', () => {
                 const idx = similarityHistory.indexOf(trail[i]);
@@ -107,8 +109,10 @@ function renderSimilarity(photo) {
         const currentCrumb = document.createElement('div');
         currentCrumb.className = 'drift-breadcrumb-item current';
         const curImg = document.createElement('img');
+        curImg.className = 'img-loading';
         curImg.src = photo.micro || photo.thumb;
         curImg.alt = '';
+        curImg.onload = () => revealImg(curImg);
         currentCrumb.appendChild(curImg);
         breadcrumb.appendChild(currentCrumb);
 
@@ -168,7 +172,7 @@ function renderSimilarity(photo) {
             const card = document.createElement('div');
             card.className = 'drift-neighbor';
 
-            const nImg = createLazyImg(nPhoto, 'thumb');
+            const nImg = createLazyImg(nPhoto, 'mobile');
             lazyObserver.observe(nImg);
             card.appendChild(nImg);
 

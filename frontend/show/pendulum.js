@@ -1,65 +1,31 @@
-/* pendulum.js — Le Pendule: Original vs Enhanced taste test */
+/* pendulum.js — Le Pendule: Original vs Enhanced taste test.
+   Same photo shown twice — one original, one enhanced.
+   Pick which you prefer. Discover your taste. */
 
 let pendulumState = null;
 
 function initPendulum() {
-
-    const container = document.getElementById('view-pendulum');
-    container.innerHTML = '';
-
-    const wrap = document.createElement('div');
-    wrap.className = 'pendulum-container';
-    wrap.id = 'pendulum-inner';
-
-    // Start screen
-    const title = document.createElement('h2');
-    title.className = 'game-title';
-    title.textContent = 'Le Pendule';
-    wrap.appendChild(title);
-
-    const desc = document.createElement('p');
-    desc.className = 'game-desc';
-    desc.textContent = 'Two versions of the same photograph. Pick the one you prefer. Discover your taste.';
-    wrap.appendChild(desc);
-
-    const info = document.createElement('p');
-    info.className = 'game-desc';
-    info.style.color = 'var(--text-muted)';
-    info.textContent = 'Coming soon — requires enhanced image variants to be synced to GCS.';
-    wrap.appendChild(info);
-
-    // For now, show a comparison between high/low aesthetic photos
-    const startBtn = document.createElement('button');
-    startBtn.className = 'game-start-btn';
-    startBtn.textContent = 'Preview Mode';
-    startBtn.addEventListener('click', startPendulumPreview);
-    wrap.appendChild(startBtn);
-
-    container.appendChild(wrap);
+    startPendulum();
 }
 
-function startPendulumPreview() {
-    // Preview: pick pairs of photos and ask which one the user prefers
-    const photos = APP.data.photos.filter(p => p.thumb && p.aesthetic != null);
-    if (photos.length < 40) return;
+function startPendulum() {
+    /* Filter to photos that have both original and enhanced versions */
+    const eligible = APP.data.photos.filter(p =>
+        p.thumb && (p.e_thumb || p.e_display) && (p.display || p.mobile)
+    );
+    if (eligible.length < 10) return;
+
+    const pool = shuffleArray([...eligible]).slice(0, 10);
 
     pendulumState = {
-        rounds: [],
+        rounds: pool.map(photo => {
+            /* Randomize left/right placement */
+            const enhancedLeft = Math.random() > 0.5;
+            return { photo, enhancedLeft };
+        }),
         current: 0,
-        choices: [],
+        choices: [], /* { photoId, choseEnhanced } */
     };
-
-    // Generate 10 pairs: pick photos with different aesthetics
-    const sorted = [...photos].sort((a, b) => (b.aesthetic || 0) - (a.aesthetic || 0));
-    for (let i = 0; i < 10; i++) {
-        const high = sorted[i * 5 + Math.floor(Math.random() * 5)];
-        const low = sorted[sorted.length - 1 - i * 5 - Math.floor(Math.random() * 5)];
-        if (high && low) {
-            // Randomize order
-            const pair = Math.random() > 0.5 ? [high, low] : [low, high];
-            pendulumState.rounds.push(pair);
-        }
-    }
 
     renderPendulumRound();
 }
@@ -74,7 +40,8 @@ function renderPendulumRound() {
         return;
     }
 
-    const [photoA, photoB] = ps.rounds[ps.current];
+    const round = ps.rounds[ps.current];
+    const photo = round.photo;
 
     const header = document.createElement('div');
     header.className = 'game-header';
@@ -83,23 +50,38 @@ function renderPendulumRound() {
 
     const question = document.createElement('p');
     question.className = 'pendulum-question';
-    question.textContent = 'Which do you prefer?';
+    question.textContent = 'Which version do you prefer?';
     container.appendChild(question);
 
     const pair = document.createElement('div');
     pair.className = 'pendulum-pair';
 
-    for (const [idx, photo] of [photoA, photoB].entries()) {
+    /* Original version */
+    const originalSrc = photo.display || photo.mobile || photo.thumb;
+    /* Enhanced version */
+    const enhancedSrc = photo.e_display || photo.e_thumb;
+
+    const sides = round.enhancedLeft
+        ? [{ src: enhancedSrc, isEnhanced: true }, { src: originalSrc, isEnhanced: false }]
+        : [{ src: originalSrc, isEnhanced: false }, { src: enhancedSrc, isEnhanced: true }];
+
+    for (const side of sides) {
         const card = document.createElement('div');
         card.className = 'pendulum-choice';
 
         const img = document.createElement('img');
-        img.src = photo.mobile || photo.thumb;
+        img.className = 'img-loading';
         img.alt = '';
+        const preload = new Image();
+        preload.onload = () => {
+            img.src = side.src;
+            if (typeof revealImg === 'function') revealImg(img);
+        };
+        preload.src = side.src;
         card.appendChild(img);
 
         card.addEventListener('click', () => {
-            ps.choices.push({ chosen: photo.id, other: idx === 0 ? photoB.id : photoA.id });
+            ps.choices.push({ photoId: photo.id, choseEnhanced: side.isEnhanced });
             ps.current++;
             renderPendulumRound();
         });
@@ -121,39 +103,37 @@ function renderPendulumResults(container) {
     title.textContent = 'Your Taste';
     end.appendChild(title);
 
-    // Analyze choices
-    let higherAestheticChosen = 0;
-    for (const choice of pendulumState.choices) {
-        const chosen = APP.photoMap[choice.chosen];
-        const other = APP.photoMap[choice.other];
-        if (chosen && other && (chosen.aesthetic || 0) > (other.aesthetic || 0)) {
-            higherAestheticChosen++;
-        }
-    }
+    const enhancedCount = pendulumState.choices.filter(c => c.choseEnhanced).length;
+    const total = pendulumState.choices.length;
+    const pct = Math.round(enhancedCount / total * 100);
 
-    const pct = Math.round(higherAestheticChosen / pendulumState.choices.length * 100);
+    const score = document.createElement('div');
+    score.className = 'game-final-score';
+    score.style.fontSize = '48px';
+    score.textContent = `${pct}%`;
+    end.appendChild(score);
 
-    const result = document.createElement('p');
-    result.className = 'game-desc';
-    result.textContent = `You chose the higher-rated image ${pct}% of the time.`;
-    end.appendChild(result);
+    const label = document.createElement('p');
+    label.className = 'game-final-label';
+    label.textContent = `Enhanced chosen ${enhancedCount} of ${total} times`;
+    end.appendChild(label);
 
     const taste = document.createElement('p');
     taste.className = 'game-desc';
     taste.style.color = 'var(--text)';
     if (pct > 70) {
-        taste.textContent = 'You have a refined eye — you gravitate toward technically excellent images.';
+        taste.textContent = 'You prefer the polished version — you gravitate toward enhanced clarity and color.';
     } else if (pct > 40) {
-        taste.textContent = 'You balance technical quality with raw emotion. Interesting.';
+        taste.textContent = 'You weigh both equally. Sometimes raw, sometimes refined.';
     } else {
-        taste.textContent = 'You prefer the unconventional. The imperfect. The surprising.';
+        taste.textContent = 'You prefer the original capture. The unprocessed. The authentic.';
     }
     end.appendChild(taste);
 
     const again = document.createElement('button');
     again.className = 'game-start-btn';
     again.textContent = 'Play Again';
-    again.addEventListener('click', startPendulumPreview);
+    again.addEventListener('click', startPendulum);
     end.appendChild(again);
 
     container.appendChild(end);

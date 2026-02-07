@@ -1,6 +1,17 @@
 import Foundation
 import AppKit
 
+// MARK: - Quick Counts (pre-computed for sidebar)
+
+struct QuickCounts {
+    var people: Int = 0
+    var animals: Int = 0
+    var noSubject: Int = 0
+    var monochrome: Int = 0
+    var color: Int = 0
+    var withText: Int = 0
+}
+
 // MARK: - Semantic Pop
 
 struct SemanticPop: Identifiable, Hashable {
@@ -130,17 +141,26 @@ struct PhotoItem: Identifiable, Hashable {
     // --- NEW: Object/face counts from detection ---
     var detectedObjectCount: Int?
     var detectedFaceCount: Int?
+    var detectedPersonCount: Int = 0
+    var detectedAnimalCount: Int = 0
 
-    // Computed
-    var isAnalyzed: Bool { analyzedAt != nil }
-    var hasLocation: Bool { locationName != nil || latitude != nil }
-    var hasEnhancement: Bool { enhancementStatus == "enhanced" }
-    var hasOCRText: Bool { ocrText != nil && !(ocrText?.isEmpty ?? true) }
+    // --- Cached (populated by prepareCache) ---
+    var isAnalyzed: Bool = false
+    var hasLocation: Bool = false
+    var hasOCRText: Bool = false
+    var hasPeople: Bool = false
+    var hasAnimal: Bool = false
+    var folderPath: String = ""
+    var cachedVibeList: [String] = []
+    var cachedEmotionList: [String] = []
+    var cachedPaletteSaturation: Double = 0
+    var cachedPaletteBrightness: Double = 0
+    var cachedAestheticBucket: String?
+    var cachedPaletteColors: [NSColor] = []
 
-    var folderPath: String {
-        if let sub = subcategory, !sub.isEmpty { return "\(category)/\(sub)" }
-        return category
-    }
+    var hasEnhancement: Bool { enhancementStatus != nil }
+    var isEnhanced: Bool { enhancementStatus == "enhanced" }
+
     var dimensionLabel: String { "\(width)×\(height)" }
     var ratioLabel: String {
         let r = aspectRatio
@@ -153,28 +173,65 @@ struct PhotoItem: Identifiable, Hashable {
         if abs(r - 1.0) < 0.01 { return "1:1" }
         return String(format: "%.2f", r)
     }
-    var vibeList: [String] {
-        guard let v = vibe, let data = v.data(using: .utf8),
-              let arr = try? JSONSerialization.jsonObject(with: data) as? [String] else {
-            return []
-        }
-        return arr
-    }
-    var emotionList: [String] {
-        guard let e = emotionsSummary, !e.isEmpty else { return [] }
-        return Array(Set(e.components(separatedBy: ", ").map { $0.trimmingCharacters(in: .whitespaces) }))
-    }
+    var vibeList: [String] { cachedVibeList }
+    var emotionList: [String] { cachedEmotionList }
+    var paletteSaturation: Double { cachedPaletteSaturation }
+    var paletteBrightness: Double { cachedPaletteBrightness }
+    var aestheticBucket: String? { cachedAestheticBucket }
+    var paletteColors: [NSColor] { cachedPaletteColors }
     var sizeLabel: String {
         String(format: "%.1f MB", Double(originalSize) / 1_048_576.0)
     }
 
-    /// Parse color palette hex strings from raw_json → color → palette
-    var paletteColors: [NSColor] {
-        guard let json = colorPaletteJSON, let data = json.data(using: .utf8),
-              let arr = try? JSONSerialization.jsonObject(with: data) as? [String] else {
-            return []
+    /// Call once after loading from DB to pre-compute expensive properties
+    mutating func prepareCache() {
+        isAnalyzed = analyzedAt != nil
+        hasLocation = locationName != nil || latitude != nil
+        hasOCRText = ocrText != nil && !(ocrText?.isEmpty ?? true)
+        hasPeople = detectedPersonCount > 0 || (detectedFaceCount ?? 0) > 0
+        hasAnimal = detectedAnimalCount > 0
+        folderPath = {
+            if let sub = subcategory, !sub.isEmpty { return "\(category)/\(sub)" }
+            return category
+        }()
+
+        // Vibes
+        if let v = vibe, let data = v.data(using: .utf8),
+           let arr = try? JSONSerialization.jsonObject(with: data) as? [String] {
+            cachedVibeList = arr
         }
-        return arr.compactMap { NSColor.fromHex($0) }
+
+        // Emotions
+        if let e = emotionsSummary, !e.isEmpty {
+            cachedEmotionList = Array(Set(e.components(separatedBy: ", ").map { $0.trimmingCharacters(in: .whitespaces) }))
+        }
+
+        // Aesthetic bucket
+        if let s = aestheticScore {
+            if s >= 7.0 { cachedAestheticBucket = "Excellent" }
+            else if s >= 5.0 { cachedAestheticBucket = "Good" }
+            else if s >= 3.0 { cachedAestheticBucket = "Average" }
+            else { cachedAestheticBucket = "Poor" }
+        }
+
+        // Palette colors + saturation + brightness
+        if let json = colorPaletteJSON, let data = json.data(using: .utf8),
+           let arr = try? JSONSerialization.jsonObject(with: data) as? [String] {
+            let colors = arr.compactMap { NSColor.fromHex($0) }
+            cachedPaletteColors = colors
+            if !colors.isEmpty {
+                var satTotal = 0.0, briTotal = 0.0
+                for c in colors {
+                    let rgb = c.usingColorSpace(.sRGB) ?? c
+                    var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+                    rgb.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+                    satTotal += Double(s)
+                    briTotal += Double(b)
+                }
+                cachedPaletteSaturation = satTotal / Double(colors.count)
+                cachedPaletteBrightness = briTotal / Double(colors.count)
+            }
+        }
     }
 
     /// Parse semantic pops from JSON array
@@ -207,15 +264,6 @@ struct PhotoItem: Identifiable, Hashable {
         if let s = scene3, let sc = scene3Score { result.append((s, sc)) }
         return result
     }
-
-    /// Aesthetic range bucket for filtering
-    var aestheticBucket: String? {
-        guard let s = aestheticScore else { return nil }
-        if s >= 7.0 { return "Excellent" }
-        if s >= 5.0 { return "Good" }
-        if s >= 3.0 { return "Average" }
-        return "Poor"
-    }
 }
 
 // MARK: - NSColor hex helper
@@ -234,6 +282,32 @@ extension NSColor {
     }
 }
 
+// MARK: - Sort
+
+enum SortOption: String, CaseIterable {
+    case random = "Random"
+    case aesthetic = "Aesthetic"
+    case date = "Date"
+    case exposure = "Exposure"
+    case saturation = "Saturation"
+    case depth = "Depth"
+    case brightness = "Brightness"
+    case faces = "Faces"
+
+    var icon: String {
+        switch self {
+        case .random: return "shuffle"
+        case .aesthetic: return "star"
+        case .date: return "calendar"
+        case .exposure: return "sun.max"
+        case .saturation: return "drop.halffull"
+        case .depth: return "cube"
+        case .brightness: return "sun.min"
+        case .faces: return "person.2"
+        }
+    }
+}
+
 // MARK: - Query
 
 enum QueryMode: String, CaseIterable {
@@ -247,6 +321,7 @@ enum FilterDimension: Hashable {
     case exposure, depth, composition, search
     case location, style, aesthetic, hasText
     case weather, scene, emotion
+    case medium, monochrome, enhancement, filmStock
 }
 
 struct FilterState {
@@ -272,6 +347,11 @@ struct FilterState {
     var weathers: Set<String> = []
     var scenes: Set<String> = []
     var emotions: Set<String> = []
+    var mediums: Set<String> = []
+    var monochromeFilter: String?  // "yes" / "no" / nil
+    var subjectFilter: String?  // "people" / "animal" / "none" / nil
+    var enhancements: Set<String> = []
+    var filmStocks: Set<String> = []
     var dimensionModes: [FilterDimension: QueryMode] = [:]
 
     func mode(for dim: FilterDimension) -> QueryMode { dimensionModes[dim] ?? .union }
@@ -284,7 +364,8 @@ struct FilterState {
         !exposures.isEmpty || !depths.isEmpty || !compositions.isEmpty ||
         !curatedStatuses.isEmpty || analysisStatus != nil || !searchText.isEmpty ||
         !locations.isEmpty || !styles.isEmpty || !aestheticBuckets.isEmpty ||
-        hasTextFilter != nil || !weathers.isEmpty || !scenes.isEmpty || !emotions.isEmpty
+        hasTextFilter != nil || !weathers.isEmpty || !scenes.isEmpty || !emotions.isEmpty ||
+        !mediums.isEmpty || monochromeFilter != nil || subjectFilter != nil || !enhancements.isEmpty || !filmStocks.isEmpty
     }
 
     mutating func toggle(_ keyPath: WritableKeyPath<FilterState, Set<String>>, _ value: String) {
@@ -304,6 +385,7 @@ struct FilterState {
         locations = []; styles = []; aestheticBuckets = []
         hasTextFilter = nil
         weathers = []; scenes = []; emotions = []
+        mediums = []; monochromeFilter = nil; subjectFilter = nil; enhancements = []; filmStocks = []
         dimensionModes = [:]
     }
 }
@@ -336,6 +418,9 @@ struct FacetedOptions {
     var weathers: [FacetOption] = []
     var scenes: [FacetOption] = []
     var emotions: [FacetOption] = []
+    var mediums: [FacetOption] = []
+    var enhancements: [FacetOption] = []
+    var filmStocks: [FacetOption] = []
 }
 
 // MARK: - Query Bar Chips

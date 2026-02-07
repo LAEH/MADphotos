@@ -2,11 +2,11 @@
 import PackageDescription
 
 let package = Package(
-    name: "MADCurator",
+    name: "See",
     platforms: [.macOS(.v14)],
     targets: [
         .executableTarget(
-            name: "MADCurator",
+            name: "See",
             linkerSettings: [
                 .linkedLibrary("sqlite3"),
             ]

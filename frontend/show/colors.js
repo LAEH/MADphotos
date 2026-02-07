@@ -1,53 +1,51 @@
-/* colors.js — Les Couleurs: Color space exploration */
+/* colors.js — Les Couleurs: Chromatic bento — viewport-fixed color exploration.
+   Click spectrum band to browse by dominant hue. Elevated card, no scroll. */
 
 let colorBuckets = [];
-let activeColorIdx = -1;
+let activeColorIdx = 0;
 
 const NUM_BUCKETS = 24;
+const _rs = getComputedStyle(document.documentElement);
 
 function initCouleurs() {
-
     buildColorBuckets();
+
+    /* Start with a random non-empty bucket */
+    const nonEmpty = colorBuckets.map((b, i) => ({ b, i })).filter(x => x.b.photos.length > 0);
+    activeColorIdx = nonEmpty.length > 0 ? randomFrom(nonEmpty).i : 0;
 
     const container = document.getElementById('view-couleurs');
     container.innerHTML = '';
 
     const wrap = document.createElement('div');
-    wrap.className = 'colors-container';
+    wrap.className = 'couleurs-wrap';
 
-    // Spectrum bar
+    /* Spectrum bar */
     const spectrum = document.createElement('div');
-    spectrum.className = 'color-spectrum';
-    spectrum.id = 'color-spectrum';
+    spectrum.className = 'couleurs-spectrum';
+    spectrum.id = 'couleurs-spectrum';
 
     for (let i = 0; i < colorBuckets.length; i++) {
         const bucket = colorBuckets[i];
         const band = document.createElement('div');
-        band.className = 'color-band';
+        band.className = 'couleurs-band';
+        if (i === activeColorIdx) band.classList.add('active');
         band.style.background = bucket.color;
         band.dataset.idx = i;
-
-        const count = document.createElement('span');
-        count.className = 'color-band-count';
-        count.textContent = bucket.photos.length;
-        band.appendChild(count);
-
-        band.addEventListener('click', () => selectColorBand(i));
+        band.addEventListener('click', () => selectCouleursBand(i));
         spectrum.appendChild(band);
     }
 
     wrap.appendChild(spectrum);
 
-    // Grid area
-    const gridWrap = document.createElement('div');
-    gridWrap.className = 'colors-grid-wrapper';
-    gridWrap.id = 'colors-grid-wrapper';
-    wrap.appendChild(gridWrap);
+    /* Bento card */
+    const card = document.createElement('div');
+    card.className = 'couleurs-card';
+    card.id = 'couleurs-card';
+    wrap.appendChild(card);
 
     container.appendChild(wrap);
-
-    // Show all photos sorted by hue initially
-    renderAllByColor();
+    renderCouleursBento();
 }
 
 function isGrayPalette(palette) {
@@ -76,9 +74,9 @@ function buildColorBuckets() {
         });
     }
 
-    /* Sort photos into buckets — single pass, gray detection shared */
     const grayPhotos = [];
     for (const photo of APP.data.photos) {
+        if (!photo.thumb) continue;
         if (isGrayPalette(photo.palette)) {
             grayPhotos.push(photo);
             continue;
@@ -98,165 +96,87 @@ function buildColorBuckets() {
     }
 }
 
-function selectColorBand(idx) {
-    if (activeColorIdx === idx) {
-        activeColorIdx = -1;
-        renderAllByColor();
-    } else {
-        activeColorIdx = idx;
-        renderColorBucket(idx);
-    }
-
-    // Update band active states
-    document.querySelectorAll('.color-band').forEach((band, i) => {
-        band.classList.toggle('active', i === activeColorIdx);
+function selectCouleursBand(idx) {
+    activeColorIdx = idx;
+    document.querySelectorAll('.couleurs-band').forEach((band, i) => {
+        band.classList.toggle('active', i === idx);
     });
+    renderCouleursBento();
 }
 
-function renderAllByColor() {
-    const wrap = document.getElementById('colors-grid-wrapper');
-    wrap.innerHTML = '';
+function renderCouleursBento() {
+    const card = document.getElementById('couleurs-card');
+    if (!card) return;
+    card.innerHTML = '';
 
-    // Show all photos sorted by hue in a single grid
-    const sorted = [...APP.data.photos].sort((a, b) => (a.hue || 0) - (b.hue || 0));
-
-    const title = document.createElement('div');
-    title.className = 'colors-section-title';
-    title.textContent = 'all ' + sorted.length + ' photos by dominant hue — click a color band to filter';
-    wrap.appendChild(title);
-
-    const grid = document.createElement('div');
-    grid.className = 'colors-grid';
-
-    const targetHeight = 160;
-
-    for (const photo of sorted) {
-        const aspect = photo.aspect || 1.5;
-        const width = Math.floor(aspect * targetHeight);
-
-        const item = document.createElement('div');
-        item.className = 'colors-grid-item';
-        item.style.width = width + 'px';
-        item.style.height = targetHeight + 'px';
-
-        const img = createLazyImg(photo, 'thumb');
-        lazyObserver.observe(img);
-        item.appendChild(img);
-
-        // Semantic pop labels on hover
-        if (photo.pops && photo.pops.length > 0) {
-            const popWrap = document.createElement('div');
-            popWrap.className = 'colors-pop-label';
-            for (const pop of photo.pops.slice(0, 2)) {
-                popWrap.appendChild(createGlassTag(
-                    pop.color + ' ' + pop.object,
-                    { color: colorNameToCSS(pop.color) }
-                ));
-            }
-            item.appendChild(popWrap);
-        }
-
-        item.addEventListener('click', () => openLightbox(photo));
-        grid.appendChild(item);
-    }
-
-    wrap.appendChild(grid);
-}
-
-function renderColorBucket(idx) {
-    const bucket = colorBuckets[idx];
-    if (!bucket) return;
-
-    const wrap = document.getElementById('colors-grid-wrapper');
-    wrap.innerHTML = '';
-
-    const photos = bucket.photos;
-
-    const title = document.createElement('div');
-    title.className = 'colors-section-title';
-
-    const swatch = document.createElement('span');
-    swatch.className = 'color-swatch-sm';
-    swatch.style.background = bucket.color;
-    title.appendChild(swatch);
-    title.appendChild(document.createTextNode(
-        photos.length + ' photos with this dominant color'
-    ));
-    wrap.appendChild(title);
-
-    if (photos.length === 0) {
-        const empty = document.createElement('div');
-        empty.className = 'empty-state';
-        empty.textContent = 'No photos in this color range.';
-        wrap.appendChild(empty);
+    const bucket = colorBuckets[activeColorIdx];
+    if (!bucket || bucket.photos.length === 0) {
+        card.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:14px">No photos in this range</div>';
         return;
     }
 
-    const grid = document.createElement('div');
-    grid.className = 'colors-grid colors-grid-bucket';
+    /* Pick 8 from this bucket, highest aesthetic first */
+    const sorted = [...bucket.photos].sort((a, b) => (b.aesthetic || 0) - (a.aesthetic || 0));
+    let selected = sorted.slice(0, 8);
 
-    const targetHeight = 220;
-
-    for (const photo of photos) {
-        const aspect = photo.aspect || 1.5;
-        const width = Math.floor(aspect * targetHeight);
-
-        const item = document.createElement('div');
-        item.className = 'colors-grid-item';
-        item.style.width = width + 'px';
-        item.style.height = targetHeight + 'px';
-
-        const img = createLazyImg(photo, 'thumb');
-        lazyObserver.observe(img);
-        item.appendChild(img);
-
-        // Show semantic pops
-        if (photo.pops && photo.pops.length > 0) {
-            const popWrap = document.createElement('div');
-            popWrap.className = 'colors-pop-label';
-            for (const pop of photo.pops) {
-                popWrap.appendChild(createGlassTag(
-                    pop.color + ' ' + pop.object,
-                    { color: colorNameToCSS(pop.color) }
-                ));
+    /* Fill from adjacent buckets if needed */
+    if (selected.length < 8) {
+        const usedIds = new Set(selected.map(p => p.id));
+        for (let offset = 1; offset <= 3 && selected.length < 8; offset++) {
+            for (const dir of [-1, 1]) {
+                const adjIdx = (activeColorIdx + dir * offset + colorBuckets.length) % colorBuckets.length;
+                const adj = colorBuckets[adjIdx];
+                if (!adj) continue;
+                const adjSorted = [...adj.photos].sort((a, b) => (b.aesthetic || 0) - (a.aesthetic || 0));
+                for (const p of adjSorted) {
+                    if (selected.length >= 8) break;
+                    if (!usedIds.has(p.id)) {
+                        selected.push(p);
+                        usedIds.add(p.id);
+                    }
+                }
             }
-            item.appendChild(popWrap);
         }
-
-        item.addEventListener('click', () => openLightbox(photo));
-        grid.appendChild(item);
     }
 
-    wrap.appendChild(grid);
+    selected = shuffleArray(selected);
+
+    const mobile = window.matchMedia('(max-width: 768px)').matches;
+
+    if (mobile) {
+        /* 4 rows of 2 */
+        const rows = [[0,1],[2,3],[4,5],[6,7]];
+        for (const indices of rows) {
+            const row = document.createElement('div');
+            row.className = 'couleurs-row';
+            for (const i of indices) {
+                if (selected[i]) row.appendChild(makeCouleursTile(selected[i]));
+            }
+            card.appendChild(row);
+        }
+    } else {
+        /* 2 rows of 4 */
+        const rows = [[0,1,2,3],[4,5,6,7]];
+        for (const indices of rows) {
+            const row = document.createElement('div');
+            row.className = 'couleurs-row';
+            for (const i of indices) {
+                if (selected[i]) row.appendChild(makeCouleursTile(selected[i]));
+            }
+            card.appendChild(row);
+        }
+    }
 }
 
-/* Resolve Apple system color from CSS variable */
-const _rs = getComputedStyle(document.documentElement);
-function colorNameToCSS(name) {
-    const map = {
-        'red': '--system-red',
-        'orange': '--system-orange',
-        'yellow': '--system-yellow',
-        'green': '--system-green',
-        'blue': '--system-blue',
-        'purple': '--system-purple',
-        'pink': '--system-pink',
-        'brown': '--system-brown',
-        'teal': '--system-teal',
-        'cyan': '--system-cyan',
-        'mint': '--system-mint',
-        'indigo': '--system-indigo',
-        'gray': '--system-gray',
-        'grey': '--system-gray',
-        'gold': '--system-yellow',
-        'magenta': '--system-pink',
-    };
-    const varName = map[(name || '').toLowerCase()];
-    if (varName) return _rs.getPropertyValue(varName).trim();
-    /* Fallback for non-system colors */
-    const fallbacks = {
-        'black': '#1c1c1e', 'white': '#f2f2f7', 'silver': '#aeaeb2',
-        'navy': '#2c3e6b', 'cream': '#fffdd0', 'beige': '#f5f5dc',
-    };
-    return fallbacks[(name || '').toLowerCase()] || _rs.getPropertyValue('--system-gray').trim();
+function makeCouleursTile(photo) {
+    const tile = document.createElement('div');
+    tile.className = 'couleurs-tile';
+
+    const img = document.createElement('img');
+    loadProgressive(img, photo, 'display');
+    img.alt = '';
+    tile.appendChild(img);
+
+    tile.addEventListener('click', () => openLightbox(photo));
+    return tile;
 }

@@ -9,6 +9,12 @@ let deriveCurrentId = null;
 async function initDerive() {
     await loadDriftNeighbors();
 
+    // Fall back to similarity data from photos.json if drift_neighbors.json is missing
+    const hasDrift = APP.driftNeighbors && Object.keys(APP.driftNeighbors).length > 0;
+    if (!hasDrift && APP.data && APP.data.similarity) {
+        APP.driftNeighbors = APP.data.similarity;
+    }
+
     const container = document.getElementById('view-derive');
     container.innerHTML = '';
 
@@ -82,8 +88,10 @@ function renderDerive(photo) {
             const crumb = document.createElement('div');
             crumb.className = 'drift-breadcrumb-item';
             const cImg = document.createElement('img');
+            cImg.className = 'img-loading';
             cImg.src = bPhoto.micro || bPhoto.thumb;
             cImg.alt = '';
+            cImg.onload = () => revealImg(cImg);
             crumb.appendChild(cImg);
             crumb.addEventListener('click', () => {
                 const idx = deriveHistory.indexOf(trail[i]);
@@ -108,8 +116,10 @@ function renderDerive(photo) {
         const cur = document.createElement('div');
         cur.className = 'drift-breadcrumb-item current';
         const curImg = document.createElement('img');
+        curImg.className = 'img-loading';
         curImg.src = photo.micro || photo.thumb;
         curImg.alt = '';
+        curImg.onload = () => revealImg(curImg);
         cur.appendChild(curImg);
         breadcrumb.appendChild(cur);
         controls.appendChild(breadcrumb);
@@ -138,13 +148,14 @@ function renderDerive(photo) {
 
     container.appendChild(center);
 
-    // DINOv2 structural neighbors — the magic
+    // Structural neighbors — DINOv2 drift_neighbors.json or similarity fallback
     const neighborData = APP.driftNeighbors[photo.id] || [];
     const neighbors = [];
     for (const n of neighborData) {
-        const nPhoto = APP.photoMap[n.uuid];
+        const nId = n.uuid || n.id;
+        const nPhoto = APP.photoMap[nId];
         if (nPhoto && nPhoto.thumb) {
-            neighbors.push({ photo: nPhoto, score: n.score });
+            neighbors.push({ photo: nPhoto, score: n.score != null ? n.score : 0.5 });
         }
         if (neighbors.length >= 6) break;
     }
@@ -157,7 +168,7 @@ function renderDerive(photo) {
             const card = document.createElement('div');
             card.className = 'drift-neighbor';
 
-            const nImg = createLazyImg(nPhoto, 'thumb');
+            const nImg = createLazyImg(nPhoto, 'mobile');
             lazyObserver.observe(nImg);
             card.appendChild(nImg);
 

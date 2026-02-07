@@ -21,6 +21,16 @@ final class PhotoStore: ObservableObject {
     @Published var isFullscreen: Bool = false
     // Info panel visibility
     @Published var showInfoPanel: Bool = true
+    // Multi-select mode
+    @Published var isSelectMode: Bool = true
+    @Published var selectedPhotos: Set<String> = []
+    // Grid display mode
+    @Published var squareCrop: Bool = true
+    // Pre-computed sidebar counts
+    @Published var quickCounts: QuickCounts = QuickCounts()
+    // Sort
+    @Published var sortBy: SortOption = .random
+    @Published var sortDescending: Bool = true
 
     private var thumbCache = NSCache<NSString, NSImage>()
 
@@ -31,10 +41,47 @@ final class PhotoStore: ObservableObject {
     }
 
     func load() {
-        allPhotos = database.loadPhotos()
-        filters.analysisStatus = "analyzed"
+        var photos = database.loadPhotos()
+        for i in photos.indices { photos[i].prepareCache() }
+        allPhotos = photos
+        restorePreferences()
         applyFilters()
         refreshCounts()
+    }
+
+    // MARK: - Preferences (persist across sessions)
+
+    func savePreferences() {
+        let ud = UserDefaults.standard
+        ud.set(sortBy.rawValue, forKey: "see.sortBy")
+        ud.set(sortDescending, forKey: "see.sortDesc")
+        ud.set(squareCrop, forKey: "see.squareCrop")
+        ud.set(showInfoPanel, forKey: "see.showInfo")
+        ud.set(Array(filters.curatedStatuses), forKey: "see.curatedFilter")
+    }
+
+    private func restorePreferences() {
+        let ud = UserDefaults.standard
+        if let raw = ud.string(forKey: "see.sortBy"),
+           let opt = SortOption(rawValue: raw) {
+            sortBy = opt
+        } else {
+            sortBy = .random
+        }
+        if ud.object(forKey: "see.sortDesc") != nil {
+            sortDescending = ud.bool(forKey: "see.sortDesc")
+        }
+        if ud.object(forKey: "see.squareCrop") != nil {
+            squareCrop = ud.bool(forKey: "see.squareCrop")
+        }
+        if ud.object(forKey: "see.showInfo") != nil {
+            showInfoPanel = ud.bool(forKey: "see.showInfo")
+        }
+        if let arr = ud.stringArray(forKey: "see.curatedFilter") {
+            filters.curatedStatuses = Set(arr)
+        } else {
+            filters.curatedStatuses = ["pending"]
+        }
     }
 
     func refreshCounts() {
@@ -45,9 +92,76 @@ final class PhotoStore: ObservableObject {
 
     func applyFilters() {
         filteredPhotos = allPhotos.filter { matchesFilters($0) }
+        sortPhotos()
         computeFacetedOptions()
+        computeQuickCounts()
         if let sel = selectedPhoto, !filteredPhotos.contains(sel) {
             selectedPhoto = nil; selectedIndex = -1
+        }
+    }
+
+    private func computeQuickCounts() {
+        var qc = QuickCounts()
+        for p in allPhotos {
+            if p.hasPeople { qc.people += 1 }
+            if p.hasAnimal { qc.animals += 1 }
+            if !p.hasPeople && !p.hasAnimal { qc.noSubject += 1 }
+            if p.isMonochrome { qc.monochrome += 1 } else { qc.color += 1 }
+            if p.hasOCRText { qc.withText += 1 }
+        }
+        quickCounts = qc
+    }
+
+    func setSort(_ option: SortOption) {
+        if sortBy == option {
+            sortDescending.toggle()
+        } else {
+            sortBy = option
+            sortDescending = true // default descending (best/most first)
+        }
+        sortPhotos()
+    }
+
+    private func sortPhotos() {
+        let desc = sortDescending
+        switch sortBy {
+        case .random:
+            filteredPhotos.shuffle()
+        case .aesthetic:
+            filteredPhotos.sort { a, b in
+                let sa = a.aestheticScore ?? 0, sb = b.aestheticScore ?? 0
+                return desc ? sa > sb : sa < sb
+            }
+        case .date:
+            filteredPhotos.sort { a, b in
+                let da = a.dateTaken ?? "", db = b.dateTaken ?? ""
+                return desc ? da > db : da < db
+            }
+        case .exposure:
+            // Over > Balanced > Under
+            let rank: [String: Int] = ["Over": 3, "Balanced": 2, "Under": 1]
+            filteredPhotos.sort { a, b in
+                let sa = rank[a.exposure ?? ""] ?? 0, sb = rank[b.exposure ?? ""] ?? 0
+                return desc ? sa > sb : sa < sb
+            }
+        case .saturation:
+            filteredPhotos.sort { a, b in
+                return desc ? a.paletteSaturation > b.paletteSaturation : a.paletteSaturation < b.paletteSaturation
+            }
+        case .depth:
+            filteredPhotos.sort { a, b in
+                let da = a.depthComplexity ?? 0, db = b.depthComplexity ?? 0
+                return desc ? da > db : da < db
+            }
+        case .brightness:
+            filteredPhotos.sort { a, b in
+                return desc ? a.paletteBrightness > b.paletteBrightness : a.paletteBrightness < b.paletteBrightness
+            }
+        case .faces:
+            filteredPhotos.sort { a, b in
+                let fa = a.detectedFaceCount ?? 0, fb = b.detectedFaceCount ?? 0
+                return desc ? fa > fb : fa < fb
+            }
         }
     }
 
@@ -111,7 +225,11 @@ final class PhotoStore: ObservableObject {
             guard let w = p.weather, f.weathers.contains(w) else { return false }
         }
         if dim != .scene && !f.scenes.isEmpty {
-            let photoScenes = Set([p.scene1, p.scene2, p.scene3].compactMap { $0 })
+            var sceneEntries: [String] = []
+            if let s = p.scene1, (p.scene1Score ?? 0) >= 0.3 { sceneEntries.append(s) }
+            if let s = p.scene2, (p.scene2Score ?? 0) >= 0.3 { sceneEntries.append(s) }
+            if let s = p.scene3, (p.scene3Score ?? 0) >= 0.3 { sceneEntries.append(s) }
+            let photoScenes = Set(sceneEntries)
             if f.mode(for: .scene) == .union {
                 if f.scenes.isDisjoint(with: photoScenes) { return false }
             } else {
@@ -125,6 +243,24 @@ final class PhotoStore: ObservableObject {
             } else {
                 if !f.emotions.isSubset(of: photoEmotions) { return false }
             }
+        }
+        if dim != .medium && !f.mediums.isEmpty {
+            guard let m = p.medium, f.mediums.contains(m) else { return false }
+        }
+        if dim != .monochrome, let mc = f.monochromeFilter {
+            if mc == "yes" && !p.isMonochrome { return false }
+            if mc == "no" && p.isMonochrome { return false }
+        }
+        if let sf = f.subjectFilter {
+            if sf == "people" && !p.hasPeople { return false }
+            if sf == "animal" && !p.hasAnimal { return false }
+            if sf == "none" && (p.hasPeople || p.hasAnimal) { return false }
+        }
+        if dim != .enhancement && !f.enhancements.isEmpty {
+            guard let e = p.enhancementStatus, f.enhancements.contains(e) else { return false }
+        }
+        if dim != .filmStock && !f.filmStocks.isEmpty {
+            guard let fs = p.filmStock, f.filmStocks.contains(fs) else { return false }
         }
         if dim != .search && !f.searchText.isEmpty {
             let q = f.searchText.lowercased()
@@ -158,6 +294,9 @@ final class PhotoStore: ObservableObject {
         options.weathers = facetOpt(\.weather, excluding: .weather)
         options.scenes = facetScenes()
         options.emotions = facetEmotions()
+        options.mediums = facetOpt(\.medium, excluding: .medium)
+        options.enhancements = facetOpt(\.enhancementStatus, excluding: .enhancement)
+        options.filmStocks = facetOpt(\.filmStock, excluding: .filmStock)
     }
 
     private func facet(_ kp: KeyPath<PhotoItem, String>, excluding: FilterDimension) -> [FacetOption] {
@@ -186,11 +325,12 @@ final class PhotoStore: ObservableObject {
     }
 
     private func facetScenes() -> [FacetOption] {
+        let minConf = 0.3
         var counts: [String: Int] = [:]
         for p in allPhotos where matchesFilters(p, excluding: .scene) {
-            for s in [p.scene1, p.scene2, p.scene3].compactMap({ $0 }) where !s.isEmpty {
-                counts[s, default: 0] += 1
-            }
+            if let s = p.scene1, !s.isEmpty, (p.scene1Score ?? 0) >= minConf { counts[s, default: 0] += 1 }
+            if let s = p.scene2, !s.isEmpty, (p.scene2Score ?? 0) >= minConf { counts[s, default: 0] += 1 }
+            if let s = p.scene3, !s.isEmpty, (p.scene3Score ?? 0) >= minConf { counts[s, default: 0] += 1 }
         }
         return counts.sorted { $0.key < $1.key }.map { FacetOption(value: $0.key, count: $0.value) }
     }
@@ -220,6 +360,16 @@ final class PhotoStore: ObservableObject {
         applyFilters()
     }
 
+    func toggleMonochrome(_ value: String) {
+        filters.monochromeFilter = filters.monochromeFilter == value ? nil : value
+        applyFilters()
+    }
+
+    func toggleSubject(_ value: String) {
+        filters.subjectFilter = filters.subjectFilter == value ? nil : value
+        applyFilters()
+    }
+
     func setMode(_ mode: QueryMode, for dim: FilterDimension) {
         filters.setMode(mode, for: dim)
         applyFilters()
@@ -237,7 +387,7 @@ final class PhotoStore: ObservableObject {
     }
 
     func enhancedPath(for photo: PhotoItem) -> String {
-        (basePath as NSString).appendingPathComponent("rendered/enhanced/jpeg/\(photo.id).jpg")
+        (basePath as NSString).appendingPathComponent("images/rendered/enhanced/jpeg/\(photo.id).jpg")
     }
 
     // MARK: - Fullscreen toggle
@@ -353,6 +503,20 @@ final class PhotoStore: ObservableObject {
         addGroup("weather", filters.weathers, mode: filters.mode(for: .weather))
         addGroup("scene", filters.scenes, mode: filters.mode(for: .scene))
         addGroup("emotion", filters.emotions, mode: filters.mode(for: .emotion))
+        addGroup("medium", filters.mediums, transform: { $0.replacingOccurrences(of: "_", with: " ").capitalized })
+        addGroup("filmStock", filters.filmStocks)
+        addGroup("enhancement", filters.enhancements, transform: { $0.capitalized })
+        if let mc = filters.monochromeFilter {
+            groups.append(ChipGroup(id: "monochrome", chips: [
+                ActiveChip(id: "monochrome:\(mc)", label: mc == "yes" ? "Monochrome" : "Color")
+            ], mode: .union))
+        }
+        if let sf = filters.subjectFilter {
+            let label = sf == "people" ? "People" : sf == "animal" ? "Animals" : "No People/Animals"
+            groups.append(ChipGroup(id: "subject", chips: [
+                ActiveChip(id: "subject:\(sf)", label: label)
+            ], mode: .union))
+        }
         if let ht = filters.hasTextFilter {
             groups.append(ChipGroup(id: "hasText", chips: [
                 ActiveChip(id: "hasText:\(ht)", label: ht == "yes" ? "Has Text" : "No Text")
@@ -392,11 +556,51 @@ final class PhotoStore: ObservableObject {
         case "weather": filters.weathers.remove(val)
         case "scene": filters.scenes.remove(val)
         case "emotion": filters.emotions.remove(val)
+        case "medium": filters.mediums.remove(val)
+        case "monochrome": filters.monochromeFilter = nil
+        case "subject": filters.subjectFilter = nil
+        case "enhancement": filters.enhancements.remove(val)
+        case "filmStock": filters.filmStocks.remove(val)
         case "hasText": filters.hasTextFilter = nil
         case "search": filters.searchText = ""
         default: break
         }
         applyFilters()
+    }
+
+    // MARK: - Multi-select
+
+    func toggleSelectMode() {
+        isSelectMode.toggle()
+        if !isSelectMode { selectedPhotos.removeAll() }
+    }
+
+    func togglePhotoSelection(_ photo: PhotoItem) {
+        if selectedPhotos.contains(photo.id) {
+            selectedPhotos.remove(photo.id)
+        } else {
+            selectedPhotos.insert(photo.id)
+        }
+    }
+
+    func selectAll() {
+        selectedPhotos = Set(filteredPhotos.map(\.id))
+    }
+
+    func deselectAll() {
+        selectedPhotos.removeAll()
+    }
+
+    func batchCurate(status: String) {
+        for uuid in selectedPhotos {
+            database.setCuratedStatus(uuid: uuid, status: status)
+            if let idx = allPhotos.firstIndex(where: { $0.id == uuid }) {
+                allPhotos[idx].curatedStatus = status
+            }
+        }
+        selectedPhotos.removeAll()
+        applyFilters()
+        refreshCounts()
     }
 
     // MARK: - Curation
@@ -406,22 +610,25 @@ final class PhotoStore: ObservableObject {
         if let idx = allPhotos.firstIndex(where: { $0.id == photo.id }) {
             allPhotos[idx].curatedStatus = status
         }
-        if let idx = filteredPhotos.firstIndex(where: { $0.id == photo.id }) {
-            filteredPhotos[idx].curatedStatus = status
-        }
+        applyFilters()
         refreshCounts()
     }
 
     func keepCurrent() {
         guard let photo = selectedPhoto else { return }
-        curate(photo, status: "kept")
+        curate(photo, status: photo.curatedStatus == "kept" ? "pending" : "kept")
         moveToNext()
     }
 
     func rejectCurrent() {
         guard let photo = selectedPhoto else { return }
-        curate(photo, status: "rejected")
+        curate(photo, status: photo.curatedStatus == "rejected" ? "pending" : "rejected")
         moveToNext()
+    }
+
+    func unflagCurrent() {
+        guard let photo = selectedPhoto else { return }
+        curate(photo, status: "pending")
     }
 
     func selectPhoto(_ photo: PhotoItem) {
@@ -449,13 +656,11 @@ final class PhotoStore: ObservableObject {
     // MARK: - Images
 
     func thumbnailPath(for photo: PhotoItem) -> String {
-        if let p = photo.thumbPath, !p.isEmpty { return p }
-        return (basePath as NSString).appendingPathComponent("rendered/thumb/jpeg/\(photo.id).jpg")
+        (basePath as NSString).appendingPathComponent("images/rendered/thumb/jpeg/\(photo.id).jpg")
     }
 
     func displayPath(for photo: PhotoItem) -> String {
-        if let p = photo.displayPath, !p.isEmpty { return p }
-        return (basePath as NSString).appendingPathComponent("rendered/display/jpeg/\(photo.id).jpg")
+        (basePath as NSString).appendingPathComponent("images/rendered/display/jpeg/\(photo.id).jpg")
     }
 
     func currentImagePath(for photo: PhotoItem) -> String {
@@ -469,11 +674,10 @@ final class PhotoStore: ObservableObject {
     }
 
     func loadThumbnail(for photo: PhotoItem) -> NSImage? {
-        let key = photo.id as NSString
-        if let cached = thumbCache.object(forKey: key) { return cached }
-        let path = thumbnailPath(for: photo)
-        guard let image = NSImage(contentsOfFile: path) else { return nil }
-        thumbCache.setObject(image, forKey: key)
-        return image
+        thumbCache.object(forKey: photo.id as NSString)
+    }
+
+    func cacheThumbnail(_ image: NSImage, for photo: PhotoItem) {
+        thumbCache.setObject(image, forKey: photo.id as NSString)
     }
 }

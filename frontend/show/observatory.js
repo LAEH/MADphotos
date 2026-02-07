@@ -182,8 +182,9 @@ function createOutlierRow(label, photo) {
     row.className = 'obs-outlier-row clickable-img';
 
     const thumb = document.createElement('img');
+    thumb.className = 'obs-outlier-thumb img-loading';
     thumb.src = photo.micro || photo.thumb;
-    thumb.className = 'obs-outlier-thumb';
+    thumb.onload = () => revealImg(thumb);
     row.appendChild(thumb);
 
     const text = document.createElement('span');

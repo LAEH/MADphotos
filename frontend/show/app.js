@@ -17,21 +17,37 @@ const APP = {
 
 /* Experience registry */
 const EXPERIENCES = [
-    { id: 'grille',      name: 'La Grille',       init: 'initGrille' },
+    { id: 'grille',      name: 'Sort',            init: 'initGrille' },
     { id: 'bento',       name: 'Le Bento',        init: 'initBento' },
     { id: 'similarity',  name: 'La Similarit\u00e9', init: 'initSimilarity' },
-    { id: 'derive',      name: 'La D\u00e9rive',  init: 'initDerive' },
     { id: 'couleurs',    name: 'Les Couleurs',    init: 'initCouleurs' },
     { id: 'game',        name: 'Le Jeu',          init: 'initGame' },
-    { id: 'darkroom',    name: 'Chambre Noire',   init: 'initDarkroom' },
+    { id: 'domino',      name: 'Le Domino',       init: 'initDomino' },
     { id: 'stream',      name: 'Le Flot',         init: 'initStream' },
     { id: 'faces',       name: 'Les Visages',     init: 'initFaces' },
     { id: 'compass',     name: 'La Boussole',     init: 'initCompass' },
-    { id: 'observatory', name: 'L\'Observatoire', init: 'initObservatory' },
-    { id: 'map',         name: 'La Carte',        init: 'initMap' },
-    { id: 'typewriter',  name: 'Machine \u00c0 \u00c9crire', init: 'initTypewriter' },
-    { id: 'pendulum',    name: 'Le Pendule',      init: 'initPendulum' },
+    { id: 'nyu',         name: 'NYU',             init: 'initNyu' },
+    { id: 'confetti',    name: 'Les Confettis',   init: 'initConfetti' },
 ];
+
+/* ===== Device Detection & Gating ===== */
+function isMobile() {
+    return window.matchMedia('(max-width: 768px)').matches;
+}
+
+function updateDeviceGating() {
+    const mobile = isMobile();
+    document.querySelectorAll('.exp-card[data-device]').forEach(card => {
+        const device = card.dataset.device;
+        const disabled = (mobile && device === 'desktop') || (!mobile && device === 'mobile');
+        card.classList.toggle('exp-card-disabled', disabled);
+        if (disabled) {
+            card.dataset.disabledMsg = mobile ? 'Desktop only' : 'Mobile only';
+        } else {
+            card.dataset.disabledMsg = '';
+        }
+    });
+}
 
 /* ===== Data Loading (with error handling) ===== */
 async function fetchJSON(url) {
@@ -107,6 +123,7 @@ function initRouter() {
 
     document.querySelectorAll('.exp-card').forEach(card => {
         card.addEventListener('click', () => {
+            if (card.classList.contains('exp-card-disabled')) return;
             const view = card.dataset.view;
             if (view) switchView(view);
         });
@@ -116,7 +133,14 @@ function initRouter() {
         const hash = location.hash.slice(1);
         if (hash && hash !== APP.currentView) {
             const validViews = EXPERIENCES.map(e => e.id);
-            if (validViews.includes(hash)) switchView(hash);
+            if (validViews.includes(hash)) {
+                const card = document.querySelector(`.exp-card[data-view="${hash}"]`);
+                if (card && card.classList.contains('exp-card-disabled')) {
+                    switchView('launcher');
+                    return;
+                }
+                switchView(hash);
+            }
         }
     });
 }
@@ -241,14 +265,8 @@ function openLightbox(photo) {
     const tags = lb.querySelector('.lightbox-tags');
     const palette = lb.querySelector('.lightbox-palette');
 
-    /* Progressive load: micro → display */
-    if (photo.micro) img.src = photo.micro;
-    const targetSrc = photo.display || photo.mobile || photo.thumb;
-    if (targetSrc && targetSrc !== photo.micro) {
-        const preload = new Image();
-        preload.onload = () => { img.src = targetSrc; };
-        preload.src = targetSrc;
-    }
+    /* Progressive load: use shared loadProgressive for consistent fade-in */
+    loadProgressive(img, photo, 'display');
     img.alt = photo.alt || photo.caption || '';
     alt.textContent = photo.caption || photo.alt || '';
 
@@ -268,25 +286,101 @@ function openLightbox(photo) {
     lb.classList.remove('hidden');
 }
 
-/* ===== Progressive Image Loading ===== */
-function loadProgressive(img, photo, targetTier) {
-    if (photo.micro) img.src = photo.micro;
-    const target = photo[targetTier] || photo.thumb;
-    if (target && target !== photo.micro) {
-        const preload = new Image();
-        preload.onload = () => { img.src = target; };
-        preload.src = target;
+/* ===== Image Reveal Helper ===== */
+/**
+ * Swap an img from .img-loading (opacity:0) to .img-loaded (opacity:1
+ * with transition). After the opacity transition ends, remove the
+ * .img-loaded class so the element's natural CSS transitions (e.g.
+ * transform on hover) are no longer overridden.
+ *
+ * This is the single codepath for "make this image visible with a fade."
+ */
+function revealImg(img) {
+    img.classList.remove('img-loading');
+    img.classList.add('img-loaded');
+
+    /* Clean up .img-loaded after fade completes so it doesn't
+       permanently override other transition properties on this element. */
+    function onEnd(e) {
+        if (e.propertyName === 'opacity') {
+            img.removeEventListener('transitionend', onEnd);
+            img.classList.remove('img-loaded');
+            /* opacity:1 is now the default (no class needed) */
+        }
     }
+    img.addEventListener('transitionend', onEnd);
+
+    /* Safety: if transition doesn't fire (reduced-motion, not in DOM,
+       or duration rounds to 0), clean up after a generous timeout. */
+    setTimeout(() => {
+        img.classList.remove('img-loaded');
+        img.classList.remove('img-loading');
+    }, 600);
+}
+
+/* ===== Progressive Image Loading ===== */
+/**
+ * Load an image progressively: start invisible, preload the target tier
+ * off-screen, then set src and fade in once fully decoded.
+ *
+ * Compositing note: only opacity is transitioned (compositor-only).
+ * The .img-loading class starts at opacity:0; .img-loaded transitions
+ * to opacity:1 via CSS. No layout or paint properties are animated.
+ */
+function loadProgressive(img, photo, targetTier) {
+    const target = photo[targetTier] || photo.thumb;
+    if (!target) return;
+
+    /* Start invisible — will fade in once target is fully decoded */
+    img.classList.add('img-loading');
+    img.classList.remove('img-loaded');
+
+    const preload = new Image();
+    preload.decoding = 'async';
+    preload.onload = () => {
+        img.src = target;
+        /* Use decode() where available so the frame that adds .img-loaded
+           is guaranteed to have the pixels ready — no flash of blank. */
+        if (typeof img.decode === 'function') {
+            img.decode().then(() => {
+                revealImg(img);
+            }).catch(() => {
+                /* decode() can reject if img is detached from DOM */
+                revealImg(img);
+            });
+        } else {
+            revealImg(img);
+        }
+    };
+    preload.onerror = () => {
+        /* Fallback: if target fails, try showing micro at least */
+        if (photo.micro && target !== photo.micro) {
+            img.src = photo.micro;
+        }
+        revealImg(img);
+    };
+    preload.src = target;
 }
 
 /* ===== Lazy Loading with IntersectionObserver ===== */
+/**
+ * Create an img element that starts invisible and defers loading
+ * until it enters the viewport (via lazyObserver). Once the target
+ * tier is fully decoded, the image fades in via .img-loaded.
+ *
+ * Container must set explicit width/height or aspect-ratio to
+ * prevent CLS — the img itself is opacity:0 until loaded.
+ */
 function createLazyImg(photo, targetTier) {
     const img = document.createElement('img');
     img.alt = photo.alt || photo.caption || '';
-    img.loading = 'lazy';
-    if (photo.micro) img.src = photo.micro;
+    img.decoding = 'async';
     img.dataset.src = photo[targetTier] || photo.thumb;
     img.dataset.id = photo.id;
+
+    /* Start invisible — no src set yet, nothing to paint */
+    img.classList.add('img-loading');
+
     return img;
 }
 
@@ -295,15 +389,30 @@ const lazyObserver = new IntersectionObserver((entries) => {
         if (entry.isIntersecting) {
             const img = entry.target;
             const src = img.dataset.src;
-            if (src && img.src !== src) {
-                const preload = new Image();
-                preload.onload = () => {
-                    img.src = src;
-                    img.removeAttribute('data-src');
-                };
-                preload.src = src;
-            }
             lazyObserver.unobserve(img);
+
+            if (!src) return;
+
+            const preload = new Image();
+            preload.decoding = 'async';
+            preload.onload = () => {
+                img.src = src;
+                img.removeAttribute('data-src');
+                if (typeof img.decode === 'function') {
+                    img.decode().then(() => {
+                        revealImg(img);
+                    }).catch(() => {
+                        revealImg(img);
+                    });
+                } else {
+                    revealImg(img);
+                }
+            };
+            preload.onerror = () => {
+                /* Show whatever we have — don't leave invisible */
+                revealImg(img);
+            };
+            preload.src = src;
         }
     }
 }, { rootMargin: LAZY_MARGIN });
@@ -342,6 +451,8 @@ async function init() {
 
     initRouter();
     initLightbox();
+    updateDeviceGating();
+    window.addEventListener('resize', debounce(updateDeviceGating, 250));
 
     const hash = location.hash.slice(1);
     const validViews = EXPERIENCES.map(e => e.id);

@@ -51,11 +51,9 @@ function loadStreamBatch() {
         const item = document.createElement('div');
         item.className = 'stream-item' + (isBreather ? ' stream-breather' : '');
 
-        const img = document.createElement('img');
-        img.className = 'stream-img';
-        img.loading = 'lazy';
-        if (photo.micro) img.src = photo.micro;
-        img.dataset.src = photo.display || photo.mobile || photo.thumb;
+        const tier = photo.display ? 'display' : (photo.mobile ? 'mobile' : 'thumb');
+        const img = createLazyImg(photo, tier);
+        img.classList.add('stream-img');
         lazyObserver.observe(img);
         item.appendChild(img);
 

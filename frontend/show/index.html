@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MADphotos — Show</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=8">
 </head>
 <body>
     <header id="header">
@@ -12,141 +12,142 @@
             <a href="#" class="logo" id="logo-home">MADphotos</a>
             <span class="photo-count" id="photo-count"></span>
         </div>
-        <nav class="tabs" id="tabs">
-            <!-- Tabs are dynamically created by the router -->
-        </nav>
+        <div class="header-right">
+            <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">
+                <svg class="theme-icon-sun" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1M3.4 3.4l.7.7M11.9 11.9l.7.7M3.4 12.6l.7-.7M11.9 4.1l.7-.7"/></svg>
+                <svg class="theme-icon-moon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 8.5a5.5 5.5 0 0 1-7-7 5.5 5.5 0 1 0 7 7z"/></svg>
+            </button>
+            <nav class="tabs" id="tabs"></nav>
+        </div>
     </header>
 
     <main id="main">
-        <!-- Launcher: experience card grid -->
         <section id="view-launcher" class="view active">
             <div class="launcher">
                 <div class="launcher-header">
                     <h2 class="launcher-title">Show</h2>
-                    <p class="launcher-subtitle">14 ways to experience 9,011 photographs</p>
+                    <p class="launcher-subtitle">11 ways to experience 9,011 photographs</p>
                 </div>
                 <div class="launcher-grid">
 
-                    <div class="exp-card" data-view="grille">
-                        <div class="exp-card-badge">Filter</div>
-                        <h3 class="exp-card-title">La Grille</h3>
-                        <p class="exp-card-desc">Justified grid with glass tags. Filter by vibe, grading, time, setting.</p>
-                        <div class="exp-card-devices">Desktop + Mobile</div>
+                    <div class="exp-card" data-view="grille" data-device="both">
+                        <h3 class="exp-card-title">Sort</h3>
+                        <p class="exp-card-desc">Top 1,000 photographs. Sort by aesthetic, time, vibe, scene.</p>
+                        <div class="exp-card-footer">
+                            <span class="exp-tag exp-tag-layout">↕ Scroll</span>
+                            <span class="exp-tag exp-tag-signal">★ Aesthetic</span>
+                        </div>
                     </div>
 
-                    <div class="exp-card" data-view="bento">
-                        <div class="exp-card-badge exp-badge-gold">Contemplate</div>
-                        <h3 class="exp-card-title">Le Bento</h3>
-                        <p class="exp-card-desc">Algorithmic Mondrian mosaic. Chromatic harmony. Crossfade. No UI.</p>
-                        <div class="exp-card-devices">Desktop</div>
-                    </div>
-
-                    <div class="exp-card" data-view="similarity">
-                        <div class="exp-card-badge exp-badge-teal">Explore</div>
-                        <h3 class="exp-card-title">La Similarit&eacute;</h3>
-                        <p class="exp-card-desc">Navigate through semantically connected photographs. Shared vibes, objects, scenes.</p>
-                        <div class="exp-card-devices">Desktop + Mobile</div>
-                    </div>
-
-                    <div class="exp-card" data-view="derive">
-                        <div class="exp-card-badge exp-badge-purple">Drift</div>
-                        <h3 class="exp-card-title">La D&eacute;rive</h3>
-                        <p class="exp-card-desc">Visual drift through structural similarity. Same shapes, different worlds.</p>
-                        <div class="exp-card-devices">Desktop + Mobile</div>
-                    </div>
-
-                    <div class="exp-card" data-view="couleurs">
-                        <div class="exp-card-badge exp-badge-spectrum">Color</div>
+                    <div class="exp-card" data-view="couleurs" data-device="both">
                         <h3 class="exp-card-title">Les Couleurs</h3>
-                        <p class="exp-card-desc">Color space exploration. Interactive spectrum. Semantic pop labels.</p>
-                        <div class="exp-card-devices">Desktop + Mobile</div>
+                        <p class="exp-card-desc">Chromatic bento. Browse by dominant hue.</p>
+                        <div class="exp-card-footer">
+                            <span class="exp-tag exp-tag-layout">⊞ Viewport</span>
+                            <span class="exp-tag exp-tag-signal">● K-means</span>
+                        </div>
                     </div>
 
-                    <div class="exp-card" data-view="game">
-                        <div class="exp-card-badge exp-badge-red">Play</div>
-                        <h3 class="exp-card-title">Le Terrain de Jeu</h3>
-                        <p class="exp-card-desc">Two images, one hidden connection. Six choices. Timer. Score. Addictive.</p>
-                        <div class="exp-card-devices">Desktop + Mobile</div>
-                    </div>
-
-                    <div class="exp-card" data-view="darkroom">
-                        <div class="exp-card-badge exp-badge-dark">Analyze</div>
-                        <h3 class="exp-card-title">La Chambre Noire</h3>
-                        <p class="exp-card-desc">One image, all signals. Toggle layers: depth, objects, faces, colors, OCR.</p>
-                        <div class="exp-card-devices">Desktop</div>
-                    </div>
-
-                    <div class="exp-card" data-view="stream">
-                        <div class="exp-card-badge exp-badge-blue">Flow</div>
-                        <h3 class="exp-card-title">Le Flot</h3>
-                        <p class="exp-card-desc">Infinite scroll curated for visual continuity. Monochrome breathers. No UI.</p>
-                        <div class="exp-card-devices">Mobile</div>
-                    </div>
-
-                    <div class="exp-card" data-view="faces">
-                        <div class="exp-card-badge exp-badge-pink">Emotion</div>
+                    <div class="exp-card" data-view="faces" data-device="both">
                         <h3 class="exp-card-title">Les Visages</h3>
-                        <p class="exp-card-desc">1,676 detected faces. Emotion-colored borders. Mood distribution.</p>
-                        <div class="exp-card-devices">Desktop + Mobile</div>
+                        <p class="exp-card-desc">Cropped faces organized by detected emotion.</p>
+                        <div class="exp-card-footer">
+                            <span class="exp-tag exp-tag-layout">↕ Scroll</span>
+                            <span class="exp-tag exp-tag-signal">◑ Emotions</span>
+                        </div>
                     </div>
 
-                    <div class="exp-card" data-view="compass">
-                        <div class="exp-card-badge exp-badge-green">Navigate</div>
+                    <div class="exp-card" data-view="similarity" data-device="both">
+                        <h3 class="exp-card-title">La Similarit&eacute;</h3>
+                        <p class="exp-card-desc">Semantically connected photographs. Shared vibes, objects, scenes.</p>
+                        <div class="exp-card-footer">
+                            <span class="exp-tag exp-tag-layout">↕ Scroll</span>
+                            <span class="exp-tag exp-tag-signal">◆ DINOv2</span>
+                        </div>
+                    </div>
+
+                    <div class="exp-card" data-view="compass" data-device="both">
                         <h3 class="exp-card-title">La Boussole</h3>
-                        <p class="exp-card-desc">Four-axis compass: composition, color, mood, meaning. Infinite exploration.</p>
-                        <div class="exp-card-devices">Desktop + Mobile</div>
+                        <p class="exp-card-desc">Four-axis compass. Composition, color, mood, meaning.</p>
+                        <div class="exp-card-footer">
+                            <span class="exp-tag exp-tag-layout">⊞ Viewport</span>
+                            <span class="exp-tag exp-tag-signal">◇ Semantic</span>
+                        </div>
                     </div>
 
-                    <div class="exp-card" data-view="observatory">
-                        <div class="exp-card-badge exp-badge-indigo">Data</div>
-                        <h3 class="exp-card-title">L'Observatoire</h3>
-                        <p class="exp-card-desc">Six interactive panels. Scatter, treemap, time wheel, camera distributions.</p>
-                        <div class="exp-card-devices">Desktop</div>
+                    <div class="exp-card" data-view="domino" data-device="both">
+                        <h3 class="exp-card-title">Le Domino</h3>
+                        <p class="exp-card-desc">Chain between images. Click connected photos to drift.</p>
+                        <div class="exp-card-footer">
+                            <span class="exp-tag exp-tag-layout">⊞ Viewport</span>
+                            <span class="exp-tag exp-tag-signal">⊟ Labels</span>
+                        </div>
                     </div>
 
-                    <div class="exp-card" data-view="map">
-                        <div class="exp-card-badge exp-badge-green">Wander</div>
-                        <h3 class="exp-card-title">La Carte</h3>
-                        <p class="exp-card-desc">1,820 GPS-tagged photos as luminous dots on a dark world map.</p>
-                        <div class="exp-card-devices">Desktop + Mobile</div>
+                    <div class="exp-card" data-view="bento" data-device="desktop">
+                        <h3 class="exp-card-title">Le Bento</h3>
+                        <p class="exp-card-desc">Algorithmic mosaic. Chromatic harmony. Crossfade.</p>
+                        <div class="exp-card-footer">
+                            <span class="exp-tag exp-tag-layout">⊞ Viewport</span>
+                            <span class="exp-tag exp-tag-signal">★ Aesthetic</span>
+                            <span class="exp-tag exp-tag-device">🖥 Desktop</span>
+                        </div>
                     </div>
 
-                    <div class="exp-card" data-view="typewriter">
-                        <div class="exp-card-badge exp-badge-gold">Search</div>
-                        <h3 class="exp-card-title">La Machine &agrave; &Eacute;crire</h3>
-                        <p class="exp-card-desc">Type anything. Words dissolve into matching photographs. Semantic search.</p>
-                        <div class="exp-card-devices">Desktop</div>
+                    <div class="exp-card" data-view="stream" data-device="mobile">
+                        <h3 class="exp-card-title">Le Flot</h3>
+                        <p class="exp-card-desc">Infinite scroll curated for visual continuity.</p>
+                        <div class="exp-card-footer">
+                            <span class="exp-tag exp-tag-layout">↕ Scroll</span>
+                            <span class="exp-tag exp-tag-signal">∿ Flow</span>
+                            <span class="exp-tag exp-tag-device">📱 Mobile</span>
+                        </div>
                     </div>
 
-                    <div class="exp-card" data-view="pendulum">
-                        <div class="exp-card-badge exp-badge-amber">Taste</div>
-                        <h3 class="exp-card-title">Le Pendule</h3>
-                        <p class="exp-card-desc">Original vs enhanced, side by side. Pick your preference. Reveal your taste.</p>
-                        <div class="exp-card-devices">Desktop + Mobile</div>
+                    <div class="exp-card" data-view="nyu" data-device="both">
+                        <h3 class="exp-card-title">NYU</h3>
+                        <p class="exp-card-desc">150 curated photographs. Five ways to see them.</p>
+                        <div class="exp-card-footer">
+                            <span class="exp-tag exp-tag-layout">⊞ Viewport</span>
+                            <span class="exp-tag exp-tag-signal">♦ Curated</span>
+                        </div>
+                    </div>
+
+                    <div class="exp-card" data-view="game" data-device="both">
+                        <h3 class="exp-card-title">Le Jeu</h3>
+                        <p class="exp-card-desc">Curated image pairs. Like or dislike.</p>
+                        <div class="exp-card-footer">
+                            <span class="exp-tag exp-tag-layout">⊞ Viewport</span>
+                            <span class="exp-tag exp-tag-signal">≈ Similarity</span>
+                        </div>
+                    </div>
+
+                    <div class="exp-card" data-view="confetti" data-device="both">
+                        <h3 class="exp-card-title">Les Confettis</h3>
+                        <p class="exp-card-desc">Curated sets. Explode into mosaic. Click to reshuffle.</p>
+                        <div class="exp-card-footer">
+                            <span class="exp-tag exp-tag-layout">⊞ Viewport</span>
+                            <span class="exp-tag exp-tag-signal">✦ Vibes</span>
+                        </div>
                     </div>
 
                 </div>
             </div>
         </section>
 
-        <!-- Experience views (populated by JS) -->
         <section id="view-grille" class="view"></section>
         <section id="view-bento" class="view"></section>
         <section id="view-similarity" class="view"></section>
-        <section id="view-derive" class="view"></section>
         <section id="view-couleurs" class="view"></section>
         <section id="view-game" class="view"></section>
-        <section id="view-darkroom" class="view"></section>
+        <section id="view-domino" class="view"></section>
         <section id="view-stream" class="view"></section>
         <section id="view-faces" class="view"></section>
         <section id="view-compass" class="view"></section>
-        <section id="view-observatory" class="view"></section>
-        <section id="view-map" class="view"></section>
-        <section id="view-typewriter" class="view"></section>
-        <section id="view-pendulum" class="view"></section>
+        <section id="view-nyu" class="view"></section>
+        <section id="view-confetti" class="view"></section>
     </main>
 
-    <!-- Lightbox overlay -->
     <div id="lightbox" class="lightbox hidden">
         <div class="lightbox-backdrop"></div>
         <div class="lightbox-content">
@@ -160,20 +161,24 @@
         </div>
     </div>
 
-    <script src="app.js"></script>
-    <script src="grid.js"></script>
-    <script src="similarity.js"></script>
-    <script src="colors.js"></script>
-    <script src="bento.js"></script>
-    <script src="game.js"></script>
-    <script src="stream.js"></script>
-    <script src="darkroom.js"></script>
-    <script src="faces.js"></script>
-    <script src="compass.js"></script>
-    <script src="observatory.js"></script>
-    <script src="map.js"></script>
-    <script src="typewriter.js"></script>
-    <script src="pendulum.js"></script>
-    <script src="drift.js"></script>
+    <script>
+        (function() {
+            var t = localStorage.getItem('theme');
+            if (t === 'dark') document.documentElement.classList.add('dark');
+        })();
+    </script>
+    <script src="theme.js?v=8"></script>
+    <script src="app.js?v=8"></script>
+    <script src="grid.js?v=8"></script>
+    <script src="similarity.js?v=8"></script>
+    <script src="colors.js?v=8"></script>
+    <script src="bento.js?v=8"></script>
+    <script src="game.js?v=8"></script>
+    <script src="stream.js?v=8"></script>
+    <script src="domino.js?v=8"></script>
+    <script src="faces.js?v=8"></script>
+    <script src="compass.js?v=8"></script>
+    <script src="nyu.js?v=8"></script>
+    <script src="confetti.js?v=8"></script>
 </body>
 </html>

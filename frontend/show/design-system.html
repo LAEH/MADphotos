@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Design System — MADphotos Show</title>
+    <link rel="stylesheet" href="style.css?v=8">
+    <style>
+        /* Design system page-specific styles */
+        .ds-page {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: var(--space-6);
+        }
+
+        .ds-header {
+            margin-bottom: var(--space-12);
+            border-bottom: 1px solid var(--separator);
+            padding-bottom: var(--space-6);
+        }
+
+        .ds-title {
+            font-family: var(--font-display);
+            font-size: var(--text-4xl);
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            margin-bottom: var(--space-2);
+        }
+
+        .ds-subtitle {
+            font-size: var(--text-base);
+            color: var(--text-dim);
+        }
+
+        .ds-compliance {
+            display: flex;
+            gap: var(--space-4);
+            margin-top: var(--space-4);
+            flex-wrap: wrap;
+        }
+
+        .ds-compliance-badge {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            padding: var(--space-1_5) var(--space-3);
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-full);
+            font-size: var(--text-sm);
+            color: var(--text-dim);
+        }
+
+        .ds-compliance-badge strong {
+            color: var(--text);
+        }
+
+        .ds-nav {
+            display: flex;
+            gap: var(--space-2);
+            margin-bottom: var(--space-8);
+            overflow-x: auto;
+            padding-bottom: var(--space-2);
+        }
+
+        .ds-nav-link {
+            font-family: var(--font);
+            font-size: var(--text-sm);
+            color: var(--text-dim);
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-full);
+            padding: var(--space-1_5) var(--space-4);
+            cursor: pointer;
+            transition: background var(--transition), color var(--transition), border-color var(--transition);
+            white-space: nowrap;
+            text-decoration: none;
+        }
+
+        .ds-nav-link:hover {
+            color: var(--text);
+            background: var(--glass-bg-hover);
+            border-color: var(--glass-border-hover);
+        }
+
+        .ds-section {
+            margin-bottom: var(--space-16);
+        }
+
+        .ds-section-title {
+            font-family: var(--font-display);
+            font-size: var(--text-2xl);
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            margin-bottom: var(--space-6);
+            padding-top: var(--space-4);
+        }
+
+        .ds-subsection {
+            margin-bottom: var(--space-8);
+        }
+
+        .ds-subsection-title {
+            font-size: var(--text-lg);
+            font-weight: 600;
+            margin-bottom: var(--space-4);
+            color: var(--text);
+        }
+
+        /* Color Swatches */
+        .ds-color-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: var(--space-4);
+        }
+
+        .ds-color-card {
+            background: var(--bg-elevated);
+            border: 1px solid var(--separator);
+            border-radius: var(--radius);
+            overflow: hidden;
+            transition: transform var(--transition), box-shadow var(--transition);
+        }
+
+        .ds-color-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .ds-color-swatch {
+            width: 100%;
+            height: 80px;
+            border-bottom: 1px solid var(--separator);
+        }
+
+        .ds-color-info {
+            padding: var(--space-3);
+        }
+
+        .ds-color-name {
+            font-size: var(--text-sm);
+            font-weight: 600;
+            margin-bottom: var(--space-1);
+            font-family: var(--font-mono);
+            color: var(--text);
+        }
+
+        .ds-color-var {
+            font-size: var(--text-xs);
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            margin-bottom: var(--space-1);
+        }
+
+        .ds-color-value {
+            font-size: var(--text-xs);
+            color: var(--text-dim);
+            font-family: var(--font-mono);
+        }
+
+        .ds-copy-btn {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-sm);
+            padding: var(--space-0_5) var(--space-2);
+            font-size: var(--text-xs);
+            color: var(--text-dim);
+            cursor: pointer;
+            transition: background var(--transition), color var(--transition);
+            margin-top: var(--space-1);
+        }
+
+        .ds-copy-btn:hover {
+            background: var(--glass-bg-hover);
+            color: var(--text);
+        }
+
+        /* Typography specimens */
+        .ds-type-specimen {
+            margin-bottom: var(--space-6);
+            padding: var(--space-4);
+            background: var(--bg-elevated);
+            border: 1px solid var(--separator);
+            border-radius: var(--radius);
+        }
+
+        .ds-type-sample {
+            margin-bottom: var(--space-2);
+        }
+
+        .ds-type-label {
+            font-size: var(--text-xs);
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            margin-top: var(--space-1);
+        }
+
+        /* Spacing scale */
+        .ds-spacing-row {
+            display: flex;
+            align-items: center;
+            gap: var(--space-4);
+            margin-bottom: var(--space-3);
+        }
+
+        .ds-spacing-label {
+            font-family: var(--font-mono);
+            font-size: var(--text-sm);
+            color: var(--text);
+            min-width: 120px;
+        }
+
+        .ds-spacing-bar {
+            height: 24px;
+            background: var(--fill-secondary);
+            border-radius: var(--radius-xs);
+            border: 1px solid var(--glass-border);
+        }
+
+        .ds-spacing-value {
+            font-family: var(--font-mono);
+            font-size: var(--text-xs);
+            color: var(--text-muted);
+            min-width: 40px;
+        }
+
+        /* Radius specimens */
+        .ds-radius-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: var(--space-4);
+        }
+
+        .ds-radius-card {
+            background: var(--bg-elevated);
+            border: 1px solid var(--separator);
+            padding: var(--space-4);
+            text-align: center;
+        }
+
+        .ds-radius-sample {
+            width: 60px;
+            height: 60px;
+            background: var(--fill-secondary);
+            border: 2px solid var(--glass-border);
+            margin: 0 auto var(--space-3);
+        }
+
+        .ds-radius-label {
+            font-family: var(--font-mono);
+            font-size: var(--text-sm);
+            color: var(--text);
+            margin-bottom: var(--space-1);
+        }
+
+        .ds-radius-value {
+            font-family: var(--font-mono);
+            font-size: var(--text-xs);
+            color: var(--text-dim);
+        }
+
+        /* Shadow specimens */
+        .ds-shadow-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: var(--space-6);
+        }
+
+        .ds-shadow-card {
+            background: var(--bg-elevated);
+            padding: var(--space-6);
+            text-align: center;
+            border-radius: var(--radius);
+            border: 1px solid var(--separator);
+        }
+
+        .ds-shadow-sample {
+            width: 120px;
+            height: 80px;
+            background: var(--bg);
+            margin: 0 auto var(--space-4);
+            border-radius: var(--radius);
+        }
+
+        .ds-shadow-label {
+            font-family: var(--font-mono);
+            font-size: var(--text-sm);
+            color: var(--text);
+            margin-bottom: var(--space-1);
+        }
+
+        .ds-shadow-desc {
+            font-size: var(--text-xs);
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+
+        /* Motion curves */
+        .ds-motion-demo {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: var(--space-4);
+        }
+
+        .ds-motion-card {
+            background: var(--bg-elevated);
+            border: 1px solid var(--separator);
+            border-radius: var(--radius);
+            padding: var(--space-4);
+            cursor: pointer;
+        }
+
+        .ds-motion-card:hover .ds-motion-ball {
+            transform: translateX(140px);
+        }
+
+        .ds-motion-track {
+            width: 100%;
+            height: 40px;
+            background: var(--fill-quaternary);
+            border-radius: var(--radius-full);
+            margin-bottom: var(--space-3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .ds-motion-ball {
+            width: 24px;
+            height: 24px;
+            background: var(--fill-primary);
+            border-radius: 50%;
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            transition: transform 800ms;
+        }
+
+        .ds-motion-label {
+            font-family: var(--font-mono);
+            font-size: var(--text-sm);
+            color: var(--text);
+            margin-bottom: var(--space-1);
+        }
+
+        .ds-motion-value {
+            font-family: var(--font-mono);
+            font-size: var(--text-xs);
+            color: var(--text-dim);
+        }
+
+        /* Component examples */
+        .ds-component-demo {
+            background: var(--bg-elevated);
+            border: 1px solid var(--separator);
+            border-radius: var(--radius);
+            padding: var(--space-6);
+            margin-bottom: var(--space-6);
+        }
+
+        .ds-component-title {
+            font-family: var(--font-mono);
+            font-size: var(--text-sm);
+            color: var(--text-dim);
+            margin-bottom: var(--space-4);
+        }
+
+        .ds-component-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-3);
+            align-items: center;
+        }
+
+        /* Code snippets */
+        .ds-code {
+            background: var(--bg-elevated);
+            border: 1px solid var(--separator);
+            border-radius: var(--radius);
+            padding: var(--space-4);
+            font-family: var(--font-mono);
+            font-size: var(--text-sm);
+            color: var(--text);
+            overflow-x: auto;
+            margin-top: var(--space-3);
+            position: relative;
+        }
+
+        .ds-code-copy {
+            position: absolute;
+            top: var(--space-2);
+            right: var(--space-2);
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-sm);
+            padding: var(--space-1) var(--space-3);
+            font-size: var(--text-xs);
+            color: var(--text-dim);
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+
+        .ds-code-copy:hover {
+            background: var(--glass-bg-hover);
+            color: var(--text);
+        }
+
+        /* Back button */
+        .ds-back {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-2);
+            font-size: var(--text-sm);
+            color: var(--text-dim);
+            text-decoration: none;
+            margin-bottom: var(--space-6);
+            transition: color var(--transition);
+        }
+
+        .ds-back:hover {
+            color: var(--text);
+        }
+
+        /* Token table */
+        .ds-token-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--font-mono);
+            font-size: var(--text-sm);
+        }
+
+        .ds-token-table th {
+            text-align: left;
+            padding: var(--space-2) var(--space-3);
+            border-bottom: 2px solid var(--separator);
+            color: var(--text-dim);
+            font-weight: 600;
+        }
+
+        .ds-token-table td {
+            padding: var(--space-2) var(--space-3);
+            border-bottom: 1px solid var(--separator);
+            color: var(--text);
+        }
+
+        .ds-token-table tr:hover td {
+            background: var(--glass-bg);
+        }
+
+        .ds-mode-tabs {
+            display: flex;
+            gap: var(--space-1);
+            margin-bottom: var(--space-4);
+        }
+
+        .ds-mode-tab {
+            padding: var(--space-1_5) var(--space-3);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-full);
+            background: var(--glass-bg);
+            color: var(--text-dim);
+            font-size: var(--text-sm);
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+
+        .ds-mode-tab.active {
+            background: var(--text);
+            color: var(--bg);
+            border-color: var(--text);
+        }
+    </style>
+</head>
+<body>
+    <div class="ds-page">
+        <a href="index.html" class="ds-back">&larr; Back to Show</a>
+
+        <div class="ds-header">
+            <h1 class="ds-title">Design System</h1>
+            <p class="ds-subtitle">MADphotos Show &mdash; Complete token inventory, components, and patterns</p>
+            <div class="ds-compliance">
+                <span class="ds-compliance-badge"><strong>18</strong> spacing tokens</span>
+                <span class="ds-compliance-badge"><strong>12</strong> type tokens</span>
+                <span class="ds-compliance-badge"><strong>7</strong> shadow tokens</span>
+                <span class="ds-compliance-badge"><strong>6</strong> radius tokens</span>
+                <span class="ds-compliance-badge"><strong>4</strong> motion curves</span>
+                <span class="ds-compliance-badge"><strong>3</strong> theme modes</span>
+            </div>
+        </div>
+
+        <nav class="ds-nav">
+            <a href="#colors" class="ds-nav-link">Colors</a>
+            <a href="#typography" class="ds-nav-link">Typography</a>
+            <a href="#spacing" class="ds-nav-link">Spacing</a>
+            <a href="#radius" class="ds-nav-link">Border Radius</a>
+            <a href="#shadows" class="ds-nav-link">Elevation</a>
+            <a href="#motion" class="ds-nav-link">Motion</a>
+            <a href="#components" class="ds-nav-link">Components</a>
+            <a href="#architecture" class="ds-nav-link">Architecture</a>
+        </nav>
+
+        <!-- COLORS SECTION -->
+        <section id="colors" class="ds-section">
+            <h2 class="ds-section-title">Colors</h2>
+
+            <!-- Semantic Colors -->
+            <div class="ds-subsection">
+                <h3 class="ds-subsection-title">Semantic Colors</h3>
+                <p style="font-size: var(--text-sm); color: var(--text-dim); margin-bottom: var(--space-4);">
+                    Reassigned in <code style="font-family: var(--font-mono); background: var(--fill-quaternary); padding: 2px 6px; border-radius: var(--radius-xs);">:root.dark</code> and immersive view scopes.
+                </p>
+                <div class="ds-color-grid" id="semantic-colors"></div>
+            </div>
+
+            <!-- Apple System Colors -->
+            <div class="ds-subsection">
+                <h3 class="ds-subsection-title">Apple System Colors</h3>
+                <div class="ds-color-grid" id="system-colors"></div>
+            </div>
+
+            <!-- Grays -->
+            <div class="ds-subsection">
+                <h3 class="ds-subsection-title">Grays</h3>
+                <div class="ds-color-grid" id="gray-colors"></div>
+            </div>
+
+            <!-- Glass & Fills -->
+            <div class="ds-subsection">
+                <h3 class="ds-subsection-title">Glass & Fills</h3>
+                <div class="ds-color-grid" id="glass-colors"></div>
+            </div>
+
+            <!-- Emotion Colors -->
+            <div class="ds-subsection">
+                <h3 class="ds-subsection-title">Emotion Colors</h3>
+                <div class="ds-color-grid" id="emotion-colors"></div>
+            </div>
+        </section>
+
+        <!-- TYPOGRAPHY SECTION -->
+        <section id="typography" class="ds-section">
+            <h2 class="ds-section-title">Typography</h2>
+
+            <div class="ds-subsection">
+                <h3 class="ds-subsection-title">Type Scale</h3>
+                <p style="font-size: var(--text-sm); color: var(--text-dim); margin-bottom: var(--space-4);">
+                    12 sizes from 10px to 64px. Body base is 14px (hardcoded, not tokenized).
+                </p>
+                <div id="type-scale"></div>
+            </div>
+
+            <div class="ds-subsection">
+                <h3 class="ds-subsection-title">Font Families</h3>
+                <div class="ds-type-specimen">
+                    <div class="ds-type-sample" style="font-family: var(--font); font-size: var(--text-lg);">
+                        The quick brown fox jumps over the lazy dog
+                    </div>
+                    <div class="ds-type-label">--font (SF Pro Text / System)</div>
+                </div>
+                <div class="ds-type-specimen">
+                    <div class="ds-type-sample" style="font-family: var(--font-display); font-size: var(--text-lg); font-weight: 600;">
+                        The quick brown fox jumps over the lazy dog
+                    </div>
+                    <div class="ds-type-label">--font-display (SF Pro Display / System)</div>
+                </div>
+                <div class="ds-type-specimen">
+                    <div class="ds-type-sample" style="font-family: var(--font-mono); font-size: var(--text-base);">
+                        The quick brown fox jumps over the lazy dog
+                    </div>
+                    <div class="ds-type-label">--font-mono (SF Mono / Monospace)</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SPACING SECTION -->
+        <section id="spacing" class="ds-section">
+            <h2 class="ds-section-title">Spacing</h2>
+            <p style="font-size: var(--text-sm); color: var(--text-dim); margin-bottom: var(--space-4);">
+                18 spacing tokens. 4px base unit. Underscore naming for fractional steps (e.g. <code style="font-family: var(--font-mono); background: var(--fill-quaternary); padding: 2px 6px; border-radius: var(--radius-xs);">--space-1_5</code> = 6px).
+            </p>
+            <div id="spacing-scale"></div>
+        </section>
+
+        <!-- BORDER RADIUS SECTION -->
+        <section id="radius" class="ds-section">
+            <h2 class="ds-section-title">Border Radius</h2>
+            <div class="ds-radius-grid" id="radius-scale"></div>
+        </section>
+
+        <!-- ELEVATION SECTION -->
+        <section id="shadows" class="ds-section">
+            <h2 class="ds-section-title">Elevation</h2>
+            <p style="font-size: var(--text-sm); color: var(--text-dim); margin-bottom: var(--space-4);">
+                7 shadow tokens with light, dark, and immersive variants. Dark mode uses higher opacity for contrast on dark surfaces.
+            </p>
+            <div class="ds-shadow-grid" id="shadow-scale"></div>
+
+            <div style="margin-top: var(--space-8);">
+                <h3 class="ds-subsection-title">Shadow Token Usage</h3>
+                <div class="ds-code">
+--shadow-sm       Tag hover, small interactions<br>
+--shadow-md       Card hover states<br>
+--shadow-lg       Elevated panels, modals<br>
+--shadow-elevated Faces card, persistent elevation<br>
+--shadow-bento    Bento/couleurs feature cards<br>
+--shadow-float    NYU nav, floating controls<br>
+--shadow-deck     NYU deck cards, heavy overlap
+                </div>
+            </div>
+        </section>
+
+        <!-- MOTION SECTION -->
+        <section id="motion" class="ds-section">
+            <h2 class="ds-section-title">Motion</h2>
+            <p style="font-size: var(--text-sm); color: var(--text-dim); margin-bottom: var(--space-6);">
+                Hover over each card to see the easing curve in action.
+            </p>
+            <div class="ds-motion-demo" id="motion-curves"></div>
+
+            <div style="margin-top: var(--space-8);">
+                <h3 class="ds-subsection-title">Durations</h3>
+                <div class="ds-code">
+                    --duration-fast: 150ms<br>
+                    --duration-normal: 250ms<br>
+                    --duration-slow: 400ms<br>
+                    --transition: var(--duration-normal) var(--ease-out-quart)
+                </div>
+            </div>
+        </section>
+
+        <!-- COMPONENTS SECTION -->
+        <section id="components" class="ds-section">
+            <h2 class="ds-section-title">Components</h2>
+
+            <!-- Glass Tags -->
+            <div class="ds-component-demo">
+                <div class="ds-component-title">Glass Tags</div>
+                <div class="ds-component-grid">
+                    <span class="glass-tag">Default</span>
+                    <span class="glass-tag active">Active</span>
+                    <span class="glass-tag tag-vibe">Vibe</span>
+                    <span class="glass-tag tag-grading">Grading</span>
+                    <span class="glass-tag tag-time">Time</span>
+                    <span class="glass-tag tag-scene">Scene</span>
+                    <span class="glass-tag tag-emotion">Emotion</span>
+                    <span class="glass-tag tag-camera">Camera</span>
+                </div>
+                <div class="ds-code">
+                    <button class="ds-code-copy" onclick="copyCode(this)">Copy</button>
+&lt;span class="glass-tag"&gt;Default&lt;/span&gt;
+&lt;span class="glass-tag active"&gt;Active&lt;/span&gt;
+&lt;span class="glass-tag tag-vibe"&gt;Vibe&lt;/span&gt;
+                </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="ds-component-demo">
+                <div class="ds-component-title">Buttons</div>
+                <div class="ds-component-grid">
+                    <button class="sort-btn">Sort Button</button>
+                    <button class="sort-btn active">Sort Button Active</button>
+                    <button class="drift-btn">Drift Button</button>
+                    <button class="game-start-btn">Game Start</button>
+                </div>
+                <div class="ds-code">
+                    <button class="ds-code-copy" onclick="copyCode(this)">Copy</button>
+&lt;button class="sort-btn"&gt;Sort Button&lt;/button&gt;
+&lt;button class="sort-btn active"&gt;Active&lt;/button&gt;
+&lt;button class="drift-btn"&gt;Drift Button&lt;/button&gt;
+&lt;button class="game-start-btn"&gt;Game Start&lt;/button&gt;
+                </div>
+            </div>
+
+            <!-- Experience Tags -->
+            <div class="ds-component-demo">
+                <div class="ds-component-title">Experience Tags</div>
+                <div class="ds-component-grid">
+                    <span class="exp-tag exp-tag-layout">&darr; Scroll</span>
+                    <span class="exp-tag exp-tag-layout">&boxplus; Viewport</span>
+                    <span class="exp-tag exp-tag-signal">&starf; Aesthetic</span>
+                    <span class="exp-tag exp-tag-signal">&bullet; K-means</span>
+                    <span class="exp-tag exp-tag-device">Desktop</span>
+                    <span class="exp-tag exp-tag-device">Mobile</span>
+                </div>
+                <div class="ds-code">
+                    <button class="ds-code-copy" onclick="copyCode(this)">Copy</button>
+&lt;span class="exp-tag exp-tag-layout"&gt;↕ Scroll&lt;/span&gt;
+&lt;span class="exp-tag exp-tag-signal"&gt;★ Aesthetic&lt;/span&gt;
+&lt;span class="exp-tag exp-tag-device"&gt;🖥 Desktop&lt;/span&gt;
+                </div>
+            </div>
+
+            <!-- Palette Dots -->
+            <div class="ds-component-demo">
+                <div class="ds-component-title">Palette Dots</div>
+                <div style="display: flex; gap: var(--space-1);">
+                    <span class="palette-dot" style="background: #FF3B30;"></span>
+                    <span class="palette-dot" style="background: #FF9500;"></span>
+                    <span class="palette-dot" style="background: #FFCC00;"></span>
+                    <span class="palette-dot" style="background: #34C759;"></span>
+                    <span class="palette-dot" style="background: #007AFF;"></span>
+                </div>
+                <div class="ds-code">
+                    <button class="ds-code-copy" onclick="copyCode(this)">Copy</button>
+&lt;span class="palette-dot" style="background: #FF3B30;"&gt;&lt;/span&gt;
+                </div>
+            </div>
+        </section>
+
+        <!-- TOKEN ARCHITECTURE -->
+        <section id="architecture" class="ds-section">
+            <h2 class="ds-section-title">Token Architecture</h2>
+            <div style="background: var(--bg-elevated); border: 1px solid var(--separator); border-radius: var(--radius); padding: var(--space-6);">
+                <p style="font-size: var(--text-base); color: var(--text); margin-bottom: var(--space-4);">
+                    Three-layer token architecture with three theme scopes:
+                </p>
+                <ol style="font-size: var(--text-base); color: var(--text-dim); line-height: 1.8; padding-left: var(--space-6);">
+                    <li><strong style="color: var(--text);">Primitive tokens</strong> &mdash; Apple System Colors, raw values (e.g. <code style="font-family: var(--font-mono); background: var(--fill-quaternary); padding: 2px 6px; border-radius: var(--radius-xs);">--system-blue</code>, <code style="font-family: var(--font-mono); background: var(--fill-quaternary); padding: 2px 6px; border-radius: var(--radius-xs);">--system-gray-3</code>)</li>
+                    <li style="margin-top: var(--space-2);"><strong style="color: var(--text);">Semantic tokens</strong> &mdash; Purpose-based (e.g. <code style="font-family: var(--font-mono); background: var(--fill-quaternary); padding: 2px 6px; border-radius: var(--radius-xs);">--text</code>, <code style="font-family: var(--font-mono); background: var(--fill-quaternary); padding: 2px 6px; border-radius: var(--radius-xs);">--bg-elevated</code>, <code style="font-family: var(--font-mono); background: var(--fill-quaternary); padding: 2px 6px; border-radius: var(--radius-xs);">--glass-border</code>)</li>
+                    <li style="margin-top: var(--space-2);"><strong style="color: var(--text);">Component tokens</strong> &mdash; Scoped to specific UI patterns (e.g. <code style="font-family: var(--font-mono); background: var(--fill-quaternary); padding: 2px 6px; border-radius: var(--radius-xs);">--c-vibe</code>, <code style="font-family: var(--font-mono); background: var(--fill-quaternary); padding: 2px 6px; border-radius: var(--radius-xs);">--emo-happy</code>)</li>
+                </ol>
+
+                <h3 style="font-size: var(--text-lg); font-weight: 600; margin-top: var(--space-6); margin-bottom: var(--space-3);">Theme Scopes</h3>
+                <div class="ds-code">
+:root { }           /* Light mode (default) */<br>
+:root.dark { }       /* Dark mode — toggled via .dark class on &lt;html&gt; */<br>
+#view-bento,<br>
+#view-stream,<br>
+#view-couleurs,<br>
+#view-domino { }     /* Immersive — forced dark for optimal image viewing */
+                </div>
+
+                <h3 style="font-size: var(--text-lg); font-weight: 600; margin-top: var(--space-6); margin-bottom: var(--space-3);">Intentionally Not Tokenized</h3>
+                <p style="font-size: var(--text-sm); color: var(--text-dim); line-height: 1.6;">
+                    Body font-size (14px base definition) &middot;
+                    Display sizes (19px, 9px between token steps) &middot;
+                    Icon/emoji font-sizes (20-24px on buttons) &middot;
+                    Component dimensions (44px buttons, 48px FABs, 80px face cards) &middot;
+                    3px micro gaps (below token minimum) &middot;
+                    Always-dark context rgba colors (lightbox, compass overlays) &middot;
+                    Layout constraints (1100px max-width, 100px scroll buffers)
+                </p>
+            </div>
+        </section>
+    </div>
+
+    <script src="theme.js?v=8"></script>
+    <script>
+        // Populate color swatches from computed CSS variables
+        const root = document.documentElement;
+        const style = getComputedStyle(root);
+
+        // Semantic colors
+        const semanticColors = [
+            { name: '--bg', category: 'Background' },
+            { name: '--bg-elevated', category: 'Background' },
+            { name: '--bg-tertiary', category: 'Background' },
+            { name: '--text', category: 'Text' },
+            { name: '--text-dim', category: 'Text' },
+            { name: '--text-muted', category: 'Text' },
+            { name: '--header-bg', category: 'UI' },
+            { name: '--separator', category: 'UI' },
+            { name: '--color-error', category: 'Status' },
+            { name: '--color-success', category: 'Status' },
+        ];
+
+        // System colors
+        const systemColors = [
+            '--system-red', '--system-orange', '--system-yellow',
+            '--system-green', '--system-mint', '--system-teal',
+            '--system-cyan', '--system-blue', '--system-indigo',
+            '--system-purple', '--system-pink', '--system-brown'
+        ];
+
+        // Grays
+        const grayColors = [
+            '--system-gray', '--system-gray-2', '--system-gray-3',
+            '--system-gray-4', '--system-gray-5', '--system-gray-6'
+        ];
+
+        // Glass & fills
+        const glassColors = [
+            '--glass-bg', '--glass-bg-hover', '--glass-border', '--glass-border-hover',
+            '--fill-primary', '--fill-secondary', '--fill-tertiary', '--fill-quaternary'
+        ];
+
+        // Emotion colors
+        const emotionColors = [
+            '--emo-happy', '--emo-sad', '--emo-angry', '--emo-surprise',
+            '--emo-fear', '--emo-disgust', '--emo-neutral', '--emo-contempt'
+        ];
+
+        function renderColorCard(token) {
+            const value = style.getPropertyValue(token).trim();
+            const card = document.createElement('div');
+            card.className = 'ds-color-card';
+            card.innerHTML = `
+                <div class="ds-color-swatch" style="background: var(${token});"></div>
+                <div class="ds-color-info">
+                    <div class="ds-color-name">${token}</div>
+                    <div class="ds-color-value">${value}</div>
+                    <button class="ds-copy-btn" onclick="copyToken('var(${token})')">Copy</button>
+                </div>
+            `;
+            return card;
+        }
+
+        // Render all color sections
+        const semanticGrid = document.getElementById('semantic-colors');
+        semanticColors.forEach(({name}) => semanticGrid.appendChild(renderColorCard(name)));
+
+        const systemGrid = document.getElementById('system-colors');
+        systemColors.forEach(token => systemGrid.appendChild(renderColorCard(token)));
+
+        const grayGrid = document.getElementById('gray-colors');
+        grayColors.forEach(token => grayGrid.appendChild(renderColorCard(token)));
+
+        const glassGrid = document.getElementById('glass-colors');
+        glassColors.forEach(token => glassGrid.appendChild(renderColorCard(token)));
+
+        const emotionGrid = document.getElementById('emotion-colors');
+        emotionColors.forEach(token => emotionGrid.appendChild(renderColorCard(token)));
+
+        // Typography scale — complete 12-token set
+        const typeScale = [
+            { name: '--text-2xs', size: '10px' },
+            { name: '--text-xs', size: '11px' },
+            { name: '--text-caption', size: '12px' },
+            { name: '--text-sm', size: '13px' },
+            { name: '--text-base', size: '15px' },
+            { name: '--text-lg', size: '17px' },
+            { name: '--text-xl', size: '20px' },
+            { name: '--text-2xl', size: '22px' },
+            { name: '--text-3xl', size: '28px' },
+            { name: '--text-4xl', size: '34px' },
+            { name: '--text-5xl', size: '48px' },
+            { name: '--text-6xl', size: '64px' },
+        ];
+
+        const typeScaleContainer = document.getElementById('type-scale');
+        typeScale.forEach(({name, size}) => {
+            const specimen = document.createElement('div');
+            specimen.className = 'ds-type-specimen';
+            specimen.innerHTML = `
+                <div class="ds-type-sample" style="font-size: var(${name});">
+                    The quick brown fox jumps over the lazy dog
+                </div>
+                <div class="ds-type-label">${name} (${size})</div>
+            `;
+            typeScaleContainer.appendChild(specimen);
+        });
+
+        // Spacing scale — complete 18-token set
+        const spacingScale = [
+            { name: '--space-0_5', value: '2px' },
+            { name: '--space-1', value: '4px' },
+            { name: '--space-1_5', value: '6px' },
+            { name: '--space-2', value: '8px' },
+            { name: '--space-2_5', value: '10px' },
+            { name: '--space-3', value: '12px' },
+            { name: '--space-3_5', value: '14px' },
+            { name: '--space-4', value: '16px' },
+            { name: '--space-4_5', value: '18px' },
+            { name: '--space-5', value: '20px' },
+            { name: '--space-6', value: '24px' },
+            { name: '--space-7', value: '28px' },
+            { name: '--space-8', value: '32px' },
+            { name: '--space-10', value: '40px' },
+            { name: '--space-12', value: '48px' },
+            { name: '--space-16', value: '64px' },
+            { name: '--space-20', value: '80px' },
+        ];
+
+        const spacingContainer = document.getElementById('spacing-scale');
+        spacingScale.forEach(({name, value}) => {
+            const row = document.createElement('div');
+            row.className = 'ds-spacing-row';
+            row.innerHTML = `
+                <div class="ds-spacing-label">${name}</div>
+                <div class="ds-spacing-bar" style="width: var(${name});"></div>
+                <div class="ds-spacing-value">${value}</div>
+            `;
+            spacingContainer.appendChild(row);
+        });
+
+        // Radius scale
+        const radiusScale = [
+            { name: '--radius-xs', value: '4px' },
+            { name: '--radius-sm', value: '6px' },
+            { name: '--radius', value: '8px' },
+            { name: '--radius-lg', value: '12px' },
+            { name: '--radius-xl', value: '16px' },
+            { name: '--radius-full', value: '9999px' },
+        ];
+
+        const radiusContainer = document.getElementById('radius-scale');
+        radiusScale.forEach(({name, value}) => {
+            const card = document.createElement('div');
+            card.className = 'ds-radius-card';
+            card.innerHTML = `
+                <div class="ds-radius-sample" style="border-radius: var(${name});"></div>
+                <div class="ds-radius-label">${name}</div>
+                <div class="ds-radius-value">${value}</div>
+            `;
+            radiusContainer.appendChild(card);
+        });
+
+        // Shadow scale — complete 7-token set with descriptions
+        const shadowScale = [
+            { name: '--shadow-sm', desc: 'Tag hover, small interactions' },
+            { name: '--shadow-md', desc: 'Card hover states' },
+            { name: '--shadow-lg', desc: 'Elevated panels, modals' },
+            { name: '--shadow-elevated', desc: 'Persistent elevation (faces card)' },
+            { name: '--shadow-bento', desc: 'Feature cards (bento, couleurs)' },
+            { name: '--shadow-float', desc: 'Floating controls (NYU nav)' },
+            { name: '--shadow-deck', desc: 'Heavy overlap (NYU deck)' },
+        ];
+
+        const shadowContainer = document.getElementById('shadow-scale');
+        shadowScale.forEach(({name, desc}) => {
+            const card = document.createElement('div');
+            card.className = 'ds-shadow-card';
+            card.innerHTML = `
+                <div class="ds-shadow-sample" style="box-shadow: var(${name});"></div>
+                <div class="ds-shadow-label">${name}</div>
+                <div class="ds-shadow-desc">${desc}</div>
+            `;
+            shadowContainer.appendChild(card);
+        });
+
+        // Motion curves
+        const motionCurves = [
+            { name: '--ease-out-expo', value: 'cubic-bezier(0.16, 1, 0.3, 1)' },
+            { name: '--ease-out-quart', value: 'cubic-bezier(0.25, 1, 0.5, 1)' },
+            { name: '--ease-in-out', value: 'cubic-bezier(0.45, 0, 0.15, 1)' },
+            { name: '--ease-spring', value: 'cubic-bezier(0.34, 1.56, 0.64, 1)' },
+        ];
+
+        const motionContainer = document.getElementById('motion-curves');
+        motionCurves.forEach(({name, value}) => {
+            const card = document.createElement('div');
+            card.className = 'ds-motion-card';
+            card.innerHTML = `
+                <div class="ds-motion-track">
+                    <div class="ds-motion-ball" style="transition-timing-function: var(${name});"></div>
+                </div>
+                <div class="ds-motion-label">${name}</div>
+                <div class="ds-motion-value">${value}</div>
+            `;
+            motionContainer.appendChild(card);
+        });
+
+        // Copy utilities
+        function copyToken(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                console.log('Copied:', text);
+            });
+        }
+
+        function copyCode(btn) {
+            const code = btn.parentElement.textContent.replace('Copy', '').trim();
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 2000);
+            });
+        }
+
+        // Smooth scroll for nav links
+        document.querySelectorAll('.ds-nav-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const target = document.querySelector(link.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

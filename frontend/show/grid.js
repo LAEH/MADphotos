@@ -1,52 +1,105 @@
-/* grid.js — La Grille: Semantic grid with justified rows, glass tags, filtering */
+/* grid.js — Sort: Top 1,000 photographs with sort controls.
+   Centered justified grid, no filters. */
 
-let gridFilters = new Set();
-let gridLastVisible = null; /* cached filtered results */
-
-const debouncedRenderGrid = debounce(renderGrid, 80);
+let sortMethod = 'aesthetic';
+let sortedPhotos = [];
 
 function initGrille() {
     const container = document.getElementById('view-grille');
     container.innerHTML = '';
 
-    /* Filter bar */
-    const filterBar = document.createElement('div');
-    filterBar.className = 'filter-bar';
-    filterBar.id = 'grid-filter-bar';
-    container.appendChild(filterBar);
+    /* Select top 1000 by aesthetic */
+    const pool = APP.data.photos.filter(p => p.thumb);
+    sortedPhotos = [...pool].sort((a, b) => (b.aesthetic || 0) - (a.aesthetic || 0)).slice(0, 1000);
+    sortMethod = 'aesthetic';
 
-    /* Grid container */
+    /* Sort bar */
+    const sortBar = document.createElement('div');
+    sortBar.className = 'sort-bar';
+    sortBar.id = 'sort-bar';
+
+    const methods = [
+        { id: 'aesthetic', label: 'Aesthetic' },
+        { id: 'time',      label: 'Time' },
+        { id: 'vibe',      label: 'Vibe' },
+        { id: 'scene',     label: 'Scene' },
+    ];
+
+    for (const m of methods) {
+        const btn = document.createElement('button');
+        btn.className = 'sort-btn' + (m.id === sortMethod ? ' active' : '');
+        btn.dataset.sort = m.id;
+        btn.textContent = m.label;
+        btn.addEventListener('click', () => applySortMethod(m.id));
+        sortBar.appendChild(btn);
+    }
+
+    container.appendChild(sortBar);
+
+    /* Grid wrap — centered with max-width */
     const gridWrap = document.createElement('div');
-    gridWrap.className = 'grid-container';
-    gridWrap.id = 'grid-container';
+    gridWrap.className = 'sort-grid-wrap';
+    gridWrap.id = 'sort-grid-wrap';
     container.appendChild(gridWrap);
 
-    gridLastVisible = null;
-    renderGrid();
-    updateFilterBar();
+    renderSortGrid();
 }
 
-function renderGrid() {
-    const wrap = document.getElementById('grid-container');
+function applySortMethod(method) {
+    sortMethod = method;
+
+    document.querySelectorAll('.sort-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.sort === method);
+    });
+
+    const pool = APP.data.photos.filter(p => p.thumb);
+    const top1000 = [...pool].sort((a, b) => (b.aesthetic || 0) - (a.aesthetic || 0)).slice(0, 1000);
+
+    const timeOrder = ['dawn', 'golden hour', 'morning', 'afternoon', 'evening', 'blue hour', 'night'];
+
+    switch (method) {
+        case 'aesthetic':
+            sortedPhotos = top1000;
+            break;
+        case 'time':
+            sortedPhotos = [...top1000].sort((a, b) => {
+                const ai = timeOrder.indexOf(a.time);
+                const bi = timeOrder.indexOf(b.time);
+                return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+            });
+            break;
+        case 'vibe':
+            sortedPhotos = [...top1000].sort((a, b) => {
+                const va = (a.vibes && a.vibes[0]) || '\uffff';
+                const vb = (b.vibes && b.vibes[0]) || '\uffff';
+                return va.localeCompare(vb);
+            });
+            break;
+        case 'scene':
+            sortedPhotos = [...top1000].sort((a, b) => {
+                return (a.scene || '\uffff').localeCompare(b.scene || '\uffff');
+            });
+            break;
+    }
+
+    renderSortGrid();
+    /* Scroll back to top after sort change */
+    document.getElementById('view-grille').scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function renderSortGrid() {
+    const wrap = document.getElementById('sort-grid-wrap');
     if (!wrap) return;
     wrap.innerHTML = '';
 
-    const photos = APP.data.photos;
-    const targetRowHeight = 220;
+    const targetRowHeight = 280;
     const gap = 4;
-    const containerWidth = wrap.clientWidth - 24;
+    const containerWidth = Math.min(wrap.clientWidth || 1100, 1100);
 
-    /* Filter photos — cache result */
-    const visible = gridFilters.size === 0
-        ? photos
-        : photos.filter(p => matchesFilters(p));
-    gridLastVisible = visible;
-
-    /* Build justified rows */
     let row = [];
     let rowAspect = 0;
 
-    for (const photo of visible) {
+    for (const photo of sortedPhotos) {
         const aspect = photo.aspect || (photo.w / photo.h) || 1.5;
         row.push({ photo, aspect });
         rowAspect += aspect;
@@ -56,20 +109,19 @@ function renderGrid() {
         if (rowWidth >= containerWidth && row.length >= 2) {
             const availableWidth = containerWidth - (row.length - 1) * gap;
             const rowHeight = availableWidth / rowAspect;
-            renderRow(wrap, row, rowHeight, gap);
+            renderSortRow(wrap, row, rowHeight, gap);
             row = [];
             rowAspect = 0;
         }
     }
 
-    /* Render leftover row */
     if (row.length > 0) {
         const height = Math.min(targetRowHeight, (containerWidth - (row.length - 1) * gap) / rowAspect);
-        renderRow(wrap, row, height, gap);
+        renderSortRow(wrap, row, height, gap);
     }
 }
 
-function renderRow(container, items, height, gap) {
+function renderSortRow(container, items, height, gap) {
     const rowEl = document.createElement('div');
     rowEl.className = 'grid-row';
     rowEl.style.marginBottom = gap + 'px';
@@ -85,133 +137,9 @@ function renderRow(container, items, height, gap) {
         lazyObserver.observe(img);
         item.appendChild(img);
 
-        /* Overlay with tags */
-        const overlay = document.createElement('div');
-        overlay.className = 'grid-overlay';
-
-        const tagRow = document.createElement('div');
-        tagRow.className = 'grid-overlay-tags';
-
-        for (const vibe of (photo.vibes || []).slice(0, 3)) {
-            tagRow.appendChild(createGlassTag(vibe, {
-                category: 'vibe',
-                active: gridFilters.has('vibe:' + vibe),
-                onClick: () => toggleFilter('vibe', vibe),
-            }));
-        }
-        if (photo.grading) {
-            tagRow.appendChild(createGlassTag(photo.grading, {
-                category: 'grading',
-                active: gridFilters.has('grading:' + photo.grading),
-                onClick: () => toggleFilter('grading', photo.grading),
-            }));
-        }
-
-        overlay.appendChild(tagRow);
-        item.appendChild(overlay);
-
         item.addEventListener('click', () => openLightbox(photo));
         rowEl.appendChild(item);
     }
 
     container.appendChild(rowEl);
-}
-
-function matchesFilters(photo) {
-    for (const f of gridFilters) {
-        const [dim, val] = f.split(':');
-        if (dim === 'vibe') {
-            if (!(photo.vibes || []).some(v => v === val)) return false;
-        } else if (dim === 'grading') {
-            if (photo.grading !== val) return false;
-        } else if (dim === 'time') {
-            if (photo.time !== val) return false;
-        } else if (dim === 'setting') {
-            if (photo.setting !== val) return false;
-        } else if (dim === 'category') {
-            if (photo.category !== val) return false;
-        } else if (dim === 'composition') {
-            if (photo.composition !== val) return false;
-        } else if (dim === 'exposure') {
-            if (photo.exposure !== val) return false;
-        } else if (dim === 'depth') {
-            if (photo.depth !== val) return false;
-        }
-    }
-    return true;
-}
-
-function toggleFilter(dimension, value) {
-    const key = dimension + ':' + value;
-    if (gridFilters.has(key)) {
-        gridFilters.delete(key);
-    } else {
-        gridFilters.add(key);
-    }
-    debouncedRenderGrid();
-    updateFilterBar();
-}
-
-function updateFilterBar() {
-    const bar = document.getElementById('grid-filter-bar');
-    if (!bar) return;
-    bar.innerHTML = '';
-
-    /* Quick filter groups */
-    const groups = [
-        { label: 'vibe', values: APP.data.vibes.slice(0, 12) },
-        { label: 'grading', values: APP.data.gradings },
-        { label: 'time', values: APP.data.times },
-        { label: 'setting', values: APP.data.settings },
-    ];
-
-    /* If filters are active, show active pills + count */
-    if (gridFilters.size > 0) {
-        const activeSection = document.createElement('div');
-        activeSection.className = 'filter-active-section';
-
-        for (const f of gridFilters) {
-            const [dim, val] = f.split(':');
-            activeSection.appendChild(createGlassTag(val, {
-                category: dim,
-                active: true,
-                onClick: () => toggleFilter(dim, val),
-            }));
-        }
-
-        const clear = document.createElement('button');
-        clear.className = 'clear-btn';
-        clear.textContent = 'clear';
-        clear.addEventListener('click', () => {
-            gridFilters.clear();
-            renderGrid();
-            updateFilterBar();
-        });
-        activeSection.appendChild(clear);
-
-        /* Use cached count from last render */
-        const matchCount = gridLastVisible ? gridLastVisible.length : 0;
-        const count = document.createElement('span');
-        count.className = 'filter-count';
-        count.textContent = matchCount + ' / ' + APP.data.count;
-        activeSection.appendChild(count);
-
-        bar.appendChild(activeSection);
-        return;
-    }
-
-    /* Show quick filter groups as compact rows */
-    for (const group of groups) {
-        const label = document.createElement('span');
-        label.className = 'filter-label';
-        label.textContent = group.label;
-        bar.appendChild(label);
-
-        for (const val of group.values) {
-            bar.appendChild(createGlassTag(val, {
-                category: group.label,
-                onClick: () => toggleFilter(group.label, val),
-            }));
-        }
-    }
 }

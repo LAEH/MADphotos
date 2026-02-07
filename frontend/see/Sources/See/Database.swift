@@ -14,8 +14,15 @@ final class Database {
         ensureCuratedColumn()
     }
 
-    deinit {
+    /// Flush WAL and close cleanly
+    func shutdown() {
+        exec("PRAGMA wal_checkpoint(TRUNCATE)")
         sqlite3_close(db)
+        db = nil
+    }
+
+    deinit {
+        if db != nil { sqlite3_close(db) }
     }
 
     // ------------------------------------------------------------------
@@ -138,7 +145,10 @@ final class Database {
                 -- OCR (aggregated)
                 (SELECT GROUP_CONCAT(oc.text, ' ') FROM ocr_detections oc WHERE oc.image_uuid = i.uuid), -- 67
                 -- Emotions (aggregated)
-                (SELECT GROUP_CONCAT(fe.dominant_emotion, ', ') FROM facial_emotions fe WHERE fe.image_uuid = i.uuid) -- 68
+                (SELECT GROUP_CONCAT(fe.dominant_emotion, ', ') FROM facial_emotions fe WHERE fe.image_uuid = i.uuid), -- 68
+                -- People/animal flags
+                (SELECT COUNT(*) FROM object_detections op WHERE op.image_uuid = i.uuid AND op.label = 'person'), -- 69
+                (SELECT COUNT(*) FROM object_detections oa WHERE oa.image_uuid = i.uuid AND oa.label IN ('cat','dog','bird','horse','cow','sheep','bear','elephant','zebra','giraffe')) -- 70
             FROM images i
             LEFT JOIN gemini_analysis g ON i.uuid = g.image_uuid
                 AND g.raw_json IS NOT NULL AND g.raw_json != ''
@@ -245,7 +255,10 @@ final class Database {
                 enhPostContrast: dblOrNil(stmt, 64),
                 // Detection counts
                 detectedObjectCount: intOrNil(stmt, 65),
-                detectedFaceCount: intOrNil(stmt, 66)
+                detectedFaceCount: intOrNil(stmt, 66),
+                // People/animal
+                detectedPersonCount: Int(sqlite3_column_int(stmt, 69)),
+                detectedAnimalCount: Int(sqlite3_column_int(stmt, 70))
             )
             photos.append(item)
         }

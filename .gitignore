@@ -19,6 +19,11 @@ backend/.objects_processed.json
 # Swift build artifacts
 frontend/see/.build/
 frontend/see/*.app
+See.app/
+frontend/see/See.iconset/
+
+# Stray DB copies
+mad_photos.db
 
 # Web gallery data (generated)
 frontend/show/data/
