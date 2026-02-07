@@ -1224,3 +1224,19 @@ Six feature areas in a single session, pushing from 9 to 11 Show experiences.
 **Fixes.** Sort By color sort now uses precomputed `photo.hue` (from most-saturated palette color) instead of `hexToHue(palette[0])` which returned -1 for achromatic images. Sort bar text contrast improved: unselected buttons use `color: var(--text); opacity: 0.55` instead of `color: var(--text-dim)` for better readability on glass. About link corrected to `https://laeh.github.io/MADphotos/`. Export pipeline: `squarable: true` added to photo objects.
 
 9 files changed (7 modified, 2 new). +503 / -112 lines.
+
+---
+
+### 22:03 — Cleanup: OCR completion, model status fix, pipeline hygiene, old HTML removal
+
+Five housekeeping items that close out the signal pipeline and clean up migration debt.
+
+**Facial Emotions model status fix.** The dashboard divided emotion count (1,676) by total images (9,011), showing 18.6% — but facial emotions only applies to images containing faces. Added per-model `of?: number` denominator to `DashboardPage.tsx`. Facial Emotions now uses `face_images_with` as its denominator, correctly showing 100%. Backend `dashboard.py` `models_complete` calculation updated to match: list of `(count, denominator)` pairs instead of simple count vs total.
+
+**OCR sentinel bug fix.** EasyOCR phase in `signals_advanced.py` had a gap: images where all detected text regions scored below the 0.3 confidence threshold entered `if results:` but inserted nothing — no rows, no sentinel. These 1,205 images were silently skipped on every re-run. Fixed by tracking `inserted` count and inserting the sentinel row `(uuid, '', 0)` when `inserted == 0`. Ran full OCR on the remaining images (1,205 at 0.4/s, ~46 minutes). All 17/17 models now at 100%.
+
+**Detection signal group.** Added a new "Detection" section to the State dashboard showing face count (1,676 images, 3,187 faces total), OCR text regions (10,818 across 9,011 images), object detections, and emotion analysis count.
+
+**Pipeline runs cleanup.** Marked 29 orphaned "started" pipeline runs (0 processed, 0 failed) as "failed" in the DB. Updated `dashboard.py` query to filter out runs with `images_processed = 0 AND images_failed = 0`.
+
+**Old HTML removal.** Deleted 7 pre-React static HTML pages (`state.html`, `journal.html`, `instructions.html`, `mosaics.html`, `cartoon.html`, `drift.html`, `blind-test.html`) plus `index.old.html` — all replaced by the React + Vite + Tailwind SPA. Updated `/ship` skill instructions to reference static data regeneration and Vite build steps.
