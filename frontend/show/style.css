@@ -857,7 +857,7 @@ body {
     border-radius: var(--radius);
     overflow: hidden;
     border: 1px solid var(--glass-border);
-    transition: border-color var(--transition), transform var(--transition), box-shadow var(--transition);
+    transition: border-color var(--transition), transform var(--transition);
     background: var(--bg-elevated);
 }
 
@@ -970,7 +970,7 @@ body {
 .couleurs-band {
     flex: 1;
     cursor: pointer;
-    transition: flex var(--transition), opacity var(--transition);
+    transition: opacity var(--transition);
     min-width: 2px;
     opacity: 0.4;
 }
@@ -1590,7 +1590,7 @@ body {
     overflow: hidden;
     border: 1px solid var(--glass-border);
     cursor: pointer;
-    transition: border-color var(--transition), transform var(--transition), box-shadow var(--transition);
+    transition: border-color var(--transition), transform var(--transition);
 }
 
 /* hover: see @media (hover: hover) guard */
@@ -1650,7 +1650,7 @@ body {
     align-items: center;
     justify-content: center;
     opacity: 0.55;
-    transition: opacity var(--transition), background var(--transition), box-shadow var(--transition);
+    transition: opacity var(--transition), background var(--transition);
     position: relative;
 }
 
@@ -1958,12 +1958,12 @@ body {
     position: relative;
 }
 
-/* Bomb button — glass disk, bottom-left of mosaic */
+/* Bomb button — glass disk, right of mosaic on desktop, bottom center on mobile */
 .confetti-bomb {
     position: absolute;
-    bottom: 0;
-    left: var(--space-3);
-    transform: translateY(50%);
+    right: calc(-36px - var(--space-5));
+    top: 50%;
+    translate: 0 -50%;
     width: 72px;
     height: 72px;
     border-radius: 50%;
@@ -1977,15 +1977,14 @@ body {
     align-items: center;
     justify-content: center;
     box-shadow: var(--shadow-md);
-    transition: transform var(--duration-normal) var(--ease-spring),
-                box-shadow var(--transition);
+    transition: scale var(--duration-normal) var(--ease-spring);
     z-index: 10;
 }
 
 /* hover: see @media (hover: hover) guard */
 
 .confetti-bomb:active {
-    transform: scale(0.92);
+    scale: 0.92;
 }
 
 /* Vertical emoji nav on left — centered with mosaic */
@@ -2014,7 +2013,7 @@ body {
     align-items: center;
     justify-content: center;
     opacity: 0.45;
-    transition: opacity var(--transition), background var(--transition), box-shadow var(--transition);
+    transition: opacity var(--transition), background var(--transition);
     flex-shrink: 0;
 }
 
@@ -2449,11 +2448,20 @@ body {
     .bento-nav { width: 44px; height: 44px; font-size: 20px; }
     .bento-nav-prev { left: var(--space-2); }
     .bento-nav-next { right: var(--space-2); }
-    .bento-regen { bottom: var(--space-4); right: var(--space-4); width: 44px; height: 44px; }
+    .bento-regen {
+        bottom: var(--space-6);
+        bottom: calc(var(--space-6) + env(safe-area-inset-bottom));
+        right: auto;
+        left: 50%;
+        translate: -50% 0;
+        width: 60px;
+        height: 60px;
+        font-size: 28px;
+    }
 
     /* Game */
     .jeu-pair { gap: var(--space-1); }
-    .jeu-bar { bottom: var(--space-4); bottom: calc(var(--space-4) + env(safe-area-inset-bottom)); }
+    .jeu-bar { bottom: var(--space-6); bottom: calc(var(--space-6) + env(safe-area-inset-bottom)); }
 
     /* Couleurs */
     .couleurs-wrap { padding: var(--space-3); gap: var(--space-2_5); }
@@ -2497,7 +2505,7 @@ body {
     .confetti-left { flex-direction: row; gap: var(--space-2); padding: var(--space-2); }
     .confetti-nav { flex-direction: row; overflow-x: auto; overflow-y: hidden; padding: var(--space-2) var(--space-3); }
     .confetti-nav-btn { width: 44px; height: 44px; font-size: 16px; }
-    .confetti-bomb { width: 60px; height: 60px; font-size: 26px; }
+    .confetti-bomb { position: fixed; width: 60px; height: 60px; font-size: 26px; right: auto; top: auto; bottom: var(--space-5); bottom: calc(var(--space-5) + env(safe-area-inset-bottom)); left: 50%; translate: -50% 0; }
     .confetti-mosaic { width: min(85dvh, 88vw); height: min(85dvh, 88vw); }
     .confetti-label { font-size: var(--text-sm); bottom: var(--space-3); }
 
@@ -2511,11 +2519,30 @@ body {
     /* Observatory */
     .observatory-container { grid-template-columns: 1fr; padding: var(--space-4); }
 
-    /* Sort bar */
-    .sort-bar { padding: var(--space-3) var(--space-3); }
-    .sort-bar-inner { gap: 0; }
-    .sort-btn { padding: var(--space-1_5) var(--space-2_5); font-size: var(--text-sm); }
-    .sort-grid-wrap { padding: 0 var(--space-3) var(--space-12); }
+    /* Sort bar — fixed bottom for thumb reach */
+    .sort-bar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        top: auto;
+        padding: var(--space-2) var(--space-3) calc(var(--space-2) + env(safe-area-inset-bottom));
+        z-index: 20;
+        overflow: hidden;
+    }
+    .sort-bar-inner {
+        gap: 0;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        max-width: 100%;
+        background: rgba(230, 230, 230, 0.7);
+    }
+    :root.dark .sort-bar-inner {
+        background: rgba(28, 28, 30, 0.85);
+    }
+    .sort-bar-inner::-webkit-scrollbar { display: none; }
+    .sort-btn { padding: var(--space-1_5) var(--space-2_5); font-size: var(--text-sm); color: var(--text); }
+    .sort-grid-wrap { padding: 0 var(--space-3) calc(var(--space-20) + 60px); }
 
     /* Filter bar */
     .filter-bar { padding: var(--space-2_5) var(--space-4); }
@@ -2562,13 +2589,14 @@ body {
 
     /* Confetti: tighter nav */
     .confetti-nav-btn { width: 44px; height: 44px; font-size: 14px; }
-    .confetti-bomb { width: 52px; height: 52px; font-size: 22px; }
+    .confetti-bomb { width: 52px; height: 52px; font-size: 22px; bottom: var(--space-4); }
     .confetti-mosaic { width: min(80dvh, 92vw); height: min(80dvh, 92vw); }
 
     /* Sort */
-    .sort-bar-inner { flex-wrap: wrap; border-radius: var(--radius-lg); justify-content: center; }
+    .sort-bar-inner { flex-wrap: nowrap; justify-content: center; }
     .sort-sep { display: none; }
-    .sort-size-btn { width: 44px; height: 44px; }
+    .sort-size-btn { width: 40px; height: 40px; }
+    .sort-btn { font-size: var(--text-xs); padding: var(--space-1) var(--space-2); }
 
     /* Pendulum: stack vertically */
     .pendulum-pair { flex-direction: column !important; }
@@ -2603,4 +2631,68 @@ body {
     .confetti-mosaic.floating .confetti-cell { transition-duration: 0.01ms !important; }
     .confetti-preview { transition-duration: 0.01ms !important; }
     .confetti-preview-img { transition-duration: 0.01ms !important; }
+}
+
+/* ===== Tier B — disable backdrop-filter on weaker devices (Chrome Android, low-end) ===== */
+:root.tier-b #header {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(245, 245, 247, 0.95);
+}
+:root.tier-b.dark #header {
+    background: rgba(20, 20, 22, 0.95);
+}
+:root.tier-b .side-menu {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(245, 245, 247, 0.97);
+}
+:root.tier-b.dark .side-menu {
+    background: rgba(28, 28, 30, 0.97);
+}
+:root.tier-b .sort-bar-inner {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(230, 230, 230, 0.92);
+}
+:root.tier-b.dark .sort-bar-inner {
+    background: rgba(28, 28, 30, 0.92);
+}
+:root.tier-b .bento-nav,
+:root.tier-b .bento-regen,
+:root.tier-b .compass-random,
+:root.tier-b .nyu-reel-nav {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(245, 245, 247, 0.9);
+}
+:root.tier-b.dark .bento-nav,
+:root.tier-b.dark .bento-regen,
+:root.tier-b.dark .compass-random,
+:root.tier-b.dark .nyu-reel-nav {
+    background: rgba(28, 28, 30, 0.9);
+}
+:root.tier-b .jeu-bar,
+:root.tier-b .nyu-nav {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(245, 245, 247, 0.92);
+}
+:root.tier-b.dark .jeu-bar,
+:root.tier-b.dark .nyu-nav {
+    background: rgba(28, 28, 30, 0.92);
+}
+:root.tier-b .confetti-bomb {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(245, 245, 247, 0.85);
+}
+:root.tier-b.dark .confetti-bomb {
+    background: rgba(28, 28, 30, 0.85);
+}
+:root.tier-b .confetti-preview-backdrop,
+:root.tier-b .lightbox-backdrop {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(0, 0, 0, 0.85);
 }

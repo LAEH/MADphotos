@@ -1,5 +1,16 @@
 /* app.js — Core data loading, router, shared utilities */
 
+/* ===== Performance Tier Detection ===== */
+/* Tier A: full backdrop-filter. Tier B: solid backgrounds (Chrome Android, low-end). */
+(function detectTier() {
+    const ua = navigator.userAgent;
+    const isWebKit = /AppleWebKit/.test(ua) && !/Chrome/.test(ua); /* Safari */
+    const cores = navigator.hardwareConcurrency || 2;
+    const dpr = devicePixelRatio || 1;
+    const tierA = isWebKit || (cores >= 4 && dpr <= 3);
+    document.documentElement.classList.add(tierA ? 'tier-a' : 'tier-b');
+})();
+
 /* ===== Constants ===== */
 const HEADER_HEIGHT = 52; /* px — sticky header */
 const LAZY_MARGIN = '300px'; /* IntersectionObserver preload distance */

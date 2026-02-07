@@ -320,6 +320,10 @@ function assembleSet(vp, set) {
         requestAnimationFrame(() => {
             mosaic.classList.add('assembled');
             confettiAnimating = false;
+            /* Free GPU memory after assembly animation completes */
+            setTimeout(() => {
+                mosaic.querySelectorAll('.confetti-cell').forEach(c => { c.style.willChange = 'auto'; });
+            }, 2500);
         });
     });
 }
@@ -398,6 +402,9 @@ function blowConfetti() {
     const cy = ((Math.ceil(n / cols)) - 1) / 2;
     const maxDist = Math.sqrt(cx * cx + cy * cy) || 1;
 
+    /* Re-promote layers for animation */
+    cells.forEach(c => { c.style.willChange = 'transform, opacity'; });
+
     /* Phase 1: lift — each cell floats to a nearby random spot */
     mosaic.classList.remove('assembled');
     mosaic.classList.add('floating');
@@ -444,6 +451,10 @@ function blowConfetti() {
 
         setTimeout(() => {
             confettiAnimating = false;
+            /* Free GPU memory after settle */
+            setTimeout(() => {
+                cells.forEach(c => { c.style.willChange = 'auto'; });
+            }, 2000);
         }, 600);
     }, 600);
 }

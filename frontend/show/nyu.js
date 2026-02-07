@@ -456,6 +456,10 @@ function renderNyuOverview(vp) {
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
             mosaic.classList.add('assembled');
+            /* Free GPU memory after assembly animation completes */
+            setTimeout(() => {
+                mosaic.querySelectorAll('.nyu-mosaic-cell').forEach(c => { c.style.willChange = 'auto'; });
+            }, 3000);
         });
     });
 }

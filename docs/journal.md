@@ -1180,3 +1180,25 @@ Four feature passes across the Show app.
 **Faces quality filter.** Added confidence threshold (`conf >= 0.75`) and minimum area gate (`w * h >= 0.005`) to filter out low-quality and tiny face detections. Square crop logic hardened: size clamped to image dimensions, center position clamped so crop never extends past image bounds — fixes partial-face edge artifacts.
 
 **State React SPA backend.** Dashboard API expanded with 5 endpoints: `/api/stats`, `/api/journal`, `/api/instructions`, `/api/mosaics`, `/api/cartoon`. `serve_show.py` now delegates all `/api/*` routes to dashboard.py functions, serves the Vite-built State SPA from `dist/` with client-side routing fallback, and handles `/api/similarity/:uuid` and `/api/drift/:uuid` vector search routes. State `index.html` replaced with React SPA entry point (Vite + TypeScript).
+
+---
+
+## 2026-02-07
+
+### 19:43 — Show: Mobile UX Pass + Performance Audit & Fixes
+
+Two passes: mobile interaction improvements, then a full performance audit with five fixes.
+
+**Mobile UX.** Confetti bomb repositioned: desktop uses `position: absolute` anchored right of the mosaic wrapper, mobile switches to `position: fixed` bottom-center with safe-area inset. Sort bar moved from sticky-top to `position: fixed; bottom: 0` on mobile for thumb reach, with scrollable pill and visible text (`color: var(--text)` instead of dim). Bento dice button enlarged to 60px and centered at bottom on mobile (was 44px in corner). Couple game controls lifted from `space-4` to `space-6` off bottom edge.
+
+**Performance audit.** Full 14-file audit identified 21 RED violations, 20 YELLOW risks, and 8 GREEN patterns. Five fixes implemented:
+
+1. **Couleurs flex transition eliminated.** `.couleurs-band` was animating `flex` — triggers full layout of 24 siblings every frame. Replaced with `opacity`-only transition; flex changes snap instantly.
+
+2. **will-change cleanup.** NYU mosaic (150 cells) and Confetti (64 cells) now reset `will-change: auto` after assembly completes, freeing ~30–50MB GPU memory. Confetti blow re-promotes layers before animating and cleans up after settle.
+
+3. **box-shadow removed from transitions.** On `.drift-neighbor`, `.map-strip-card`, `.confetti-bomb`, `.confetti-nav-btn` — shadows now snap on hover instead of repainting every frame.
+
+4. **Scripts deferred.** All 10 `<script>` tags in `index.html` now carry `defer`, unblocking HTML parsing while preserving execution order. Cache-busted to v=12.
+
+5. **Tiered backdrop-filter.** Auto-detection in `app.js` sets `tier-a` (Safari, capable devices with ≥4 cores) or `tier-b` (Chrome Android, low-end). Tier-b replaces all `backdrop-filter: blur()` with solid semi-transparent backgrounds across header, menus, nav bars, overlays, and buttons. 13 elements covered in a single rule block at end of `style.css`.
