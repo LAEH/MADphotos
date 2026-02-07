@@ -1086,3 +1086,37 @@ Naming conventions: dropped `mad_` prefix, `_engine` suffix, `generate_` prefix,
 ### 11:48 — Data Directory Consolidation: images/ + backend/models/
 
 Moved all data assets from project root into organized subdirectories. `originals/`, `rendered/`, `ai_variants/`, `vectors.lance/` now live under `images/`. The SQLite database `mad_photos.db` (3.1 GB) also moved to `images/` — it's data about images. Model weights (`face_detection_yunet_2023mar.onnx`, `yolov8n.pt`, `.places365_resnet50.pth.tar`, `.places365_labels.txt`) moved to `backend/models/`. Processing state files (`.faces_processed.json`, `.objects_processed.json`) moved to `backend/`. Updated all 19 Python scripts, 2 shell scripts, 1 Swift source file, and `.gitignore`. Updated 97,898 `tiers.local_path` DB rows via `REPLACE()`. Updated the `/sync-state` skill (both `SKILL.md` and `snapshot.py`) to use new paths. The root is now clean: just `frontend/`, `backend/`, `scripts/`, `docs/`, `images/`, config files.
+
+---
+
+### 15:00 — See: Major Overhaul — Two Windows, Curation Toolbar, Performance
+
+Complete overhaul of the native macOS curation app. Renamed MADCurator → See. 8 Swift files rewritten.
+
+**Two-window architecture.** Split from a single HSplitView into two independent windows: Collection (sidebar + grid + toolbar) and Viewer (detail panel with hero image + metadata + curation controls). The Collection window uses `NavigationSplitView`, the Viewer opens automatically via `@Environment(\.openWindow)` when a photo is selected. Both windows share the same `PhotoStore` via `@EnvironmentObject`. This eliminated the jittering label layout caused by HSplitView resizing fights.
+
+**Curation toolbar.** Replaced the macOS `.toolbar` (which spread items across the title bar with huge gaps) with a custom 36px `GridToolbar` view inside the content VStack. Contains: photo count, three curation filter pills (Picked/Rejected/Unflagged with colored icons, labels, and counts), a Reset button (only visible when filters active), sort picker dropdown, grid mode toggle (square/natural crop), and select mode toggle. All buttons have hover states via dedicated `CurationPill`, `HoverButton`, and `HoverIconButton` components.
+
+**Sort system.** 8 sort options: Random (shuffle), Aesthetic (LAION score), Date, Exposure (Over/Balanced/Under rank), Saturation (palette HSB), Depth (complexity score), Brightness (palette HSB), Faces (count). Default is Random. Sort preference persists across sessions via UserDefaults.
+
+**Select mode.** Enabled by default on launch. Clicking a photo in select mode toggles its selection (checkmark overlay, top-right). Clicking with select mode off opens the Viewer. Batch curate: select multiple photos, then pick or reject all at once. Select All button in toolbar.
+
+**Keyboard shortcuts.** `p` pick (toggles kept↔pending), `r` reject (toggles rejected↔pending), `u` unflag (always sets pending), `e` toggle enhanced image, `i` toggle info panel, `←/→` navigate, `Escape` deselect/exit select mode, `y/n` accept/reject propagated locations. All shortcuts work in both Collection and Viewer windows.
+
+**Performance.** Four optimizations: (1) `prepareCache()` pre-computes 12 expensive properties on PhotoItem at load time instead of JSON-parsing on every access. (2) `QuickCounts` struct pre-computed once for sidebar instead of filtering 9,000 photos per render. (3) Async thumbnail loading via `.task(id:)` with `Task.detached` for off-main-thread disk I/O and `NSCache` (2000 limit). (4) Curated photos disappear immediately from grid when they no longer match the active filter.
+
+**Landing state.** App opens showing unflagged photos in random order. Preferences (sort, crop mode, info panel, curation filter) persist via UserDefaults and restore on next launch.
+
+**App icon + lifecycle.** Pure black rounded-rectangle icon (1024px, radius 220px) generated via PIL, converted to .icns. Set at runtime via `NSApp.applicationIconImage` in AppDelegate. On quit: `savePreferences()` + `database.shutdown()` (WAL checkpoint + close). App terminates when last window closes.
+
+---
+
+### 16:30 — Show: New Experiences + Design System Redesign
+
+Four new web experiences added to Show: **Les Confetti** (confetti.js), **Les Dominos** (domino.js), **NYU** (nyu.js), **Le Thème** (theme.js). All existing experiences redesigned with unified Apple HIG design system. Updated index.html with new navigation, style.css with comprehensive token system, app.js with unified launcher. Design system audit documentation generated (DESIGN_SYSTEM_AUDIT.md + design-system.html). Deployed to Firebase Hosting.
+
+---
+
+### 17:00 — Deploy
+
+Committed all changes to GitHub (`b7b53f8`): 37 files, +6,866 / -3,702 lines. Deployed Show to Firebase Hosting at `https://madphotos-efbfb.web.app`. Updated journal, README, and regenerated State dashboard pages.
