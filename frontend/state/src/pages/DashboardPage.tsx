@@ -231,6 +231,30 @@ export function DashboardPage() {
             <Tags items={s.time_of_day} icon={IC.sunset} cat="camera-time" />
           </div>
         </div>
+
+        <div className="signal-group">
+          <div className="signal-group-label">Detection</div>
+          <div className="disk-row">
+            <div className="disk-item">
+              <div className="di-val">{fmt(s.face_images_with)}</div>
+              <div className="di-label">Images with faces ({fmt(s.face_total)} faces total)</div>
+            </div>
+            <div className="disk-item">
+              <div className="di-val">{fmt(s.ocr_texts)}</div>
+              <div className="di-label">Text regions across {fmt(s.ocr_images)} images</div>
+            </div>
+            <div className="disk-item">
+              <div className="di-val">{fmt(sigOD.rows)}</div>
+              <div className="di-label">Objects detected in {fmt(sigOD.processed || sigOD.images)} images</div>
+            </div>
+            {(s.emotion_count || 0) > 0 && (
+              <div className="disk-item">
+                <div className="di-val">{fmt(s.emotion_count)}</div>
+                <div className="di-label">Faces with emotion analysis</div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* ═══ VECTOR STORE ═══ */}

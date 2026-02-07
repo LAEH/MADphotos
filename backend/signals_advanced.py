@@ -721,6 +721,7 @@ def run_ocr(conn, limit=0, force=False, shard=None):
     for item in work:
         try:
             results = reader.readtext(item["source_path"])
+            inserted = 0
             if results:
                 for bbox, text, conf in results:
                     if conf < 0.3:  # Skip low confidence
@@ -732,8 +733,9 @@ def run_ocr(conn, limit=0, force=False, shard=None):
                         VALUES (?, ?, ?, ?, ?)
                     """, (item["uuid"], text, round(float(conf), 3), bbox_json, now_str))
                     total_text += 1
-            else:
-                # Insert a sentinel so we know this image was processed
+                    inserted += 1
+            if inserted == 0:
+                # No text found (or all below threshold) — sentinel so we know it was processed
                 conn.execute("""
                     INSERT INTO ocr_detections
                         (image_uuid, text, confidence, analyzed_at)
