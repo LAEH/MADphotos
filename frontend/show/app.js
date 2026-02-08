@@ -40,6 +40,9 @@ const EXPERIENCES = [
     { id: 'confetti',    name: 'Boom',             init: 'initConfetti' },
     { id: 'square',      name: 'Square',           init: 'initSquare' },
     { id: 'caption',     name: 'Caption',          init: 'initCaption' },
+    { id: 'cinema',      name: 'Cinema',           init: 'initCinema' },
+    { id: 'reveal',      name: 'Reveal',           init: 'initReveal' },
+    { id: 'pulse',       name: 'Pulse',            init: 'initPulse' },
 ];
 
 /* ===== Device Detection & Gating ===== */

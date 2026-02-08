@@ -9,12 +9,24 @@ struct ContentView: View {
             FilterSidebar()
                 .navigationSplitViewColumnWidth(min: 160, ideal: 210, max: 300)
         } detail: {
-            VStack(spacing: 0) {
-                GridToolbar()
-                if store.filters.isActive {
-                    QueryBar()
+            ZStack {
+                VStack(spacing: 0) {
+                    GridToolbar()
+                    if store.filters.isActive {
+                        QueryBar()
+                    }
+                    ImageGrid()
                 }
-                ImageGrid()
+
+                if store.isLoading {
+                    VStack(spacing: 12) {
+                        ProgressView()
+                            .scaleEffect(1.2)
+                        Text("Loading collection...")
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary)
+                    }
+                }
             }
         }
         .toolbar { ToolbarItem(placement: .automatic) { Color.clear.frame(width: 0, height: 0) } }
@@ -60,6 +72,7 @@ struct ViewerWindow: View {
             if let photo = store.selectedPhoto {
                 DetailView(photo: photo)
                     .id(photo.id)
+                    .transition(.opacity)
             } else {
                 ZStack {
                     Color(nsColor: .controlBackgroundColor)
@@ -74,6 +87,7 @@ struct ViewerWindow: View {
                 }
             }
         }
+        .animation(.easeInOut(duration: 0.2), value: store.selectedPhoto?.id)
         .onKeyPress("p") {
             guard store.selectedPhoto != nil else { return .ignored }
             store.keepCurrent()

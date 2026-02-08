@@ -1240,3 +1240,25 @@ Five housekeeping items that close out the signal pipeline and clean up migratio
 **Pipeline runs cleanup.** Marked 29 orphaned "started" pipeline runs (0 processed, 0 failed) as "failed" in the DB. Updated `dashboard.py` query to filter out runs with `images_processed = 0 AND images_failed = 0`.
 
 **Old HTML removal.** Deleted 7 pre-React static HTML pages (`state.html`, `journal.html`, `instructions.html`, `mosaics.html`, `cartoon.html`, `drift.html`, `blind-test.html`) plus `index.old.html` — all replaced by the React + Vite + Tailwind SPA. Updated `/ship` skill instructions to reference static data regeneration and Vite build steps.
+
+---
+
+## 2026-02-08
+
+### 09:22 — Show: Cinema + Reveal + Pulse experiences, See async loading + zoom, State stats page
+
+Three new Show experiences push from 10 to 13, each with rich themed sets and smart diversity sampling.
+
+**New experience: Cinema.** Full-screen Ken Burns slideshow (`cinema.js`, ~310 lines). Two alternating layers crossfade with 1.5s opacity transitions. Six Ken Burns drift keyframes (`kb-1` through `kb-6`) randomly assigned per slide — slow zoom+pan over 8 seconds. 11 themed chapters (Golden Hour, Serene, Intense, Night, Portraits, Nature, Urban, Nostalgic, Ethereal, Dark, Vibrant) with chapter title cards that fade in center-screen for 2.5 seconds. Each chapter holds up to 12 diversity-sampled photos: filter by theme predicate, sort by aesthetic, take top N×3, shuffle, slice N. Auto-advances every 7 seconds with a thin progress bar. Space toggles pause (with flash indicator), arrows and click/swipe navigate. Timer registered via `registerTimer()` for cleanup.
+
+**New experience: Reveal.** Clip-path morphing image transitions (`reveal.js`, ~329 lines), inspired by MADvids' Shape Reveal experiment. Seven geometric shapes, each paired with a themed image set: Circle→Serene, Diamond→Intense, Inset→Golden Hour, Star→Night, Split→Nostalgic, Hexagon→Nature, Blob→Ethereal. Each set holds ~14 photos. Incoming layer sits at z-index 2 with clip-path animated via `requestAnimationFrame` from 0→1 using easeOutCubic (`1 - (1-t)³`). Shape functions build CSS `clip-path` strings each frame — `circle()`, `polygon()`, `inset()`. The Blob shape adds organic wobble via `Math.sin(a*3 + now*0.004)`. Set label shows "Shape · Theme" with a 2.5s flash animation on set transitions.
+
+**New experience: Pulse.** Breathing mosaic grid (`pulse.js`, ~226 lines). Responsive square grid: 10×10 desktop, 8×8 tablet, 6×6 phone. Each cell's `transform: scale()` and `opacity` modulated by a sine wave emanating from cursor position — `Math.sin(dist * 1.0 - now * 0.0018)`. Scale range 0.84–1.0, opacity 0.4–1.0. Wave origin follows mouse/touch, returns to center on leave. 12 category pills with French labels (Best, Rouge, Ambre, Vert, Azur, Violet, Doré, Nuit, Serein, Intense, Sombre, Nostalgique). Stagger-reveal from center outward with `--pulse-delay`, then `style.transition = 'none'` for rAF takeover. `pulseRunning` flag + `APP.currentView` check self-terminate the loop on view switch.
+
+**CSS additions.** ~370 lines added to `style.css`. Cinema: shell, layers, 6 `@keyframes`, chapter overlay, progress bar, counter, pause flash. Reveal: two-layer z-index stack, `will-change: clip-path`, label flash animation, hint fade. Pulse: CSS grid with `--pulse-cols`, cell will-change, rack with pill buttons. Hover guards, dvh fallbacks, responsive overrides at 768px and 480px, reduced motion for all three.
+
+**See: async loading + prefetch.** `PhotoStore.load()` moved to `Task.detached` with `MainActor.run` callback — the UI now shows a loading spinner instead of freezing on launch. Adjacent photo prefetch (`prefetchAdjacent()`) called on every `selectPhoto()`, `moveToNext()`, `moveToPrevious()`. New `ZoomableImageView.swift` (201 lines) adds pinch-to-zoom to the detail viewer. Crossfade transition (`.opacity`) on photo change with 0.2s easeInOut. Display cache added (limit 20) alongside existing thumb cache (limit 2000). `fullImagePath(for:)` accessor for full-resolution tier.
+
+**State: Stats page.** New `StatsPage.tsx` (470 lines) — an infographic-style signal inventory page. Aesthetic histogram from `dashboard.py` (new `aesthetic_histogram` endpoint using `ROUND(score, 1)` bucketing). Fixed aesthetic query from `overall_score` to `score` column. Route `/stats` added to `App.tsx`, sidebar nav link added.
+
+16 files changed (11 modified, 5 new). +755 / -27 lines.

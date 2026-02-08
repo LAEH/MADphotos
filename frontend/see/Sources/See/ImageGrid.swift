@@ -62,6 +62,8 @@ struct ThumbnailCell: View {
     let photo: PhotoItem
     @State private var isHovered = false
     @State private var thumb: NSImage?
+    @State private var thumbOpacity: Double = 0
+    @State private var shimmer = false
 
     private var isSelected: Bool { store.selectedPhoto?.id == photo.id }
     private var isRejected: Bool { photo.curatedStatus == "rejected" }
@@ -79,15 +81,19 @@ struct ThumbnailCell: View {
                         .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
                         .aspectRatio(1, contentMode: .fit)
                         .clipped()
+                        .opacity(thumbOpacity)
                 } else {
                     Image(nsImage: nsImage)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
+                        .opacity(thumbOpacity)
                 }
             } else {
                 Rectangle()
-                    .fill(Color.gray.opacity(0.08))
-                    .aspectRatio(1, contentMode: .fit)
+                    .fill(Color.gray.opacity(shimmer ? 0.12 : 0.04))
+                    .aspectRatio(photo.aspectRatio > 0 && !store.squareCrop ? photo.aspectRatio : 1, contentMode: .fit)
+                    .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: shimmer)
+                    .onAppear { shimmer = true }
             }
 
             // Status badge (bottom-left)
@@ -168,12 +174,14 @@ struct ThumbnailCell: View {
         .task(id: photo.id) {
             if let cached = store.loadThumbnail(for: photo) {
                 thumb = cached
+                thumbOpacity = 1
                 return
             }
             let path = store.thumbnailPath(for: photo)
             guard let img = await store.thumbnailLoader.load(path: path) else { return }
             store.cacheThumbnail(img, for: photo)
             thumb = img
+            withAnimation(.easeIn(duration: 0.25)) { thumbOpacity = 1 }
         }
     }
 }

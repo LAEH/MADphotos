@@ -66,23 +66,34 @@ final class PhotoStore: ObservableObject {
     // Sort
     @Published var sortBy: SortOption = .random
     @Published var sortDescending: Bool = true
+    // Loading state
+    @Published var isLoading: Bool = true
 
     nonisolated let thumbnailLoader = ThumbnailLoader()
     private var thumbCache = NSCache<NSString, NSImage>()
+    private var displayCache = NSCache<NSString, NSImage>()
 
     init(basePath: String) {
         self.basePath = basePath
         self.database = Database(basePath: basePath)
         thumbCache.countLimit = 2000
+        displayCache.countLimit = 20
     }
 
     func load() {
-        var photos = database.loadPhotos()
-        for i in photos.indices { photos[i].prepareCache() }
-        allPhotos = photos
-        restorePreferences()
-        applyFilters()
-        refreshCounts()
+        isLoading = true
+        let db = database
+        Task.detached(priority: .userInitiated) {
+            var photos = db.loadPhotos()
+            for i in photos.indices { photos[i].prepareCache() }
+            await MainActor.run { [photos] in
+                self.allPhotos = photos
+                self.restorePreferences()
+                self.applyFilters()
+                self.refreshCounts()
+                self.isLoading = false
+            }
+        }
     }
 
     // MARK: - Preferences (persist across sessions)
@@ -670,7 +681,8 @@ final class PhotoStore: ObservableObject {
     func selectPhoto(_ photo: PhotoItem) {
         selectedPhoto = photo
         selectedIndex = filteredPhotos.firstIndex(of: photo) ?? -1
-        showEnhanced = false  // Reset enhanced toggle on photo change
+        showEnhanced = false
+        prefetchAdjacent()
     }
 
     func moveToNext() {
@@ -679,6 +691,7 @@ final class PhotoStore: ObservableObject {
         selectedIndex = next
         selectedPhoto = filteredPhotos[next]
         showEnhanced = false
+        prefetchAdjacent()
     }
 
     func moveToPrevious() {
@@ -687,6 +700,7 @@ final class PhotoStore: ObservableObject {
         selectedIndex = prev
         selectedPhoto = filteredPhotos[prev]
         showEnhanced = false
+        prefetchAdjacent()
     }
 
     // MARK: - Images
@@ -697,6 +711,10 @@ final class PhotoStore: ObservableObject {
 
     func displayPath(for photo: PhotoItem) -> String {
         (basePath as NSString).appendingPathComponent("images/rendered/display/jpeg/\(photo.id).jpg")
+    }
+
+    func fullImagePath(for photo: PhotoItem) -> String {
+        (basePath as NSString).appendingPathComponent("images/rendered/full/jpeg/\(photo.id).jpg")
     }
 
     func currentImagePath(for photo: PhotoItem) -> String {
@@ -715,5 +733,35 @@ final class PhotoStore: ObservableObject {
 
     func cacheThumbnail(_ image: NSImage, for photo: PhotoItem) {
         thumbCache.setObject(image, forKey: photo.id as NSString)
+    }
+
+    // MARK: - Display cache
+
+    func loadDisplayImage(for photo: PhotoItem) -> NSImage? {
+        displayCache.object(forKey: photo.id as NSString)
+    }
+
+    func cacheDisplayImage(_ image: NSImage, for photo: PhotoItem) {
+        displayCache.setObject(image, forKey: photo.id as NSString)
+    }
+
+    // MARK: - Prefetch
+
+    func prefetchAdjacent() {
+        guard !filteredPhotos.isEmpty, selectedIndex >= 0 else { return }
+        let indices = [selectedIndex - 1, selectedIndex + 1].filter {
+            $0 >= 0 && $0 < filteredPhotos.count
+        }
+        for idx in indices {
+            let photo = filteredPhotos[idx]
+            if displayCache.object(forKey: photo.id as NSString) != nil { continue }
+            let path = displayPath(for: photo)
+            Task.detached(priority: .utility) {
+                guard let img = NSImage(contentsOfFile: path) else { return }
+                await MainActor.run {
+                    self.displayCache.setObject(img, forKey: photo.id as NSString)
+                }
+            }
+        }
     }
 }

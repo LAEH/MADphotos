@@ -377,7 +377,7 @@ def get_stats():
     aesthetic_labels = []
     try:
         aesthetic_count = conn.execute("SELECT COUNT(*) FROM aesthetic_scores").fetchone()[0]
-        row = conn.execute("SELECT ROUND(AVG(overall_score),2), MIN(overall_score), MAX(overall_score) FROM aesthetic_scores").fetchone()
+        row = conn.execute("SELECT ROUND(AVG(score),2), MIN(score), MAX(score) FROM aesthetic_scores").fetchone()
         if row:
             aesthetic_avg = row[0] or 0
             aesthetic_min = row[1] or 0
@@ -387,6 +387,19 @@ def get_stats():
             for r in conn.execute(
                 "SELECT score_label, COUNT(*) as cnt FROM aesthetic_scores "
                 "GROUP BY score_label ORDER BY cnt DESC"
+            ).fetchall()
+        ]
+    except Exception:
+        pass
+
+    # Aesthetic histogram (score distribution)
+    aesthetic_histogram = []
+    try:
+        aesthetic_histogram = [
+            {"bucket": r[0], "count": r[1]}
+            for r in conn.execute(
+                "SELECT ROUND(score, 1) as bucket, COUNT(*) "
+                "FROM aesthetic_scores GROUP BY bucket ORDER BY bucket"
             ).fetchall()
         ]
     except Exception:
@@ -682,6 +695,7 @@ def get_stats():
         "aesthetic_min": aesthetic_min,
         "aesthetic_max": aesthetic_max,
         "aesthetic_labels": aesthetic_labels,
+        "aesthetic_histogram": aesthetic_histogram,
         "depth_count": depth_count,
         "depth_avg_near": depth_avg_near,
         "depth_avg_mid": depth_avg_mid,

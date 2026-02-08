@@ -10,20 +10,10 @@ struct DetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                // Hero image (square container, image fits within)
+                // Hero image with zoom/pan
                 ZStack(alignment: .topTrailing) {
-                    Color.black
+                    ZoomableImageView(photo: photo)
                         .aspectRatio(1, contentMode: .fit)
-                        .overlay(
-                            Group {
-                                if let nsImage = NSImage(contentsOfFile: store.currentImagePath(for: photo)) {
-                                    Image(nsImage: nsImage)
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                }
-                            }
-                        )
-                        .clipped()
 
                     if photo.isEnhanced {
                         Text(store.showEnhanced ? "ENHANCED" : "ORIGINAL")

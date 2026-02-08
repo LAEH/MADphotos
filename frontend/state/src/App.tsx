@@ -8,6 +8,7 @@ import { MosaicsPage } from './pages/MosaicsPage'
 import { CartoonPage } from './pages/CartoonPage'
 import { SimilarityPage } from './pages/SimilarityPage'
 import { BlindTestPage } from './pages/BlindTestPage'
+import { StatsPage } from './pages/StatsPage'
 
 export default function App() {
   const themeCtx = useThemeProvider()
@@ -18,6 +19,7 @@ export default function App() {
         <Route element={<Layout />}>
           <Route index element={<DashboardPage />} />
           <Route path="dashboard" element={<DashboardPage />} />
+          <Route path="stats" element={<StatsPage />} />
           <Route path="journal" element={<JournalPage />} />
           <Route path="instructions" element={<InstructionsPage />} />
           <Route path="mosaics" element={<MosaicsPage />} />
