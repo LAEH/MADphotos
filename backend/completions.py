@@ -398,6 +398,54 @@ def regenerate_state() -> bool:
         return False
 
 
+def regenerate_exports() -> bool:
+    """Regenerate gallery data exports and State dashboard JSON files."""
+    success = True
+
+    # 1. Gallery export (photos.json + auxiliary files)
+    export_script = str(BACKEND / "export_gallery.py")
+    try:
+        result = subprocess.run(
+            [sys.executable, export_script],
+            capture_output=True, text=True, cwd=str(BACKEND), timeout=600
+        )
+        if result.returncode == 0:
+            print("  Gallery export regenerated (photos.json + aux files).")
+        else:
+            print(f"  Gallery export failed: {result.stderr[:200]}")
+            success = False
+    except Exception as e:
+        print(f"  Gallery export error: {e}")
+        success = False
+
+    # 2. State dashboard data files
+    try:
+        sys.path.insert(0, str(BACKEND))
+        from dashboard import get_stats, get_journal_html, get_instructions_html
+        from dashboard import get_mosaics_data, get_cartoon_data
+        import json as _json
+
+        state_data_dir = PROJECT_ROOT / "frontend" / "state" / "public" / "data"
+        state_data_dir.mkdir(parents=True, exist_ok=True)
+
+        for name, fn in [
+            ("stats.json", lambda: get_stats()),
+            ("journal.json", lambda: {"html": get_journal_html()}),
+            ("instructions.json", lambda: {"html": get_instructions_html()}),
+            ("mosaics.json", lambda: {"mosaics": get_mosaics_data()}),
+            ("cartoon.json", lambda: {"pairs": get_cartoon_data()}),
+        ]:
+            data = fn()
+            (state_data_dir / name).write_text(_json.dumps(data))
+
+        print("  State data files regenerated (5 JSON files).")
+    except Exception as e:
+        print(f"  State data files error: {e}")
+        success = False
+
+    return success
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -444,6 +492,9 @@ def main() -> None:
                 done = run_cycle()
                 if done:
                     print("  All stages complete!")
+                    if not args.status and not args.no_state:
+                        print("\n  Regenerating exports...")
+                        regenerate_exports()
                     break
                 time.sleep(args.watch)
         except KeyboardInterrupt:
@@ -452,6 +503,9 @@ def main() -> None:
         done = run_cycle()
         if done and not args.status:
             print("  Everything is complete!")
+            if not args.no_state:
+                print("\n  Regenerating exports...")
+                regenerate_exports()
         elif not args.status:
             print("\n  Run with --watch to monitor ongoing processes.")
 

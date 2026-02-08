@@ -2,7 +2,13 @@ import SwiftUI
 
 struct ImageGrid: View {
     @EnvironmentObject var store: PhotoStore
-    private let columns = [GridItem(.adaptive(minimum: 150, maximum: 220), spacing: 2)]
+    @State private var thumbSize: CGFloat = 170
+    @State private var pinchScale: CGFloat = 1.0
+    @State private var isPinching = false
+
+    private var columns: [GridItem] {
+        [GridItem(.adaptive(minimum: thumbSize, maximum: thumbSize + 70), spacing: 2)]
+    }
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -54,6 +60,20 @@ struct ImageGrid: View {
                 }
             }
         }
+        .scaleEffect(pinchScale)
+        .gesture(
+            MagnifyGesture()
+                .onChanged { value in
+                    isPinching = true
+                    pinchScale = value.magnification
+                }
+                .onEnded { value in
+                    let newSize = min(max(thumbSize * value.magnification, 60), 400)
+                    pinchScale = 1.0
+                    isPinching = false
+                    thumbSize = newSize
+                }
+        )
     }
 }
 

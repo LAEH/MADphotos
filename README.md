@@ -7,7 +7,7 @@ Per-image AI photography pipeline. 9,011 photographs analyzed by 13 ML models, e
 ```
 MADphotos/
 ├── frontend/
-│   ├── show/                  Web gallery — 13 interactive experiences (Firebase)
+│   ├── show/                  Web gallery — 14 interactive experiences (Firebase)
 │   ├── state/                 Dashboard — live stats, journal, instructions (GitHub Pages)
 │   └── see/                   See — SwiftUI native curation app (two-window)
 ├── backend/                   19 Python scripts
@@ -131,9 +131,9 @@ images/rendered/{tier}/{format}/{uuid}.ext    ← flat layout, no category subdi
 
 ### Show — `frontend/show/`
 
-13 interactive gallery experiences. Vanilla JS, no framework. Apple HIG design system with 74+ CSS custom properties. Each experience answers *"what can you do with 9,011 images and every possible signal?"*
+14 interactive gallery experiences. Vanilla JS, no framework. Apple HIG design system with 74+ CSS custom properties. PWA with service worker for offline browsing. Each experience answers *"what can you do with 9,011 images and every possible signal?"*
 
-**Sort By** / **Colors** / **Faces** / **Relations** / **Bento** / **NYU** / **Couple** / **Boom** / **Square** / **Caption** / **Cinema** / **Reveal** / **Pulse**
+**Sort By** / **Colors** / **Faces** / **Relations** / **Bento** / **NYU** / **Couple** / **Boom** / **Square** / **Caption** / **Cinema** / **Reveal** / **Pulse** / **Drift**
 
 ### State — `frontend/state/`
 

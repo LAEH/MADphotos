@@ -1262,3 +1262,23 @@ Three new Show experiences push from 10 to 13, each with rich themed sets and sm
 **State: Stats page.** New `StatsPage.tsx` (470 lines) — an infographic-style signal inventory page. Aesthetic histogram from `dashboard.py` (new `aesthetic_histogram` endpoint using `ROUND(score, 1)` bucketing). Fixed aesthetic query from `overall_score` to `score` column. Route `/stats` added to `App.tsx`, sidebar nav link added.
 
 16 files changed (11 modified, 5 new). +755 / -27 lines.
+
+---
+
+### 10:15 — Drift experience, PWA, State data pipeline, auto-regeneration, See pinch-zoom grid
+
+Four infrastructure improvements and a new Show experience — the first to use vector embeddings directly.
+
+**New experience: Drift.** Visual similarity explorer (`drift.js`, ~254 lines rewritten to ~374). Pre-computed 8 nearest neighbors for all 9,011 images using combined DINOv2 (weight 0.6) + CLIP (weight 0.4) cosine similarity — chunked matrix multiply across L2-normalized vectors, computed in 3.8 seconds, stored as `drift_neighbors.json` (4.8 MB). The experience shows a center hero image surrounded by 8 neighbor cards with similarity percentages. Click any neighbor to drift to it; the hero crossfades while cards stagger-animate in with 60ms delays. Breadcrumb trail tracks the last 12 hops — click any dot to warp back. Keyboard: 1–8 select neighbors, Backspace goes back. Random button picks from the full collection. Starts with a random top-200 aesthetic image.
+
+**PWA support.** Added `manifest.json` (standalone display, dark theme), `sw.js` (service worker with three-tier caching: cache-first for static assets, network-first for data files, cache-first with LRU eviction at 500 entries for GCS images), and generated 192px + 512px app icons. Index.html updated with manifest link, apple-touch-icon, theme-color meta, and SW registration script.
+
+**State data pipeline.** Populated all 5 empty State dashboard JSON files by calling `dashboard.py` functions directly: `journal.json` (220K chars), `instructions.json` (18K), `mosaics.json` (14 entries), `cartoon.json` (74 pairs), `blind_test.json` (0 pairs — no enhanced tiers rendered yet). Stats.json regenerated with latest model completion data.
+
+**Auto-regeneration.** Added `regenerate_exports()` to `completions.py` — when all 20 pipeline stages complete, it runs `export_gallery.py` then regenerates all 5 State data JSON files. Keeps Show and State in sync with the database automatically.
+
+**See: pinch-to-zoom grid.** `ImageGrid.swift` converted from fixed column sizing to dynamic `@State thumbSize` driven by `MagnifyGesture()`. Pinch on trackpad smoothly resizes thumbnails between 60px and 400px. Grid recalculates columns via computed `[GridItem(.adaptive)]`.
+
+**README.** Updated to 14 experiences, added PWA mention, corrected State description.
+
+10 files changed (modified), 4 new files. +551 / -162 lines.

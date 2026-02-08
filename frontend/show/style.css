@@ -2790,6 +2790,216 @@ body {
     border-color: var(--text);
 }
 
+/* ===== Drift — Visual similarity explorer ===== */
+#view-drift {
+    overflow: hidden;
+    padding: 0;
+}
+
+.drift-shell {
+    position: relative;
+    width: 100%;
+    height: calc(100vh - 52px);
+    height: calc(100dvh - 52px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    overflow: hidden;
+}
+
+/* Center hero image */
+.drift-center-wrap {
+    position: relative;
+    width: min(50vh, 50vw);
+    height: min(50vh, 50vw);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-float);
+    z-index: 2;
+    cursor: pointer;
+}
+
+.drift-hero {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: opacity 0.5s var(--ease-out-quart),
+                transform 0.5s var(--ease-out-quart);
+}
+
+.drift-hero-entering {
+    opacity: 0;
+    transform: scale(1.05);
+}
+
+.drift-hero-exiting {
+    opacity: 0;
+    transform: scale(0.95);
+}
+
+/* Neighbor cards ring */
+.drift-ring {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-content: center;
+    justify-content: center;
+    gap: var(--space-3);
+    padding: var(--space-5);
+    z-index: 1;
+    pointer-events: none;
+}
+
+.drift-card {
+    width: 120px;
+    height: 90px;
+    border-radius: var(--radius);
+    overflow: hidden;
+    cursor: pointer;
+    position: relative;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--glass-border);
+    opacity: 0;
+    transform: scale(0.8) translateY(12px);
+    transition: opacity 0.4s var(--ease-out-quart),
+                transform 0.4s var(--ease-out-expo),
+                border-color var(--duration-fast) var(--ease-out-quart);
+    transition-delay: var(--drift-delay, 0ms);
+    pointer-events: auto;
+    animation: drift-card-in 0.5s var(--ease-out-expo) forwards;
+    animation-delay: var(--drift-delay, 0ms);
+}
+
+@keyframes drift-card-in {
+    from { opacity: 0; transform: scale(0.8) translateY(12px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.drift-card-exit {
+    opacity: 0 !important;
+    transform: scale(0.7) !important;
+    transition-delay: 0ms !important;
+    pointer-events: none !important;
+}
+
+.drift-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    pointer-events: none;
+}
+
+.drift-card-score {
+    position: absolute;
+    bottom: var(--space-1);
+    right: var(--space-1);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.9);
+    background: rgba(0, 0, 0, 0.5);
+    padding: 1px 4px;
+    border-radius: 3px;
+    pointer-events: none;
+}
+
+/* Breadcrumb trail — bottom center */
+.drift-trail {
+    position: absolute;
+    bottom: var(--space-5);
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: var(--space-1_5);
+    z-index: 10;
+    max-width: 90vw;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.drift-trail::-webkit-scrollbar { display: none; }
+
+.drift-trail-dot {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid var(--glass-border);
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity var(--duration-fast) var(--ease-out-quart),
+                border-color var(--duration-fast) var(--ease-out-quart);
+}
+
+.drift-trail-dot img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.drift-trail-current {
+    opacity: 1;
+    border-color: var(--text);
+    box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--text);
+}
+
+/* Random button — top right */
+.drift-random {
+    position: absolute;
+    top: var(--space-5);
+    right: var(--space-5);
+    z-index: 10;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid var(--glass-border);
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform var(--duration-fast) var(--ease-out-quart),
+                background var(--duration-fast) var(--ease-out-quart);
+}
+
+/* Score label — top center */
+.drift-score-label {
+    position: absolute;
+    top: var(--space-5);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    font-family: var(--font-display);
+    font-size: var(--text-xs);
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+    opacity: 0;
+    transition: opacity 0.5s var(--ease-out-quart);
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+@keyframes drift-label-flash {
+    0% { opacity: 0; }
+    20% { opacity: 1; }
+    100% { opacity: 0.6; }
+}
+
+.drift-score-label.flash {
+    animation: drift-label-flash 2s var(--ease-out-quart) forwards;
+}
+
 /* ===== Lightbox — Always dark overlay ===== */
 .lightbox {
     position: fixed;
@@ -3016,6 +3226,9 @@ body {
     .confetti-cell:hover img { transform: scale(1.3); }
     .pulse-pill:hover { color: var(--text); background: var(--glass-bg-hover); border-color: var(--glass-border-hover); }
     .pulse-cell:hover { border-radius: 5px; }
+    .drift-card:hover { transform: scale(1.08) translateY(-4px); border-color: var(--glass-border-hover); box-shadow: var(--shadow-sm); }
+    .drift-trail-dot:hover { opacity: 0.9; border-color: var(--glass-border-hover); }
+    .drift-random:hover { transform: scale(1.1); background: var(--glass-bg-hover); }
     .lightbox-close:hover { color: rgb(255, 255, 255); }
     .lightbox-nav:hover { color: rgba(255, 255, 255, 0.9); }
     .menu-btn:hover { color: var(--text); }
@@ -3038,6 +3251,7 @@ body {
 .cinema-shell { height: calc(100vh - 52px); height: calc(100dvh - 52px); }
 .reveal-shell { height: calc(100vh - 52px); height: calc(100dvh - 52px); }
 .pulse-shell { height: calc(100vh - 52px); height: calc(100dvh - 52px); }
+.drift-shell { height: calc(100vh - 52px); height: calc(100dvh - 52px); }
 .loading { height: calc(100vh - 52px); height: calc(100dvh - 52px); }
 
 /* ===== Responsive — Tablet (max-width: 768px) ===== */
@@ -3145,6 +3359,13 @@ body {
     .pulse-grid { width: min(75dvh, 85vw); height: min(75dvh, 85vw); }
     .pulse-rack { bottom: calc(var(--space-4) + env(safe-area-inset-bottom)); }
 
+    /* Drift */
+    .drift-center-wrap { width: min(45dvh, 55vw); height: min(45dvh, 55vw); }
+    .drift-card { width: 100px; height: 75px; }
+    .drift-ring { gap: var(--space-2); padding: var(--space-3); }
+    .drift-trail { bottom: calc(var(--space-4) + env(safe-area-inset-bottom)); }
+    .drift-random { top: var(--space-4); right: var(--space-4); }
+
     /* Caption */
     .caption-wrap { padding: var(--space-6) var(--space-5); }
     .caption-wall { line-height: 2; }
@@ -3246,6 +3467,12 @@ body {
     .square-board { width: min(85dvh, 94vw); height: min(85dvh, 94vw); }
     .square-score { font-size: var(--text-xl); }
 
+    /* Drift: compact */
+    .drift-center-wrap { width: min(40dvh, 60vw); height: min(40dvh, 60vw); }
+    .drift-card { width: 80px; height: 60px; }
+    .drift-ring { gap: var(--space-1_5); padding: var(--space-2); }
+    .drift-trail-dot { width: 28px; height: 28px; }
+
     /* Cinema: smaller chapter text */
     .cinema-chapter { font-size: clamp(20px, 6vw, 36px); }
 
@@ -3314,6 +3541,8 @@ body {
     .cinema-layer .cinema-img { animation-duration: 0.01ms !important; }
     .reveal-label { animation-duration: 0.01ms !important; }
     .pulse-cell { transition-duration: 0.01ms !important; }
+    .drift-hero { transition-duration: 0.01ms !important; }
+    .drift-card { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 
 /* ===== Tier B — disable backdrop-filter on weaker devices (Chrome Android, low-end) ===== */
@@ -3371,6 +3600,14 @@ body {
     background: rgba(245, 245, 247, 0.9);
 }
 :root.tier-b.dark .square-shake {
+    background: rgba(28, 28, 30, 0.9);
+}
+:root.tier-b .drift-random {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(245, 245, 247, 0.9);
+}
+:root.tier-b.dark .drift-random {
     background: rgba(28, 28, 30, 0.9);
 }
 :root.tier-b .confetti-bomb {
