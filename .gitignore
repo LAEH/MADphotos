@@ -1,0 +1,50 @@
+# Image data + database (all under images/)
+images/
+
+# Database journal files (anywhere)
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Exports
+mad_photos_export.json
+
+# Model weights (in backend/models/)
+backend/models/
+
+# Processing state files (in backend/)
+backend/.faces_processed.json
+backend/.objects_processed.json
+
+# Swift build artifacts
+frontend/see/.build/
+frontend/see/*.app
+See.app/
+frontend/see/See.iconset/
+
+# Stray DB copies
+mad_photos.db
+
+# Web gallery data (generated)
+frontend/show/data/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Firebase
+.firebase/
+
+# Claude
+.claude/
