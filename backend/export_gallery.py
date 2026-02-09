@@ -282,6 +282,123 @@ def load_exif(conn: Any) -> Dict[str, Dict]:
     return result
 
 
+# ── V2 Signal Loaders ────────────────────────────────────────────────────────
+
+def load_aesthetic_v2(conn: Any) -> Dict[str, Dict]:
+    rows = conn.execute("""
+        SELECT image_uuid, composite_score, score_label
+        FROM aesthetic_scores_v2
+    """).fetchall()
+    return {r["image_uuid"]: {
+        "score": round(r["composite_score"] or 0, 1),
+        "label": r["score_label"] or "",
+    } for r in rows}
+
+
+def load_tags(conn: Any) -> Dict[str, List[str]]:
+    rows = conn.execute("SELECT image_uuid, tags FROM image_tags").fetchall()
+    result = {}
+    for r in rows:
+        t = r["tags"]
+        result[r["image_uuid"]] = t.split("|") if t else []
+    return result
+
+
+def load_saliency(conn: Any) -> Dict[str, Dict]:
+    rows = conn.execute("""
+        SELECT image_uuid, peak_x, peak_y, spread, center_bias
+        FROM saliency_maps
+    """).fetchall()
+    return {r["image_uuid"]: {
+        "px": round(r["peak_x"] or 0, 3),
+        "py": round(r["peak_y"] or 0, 3),
+        "spread": round(r["spread"] or 0, 2),
+        "cbias": round(r["center_bias"] or 0, 2),
+    } for r in rows}
+
+
+def load_foreground(conn: Any) -> Dict[str, Dict]:
+    rows = conn.execute("""
+        SELECT image_uuid, foreground_pct, centroid_x, centroid_y
+        FROM foreground_masks
+    """).fetchall()
+    return {r["image_uuid"]: {
+        "fg": round(r["foreground_pct"] or 0, 3),
+        "cx": round(r["centroid_x"] or 0, 3),
+        "cy": round(r["centroid_y"] or 0, 3),
+    } for r in rows}
+
+
+def load_open_detections(conn: Any) -> Dict[str, List[Dict]]:
+    rows = conn.execute("""
+        SELECT image_uuid, label, confidence, area_pct
+        FROM open_detections
+        ORDER BY image_uuid, confidence DESC
+    """).fetchall()
+    result = defaultdict(list)  # type: Dict[str, List[Dict]]
+    for r in rows:
+        if len(result[r["image_uuid"]]) < 10:
+            result[r["image_uuid"]].append({
+                "label": r["label"] or "",
+                "conf": round(r["confidence"] or 0, 2),
+                "area": round(r["area_pct"] or 0, 3),
+            })
+    return dict(result)
+
+
+def load_poses(conn: Any) -> Dict[str, int]:
+    rows = conn.execute("""
+        SELECT image_uuid, COUNT(*) as cnt
+        FROM pose_detections
+        GROUP BY image_uuid
+    """).fetchall()
+    return {r["image_uuid"]: r["cnt"] for r in rows}
+
+
+def load_segments(conn: Any) -> Dict[str, Dict]:
+    rows = conn.execute("""
+        SELECT image_uuid, segment_count, figure_ground_ratio, edge_complexity
+        FROM segmentation_masks
+    """).fetchall()
+    return {r["image_uuid"]: {
+        "segs": r["segment_count"] or 0,
+        "fgr": round(r["figure_ground_ratio"] or 0, 2),
+        "edge": round(r["edge_complexity"] or 0, 2),
+    } for r in rows}
+
+
+def load_florence(conn: Any) -> Dict[str, str]:
+    rows = conn.execute("""
+        SELECT image_uuid, detailed_caption FROM florence_captions
+    """).fetchall()
+    return {r["image_uuid"]: r["detailed_caption"] or "" for r in rows}
+
+
+def load_identities(conn: Any) -> Dict[str, List[int]]:
+    rows = conn.execute("""
+        SELECT image_uuid, identity_id
+        FROM face_identities
+        WHERE identity_id IS NOT NULL AND identity_id != -1
+        ORDER BY image_uuid, face_index
+    """).fetchall()
+    result = defaultdict(list)  # type: Dict[str, List[int]]
+    for r in rows:
+        result[r["image_uuid"]].append(r["identity_id"])
+    return dict(result)
+
+
+def load_locations(conn: Any) -> Dict[str, Dict]:
+    rows = conn.execute("""
+        SELECT image_uuid, latitude, longitude, location_name
+        FROM image_locations
+    """).fetchall()
+    return {r["image_uuid"]: {
+        "lat": round(r["latitude"], 5) if r["latitude"] else None,
+        "lon": round(r["longitude"], 5) if r["longitude"] else None,
+        "name": r["location_name"] or "",
+    } for r in rows}
+
+
 # ── Build Photo Objects ──────────────────────────────────────────────────────
 
 def gcs_url(uuid: str, tier: str, variant: str = "original", fmt: str = "webp") -> str:
@@ -296,8 +413,25 @@ def build_photos(
     depth_lk: Dict, scenes_lk: Dict, styles_lk: Dict, captions_lk: Dict,
     pixel_lk: Dict, faces_lk: Dict, emotions_lk: Dict, objects_lk: Dict,
     ocr_lk: Dict, exif_lk: Dict,
+    # V2 signals
+    aesthetic_v2_lk: Dict = None, tags_lk: Dict = None,
+    saliency_lk: Dict = None, foreground_lk: Dict = None,
+    open_det_lk: Dict = None, poses_lk: Dict = None,
+    segments_lk: Dict = None, florence_lk: Dict = None,
+    identities_lk: Dict = None, locations_lk: Dict = None,
 ) -> Tuple[List[Dict], Dict]:
     """Build all photo objects and collect unique filter values."""
+
+    aesthetic_v2_lk = aesthetic_v2_lk or {}
+    tags_lk = tags_lk or {}
+    saliency_lk = saliency_lk or {}
+    foreground_lk = foreground_lk or {}
+    open_det_lk = open_det_lk or {}
+    poses_lk = poses_lk or {}
+    segments_lk = segments_lk or {}
+    florence_lk = florence_lk or {}
+    identities_lk = identities_lk or {}
+    locations_lk = locations_lk or {}
 
     photos = []
     filters = {
@@ -326,6 +460,17 @@ def build_photos(
         obj_list = objects_lk.get(uuid, [])
         ocr_list = ocr_lk.get(uuid, [])
         exif = exif_lk.get(uuid, {})
+        # V2
+        aes2 = aesthetic_v2_lk.get(uuid)
+        tags = tags_lk.get(uuid, [])
+        sal = saliency_lk.get(uuid)
+        fg = foreground_lk.get(uuid)
+        odet = open_det_lk.get(uuid, [])
+        pose_count = poses_lk.get(uuid, 0)
+        seg = segments_lk.get(uuid)
+        flor = florence_lk.get(uuid)
+        idents = identities_lk.get(uuid, [])
+        loc = locations_lk.get(uuid)
 
         # Gemini fields (may be None for ~2,808 images)
         vibes = []
@@ -421,6 +566,18 @@ def build_photos(
             "e_display": gcs_url(uuid, "display", "enhanced"),
             # Square experience
             "squarable": True,
+            # V2 signals
+            "aesthetic_v2": aes2["score"] if aes2 else None,
+            "aesthetic_label": aes2["label"] if aes2 else None,
+            "tags": tags[:10] if tags else [],
+            "saliency": sal,
+            "foreground": fg,
+            "open_labels": [o["label"] for o in odet[:8]],
+            "pose_count": pose_count,
+            "segments": seg,
+            "florence": flor or "",
+            "identities": idents if idents else None,
+            "location": loc,
         }
         photos.append(photo)
 
@@ -787,7 +944,20 @@ def export(pretty: bool = False) -> None:
     objects_lk = load_objects(conn)
     ocr_lk = load_ocr(conn)
     exif_lk = load_exif(conn)
-    print(f"  All signal tables loaded")
+    print(f"  All v1 signal tables loaded")
+
+    # V2 signals
+    aesthetic_v2_lk = load_aesthetic_v2(conn)
+    tags_lk = load_tags(conn)
+    saliency_lk = load_saliency(conn)
+    foreground_lk = load_foreground(conn)
+    open_det_lk = load_open_detections(conn)
+    poses_lk = load_poses(conn)
+    segments_lk = load_segments(conn)
+    florence_lk = load_florence(conn)
+    identities_lk = load_identities(conn)
+    locations_lk = load_locations(conn)
+    print(f"  All v2 signal tables loaded")
 
     conn.close()
 
@@ -797,6 +967,11 @@ def export(pretty: bool = False) -> None:
         images, gemini_lk, colors_lk, aesthetics_lk, depth_lk, scenes_lk,
         styles_lk, captions_lk, pixel_lk, faces_lk, emotions_lk, objects_lk,
         ocr_lk, exif_lk,
+        aesthetic_v2_lk=aesthetic_v2_lk, tags_lk=tags_lk,
+        saliency_lk=saliency_lk, foreground_lk=foreground_lk,
+        open_det_lk=open_det_lk, poses_lk=poses_lk,
+        segments_lk=segments_lk, florence_lk=florence_lk,
+        identities_lk=identities_lk, locations_lk=locations_lk,
     )
 
     print(f"Exported {len(photos)} photos")
