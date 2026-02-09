@@ -9,6 +9,10 @@ import { CartoonPage } from './pages/CartoonPage'
 import { SimilarityPage } from './pages/SimilarityPage'
 import { BlindTestPage } from './pages/BlindTestPage'
 import { StatsPage } from './pages/StatsPage'
+import { SignalInspectorPage } from './pages/SignalInspectorPage'
+import { EmbeddingAuditPage } from './pages/EmbeddingAuditPage'
+import { CollectionCoveragePage } from './pages/CollectionCoveragePage'
+import { SeePage } from './pages/SeePage'
 
 export default function App() {
   const themeCtx = useThemeProvider()
@@ -26,6 +30,10 @@ export default function App() {
           <Route path="cartoon" element={<CartoonPage />} />
           <Route path="similarity" element={<SimilarityPage />} />
           <Route path="blind-test" element={<BlindTestPage />} />
+          <Route path="signal-inspector" element={<SignalInspectorPage />} />
+          <Route path="embedding-audit" element={<EmbeddingAuditPage />} />
+          <Route path="collection-coverage" element={<CollectionCoveragePage />} />
+          <Route path="see" element={<SeePage />} />
         </Route>
       </Routes>
     </ThemeContext.Provider>

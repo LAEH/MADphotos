@@ -144,6 +144,14 @@ struct PhotoItem: Identifiable, Hashable {
     var detectedPersonCount: Int = 0
     var detectedAnimalCount: Int = 0
 
+    // --- Quality scores ---
+    var qualityTechnical: Double?
+    var qualityClip: Double?
+    var qualityCombined: Double?
+
+    // --- Display variant ---
+    var displayVariant: String = "original"
+
     // --- Cached (populated by prepareCache) ---
     var isAnalyzed: Bool = false
     var hasLocation: Bool = false
@@ -160,6 +168,7 @@ struct PhotoItem: Identifiable, Hashable {
 
     var hasEnhancement: Bool { enhancementStatus != nil }
     var isEnhanced: Bool { enhancementStatus == "enhanced" }
+    var hasCropped: Bool = false
 
     var dimensionLabel: String { "\(width)×\(height)" }
     var ratioLabel: String {
@@ -286,6 +295,7 @@ extension NSColor {
 
 enum SortOption: String, CaseIterable {
     case random = "Random"
+    case quality = "Quality"
     case aesthetic = "Aesthetic"
     case date = "Date"
     case exposure = "Exposure"
@@ -297,6 +307,7 @@ enum SortOption: String, CaseIterable {
     var icon: String {
         switch self {
         case .random: return "shuffle"
+        case .quality: return "sparkles"
         case .aesthetic: return "star"
         case .date: return "calendar"
         case .exposure: return "sun.max"

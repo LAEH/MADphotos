@@ -70,6 +70,12 @@ interface Stats {
   location_count: number
   location_sources?: { name: string; count: number }[]
   sample?: { uuid: string; time: string; data: Record<string, unknown> }
+  // V2 signals
+  v2_signals: Record<string, { rows: number; images: number }>
+  aesthetic_v2_count: number
+  aesthetic_v2_labels?: { name: string; count: number }[]
+  top_tags?: { name: string; count: number }[]
+  top_open_labels?: { name: string; count: number }[]
 }
 
 /* ── SVG Icons ── */
@@ -118,11 +124,12 @@ export function DashboardPage() {
   const sigOD = s.signals?.object_detections || { rows: 0, images: 0, processed: 0 }
   const sigDC = s.signals?.dominant_colors || { rows: 0, images: 0 }
   const sigEX = s.signals?.exif_metadata || { rows: 0, images: 0 }
+  const v2 = s.v2_signals || {}
 
-  /* ── 17 Models ── */
-  // Facial Emotions only applies to images with faces, not all images
+  /* ── Models (17 v1 + 7 v2) ── */
   const faceProcessed = sigFD.processed || sigFD.images
-  const models: { n: string; name: string; tech: string; count: number; of?: number }[] = [
+  const poseImages = v2.pose_detections?.images || 0
+  const models: { n: string; name: string; tech: string; count: number; of?: number; v2?: boolean }[] = [
     { n: '01', name: 'Gemini 2.5 Pro', tech: 'Vertex AI \u00B7 Google Cloud', count: s.analyzed },
     { n: '02', name: 'Pixel Analysis', tech: 'Python \u00B7 Pillow \u00B7 NumPy', count: s.pixel_analyzed },
     { n: '03', name: 'DINOv2', tech: 'PyTorch \u00B7 Meta FAIR \u00B7 ViT-B/14', count: s.vector_count },
@@ -140,7 +147,16 @@ export function DashboardPage() {
     { n: '15', name: 'Enhancement Engine', tech: 'Python \u00B7 Pillow \u00B7 Camera-aware', count: s.enhancement_count },
     { n: '16', name: 'K-means LAB', tech: 'Python \u00B7 scikit-learn \u00B7 LAB space', count: sigDC.images },
     { n: '17', name: 'EXIF Parser', tech: 'Python \u00B7 Pillow \u00B7 piexif', count: sigEX.images },
+    // V2 models
+    { n: '18', name: 'Aesthetic v2', tech: 'TOPIQ + MUSIQ + LAION CLIP', count: s.aesthetic_v2_count || 0, v2: true },
+    { n: '19', name: 'CLIP Tags', tech: 'CLIP ViT-B/32 \u00B7 65 categories', count: v2.image_tags?.images || 0, v2: true },
+    { n: '20', name: 'Saliency', tech: 'OpenCV \u00B7 Spectral Residual FFT', count: v2.saliency_maps?.images || 0, v2: true },
+    { n: '21', name: 'YOLOv8n-pose', tech: 'PyTorch \u00B7 Ultralytics \u00B7 COCO', count: poseImages, of: sigOD.images || s.total, v2: true },
+    { n: '22', name: 'Florence-2', tech: 'PyTorch \u00B7 Microsoft \u00B7 770M', count: v2.florence_captions?.images || 0, v2: true },
+    { n: '23', name: 'Grounding DINO', tech: 'PyTorch \u00B7 IDEA \u00B7 Open-vocab', count: v2.open_detections?.images || 0, v2: true },
+    { n: '24', name: 'rembg', tech: 'PyTorch \u00B7 U2-Net \u00B7 Foreground', count: v2.foreground_masks?.images || 0, v2: true },
   ]
+  const modelCount = models.length
 
   return (
     <>
@@ -161,7 +177,7 @@ export function DashboardPage() {
       <div className="section">
         <div className="section-title">Models</div>
         <p style={{ fontSize: 'var(--text-sm)', color: 'var(--muted)', marginBottom: 'var(--space-3)' }}>
-          {fmt(s.total)} images &times; 17 models = {fmt(s.total_signals)} signals &mdash; {s.models_complete} complete
+          {fmt(s.total)} images &times; {modelCount} models = {fmt(s.total_signals)} signals &mdash; {s.models_complete} complete
         </p>
         <div className="el-grid">
           {models.map(m => {
@@ -170,7 +186,7 @@ export function DashboardPage() {
             const status = pct >= 99.5 ? 'done' : pct > 0 ? 'active' : 'pending'
             return (
               <div key={m.n} className={`el-card status-${status}`}>
-                <div className="el-num">{m.n}</div>
+                <div className="el-num">{m.n}{m.v2 && <span className="v2-badge">v2</span>}</div>
                 <div className="el-model">{m.name}</div>
                 <div className="el-tech">{m.tech}</div>
                 <div className="el-count">
@@ -256,6 +272,103 @@ export function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* ═══ V2 SIGNALS ═══ */}
+      {Object.keys(v2).length > 0 && (
+        <div className="section">
+          <div className="section-title">V2 Signals <span className="v2-badge" style={{ marginLeft: 6, verticalAlign: 'middle' }}>new</span></div>
+
+          <div className="disk-row">
+            {(v2.image_tags?.images || 0) > 0 && (
+              <div className="disk-item">
+                <div className="di-val">{fmt(v2.image_tags?.images)}</div>
+                <div className="di-label">Images tagged (CLIP zero-shot)</div>
+              </div>
+            )}
+            {(v2.saliency_maps?.images || 0) > 0 && (
+              <div className="disk-item">
+                <div className="di-val">{fmt(v2.saliency_maps?.images)}</div>
+                <div className="di-label">Saliency maps (spectral residual)</div>
+              </div>
+            )}
+            {(v2.pose_detections?.images || 0) > 0 && (
+              <div className="disk-item">
+                <div className="di-val">{fmt(v2.pose_detections?.rows)}</div>
+                <div className="di-label">Poses across {fmt(v2.pose_detections?.images)} images</div>
+              </div>
+            )}
+            {(s.location_count || 0) > 0 && (
+              <div className="disk-item">
+                <div className="di-val">{fmt(s.location_count)}</div>
+                <div className="di-label">GPS locations extracted</div>
+              </div>
+            )}
+            {(s.aesthetic_v2_count || 0) > 0 && (
+              <div className="disk-item">
+                <div className="di-val">{fmt(s.aesthetic_v2_count)}</div>
+                <div className="di-label">Aesthetic v2 scores (TOPIQ+MUSIQ+LAION)</div>
+              </div>
+            )}
+            {(v2.florence_captions?.images || 0) > 0 && (
+              <div className="disk-item">
+                <div className="di-val">{fmt(v2.florence_captions?.images)}</div>
+                <div className="di-label">Florence-2 captions</div>
+              </div>
+            )}
+            {(v2.open_detections?.images || 0) > 0 && (
+              <div className="disk-item">
+                <div className="di-val">{fmt(v2.open_detections?.rows)}</div>
+                <div className="di-label">Open detections across {fmt(v2.open_detections?.images)} images</div>
+              </div>
+            )}
+            {(v2.foreground_masks?.images || 0) > 0 && (
+              <div className="disk-item">
+                <div className="di-val">{fmt(v2.foreground_masks?.images)}</div>
+                <div className="di-label">Foreground masks (rembg)</div>
+              </div>
+            )}
+            {(v2.segmentation_masks?.images || 0) > 0 && (
+              <div className="disk-item">
+                <div className="di-val">{fmt(v2.segmentation_masks?.images)}</div>
+                <div className="di-label">Segmentation masks (SAM)</div>
+              </div>
+            )}
+            {(v2.face_identities?.images || 0) > 0 && (
+              <div className="disk-item">
+                <div className="di-val">{fmt(v2.face_identities?.rows)}</div>
+                <div className="di-label">Face identities across {fmt(v2.face_identities?.images)} images</div>
+              </div>
+            )}
+          </div>
+
+          {(s.top_tags?.length || 0) > 0 && (
+            <div className="signal-group" style={{ marginTop: 'var(--space-4)' }}>
+              <div className="signal-group-label">Image Tags (CLIP)</div>
+              <div className="tag-row">
+                <Tags items={s.top_tags || []} icon={IC.eye} cat="tag" />
+              </div>
+            </div>
+          )}
+
+          {(s.top_open_labels?.length || 0) > 0 && (
+            <div className="signal-group">
+              <div className="signal-group-label">Open Detections (Grounding DINO)</div>
+              <div className="tag-row">
+                <Tags items={s.top_open_labels || []} icon={IC.eye} cat="detect" />
+              </div>
+            </div>
+          )}
+
+          {(s.aesthetic_v2_labels?.length || 0) > 0 && (
+            <div className="signal-group">
+              <div className="signal-group-label">Aesthetic Quality (v2)</div>
+              <div className="tag-row">
+                <Tags items={s.aesthetic_v2_labels || []} icon={IC.star} cat="aesthetic" />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ═══ VECTOR STORE ═══ */}
       <div className="section">

@@ -15,15 +15,9 @@ struct DetailView: View {
                     ZoomableImageView(photo: photo)
                         .aspectRatio(1, contentMode: .fit)
 
-                    if photo.isEnhanced {
-                        Text(store.showEnhanced ? "ENHANCED" : "ORIGINAL")
-                            .font(.caption2).fontWeight(.bold)
-                            .padding(.horizontal, 6).padding(.vertical, 3)
-                            .background(store.showEnhanced ? Color.green.opacity(0.85) : Color.black.opacity(0.6))
-                            .foregroundColor(.white)
-                            .cornerRadius(4)
-                            .padding(8)
-                    }
+                    // Variant picker (only when multiple variants exist)
+                    VariantPicker(photo: photo)
+                        .padding(8)
                 }
 
                 // ── Actions ──
@@ -58,15 +52,6 @@ struct DetailView: View {
                         ) {
                             store.curate(photo, status: "pending")
                         }
-                    }
-
-                    if photo.isEnhanced {
-                        Button(action: { store.toggleEnhanced() }) {
-                            Image(systemName: store.showEnhanced ? "photo" : "wand.and.stars")
-                                .font(.system(size: 14))
-                                .foregroundColor(.secondary)
-                        }
-                        .buttonStyle(.plain)
                     }
 
                     Spacer()
@@ -647,6 +632,51 @@ struct CurationActionButton: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering in isHovered = hovering }
+    }
+}
+
+// MARK: - Variant Picker
+
+struct VariantPicker: View {
+    @EnvironmentObject var store: PhotoStore
+    let photo: PhotoItem
+
+    var body: some View {
+        let variants = store.availableVariants(for: photo)
+        if variants.count > 1 {
+            HStack(spacing: 0) {
+                ForEach(variants, id: \.self) { variant in
+                    let isActive = photo.displayVariant == variant
+                    Button {
+                        store.setDisplayVariant(for: photo, variant: variant)
+                    } label: {
+                        Text(variant.uppercased())
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(isActive ? .white : .white.opacity(0.7))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(isActive ? variantColor(variant) : Color.white.opacity(0.15))
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(3)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.black.opacity(0.5))
+            )
+        }
+    }
+
+    private func variantColor(_ variant: String) -> Color {
+        switch variant {
+        case "enhanced": return .green.opacity(0.85)
+        case "cropped": return .blue.opacity(0.85)
+        default: return .white.opacity(0.3)
+        }
     }
 }
 

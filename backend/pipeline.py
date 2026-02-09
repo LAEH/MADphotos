@@ -18,10 +18,12 @@ Usage:
     python mad_pipeline.py --phase finalize          # Export DB, sync metadata
     python mad_pipeline.py --test 10                 # Test with 10 images
     python mad_pipeline.py --status                  # Show pipeline status
+    python mad_pipeline.py --check                   # Dry-run: scan for new images + coverage
 """
 from __future__ import annotations
 
 import argparse
+import glob as _glob
 import json
 import os
 import shutil
@@ -31,6 +33,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import database as db
+from pipeline_lock import acquire_lock, release_lock
 
 PROJECT_ROOT = db.PROJECT_ROOT
 BACKEND = Path(__file__).resolve().parent
@@ -48,6 +51,35 @@ PHASES = [
 VARIANT_TYPES = ["light_enhance", "nano_feel", "cartoon", "cinematic", "dreamscape"]
 
 MIN_DISK_GB = 15  # Abort if less than this free
+
+# Signal tables: (display name, table, uuid column)
+SIGNAL_TABLES = [
+    ("exif_metadata",        "exif_metadata",        "image_uuid"),
+    ("image_analysis",       "image_analysis",        "image_uuid"),
+    ("aesthetic_scores",     "aesthetic_scores",       "image_uuid"),
+    ("depth_estimation",     "depth_estimation",      "image_uuid"),
+    ("scene_classification", "scene_classification",  "image_uuid"),
+    ("style_classification", "style_classification",  "image_uuid"),
+    ("image_captions",       "image_captions",        "image_uuid"),
+    ("ocr_detections",       "ocr_detections",        "image_uuid"),
+    ("face_detections",      "face_detections",       "image_uuid"),
+    ("object_detections",    "object_detections",     "image_uuid"),
+    ("dominant_colors",      "dominant_colors",       "image_uuid"),
+    ("image_hashes",         "image_hashes",          "image_uuid"),
+    ("gemini_analysis",      "gemini_analysis",       "image_uuid"),
+    ("enhancement_plans",    "enhancement_plans",     "image_uuid"),
+    ("facial_emotions",      "facial_emotions",       "image_uuid"),
+    # V2 signals
+    ("aesthetic_scores_v2",  "aesthetic_scores_v2",   "image_uuid"),
+    ("face_identities",      "face_identities",       "image_uuid"),
+    ("florence_captions",    "florence_captions",      "image_uuid"),
+    ("segmentation_masks",   "segmentation_masks",     "image_uuid"),
+    ("open_detections",      "open_detections",        "image_uuid"),
+    ("image_tags",           "image_tags",             "image_uuid"),
+    ("foreground_masks",     "foreground_masks",       "image_uuid"),
+    ("pose_detections",      "pose_detections",        "image_uuid"),
+    ("saliency_maps",        "saliency_maps",          "image_uuid"),
+]
 
 
 # ---------------------------------------------------------------------------
@@ -117,6 +149,87 @@ def show_status(conn) -> None:
                 elapsed = f" ({r['completed_at'][:19]})"
             print(f"    {r['phase']:25s} {r['status']:10s} "
                   f"ok={r['images_processed']} fail={r['images_failed']}{elapsed}")
+    print()
+
+
+# ---------------------------------------------------------------------------
+# --check dry-run mode
+# ---------------------------------------------------------------------------
+
+def run_check(conn) -> None:
+    """Dry-run: scan for new images, report signal coverage, estimate time."""
+    total = conn.execute("SELECT COUNT(*) as c FROM images").fetchone()["c"]
+    today = datetime.now().strftime("%Y-%m-%d")
+    print(f"\nPipeline Check — {today}\n")
+
+    # 1. Scan for new images
+    originals_dir = PROJECT_ROOT / "images" / "originals"
+    known_uuids = {r["uuid"] for r in conn.execute("SELECT uuid FROM images").fetchall()}
+    new_files = []
+    valid_exts = {".jpg", ".jpeg", ".dng", ".raw", ".tif", ".tiff", ".png"}
+
+    if originals_dir.exists():
+        for root, dirs, files in os.walk(str(originals_dir)):
+            for fname in files:
+                if Path(fname).suffix.lower() not in valid_exts:
+                    continue
+                fpath = Path(root) / fname
+                # Check if stem (without extension) is a known UUID
+                stem = fpath.stem
+                if stem not in known_uuids:
+                    new_files.append(fpath)
+
+    print(f"  New Images:")
+    if new_files:
+        # Validate each new image
+        valid = 0
+        invalid = 0
+        try:
+            from PIL import Image
+            for fp in new_files:
+                try:
+                    img = Image.open(str(fp))
+                    img.verify()
+                    valid += 1
+                except Exception:
+                    invalid += 1
+                    print(f"    INVALID: {fp.name}")
+        except ImportError:
+            valid = len(new_files)
+            print("    (Pillow not available — skipping validation)")
+
+        print(f"    Found {len(new_files)} new images in images/originals/")
+        if invalid:
+            print(f"    {invalid} files failed validation")
+        print(f"    {valid} valid, ready to process")
+    else:
+        print(f"    Found 0 new images in images/originals/")
+
+    # 2. Signal coverage
+    print(f"\n  Signal Coverage ({total:,} images):")
+    all_complete = True
+    for label, table, col in SIGNAL_TABLES:
+        try:
+            done = conn.execute(f"SELECT COUNT(DISTINCT {col}) FROM {table}").fetchone()[0]
+        except Exception:
+            done = 0
+        status = "OK" if done >= total else "  "
+        if done < total:
+            all_complete = False
+        print(f"    {status} {label:<25s}: {done:>6,} / {total:,}")
+
+    # 3. Estimated time for new images
+    if new_files:
+        est_seconds = len(new_files) * 45
+        est_minutes = est_seconds / 60
+        print(f"\n  Estimated Pipeline Time:")
+        print(f"    ~{est_minutes:.0f} minutes for {len(new_files)} new images (~45s/image)")
+    else:
+        if all_complete:
+            print(f"\n  All stages complete. Ready for new images.")
+        else:
+            print(f"\n  Some stages incomplete. Run the pipeline to finish.")
+
     print()
 
 
@@ -243,74 +356,93 @@ def main() -> None:
                         help="Imagen batch size")
     parser.add_argument("--status", action="store_true",
                         help="Show pipeline status and exit")
+    parser.add_argument("--check", action="store_true",
+                        help="Dry-run: scan for new images and report coverage")
     args = parser.parse_args()
 
     conn = db.get_connection()
 
+    # Read-only modes: no lock needed
     if args.status:
         show_status(conn)
         conn.close()
         return
 
-    start = datetime.now()
-    print(f"MADphotos Pipeline — {start.strftime('%Y-%m-%d %H:%M')}")
-    print(f"Disk free: {check_disk_space():.1f} GB")
+    if args.check:
+        run_check(conn)
+        conn.close()
+        return
 
-    phase = args.phase
+    # Mutating mode: acquire lock
+    try:
+        acquire_lock("pipeline.py")
+    except RuntimeError as e:
+        print(f"\n  Lock error: {e}")
+        conn.close()
+        sys.exit(1)
 
-    if phase is None or phase == "render":
-        if not phase_render(args.test, args.workers):
-            print("\nRender phase failed. Fix errors and re-run.")
+    try:
+        start = datetime.now()
+        print(f"MADphotos Pipeline — {start.strftime('%Y-%m-%d %H:%M')}")
+        print(f"Disk free: {check_disk_space():.1f} GB")
+
+        phase = args.phase
+
+        if phase is None or phase == "render":
+            if not phase_render(args.test, args.workers):
+                print("\nRender phase failed. Fix errors and re-run.")
+                if phase:
+                    sys.exit(1)
             if phase:
-                sys.exit(1)
-        if phase:
-            conn.close()
-            return
+                conn.close()
+                return
 
-    if phase is None or phase == "upload":
-        if not phase_upload():
-            print("\nUpload phase failed. Check gcloud auth and re-run.")
+        if phase is None or phase == "upload":
+            if not phase_upload():
+                print("\nUpload phase failed. Check gcloud auth and re-run.")
+                if phase:
+                    sys.exit(1)
             if phase:
-                sys.exit(1)
-        if phase:
-            conn.close()
-            return
+                conn.close()
+                return
 
-    if phase is None or phase == "gemini":
-        if not phase_gemini(args.test, args.concurrent, args.max_retries):
-            print("\nGemini phase had failures. Re-run to retry.")
-            # Don't abort — continue to next phase
-        if phase:
-            conn.close()
-            return
+        if phase is None or phase == "gemini":
+            if not phase_gemini(args.test, args.concurrent, args.max_retries):
+                print("\nGemini phase had failures. Re-run to retry.")
+                # Don't abort — continue to next phase
+            if phase:
+                conn.close()
+                return
 
-    if phase is None or phase == "imagen":
-        if not phase_imagen(args.test, args.batch_size, args.concurrent):
-            print("\nImagen phase had failures. Re-run to retry.")
-        if phase:
-            conn.close()
-            return
+        if phase is None or phase == "imagen":
+            if not phase_imagen(args.test, args.batch_size, args.concurrent):
+                print("\nImagen phase had failures. Re-run to retry.")
+            if phase:
+                conn.close()
+                return
 
-    if phase is None or phase == "render-variants":
-        if not phase_render_variants(args.test, args.workers):
-            print("\nVariant rendering had failures.")
-        if phase:
-            conn.close()
-            return
+        if phase is None or phase == "render-variants":
+            if not phase_render_variants(args.test, args.workers):
+                print("\nVariant rendering had failures.")
+            if phase:
+                conn.close()
+                return
 
-    if phase is None or phase == "upload-variants":
-        if not phase_upload_variants():
-            print("\nVariant upload failed. Check gcloud auth and re-run.")
-        if phase:
-            conn.close()
-            return
+        if phase is None or phase == "upload-variants":
+            if not phase_upload_variants():
+                print("\nVariant upload failed. Check gcloud auth and re-run.")
+            if phase:
+                conn.close()
+                return
 
-    if phase is None or phase == "finalize":
-        phase_finalize(conn)
+        if phase is None or phase == "finalize":
+            phase_finalize(conn)
 
-    elapsed = datetime.now() - start
-    print(f"\nPipeline complete in {elapsed}.")
-    conn.close()
+        elapsed = datetime.now() - start
+        print(f"\nPipeline complete in {elapsed}.")
+    finally:
+        release_lock()
+        conn.close()
 
 
 if __name__ == "__main__":

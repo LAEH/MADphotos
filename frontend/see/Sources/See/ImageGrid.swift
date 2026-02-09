@@ -2,12 +2,11 @@ import SwiftUI
 
 struct ImageGrid: View {
     @EnvironmentObject var store: PhotoStore
-    @State private var thumbSize: CGFloat = 170
+    @State private var columnCount: Int = 5
     @State private var pinchScale: CGFloat = 1.0
-    @State private var isPinching = false
 
     private var columns: [GridItem] {
-        [GridItem(.adaptive(minimum: thumbSize, maximum: thumbSize + 70), spacing: 2)]
+        Array(repeating: GridItem(.flexible(), spacing: 2), count: columnCount)
     }
 
     var body: some View {
@@ -51,6 +50,7 @@ struct ImageGrid: View {
                     }
                 }
                 .padding(2)
+                .scaleEffect(pinchScale, anchor: .center)
             }
             .onChange(of: store.selectedPhoto) { _, newVal in
                 if let photo = newVal {
@@ -60,18 +60,23 @@ struct ImageGrid: View {
                 }
             }
         }
-        .scaleEffect(pinchScale)
         .gesture(
             MagnifyGesture()
                 .onChanged { value in
-                    isPinching = true
                     pinchScale = value.magnification
                 }
                 .onEnded { value in
-                    let newSize = min(max(thumbSize * value.magnification, 60), 400)
-                    pinchScale = 1.0
-                    isPinching = false
-                    thumbSize = newSize
+                    let mag = value.magnification
+                    var newCount = columnCount
+                    if mag > 1.25 {
+                        newCount = max(columnCount - 1, 2)
+                    } else if mag < 0.8 {
+                        newCount = min(columnCount + 1, 12)
+                    }
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        pinchScale = 1.0
+                        columnCount = newCount
+                    }
                 }
         )
     }

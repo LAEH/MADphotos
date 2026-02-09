@@ -11,7 +11,11 @@ final class Database {
         if sqlite3_open_v2(dbPath, &db, SQLITE_OPEN_READWRITE, nil) != SQLITE_OK {
             print("ERROR: Could not open database at \(dbPath)")
         }
+        // WAL mode + busy timeout for concurrent access with Python pipeline
+        exec("PRAGMA journal_mode=WAL")
+        exec("PRAGMA busy_timeout=10000")
         ensureCuratedColumn()
+        ensureDisplayVariantColumn()
     }
 
     /// Flush WAL and close cleanly
@@ -42,6 +46,23 @@ final class Database {
             sqlite3_finalize(stmt)
             if !found {
                 exec("ALTER TABLE images ADD COLUMN curated_status TEXT DEFAULT 'pending'")
+            }
+        }
+    }
+
+    private func ensureDisplayVariantColumn() {
+        var stmt: OpaquePointer?
+        let sql = "PRAGMA table_info(images)"
+        if sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK {
+            var found = false
+            while sqlite3_step(stmt) == SQLITE_ROW {
+                if let name = sqlite3_column_text(stmt, 1) {
+                    if String(cString: name) == "display_variant" { found = true }
+                }
+            }
+            sqlite3_finalize(stmt)
+            if !found {
+                exec("ALTER TABLE images ADD COLUMN display_variant TEXT DEFAULT 'original'")
             }
         }
     }
@@ -92,8 +113,8 @@ final class Database {
                 g.should_rotate,                 -- 23
                 g.semantic_pops,                 -- 24
                 g.analyzed_at,                   -- 25
-                t_thumb.local_path,              -- 26
-                t_display.local_path,            -- 27
+                NULL,                            -- 26 (thumb path unused, built from basePath)
+                NULL,                            -- 27 (display path unused, built from basePath)
                 i.camera_body,                   -- 28
                 i.film_stock,                    -- 29
                 i.medium,                        -- 30
@@ -148,14 +169,15 @@ final class Database {
                 (SELECT GROUP_CONCAT(fe.dominant_emotion, ', ') FROM facial_emotions fe WHERE fe.image_uuid = i.uuid), -- 68
                 -- People/animal flags
                 (SELECT COUNT(*) FROM object_detections op WHERE op.image_uuid = i.uuid AND op.label = 'person'), -- 69
-                (SELECT COUNT(*) FROM object_detections oa WHERE oa.image_uuid = i.uuid AND oa.label IN ('cat','dog','bird','horse','cow','sheep','bear','elephant','zebra','giraffe')) -- 70
+                (SELECT COUNT(*) FROM object_detections oa WHERE oa.image_uuid = i.uuid AND oa.label IN ('cat','dog','bird','horse','cow','sheep','bear','elephant','zebra','giraffe')), -- 70
+                -- Quality scores
+                qs.technical_score,              -- 71
+                qs.clip_score,                   -- 72
+                qs.combined_score,               -- 73
+                COALESCE(i.display_variant, 'original') -- 74
             FROM images i
             LEFT JOIN gemini_analysis g ON i.uuid = g.image_uuid
                 AND g.raw_json IS NOT NULL AND g.raw_json != ''
-            LEFT JOIN tiers t_thumb ON i.uuid = t_thumb.image_uuid
-                AND t_thumb.tier_name = 'thumb' AND t_thumb.format = 'jpeg' AND t_thumb.variant_id IS NULL
-            LEFT JOIN tiers t_display ON i.uuid = t_display.image_uuid
-                AND t_display.tier_name = 'display' AND t_display.format = 'jpeg' AND t_display.variant_id IS NULL
             LEFT JOIN image_locations loc ON i.uuid = loc.image_uuid
             LEFT JOIN aesthetic_scores aes ON i.uuid = aes.image_uuid
             LEFT JOIN depth_estimation dep ON i.uuid = dep.image_uuid
@@ -164,12 +186,13 @@ final class Database {
             LEFT JOIN image_captions cap ON i.uuid = cap.image_uuid
             LEFT JOIN exif_metadata ex ON i.uuid = ex.image_uuid
             LEFT JOIN enhancement_plans enh ON i.uuid = enh.image_uuid
+            LEFT JOIN quality_scores qs ON i.uuid = qs.image_uuid
             ORDER BY i.category, i.subcategory, i.filename
         """
         var stmt: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else {
             if let errMsg = sqlite3_errmsg(db) {
-                print("SQL prepare error: \(String(cString: errMsg))")
+                NSLog("[See] SQL prepare error: %@", String(cString: errMsg))
             }
             return photos
         }
@@ -258,7 +281,13 @@ final class Database {
                 detectedFaceCount: intOrNil(stmt, 66),
                 // People/animal
                 detectedPersonCount: Int(sqlite3_column_int(stmt, 69)),
-                detectedAnimalCount: Int(sqlite3_column_int(stmt, 70))
+                detectedAnimalCount: Int(sqlite3_column_int(stmt, 70)),
+                // Quality scores
+                qualityTechnical: dblOrNil(stmt, 71),
+                qualityClip: dblOrNil(stmt, 72),
+                qualityCombined: dblOrNil(stmt, 73),
+                // Display variant
+                displayVariant: col(stmt, 74) ?? "original"
             )
             photos.append(item)
         }
@@ -293,6 +322,19 @@ final class Database {
             sqlite3_bind_text(stmt, 2, (uuid as NSString).utf8String, -1, nil)
             sqlite3_step(stmt)
             sqlite3_finalize(stmt)
+            exec("PRAGMA wal_checkpoint(PASSIVE)")
+        }
+    }
+
+    func setDisplayVariant(uuid: String, variant: String) {
+        let sql = "UPDATE images SET display_variant = ? WHERE uuid = ?"
+        var stmt: OpaquePointer?
+        if sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK {
+            sqlite3_bind_text(stmt, 1, (variant as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(stmt, 2, (uuid as NSString).utf8String, -1, nil)
+            sqlite3_step(stmt)
+            sqlite3_finalize(stmt)
+            exec("PRAGMA wal_checkpoint(PASSIVE)")
         }
     }
 

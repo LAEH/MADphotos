@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import AppKit
+import ImageIO
 
 actor ThumbnailLoader {
     private let maxConcurrent = 8
@@ -25,12 +26,27 @@ actor ThumbnailLoader {
         }
     }
 
-    func load(path: String) async -> NSImage? {
+    func load(path: String, maxPixelSize: CGFloat = 640) async -> NSImage? {
         guard !Task.isCancelled else { return nil }
         await acquireSlot()
         guard !Task.isCancelled else { releaseSlot(); return nil }
         let img: NSImage? = await Task.detached(priority: .utility) {
-            NSImage(contentsOfFile: path)
+            let url = URL(fileURLWithPath: path)
+            guard let source = CGImageSourceCreateWithURL(
+                url as CFURL,
+                [kCGImageSourceShouldCache: false] as CFDictionary
+            ) else { return nil }
+            let options: [CFString: Any] = [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceShouldCacheImmediately: true,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+                kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+            ]
+            guard let cgImage = CGImageSourceCreateThumbnailAtIndex(
+                source, 0, options as CFDictionary
+            ) else { return nil }
+            return NSImage(cgImage: cgImage, size: NSSize(
+                width: cgImage.width, height: cgImage.height))
         }.value
         releaseSlot()
         return Task.isCancelled ? nil : img
@@ -109,12 +125,8 @@ final class PhotoStore: ObservableObject {
 
     private func restorePreferences() {
         let ud = UserDefaults.standard
-        if let raw = ud.string(forKey: "see.sortBy"),
-           let opt = SortOption(rawValue: raw) {
-            sortBy = opt
-        } else {
-            sortBy = .random
-        }
+        // Always start on Random shuffle
+        sortBy = .random
         if ud.object(forKey: "see.sortDesc") != nil {
             sortDescending = ud.bool(forKey: "see.sortDesc")
         }
@@ -124,15 +136,20 @@ final class PhotoStore: ObservableObject {
         if ud.object(forKey: "see.showInfo") != nil {
             showInfoPanel = ud.bool(forKey: "see.showInfo")
         }
-        if let arr = ud.stringArray(forKey: "see.curatedFilter") {
-            filters.curatedStatuses = Set(arr)
-        } else {
-            filters.curatedStatuses = ["pending"]
-        }
+        // Always start on unflagged (pending) images
+        filters.curatedStatuses = ["pending"]
     }
 
     func refreshCounts() {
-        curationCounts = database.curationCounts()
+        var kept = 0, rejected = 0, pending = 0
+        for p in allPhotos {
+            switch p.curatedStatus {
+            case "kept": kept += 1
+            case "rejected": rejected += 1
+            default: pending += 1
+            }
+        }
+        curationCounts = (total: allPhotos.count, kept: kept, rejected: rejected, pending: pending)
     }
 
     // MARK: - Core filter engine
@@ -174,6 +191,12 @@ final class PhotoStore: ObservableObject {
         switch sortBy {
         case .random:
             filteredPhotos.shuffle()
+        case .quality:
+            filteredPhotos.sort { a, b in
+                let sa = a.qualityCombined ?? a.qualityTechnical ?? 0
+                let sb = b.qualityCombined ?? b.qualityTechnical ?? 0
+                return desc ? sa > sb : sa < sb
+            }
         case .aesthetic:
             filteredPhotos.sort { a, b in
                 let sa = a.aestheticScore ?? 0, sb = b.aestheticScore ?? 0
@@ -435,6 +458,49 @@ final class PhotoStore: ObservableObject {
 
     func enhancedPath(for photo: PhotoItem) -> String {
         (basePath as NSString).appendingPathComponent("images/rendered/enhanced/jpeg/\(photo.id).jpg")
+    }
+
+    func croppedPath(for photo: PhotoItem) -> String {
+        (basePath as NSString).appendingPathComponent("images/rendered/cropped/jpeg/\(photo.id).jpg")
+    }
+
+    // MARK: - Per-image display variant
+
+    func setDisplayVariant(for photo: PhotoItem, variant: String) {
+        database.setDisplayVariant(uuid: photo.id, variant: variant)
+        if let idx = allPhotos.firstIndex(where: { $0.id == photo.id }) {
+            allPhotos[idx].displayVariant = variant
+        }
+        if let sel = selectedPhoto, sel.id == photo.id {
+            selectedPhoto = allPhotos.first(where: { $0.id == photo.id })
+        }
+    }
+
+    func availableVariants(for photo: PhotoItem) -> [String] {
+        var variants = ["original"]
+        let enhPath = enhancedPath(for: photo)
+        if FileManager.default.fileExists(atPath: enhPath) {
+            variants.append("enhanced")
+        }
+        let cropPath = croppedPath(for: photo)
+        if FileManager.default.fileExists(atPath: cropPath) {
+            variants.append("cropped")
+        }
+        return variants
+    }
+
+    func variantImagePath(for photo: PhotoItem) -> String {
+        switch photo.displayVariant {
+        case "enhanced":
+            let path = enhancedPath(for: photo)
+            if FileManager.default.fileExists(atPath: path) { return path }
+        case "cropped":
+            let path = croppedPath(for: photo)
+            if FileManager.default.fileExists(atPath: path) { return path }
+        default:
+            break
+        }
+        return displayPath(for: photo)
     }
 
     // MARK: - Fullscreen toggle
@@ -724,7 +790,7 @@ final class PhotoStore: ObservableObject {
                 return enhPath
             }
         }
-        return displayPath(for: photo)
+        return variantImagePath(for: photo)
     }
 
     func loadThumbnail(for photo: PhotoItem) -> NSImage? {

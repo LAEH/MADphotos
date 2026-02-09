@@ -62,6 +62,11 @@ struct ZoomableImageView: View {
         .onChange(of: store.showEnhanced) { _, _ in
             loadDisplayTier()
         }
+        .onChange(of: photo.displayVariant) { _, _ in
+            displayImage = nil
+            fullImage = nil
+            loadDisplayTier()
+        }
     }
 
     // MARK: - Gestures

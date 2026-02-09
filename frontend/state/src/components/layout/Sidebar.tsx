@@ -5,8 +5,15 @@ import { ThemeToggle } from './ThemeToggle'
 const navItems = [
   { to: '/', label: 'State' },
   { to: '/stats', label: 'Stats' },
+  { to: '/see', label: 'See App' },
   { to: '/journal', label: 'Journal de Bord' },
   { to: '/instructions', label: 'System Instructions' },
+]
+
+const analysis = [
+  { to: '/signal-inspector', label: 'Signal Inspector' },
+  { to: '/embedding-audit', label: 'Embedding Audit' },
+  { to: '/collection-coverage', label: 'Coverage' },
 ]
 
 const experiments = [
@@ -108,6 +115,20 @@ export function Sidebar() {
             key={item.to}
             to={item.to}
             end={item.to === '/'}
+            className={({ isActive }) => isActive ? 'active' : ''}
+            onClick={closeMobile}
+          >
+            {item.label}
+          </NavLink>
+        ))}
+
+        <div className="sb-sep" />
+        <div className="sb-group">Analysis</div>
+
+        {analysis.map(item => (
+          <NavLink
+            key={item.to}
+            to={item.to}
             className={({ isActive }) => isActive ? 'active' : ''}
             onClick={closeMobile}
           >

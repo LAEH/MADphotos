@@ -260,12 +260,12 @@
   background: var(--sidebar-bg);
   border-right: 1px solid var(--border);
   padding: var(--space-5) 0;
-  position: sticky;
-  top: 0;
   height: 100vh;
+  height: 100dvh;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
   transition: width var(--duration-normal) var(--ease-default),
               min-width var(--duration-normal) var(--ease-default);
 }
@@ -403,9 +403,15 @@
   background: var(--sidebar-active-bg);
 }
 
-/* ═══ MAIN CONTENT ═══ */
-.main-content {
+/* ═══ MAIN SCROLL + CONTENT ═══ */
+.main-scroll {
   flex: 1;
+  min-width: 0;
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
+}
+.main-content {
   padding: var(--space-10) var(--space-8);
   max-width: 1200px;
   min-width: 0;
@@ -461,14 +467,17 @@ ol:has(.pipeline-item) {
 /* ═══ APP LAYOUT ═══ */
 .app-layout {
   display: flex;
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 /* ═══ MOBILE ═══ */
 @media (max-width: 900px) {
   .app-layout {
     flex-direction: column;
+    height: auto;
+    overflow: visible;
   }
   body.sb-collapsed .sidebar {
     width: 100% !important;
@@ -564,6 +573,10 @@ ol:has(.pipeline-item) {
     align-items: center;
     justify-content: space-between;
     padding: var(--space-3) var(--space-4);
+  }
+  .main-scroll {
+    height: auto;
+    overflow-y: visible;
   }
   .main-content {
     padding: var(--space-5) var(--space-4) !important;
@@ -722,6 +735,14 @@ ol:has(.pipeline-item) {
   position: absolute; top: 4px; right: 6px;
   font-family: var(--font-mono); font-size: 8px;
   color: var(--muted); font-weight: 600; opacity: 0.6;
+  display: flex; align-items: center; gap: 3px;
+}
+.v2-badge {
+  display: inline-block;
+  font-family: var(--font-mono); font-size: 8px; font-weight: 700;
+  color: var(--system-blue); background: color-mix(in srgb, var(--system-blue) 12%, transparent);
+  padding: 1px 4px; border-radius: 4px; letter-spacing: 0.04em;
+  text-transform: uppercase; line-height: 1.2;
 }
 .el-card .el-model {
   font-family: var(--font-display); font-size: 11px; font-weight: 700;

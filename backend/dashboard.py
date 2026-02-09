@@ -584,7 +584,62 @@ def get_stats():
     except Exception:
         pass
 
-    # Total models completed (17 displayed models)
+    # ── V2 Signals ──────────────────────────────────────────
+    v2_signals = {}
+    for tbl_name in ['aesthetic_scores_v2', 'florence_captions', 'segmentation_masks',
+                      'open_detections', 'image_tags', 'foreground_masks',
+                      'pose_detections', 'saliency_maps', 'face_identities']:
+        try:
+            cnt = conn.execute(f"SELECT COUNT(*) FROM {tbl_name}").fetchone()[0]
+            uuids = conn.execute(f"SELECT COUNT(DISTINCT image_uuid) FROM {tbl_name}").fetchone()[0]
+            v2_signals[tbl_name] = {"rows": cnt, "images": uuids}
+        except Exception:
+            v2_signals[tbl_name] = {"rows": 0, "images": 0}
+
+    # Aesthetic v2 stats
+    aesthetic_v2_count = v2_signals.get('aesthetic_scores_v2', {}).get('images', 0)
+    aesthetic_v2_labels = []
+    try:
+        aesthetic_v2_labels = [
+            {"name": r[0] or "unlabeled", "count": r[1]}
+            for r in conn.execute(
+                "SELECT score_label, COUNT(*) as cnt FROM aesthetic_scores_v2 "
+                "GROUP BY score_label ORDER BY cnt DESC"
+            ).fetchall()
+        ]
+    except Exception:
+        pass
+
+    # Top image tags
+    top_tags = []
+    try:
+        # Parse pipe-separated tags and count
+        tag_rows = conn.execute("SELECT tags FROM image_tags WHERE tags IS NOT NULL").fetchall()
+        tag_counts = {}
+        for row in tag_rows:
+            for tag in row[0].split(" | "):
+                tag = tag.strip()
+                if tag:
+                    tag_counts[tag] = tag_counts.get(tag, 0) + 1
+        top_tags = [{"name": k, "count": v} for k, v in
+                    sorted(tag_counts.items(), key=lambda x: -x[1])[:30]]
+    except Exception:
+        pass
+
+    # Top open detection labels
+    top_open_labels = []
+    try:
+        top_open_labels = [
+            {"name": r[0], "count": r[1]}
+            for r in conn.execute(
+                "SELECT label, COUNT(*) as cnt FROM open_detections "
+                "GROUP BY label ORDER BY cnt DESC LIMIT 20"
+            ).fetchall()
+        ]
+    except Exception:
+        pass
+
+    # Total models completed (17 displayed models + v2)
     # Use 'processed' for detection models (images with + without detections)
     face_processed = signals.get('face_detections', {}).get('processed', signals.get('face_detections', {}).get('images', 0))
     obj_processed = signals.get('object_detections', {}).get('processed', signals.get('object_detections', {}).get('images', 0))
@@ -608,6 +663,14 @@ def get_stats():
         (enhancement_count, total),  # 15 Enhancement Engine
         (signals.get('dominant_colors', {}).get('images', 0), total),  # 16 K-means LAB
         (signals.get('exif_metadata', {}).get('images', 0), total),    # 17 EXIF Parser
+        # V2 models
+        (aesthetic_v2_count, total),  # 18 Aesthetic v2
+        (v2_signals.get('florence_captions', {}).get('images', 0), total),     # 19 Florence-2
+        (v2_signals.get('segmentation_masks', {}).get('images', 0), total),    # 20 SAM
+        (v2_signals.get('open_detections', {}).get('images', 0), total),       # 21 Grounding DINO
+        (v2_signals.get('image_tags', {}).get('images', 0), total),            # 22 RAM++ / CLIP tags
+        (v2_signals.get('foreground_masks', {}).get('images', 0), total),      # 23 rembg
+        (v2_signals.get('saliency_maps', {}).get('images', 0), total),         # 24 Saliency
     ]
     models_complete = sum(1 for count, denom in model_checks if denom > 0 and count >= denom)
 
@@ -622,6 +685,16 @@ def get_stats():
         caption_count, ocr_texts, emotion_count,
         pixel_analyzed, enhancement_count, vector_count * 3,
         analyzed,
+        # V2 signals
+        v2_signals.get('aesthetic_scores_v2', {}).get('rows', 0),
+        v2_signals.get('florence_captions', {}).get('rows', 0),
+        v2_signals.get('segmentation_masks', {}).get('rows', 0),
+        v2_signals.get('open_detections', {}).get('rows', 0),
+        v2_signals.get('image_tags', {}).get('rows', 0),
+        v2_signals.get('foreground_masks', {}).get('rows', 0),
+        v2_signals.get('pose_detections', {}).get('rows', 0),
+        v2_signals.get('saliency_maps', {}).get('rows', 0),
+        v2_signals.get('face_identities', {}).get('rows', 0),
     ])
 
     # ── Disk usage ───────────────────────────────────────────
@@ -720,6 +793,12 @@ def get_stats():
         "aspect_ratios": aspect_ratios,
         "models_complete": models_complete,
         "total_signals": total_signals,
+        # V2 signals
+        "v2_signals": v2_signals,
+        "aesthetic_v2_count": aesthetic_v2_count,
+        "aesthetic_v2_labels": aesthetic_v2_labels,
+        "top_tags": top_tags,
+        "top_open_labels": top_open_labels,
     }
 
 
@@ -4640,6 +4719,496 @@ def get_cartoon_data():
     return pairs
 
 
+def generate_signal_inspector_data():
+    """Generate signal inspector data: 300 stratified images with all signals."""
+    import random
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.row_factory = sqlite3.Row
+    total = conn.execute("SELECT COUNT(*) FROM images").fetchone()[0]
+
+    # Get aesthetic quartile boundaries
+    scores = [r[0] for r in conn.execute(
+        "SELECT score FROM aesthetic_scores ORDER BY score"
+    ).fetchall()]
+    if scores:
+        q1 = scores[len(scores)//4]
+        q2 = scores[len(scores)//2]
+        q3 = scores[3*len(scores)//4]
+    else:
+        q1, q2, q3 = 4, 6, 8
+
+    # Get camera distribution
+    cameras = conn.execute(
+        "SELECT camera_body, COUNT(*) as cnt FROM images GROUP BY camera_body ORDER BY cnt DESC"
+    ).fetchall()
+    camera_counts = {r["camera_body"]: r["cnt"] for r in cameras}
+    total_imgs = sum(camera_counts.values())
+
+    # Sample 300 images: proportional by camera, even by quartile
+    sample_uuids = set()
+    target = 300
+    per_quartile = target // 4
+
+    for q_idx, (lo, hi) in enumerate([(0, q1), (q1, q2), (q2, q3), (q3, 11)]):
+        # Get images in this quartile
+        uuids_in_q = [r[0] for r in conn.execute("""
+            SELECT i.uuid FROM images i
+            JOIN aesthetic_scores a ON i.uuid = a.image_uuid
+            WHERE a.score >= ? AND a.score < ?
+        """, (lo, hi)).fetchall()]
+        random.shuffle(uuids_in_q)
+        # Take proportional per camera within this quartile
+        needed = per_quartile
+        for uuid in uuids_in_q:
+            if len(sample_uuids) >= target:
+                break
+            sample_uuids.add(uuid)
+            needed -= 1
+            if needed <= 0:
+                break
+
+    # Fill remainder randomly if needed
+    if len(sample_uuids) < target:
+        all_uuids = [r[0] for r in conn.execute("SELECT uuid FROM images").fetchall()]
+        random.shuffle(all_uuids)
+        for u in all_uuids:
+            if u not in sample_uuids:
+                sample_uuids.add(u)
+            if len(sample_uuids) >= target:
+                break
+
+    # Build full signal records
+    images = []
+    for uuid in sample_uuids:
+        img = conn.execute("SELECT uuid, category, subcategory, camera_body, width, height FROM images WHERE uuid=?", (uuid,)).fetchone()
+        if not img:
+            continue
+
+        rec = {
+            "uuid": img["uuid"],
+            "thumb": f"/rendered/thumb/jpeg/{img['uuid']}.jpg",
+            "display": f"/rendered/display/jpeg/{img['uuid']}.jpg",
+            "camera": img["camera_body"],
+            "w": img["width"] or 0,
+            "h": img["height"] or 0,
+        }
+
+        # Gemini analysis
+        g = conn.execute("SELECT * FROM gemini_analysis WHERE image_uuid=?", (uuid,)).fetchone()
+        if g:
+            rec["caption"] = g["caption"] or ""
+            rec["alt"] = g["alt_text"] or ""
+            rec["scene"] = g["scene"] or ""
+            rec["environment"] = g["environment"] or ""
+            rec["style"] = g["grading_style"] or ""
+            rec["grading"] = g["grading_style"] or ""
+            rec["time"] = g["time_of_day"] or ""
+            rec["setting"] = g["setting"] or ""
+            rec["exposure"] = g["exposure"] or ""
+            rec["composition"] = g["composition_technique"] or ""
+            try:
+                rec["vibes"] = json.loads(g["vibe"]) if g["vibe"] else []
+            except:
+                rec["vibes"] = []
+        else:
+            rec.update({"caption": "", "alt": "", "scene": "", "environment": "",
+                       "style": "", "grading": "", "time": "", "setting": "",
+                       "exposure": "", "composition": "", "vibes": []})
+
+        # Style classification
+        sc = conn.execute("SELECT style FROM style_classification WHERE image_uuid=?", (uuid,)).fetchone()
+        if sc:
+            rec["style"] = sc["style"] or rec.get("style", "")
+
+        # Aesthetic score
+        ae = conn.execute("SELECT score FROM aesthetic_scores WHERE image_uuid=?", (uuid,)).fetchone()
+        rec["aesthetic"] = round(float(ae["score"]), 1) if ae else 0
+
+        # Dominant colors (top 5)
+        colors = conn.execute(
+            "SELECT hex_color, pct, color_name FROM dominant_colors WHERE image_uuid=? ORDER BY pct DESC LIMIT 5",
+            (uuid,)
+        ).fetchall()
+        rec["colors"] = [{"hex": c["hex_color"] or "#000", "pct": round(float(c["pct"] or 0), 1), "name": c["color_name"] or ""} for c in colors]
+
+        # Depth
+        de = conn.execute("SELECT near_pct, mid_pct, far_pct FROM depth_estimation WHERE image_uuid=?", (uuid,)).fetchone()
+        if de:
+            rec["depth"] = {"near": round(float(de["near_pct"] or 0), 1), "mid": round(float(de["mid_pct"] or 0), 1), "far": round(float(de["far_pct"] or 0), 1)}
+        else:
+            rec["depth"] = {"near": 0, "mid": 0, "far": 0}
+
+        # Objects
+        objs = conn.execute(
+            "SELECT label, confidence FROM object_detections WHERE image_uuid=? ORDER BY confidence DESC LIMIT 10",
+            (uuid,)
+        ).fetchall()
+        rec["objects"] = [{"label": o["label"], "conf": round(float(o["confidence"] or 0), 2)} for o in objs]
+
+        # Faces
+        faces = conn.execute(
+            "SELECT confidence, face_area_pct FROM face_detections WHERE image_uuid=?",
+            (uuid,)
+        ).fetchall()
+        face_list = []
+        for f in faces:
+            fe = conn.execute("SELECT dominant_emotion FROM facial_emotions WHERE image_uuid=?", (uuid,)).fetchone()
+            face_list.append({
+                "conf": round(float(f["confidence"] or 0), 2),
+                "area": round(float(f["face_area_pct"] or 0), 3),
+                "emotion": fe["dominant_emotion"] if fe else ""
+            })
+        rec["faces"] = face_list
+
+        # OCR
+        ocr = conn.execute(
+            "SELECT text FROM ocr_detections WHERE image_uuid=? AND text != ''",
+            (uuid,)
+        ).fetchall()
+        rec["ocr"] = [o["text"] for o in ocr]
+
+        # EXIF
+        ex = conn.execute("SELECT focal_length, aperture, shutter_speed, iso FROM exif_metadata WHERE image_uuid=?", (uuid,)).fetchone()
+        if ex:
+            rec["exif"] = {
+                "focal": ex["focal_length"] or 0,
+                "aperture": ex["aperture"] or 0,
+                "shutter": ex["shutter_speed"] or "",
+                "iso": ex["iso"] or 0,
+            }
+        else:
+            rec["exif"] = {"focal": 0, "aperture": 0, "shutter": "", "iso": 0}
+
+        # Caption from BLIP
+        cap = conn.execute("SELECT blip_caption FROM image_captions WHERE image_uuid=?", (uuid,)).fetchone()
+        if cap and cap["blip_caption"]:
+            rec["blip_caption"] = cap["blip_caption"]
+
+        images.append(rec)
+
+    conn.close()
+    return {
+        "sample_size": len(images),
+        "total": total,
+        "images": images,
+    }
+
+
+def generate_embedding_audit_data():
+    """Generate embedding audit data: 100 anchors with per-model neighbors."""
+    import random
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.row_factory = sqlite3.Row
+
+    tbl, df = _get_lance()
+    if tbl is None or df is None:
+        conn.close()
+        return {"anchor_count": 0, "neighbor_k": 6, "models": [], "anchors": []}
+
+    # Get scenes for stratification
+    scenes = conn.execute(
+        "SELECT scene_1, COUNT(*) as cnt FROM scene_classification GROUP BY scene_1 ORDER BY cnt DESC LIMIT 20"
+    ).fetchall()
+
+    # Sample ~5 per scene to get ~100
+    sample_uuids = []
+    per_scene = max(3, 100 // max(len(scenes), 1))
+    for scene_row in scenes:
+        scene_name = scene_row["scene_1"]
+        uuids = [r[0] for r in conn.execute(
+            "SELECT image_uuid FROM scene_classification WHERE scene_1=? ORDER BY RANDOM() LIMIT ?",
+            (scene_name, per_scene)
+        ).fetchall()]
+        # Only keep UUIDs that are in the vector store
+        valid = [u for u in uuids if u in df["uuid"].values]
+        sample_uuids.extend(valid)
+        if len(sample_uuids) >= 100:
+            break
+
+    sample_uuids = sample_uuids[:100]
+
+    models = ["DINOv2", "SigLIP", "CLIP", "Combined"]
+    model_cols = [("dino", "DINOv2"), ("siglip", "SigLIP"), ("clip", "CLIP")]
+    k = 6
+
+    anchors = []
+    for uuid in sample_uuids:
+        matches = df[df["uuid"] == uuid]
+        if matches.empty:
+            continue
+        query_row = matches.iloc[0]
+
+        # Get metadata
+        g = conn.execute("SELECT caption, scene, vibe FROM gemini_analysis WHERE image_uuid=?", (uuid,)).fetchone()
+        sc = conn.execute("SELECT scene_1 FROM scene_classification WHERE image_uuid=?", (uuid,)).fetchone()
+
+        anchor = {
+            "uuid": uuid,
+            "thumb": f"/rendered/thumb/jpeg/{uuid}.jpg",
+            "display": f"/rendered/display/jpeg/{uuid}.jpg",
+            "caption": (g["caption"] or "") if g else "",
+            "scene": (sc["scene_1"] or "") if sc else "",
+            "vibes": [],
+            "neighbors": {},
+            "agreement": {},
+        }
+        if g and g["vibe"]:
+            try:
+                anchor["vibes"] = json.loads(g["vibe"])
+            except:
+                pass
+
+        # Per-model neighbor search
+        all_neighbor_sets = {}
+        for col, name in model_cols:
+            query_vec = query_row[col]
+            results = tbl.search(query_vec, vector_column_name=col).limit(k + 1).to_pandas()
+            neighbors = results[results["uuid"] != uuid].head(k)
+            nb_list = []
+            nb_uuids = set()
+            for _, nb_row in neighbors.iterrows():
+                nb_uuid = nb_row["uuid"]
+                # Convert distance to similarity score (1 / (1 + dist))
+                dist = float(nb_row["_distance"])
+                score = round(1.0 / (1.0 + dist), 3)
+                nb_list.append({
+                    "uuid": nb_uuid,
+                    "thumb": f"/rendered/thumb/jpeg/{nb_uuid}.jpg",
+                    "score": score,
+                })
+                nb_uuids.add(nb_uuid)
+            anchor["neighbors"][name] = nb_list
+            all_neighbor_sets[name] = nb_uuids
+
+        # Combined: average distances across models, re-rank
+        try:
+            import numpy as np
+            combined_scores = {}
+            for col, name in model_cols:
+                query_vec = query_row[col]
+                results = tbl.search(query_vec, vector_column_name=col).limit(30).to_pandas()
+                for _, nb_row in results.iterrows():
+                    nb_uuid = nb_row["uuid"]
+                    if nb_uuid == uuid:
+                        continue
+                    dist = float(nb_row["_distance"])
+                    score = 1.0 / (1.0 + dist)
+                    combined_scores[nb_uuid] = combined_scores.get(nb_uuid, 0) + score / 3.0
+
+            # Sort by combined score
+            sorted_combined = sorted(combined_scores.items(), key=lambda x: -x[1])[:k]
+            combined_list = []
+            combined_uuids = set()
+            for nb_uuid, score in sorted_combined:
+                combined_list.append({
+                    "uuid": nb_uuid,
+                    "thumb": f"/rendered/thumb/jpeg/{nb_uuid}.jpg",
+                    "score": round(score, 3),
+                })
+                combined_uuids.add(nb_uuid)
+            anchor["neighbors"]["Combined"] = combined_list
+            all_neighbor_sets["Combined"] = combined_uuids
+        except Exception:
+            anchor["neighbors"]["Combined"] = []
+            all_neighbor_sets["Combined"] = set()
+
+        # Agreement stats
+        all_nb = set()
+        for s in all_neighbor_sets.values():
+            all_nb |= s
+        shared_2plus = sum(1 for u in all_nb if sum(1 for s in all_neighbor_sets.values() if u in s) >= 2)
+        shared_3plus = sum(1 for u in all_nb if sum(1 for s in all_neighbor_sets.values() if u in s) >= 3)
+        anchor["agreement"] = {
+            "shared_2plus": shared_2plus,
+            "shared_3plus": shared_3plus,
+            "unique_neighbors": len(all_nb),
+        }
+
+        anchors.append(anchor)
+
+    conn.close()
+    return {
+        "anchor_count": len(anchors),
+        "neighbor_k": k,
+        "models": models,
+        "anchors": anchors,
+    }
+
+
+def generate_collection_coverage_data():
+    """Generate collection coverage data: which images appear in which experiences."""
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.row_factory = sqlite3.Row
+    total = conn.execute("SELECT COUNT(*) FROM images").fetchone()[0]
+
+    # Load photos.json (exported gallery data)
+    photos_path = PROJECT_ROOT / "frontend" / "show" / "data" / "photos.json"
+    if not photos_path.exists():
+        # Try alternate location
+        photos_path = PROJECT_ROOT / "frontend" / "show" / "photos.json"
+
+    photos = []
+    if photos_path.exists():
+        try:
+            photos = json.loads(photos_path.read_text())
+            if isinstance(photos, dict):
+                photos = photos.get("photos", photos.get("images", []))
+        except:
+            pass
+
+    # Define experience pools (approximate server-side)
+    # Each experience filters differently
+    experiences = []
+    uuid_appearances = {}  # uuid -> count of experiences it appears in
+
+    def count_pool(name, pool):
+        """Register a pool of UUIDs for an experience."""
+        uuids = set(p.get("uuid", p.get("id", "")) for p in pool if p.get("uuid") or p.get("id"))
+        experiences.append({
+            "name": name,
+            "pool_size": len(uuids),
+            "pct_of_collection": round(len(uuids) / total * 100, 1) if total else 0,
+        })
+        for u in uuids:
+            uuid_appearances[u] = uuid_appearances.get(u, 0) + 1
+        return uuids
+
+    if photos:
+        # Grid: all photos
+        count_pool("Grid", photos)
+
+        # Drift / Similarity: needs vectors — all photos with vectors
+        count_pool("Drift", photos)
+
+        # Colors: photos with palette data
+        count_pool("Colors", [p for p in photos if p.get("palette") or p.get("colors")])
+
+        # Bento: needs aspect ratio + aesthetic score > 6
+        count_pool("Bento", [p for p in photos if (p.get("aesthetic") or p.get("score", 0)) >= 6])
+
+        # Game: photos with multiple vibes
+        count_pool("Game", [p for p in photos if len(p.get("vibes", [])) >= 2])
+
+        # Stream: all photos (random stream)
+        count_pool("Stream", photos)
+
+        # Domino: photos with dominant colors
+        count_pool("Domino", [p for p in photos if p.get("palette") or p.get("colors")])
+
+        # Faces: photos with faces
+        count_pool("Faces", [p for p in photos if p.get("faces") and len(p.get("faces", [])) > 0])
+
+        # Compass: photos with scene data
+        count_pool("Compass", [p for p in photos if p.get("scene")])
+
+        # NYU: all photos (special layout)
+        count_pool("NYU", photos)
+
+        # Confetti: photos with aesthetic > 7
+        count_pool("Confetti", [p for p in photos if (p.get("aesthetic") or p.get("score", 0)) >= 7])
+
+        # Cinema: photos with cinematic style or high aesthetic
+        count_pool("Cinema", [p for p in photos if (p.get("aesthetic") or p.get("score", 0)) >= 7.5 or p.get("style") == "cinematic"])
+
+        # Reveal: all photos (random reveal)
+        count_pool("Reveal", photos)
+
+        # Sort By: uses photos.json (all)
+        count_pool("Sort By", photos)
+
+    # Sort experiences by pool size descending
+    experiences.sort(key=lambda x: -x["pool_size"])
+
+    # Distribution: how many images appear in N experiences
+    max_appearances = max(uuid_appearances.values()) if uuid_appearances else 0
+    distribution = []
+    # Count images that appear in 0 experiences
+    in_any = len(uuid_appearances)
+    in_zero = total - in_any
+    distribution.append({"appearances": 0, "count": in_zero})
+    for n in range(1, max_appearances + 1):
+        count = sum(1 for v in uuid_appearances.values() if v == n)
+        if count > 0:
+            distribution.append({"appearances": n, "count": count})
+
+    # Dimension bias analysis
+    dimensions = {}
+
+    # Camera bias
+    full_cameras = {}
+    for r in conn.execute("SELECT camera_body, COUNT(*) as cnt FROM images GROUP BY camera_body ORDER BY cnt DESC").fetchall():
+        full_cameras[r["camera_body"]] = round(r["cnt"] / total * 100, 1) if total else 0
+
+    # Curated = photos that appear in at least one experience
+    curated_uuids = set(uuid_appearances.keys())
+    curated_total = len(curated_uuids)
+
+    if curated_uuids and photos:
+        curated_cameras = {}
+        curated_scenes = {}
+        curated_times = {}
+        curated_styles = {}
+        curated_gradings = {}
+
+        photo_map = {p.get("uuid", p.get("id", "")): p for p in photos}
+        for u in curated_uuids:
+            p = photo_map.get(u, {})
+            cam = p.get("camera", "")
+            if cam:
+                curated_cameras[cam] = curated_cameras.get(cam, 0) + 1
+            scene = p.get("scene", "")
+            if scene:
+                curated_scenes[scene] = curated_scenes.get(scene, 0) + 1
+            tod = p.get("time", p.get("time_of_day", ""))
+            if tod:
+                curated_times[tod] = curated_times.get(tod, 0) + 1
+            st = p.get("style", "")
+            if st:
+                curated_styles[st] = curated_styles.get(st, 0) + 1
+            gr = p.get("grading", "")
+            if gr:
+                curated_gradings[gr] = curated_gradings.get(gr, 0) + 1
+
+        def to_pct(d, tot):
+            return {k: round(v / tot * 100, 1) for k, v in sorted(d.items(), key=lambda x: -x[1])[:10]} if tot else {}
+
+        # Full collection dimension distributions from DB
+        full_scenes = {}
+        for r in conn.execute("SELECT scene, COUNT(*) as cnt FROM gemini_analysis WHERE scene IS NOT NULL AND raw_json != '' GROUP BY scene ORDER BY cnt DESC LIMIT 10").fetchall():
+            full_scenes[r["scene"]] = round(r["cnt"] / total * 100, 1)
+
+        full_times = {}
+        for r in conn.execute("SELECT time_of_day, COUNT(*) as cnt FROM gemini_analysis WHERE time_of_day IS NOT NULL GROUP BY time_of_day ORDER BY cnt DESC").fetchall():
+            full_times[r["time_of_day"]] = round(r["cnt"] / total * 100, 1)
+
+        full_styles = {}
+        for r in conn.execute("SELECT style, COUNT(*) as cnt FROM style_classification GROUP BY style ORDER BY cnt DESC LIMIT 10").fetchall():
+            full_styles[r["style"]] = round(r["cnt"] / total * 100, 1)
+
+        full_gradings = {}
+        for r in conn.execute("SELECT grading_style, COUNT(*) as cnt FROM gemini_analysis WHERE grading_style IS NOT NULL AND raw_json != '' GROUP BY grading_style ORDER BY cnt DESC LIMIT 10").fetchall():
+            full_gradings[r["grading_style"]] = round(r["cnt"] / total * 100, 1)
+
+        dimensions = {
+            "camera": {"full": full_cameras, "curated": to_pct(curated_cameras, curated_total)},
+            "scene": {"full": full_scenes, "curated": to_pct(curated_scenes, curated_total)},
+            "time_of_day": {"full": full_times, "curated": to_pct(curated_times, curated_total)},
+            "style": {"full": full_styles, "curated": to_pct(curated_styles, curated_total)},
+            "grading": {"full": full_gradings, "curated": to_pct(curated_gradings, curated_total)},
+        }
+
+    conn.close()
+    return {
+        "total": total,
+        "in_at_least_one": in_any,
+        "in_zero": in_zero,
+        "pct_covered": round(in_any / total * 100, 1) if total else 0,
+        "distribution": distribution,
+        "experiences": experiences,
+        "dimensions": dimensions,
+    }
+
+
 class Handler(BaseHTTPRequestHandler):
     def _json_response(self, data):
         body = json.dumps(data).encode()
@@ -4660,6 +5229,12 @@ class Handler(BaseHTTPRequestHandler):
             self._json_response({"mosaics": get_mosaics_data()})
         elif self.path == "/api/cartoon":
             self._json_response({"pairs": get_cartoon_data()})
+        elif self.path == "/api/signal-inspector":
+            self._json_response(generate_signal_inspector_data())
+        elif self.path == "/api/embedding-audit":
+            self._json_response(generate_embedding_audit_data())
+        elif self.path == "/api/collection-coverage":
+            self._json_response(generate_collection_coverage_data())
         elif self.path == "/mosaics":
             html = render_mosaics().encode()
             self.send_response(200)

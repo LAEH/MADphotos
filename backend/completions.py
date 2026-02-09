@@ -15,6 +15,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sqlite3
 import subprocess
@@ -23,6 +24,8 @@ import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+from pipeline_lock import acquire_lock, release_lock
 
 BACKEND = Path(__file__).resolve().parent
 PROJECT_ROOT = BACKEND.parent
@@ -53,6 +56,7 @@ class Stage:
 
 PY = sys.executable
 ADV = str(BACKEND / "signals_advanced.py")
+V2 = str(BACKEND / "signals_v2.py")
 
 STAGES = [
     # --- Infrastructure ---
@@ -62,7 +66,7 @@ STAGES = [
     Stage("Dominant Colors",    "check_table_all",     None,                                group="infra"),
     Stage("Image Hashes",       "check_table_all",     None,                                group="infra"),
 
-    # --- Local CV models ---
+    # --- Local CV models (v1) ---
     Stage("Aesthetic Scoring",  "check_table_all",     [PY, ADV, "--phase", "aesthetic"],  group="model", heavy=True),
     Stage("Depth Estimation",   "check_table_all",     [PY, ADV, "--phase", "depth"],      group="model", heavy=True),
     Stage("Scene Classification","check_table_all",    [PY, ADV, "--phase", "scene"],      group="model", heavy=True),
@@ -72,6 +76,16 @@ STAGES = [
     Stage("Face Detections",    "check_table_all",     None,                                group="model"),
     Stage("Object Detections",  "check_objects",       None,                                group="model"),
     Stage("Facial Emotions",    "check_table_faces",   [PY, ADV, "--phase", "emotions"],   group="model", heavy=True),
+
+    # --- Local CV models (v2) ---
+    Stage("Aesthetic v2",       "check_table_all",     [PY, V2, "--phase", "aesthetic-v2"],      group="model", heavy=True),
+    Stage("Florence Captions",  "check_table_all",     [PY, V2, "--phase", "florence-captions"], group="model", heavy=True),
+    Stage("Segmentation",       "check_table_all",     [PY, V2, "--phase", "sam-segments"],      group="model", heavy=True),
+    Stage("Open Detections",    "check_table_all",     [PY, V2, "--phase", "grounding-dino"],    group="model", heavy=True),
+    Stage("Image Tags",         "check_table_all",     [PY, V2, "--phase", "ram-tags"],          group="model", heavy=True),
+    Stage("Foreground Masks",   "check_table_all",     [PY, V2, "--phase", "rembg-foreground"],  group="model", heavy=True),
+    Stage("Pose Detection",     "check_table_all",     [PY, V2, "--phase", "pose-detection"],    group="model", heavy=True),
+    Stage("Saliency",           "check_table_all",     [PY, V2, "--phase", "saliency"],          group="model"),
 
     # --- Vector embeddings ---
     Stage("Vector Embeddings",  "check_vectors",       None,                                group="model"),
@@ -104,6 +118,15 @@ TABLE_MAP = {
     "Face Detections":      ("face_detections",      "image_uuid"),
     "Enhancement Plans":    ("enhancement_plans",    "image_uuid"),
     "Enhancement v2":       ("enhancement_plans_v2", "image_uuid"),
+    # V2 signals
+    "Aesthetic v2":         ("aesthetic_scores_v2",   "image_uuid"),
+    "Florence Captions":    ("florence_captions",     "image_uuid"),
+    "Segmentation":         ("segmentation_masks",    "image_uuid"),
+    "Open Detections":      ("open_detections",       "image_uuid"),
+    "Image Tags":           ("image_tags",            "image_uuid"),
+    "Foreground Masks":     ("foreground_masks",      "image_uuid"),
+    "Pose Detection":       ("pose_detections",       "image_uuid"),
+    "Saliency":             ("saliency_maps",         "image_uuid"),
 }
 
 
@@ -172,18 +195,25 @@ class Checker:
                             f"{total_tier_rows:,} tier files, ~{avg:.0f}/image")
 
     def check_ocr(self, stage: Stage) -> Dict[str, Any]:
-        """OCR only stores rows for images that HAVE text. Can't compare to total.
-        We check if the process has been run to completion by looking at the
-        advanced_signals script's internal tracking."""
-        detected = self.conn.execute(
+        """OCR inserts sentinel rows (text='', conf=0) for images with no text.
+        Count distinct UUIDs to get the true processed count."""
+        db_count = self.conn.execute(
             "SELECT COUNT(DISTINCT image_uuid) FROM ocr_detections"
         ).fetchone()[0]
-        # OCR doesn't store "no text found" — so we can't know completion
-        # from the DB alone. If less than ~50% of images have text, likely still running.
-        # Heuristic: re-run the phase and let it skip already-processed images.
-        # For status display, show what we have.
-        return self._result(detected, self.total,
-                            f"{detected} images with text (sparse — not all images have text)")
+        # Also check sentinel file for any processed-but-not-yet-committed
+        sentinel = BACKEND / ".ocr_processed.json"
+        sentinel_count = 0
+        if sentinel.exists():
+            try:
+                sentinel_count = len(json.loads(sentinel.read_text()))
+            except Exception:
+                pass
+        done = max(db_count, sentinel_count)
+        with_text = self.conn.execute(
+            "SELECT COUNT(DISTINCT image_uuid) FROM ocr_detections WHERE text != ''"
+        ).fetchone()[0]
+        return self._result(done, self.total,
+                            f"{with_text} images with text, {done - with_text} without")
 
     def check_objects(self, stage: Stage) -> Dict[str, Any]:
         """Object detections — not every image will have objects."""
@@ -423,6 +453,9 @@ def regenerate_exports() -> bool:
         sys.path.insert(0, str(BACKEND))
         from dashboard import get_stats, get_journal_html, get_instructions_html
         from dashboard import get_mosaics_data, get_cartoon_data
+        from dashboard import generate_signal_inspector_data
+        from dashboard import generate_embedding_audit_data
+        from dashboard import generate_collection_coverage_data
         import json as _json
 
         state_data_dir = PROJECT_ROOT / "frontend" / "state" / "public" / "data"
@@ -434,11 +467,14 @@ def regenerate_exports() -> bool:
             ("instructions.json", lambda: {"html": get_instructions_html()}),
             ("mosaics.json", lambda: {"mosaics": get_mosaics_data()}),
             ("cartoon.json", lambda: {"pairs": get_cartoon_data()}),
+            ("signal_inspector.json", lambda: generate_signal_inspector_data()),
+            ("embedding_audit.json", lambda: generate_embedding_audit_data()),
+            ("collection_coverage.json", lambda: generate_collection_coverage_data()),
         ]:
             data = fn()
             (state_data_dir / name).write_text(_json.dumps(data))
 
-        print("  State data files regenerated (5 JSON files).")
+        print("  State data files regenerated (8 JSON files).")
     except Exception as e:
         print(f"  State data files error: {e}")
         success = False
@@ -465,6 +501,15 @@ def main() -> None:
     conn = sqlite3.connect(str(DB_PATH))
     conn.row_factory = sqlite3.Row
 
+    # Acquire lock for mutating runs (not --status)
+    if not args.status:
+        try:
+            acquire_lock("completions.py")
+        except RuntimeError as e:
+            print(f"\n  Lock error: {e}")
+            conn.close()
+            sys.exit(1)
+
     def run_cycle() -> bool:
         """Run one check cycle. Returns True if everything is complete."""
         statuses = get_status(conn)
@@ -485,31 +530,34 @@ def main() -> None:
 
         return all_done
 
-    if args.watch:
-        print(f"Watching every {args.watch}s. Ctrl+C to stop.\n")
-        try:
-            while True:
-                done = run_cycle()
-                if done:
-                    print("  All stages complete!")
-                    if not args.status and not args.no_state:
-                        print("\n  Regenerating exports...")
-                        regenerate_exports()
-                    break
-                time.sleep(args.watch)
-        except KeyboardInterrupt:
-            print("\nStopped.")
-    else:
-        done = run_cycle()
-        if done and not args.status:
-            print("  Everything is complete!")
-            if not args.no_state:
-                print("\n  Regenerating exports...")
-                regenerate_exports()
-        elif not args.status:
-            print("\n  Run with --watch to monitor ongoing processes.")
-
-    conn.close()
+    try:
+        if args.watch:
+            print(f"Watching every {args.watch}s. Ctrl+C to stop.\n")
+            try:
+                while True:
+                    done = run_cycle()
+                    if done:
+                        print("  All stages complete!")
+                        if not args.status and not args.no_state:
+                            print("\n  Regenerating exports...")
+                            regenerate_exports()
+                        break
+                    time.sleep(args.watch)
+            except KeyboardInterrupt:
+                print("\nStopped.")
+        else:
+            done = run_cycle()
+            if done and not args.status:
+                print("  Everything is complete!")
+                if not args.no_state:
+                    print("\n  Regenerating exports...")
+                    regenerate_exports()
+            elif not args.status:
+                print("\n  Run with --watch to monitor ongoing processes.")
+    finally:
+        if not args.status:
+            release_lock()
+        conn.close()
 
 
 if __name__ == "__main__":

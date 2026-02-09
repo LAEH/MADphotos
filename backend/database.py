@@ -268,6 +268,119 @@ CREATE TABLE IF NOT EXISTS image_analysis (
     histogram_json      TEXT,
     analyzed_at         TEXT NOT NULL
 );
+
+-- V2 signal tables (signals_v2.py)
+
+CREATE TABLE IF NOT EXISTS aesthetic_scores_v2 (
+    image_uuid      TEXT PRIMARY KEY REFERENCES images(uuid),
+    topiq_score     REAL,
+    musiq_score     REAL,
+    laion_score     REAL,
+    composite_score REAL,
+    score_label     TEXT,
+    analyzed_at     TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS face_identities (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    image_uuid      TEXT NOT NULL REFERENCES images(uuid),
+    face_index      INTEGER NOT NULL,
+    embedding       BLOB,
+    identity_id     INTEGER,
+    identity_label  TEXT,
+    analyzed_at     TEXT NOT NULL,
+    UNIQUE(image_uuid, face_index)
+);
+CREATE INDEX IF NOT EXISTS idx_face_id_uuid ON face_identities(image_uuid);
+CREATE INDEX IF NOT EXISTS idx_face_id_identity ON face_identities(identity_id);
+
+CREATE TABLE IF NOT EXISTS florence_captions (
+    image_uuid      TEXT PRIMARY KEY REFERENCES images(uuid),
+    short_caption   TEXT,
+    detailed_caption TEXT,
+    more_detailed   TEXT,
+    model           TEXT DEFAULT 'florence-2-large',
+    analyzed_at     TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS segmentation_masks (
+    image_uuid          TEXT PRIMARY KEY REFERENCES images(uuid),
+    segment_count       INTEGER,
+    largest_segment_pct REAL,
+    figure_ground_ratio REAL,
+    subject_area_pct    REAL,
+    edge_complexity     REAL,
+    mean_segment_area   REAL,
+    segments_json       TEXT,
+    analyzed_at         TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS open_detections (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    image_uuid      TEXT NOT NULL REFERENCES images(uuid),
+    detection_index INTEGER NOT NULL,
+    label           TEXT,
+    confidence      REAL,
+    x               REAL,
+    y               REAL,
+    w               REAL,
+    h               REAL,
+    area_pct        REAL,
+    analyzed_at     TEXT NOT NULL,
+    UNIQUE(image_uuid, detection_index)
+);
+CREATE INDEX IF NOT EXISTS idx_open_det_uuid ON open_detections(image_uuid);
+CREATE INDEX IF NOT EXISTS idx_open_det_label ON open_detections(label);
+
+CREATE TABLE IF NOT EXISTS image_tags (
+    image_uuid      TEXT PRIMARY KEY REFERENCES images(uuid),
+    tags            TEXT,
+    tag_count       INTEGER,
+    confidence_json TEXT,
+    model           TEXT DEFAULT 'ram-plus',
+    analyzed_at     TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS foreground_masks (
+    image_uuid      TEXT PRIMARY KEY REFERENCES images(uuid),
+    foreground_pct  REAL,
+    background_pct  REAL,
+    edge_sharpness  REAL,
+    centroid_x      REAL,
+    centroid_y      REAL,
+    bbox_x          REAL,
+    bbox_y          REAL,
+    bbox_w          REAL,
+    bbox_h          REAL,
+    analyzed_at     TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS pose_detections (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    image_uuid      TEXT NOT NULL REFERENCES images(uuid),
+    person_index    INTEGER NOT NULL,
+    keypoints_json  TEXT,
+    pose_score      REAL,
+    bbox_x          REAL,
+    bbox_y          REAL,
+    bbox_w          REAL,
+    bbox_h          REAL,
+    analyzed_at     TEXT NOT NULL,
+    UNIQUE(image_uuid, person_index)
+);
+CREATE INDEX IF NOT EXISTS idx_pose_uuid ON pose_detections(image_uuid);
+
+CREATE TABLE IF NOT EXISTS saliency_maps (
+    image_uuid      TEXT PRIMARY KEY REFERENCES images(uuid),
+    peak_x          REAL,
+    peak_y          REAL,
+    peak_value      REAL,
+    spread          REAL,
+    center_bias     REAL,
+    thirds_json     TEXT,
+    quadrant_json   TEXT,
+    analyzed_at     TEXT NOT NULL
+);
 """
 
 

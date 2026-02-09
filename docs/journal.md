@@ -1282,3 +1282,54 @@ Four infrastructure improvements and a new Show experience — the first to use 
 **README.** Updated to 14 experiences, added PWA mention, corrected State description.
 
 10 files changed (modified), 4 new files. +551 / -162 lines.
+
+---
+
+### 13:00 — Signals V2: 10 new CV models, 9 new DB tables, 155K+ new signal rows
+
+The biggest signal extraction session yet. Goal: fix broken data, replace useless models, upgrade weak ones, and add every valuable local CV signal we've been missing.
+
+**Data fixes.** Fixed 4,654 blob-corrupted `exposure_quality` values in `quality_scores` (numpy float32 bytes → proper REAL via `struct.unpack`). Populated `image_locations` from existing EXIF GPS data (1,820 rows).
+
+**New table: `aesthetic_scores_v2`** — Replaced the useless NIMA aesthetic scores (avg 9.9/10, zero discrimination) with a three-model ensemble: TOPIQ-NR (perceptual quality), MUSIQ-AVA (learned aesthetics), and LAION CLIP aesthetic predictor. Composite score: mean 36.8, range 16.7–48.3, real spread. 9,011 images scored.
+
+**New table: `face_identities`** — InsightFace ArcFace embeddings (512d) extracted for 2,264 faces across 1,676 images. DBSCAN clustering (eps=0.6, cosine metric) identified 84 distinct identity clusters. Enables "show me all photos of person X" queries.
+
+**New table: `segmentation_masks`** — SAM 2.1 (hiera-tiny) automatic mask generation on MPS. Segment count, largest segment percentage, figure-ground ratio, edge complexity, mean segment area, top-10 segments as JSON. 9,011 images processed. Required float64→float32 casting for MPS compatibility.
+
+**New table: `open_detections`** — Grounding DINO (tiny, 172M) open-vocabulary object detection with a curated 20-category prompt (person, car, bicycle, sign, graffiti, shadow, reflection, silhouette, umbrella, building, staircase, fire escape, mural, neon, tree, bridge, fence, window, door, lamp). 108,861 detections across 8,981 images. Far richer than YOLOv8n's closed vocabulary.
+
+**New table: `foreground_masks`** — rembg (u2net, ONNX CPU) foreground isolation. Foreground/background percentages, edge sharpness, centroid position, bounding box. Required standalone script (`_rembg_standalone.py`) to avoid PyTorch MPS float64 incompatibility. 9,011 images.
+
+**New table: `image_tags`** — CLIP zero-shot classification against 80 curated labels. Pipe-separated tags with confidence scores. 9,011 images tagged.
+
+**New table: `pose_detections`** — YOLOv8n-pose for images containing people. 17 COCO keypoints per person with confidence scores and bounding boxes. 3,595 pose detections.
+
+**New table: `saliency_maps`** — OpenCV spectral residual saliency. Peak attention coordinates, spread (entropy), center bias, rule-of-thirds grid (3×3), quadrant distribution. 9,011 images, computed in seconds.
+
+**Upgraded: `depth_estimation`** — Depth Anything v2 Small → Large (ViT-L, 335M params). All 9,011 images reprocessed with the larger model for better accuracy. Same schema, better quality.
+
+**In progress: `florence_captions`** — Florence-2-base generating three-tier captions (short, detailed, more detailed) per image. 1,068/9,276 complete at 0.4 img/s on MPS. Running in background.
+
+**MPS compatibility fixes.** PyTorch 2.8.0 on Apple Silicon cannot handle float64 tensors on MPS. Three separate workarounds: (1) SAM — cast float64 inputs to float32 before MPS transfer, keep size tensors on CPU; (2) rembg — standalone script in clean Python process avoids torch MPS initialization; (3) Florence-2 — `num_beams=1, use_cache=False` to work around transformers 4.57+ `prepare_inputs_for_generation` breakage.
+
+**State dashboard.** Updated `DashboardPage.tsx` to display v2 signals — 7 new model cards (models 18–24) with blue V2 badges, V2 Signals section showing all new tables with row counts, tag clouds for image_tags, open_detections labels, and aesthetic_v2 score distribution.
+
+**Backend integration.** Added 9 new CREATE TABLE statements to `database.py`. Updated `pipeline.py` SIGNAL_TABLES for `--check` coverage. Updated `completions.py` for status reporting. Updated `dashboard.py` `get_stats()` with v2 signal queries.
+
+| Signal | Images | Rows | Method |
+|--------|--------|------|--------|
+| aesthetic_scores_v2 | 9,011 | 9,011 | TOPIQ + MUSIQ + LAION |
+| depth_estimation (Large) | 9,011 | 9,011 | Depth Anything v2 Large |
+| face_identities | 1,676 | 2,264 | InsightFace ArcFace + DBSCAN |
+| segmentation_masks | 9,011 | 9,011 | SAM 2.1 hiera-tiny |
+| open_detections | 8,981 | 108,861 | Grounding DINO tiny |
+| foreground_masks | 9,011 | 9,011 | rembg u2net |
+| image_tags | 9,011 | 9,011 | CLIP zero-shot |
+| pose_detections | — | 3,595 | YOLOv8n-pose |
+| saliency_maps | 9,011 | 9,011 | OpenCV spectral residual |
+| image_locations | 1,820 | 1,820 | EXIF GPS extraction |
+| florence_captions | 1,068 | 1,068 | Florence-2-base (running) |
+| **Total new** | — | **~165K** | — |
+
+17 files modified, 6 new files. +1,353 / -158 lines (tracked). ~2,500 lines new scripts (untracked).
