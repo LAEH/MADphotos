@@ -1,189 +1,217 @@
-/* square.js — Square: Scrabble-board tile grid of square-cropped images.
-   Category filtering via emoji pills, shake/shuffle, score badges. */
+/* square.js — Square: Living contact sheet.
+   Dense grid fills viewport. One photo at a time pulses — scales up
+   with a glow, caption overlay. Auto-cycles every 2.5s. Click any for lightbox. */
 
-let squareTileCount = 25;
-let squarePool = [];
-let squareVisible = [];
+let squarePhotos = [];
+let squareActiveIdx = -1;
+let squareCycleTimer = null;
+let squarePaused = false;
 let squareCategoryIdx = 0;
 
+const SQUARE_CYCLE_MS = 2500;
+
 const SQUARE_CATEGORIES = [
-    { emoji: '\u2B50', label: 'Best',     pool: p => (p.aesthetic || 0) >= 7 },
-    { emoji: '\uD83C\uDF39', label: 'Rouge',    pool: p => hueRange(p, 355, 25) },
-    { emoji: '\uD83C\uDF40', label: 'Vert',     pool: p => hueRange(p, 80, 165) },
-    { emoji: '\uD83E\uDD8B', label: 'Bleu',     pool: p => hueRange(p, 195, 260) },
-    { emoji: '\u26AB', label: 'Mono',     pool: p => p.mono },
-    { emoji: '\uD83D\uDE0C', label: 'Serein',   pool: p => vibeHas(p, 'serene', 'calm', 'peaceful', 'tranquil') },
-    { emoji: '\uD83D\uDD25', label: 'Intense',  pool: p => vibeHas(p, 'dramatic', 'intense', 'powerful', 'bold') },
-    { emoji: '\uD83C\uDF05', label: 'Dor\u00E9',      pool: p => p.time === 'golden hour' },
-    { emoji: '\uD83D\uDC31', label: 'Animaux',  pool: p => objHas(p, 'cat', 'dog', 'bird', 'horse') },
-    { emoji: '\uD83C\uDF3F', label: 'Nature',   pool: p => vibeHas(p, 'natural', 'organic') || objHas(p, 'potted plant', 'tree', 'flower') },
-    { emoji: '\uD83C\uDFD9\uFE0F', label: 'Urbain',  pool: p => p.setting === 'urban' || p.environment === 'urban' },
-    { emoji: '\uD83C\uDF19', label: 'Nuit',     pool: p => p.time === 'night' },
+    { label: 'All',       pool: () => true },
+    { label: 'Best',      pool: p => (p.aesthetic || 0) >= 7 },
+    { label: 'Mono',      pool: p => p.mono },
+    { label: 'Night',     pool: p => p.time === 'Night' },
+    { label: 'Urban',     pool: p => p.setting === 'Urban' || p.environment === 'urban' },
+    { label: 'Golden',    pool: p => p.time === 'Golden Hour' },
+    { label: 'Serene',    pool: p => vibeHas(p, 'serene', 'calm', 'peaceful', 'tranquil') },
+    { label: 'Intense',   pool: p => vibeHas(p, 'dramatic', 'intense', 'powerful', 'bold') },
 ];
 
 function initSquare() {
     const container = document.getElementById('view-square');
     container.innerHTML = '';
 
-    /* Compute tile count by viewport */
-    const w = window.innerWidth;
-    if (w <= 480) squareTileCount = 9;
-    else if (w <= 768) squareTileCount = 16;
-    else squareTileCount = 25;
+    clearInterval(squareCycleTimer);
+    squareCycleTimer = null;
+    squarePaused = false;
+    squareActiveIdx = -1;
 
     renderSquareShell(container);
     selectSquareCategory(0);
 }
 
 function renderSquareShell(container) {
-    const wrap = document.createElement('div');
-    wrap.className = 'square-wrap';
+    const shell = document.createElement('div');
+    shell.className = 'sq-shell';
 
-    /* Score display */
-    const scoreEl = document.createElement('div');
-    scoreEl.className = 'square-score';
-    scoreEl.id = 'square-score';
-    scoreEl.textContent = '0';
-    wrap.appendChild(scoreEl);
-
-    /* Board */
-    const cols = Math.round(Math.sqrt(squareTileCount));
-    const board = document.createElement('div');
-    board.className = 'square-board';
-    board.id = 'square-board';
-    board.style.setProperty('--sq-cols', cols);
-    wrap.appendChild(board);
-
-    /* Shake button */
-    const shakeBtn = document.createElement('button');
-    shakeBtn.className = 'square-shake';
-    shakeBtn.textContent = '\uD83C\uDFB2';
-    shakeBtn.title = 'Shuffle';
-    shakeBtn.addEventListener('click', shakeSquare);
-    wrap.appendChild(shakeBtn);
-
-    /* Category rack */
-    const rack = document.createElement('div');
-    rack.className = 'square-rack';
-    rack.id = 'square-rack';
+    /* Category tabs along top */
+    const tabs = document.createElement('div');
+    tabs.className = 'sq-tabs';
+    tabs.id = 'sq-tabs';
 
     for (let i = 0; i < SQUARE_CATEGORIES.length; i++) {
         const cat = SQUARE_CATEGORIES[i];
-        const pill = document.createElement('button');
-        pill.className = 'square-pill';
-        pill.dataset.idx = i;
-        pill.textContent = cat.emoji + ' ' + cat.label;
-        pill.addEventListener('click', () => selectSquareCategory(i));
-        rack.appendChild(pill);
+        const btn = document.createElement('button');
+        btn.className = 'sq-tab';
+        btn.dataset.idx = i;
+        btn.textContent = cat.label;
+        btn.addEventListener('click', () => selectSquareCategory(i));
+        tabs.appendChild(btn);
     }
+    shell.appendChild(tabs);
 
-    wrap.appendChild(rack);
-    container.appendChild(wrap);
+    /* Grid area */
+    const grid = document.createElement('div');
+    grid.className = 'sq-grid';
+    grid.id = 'sq-grid';
+    shell.appendChild(grid);
 
-    /* Keyboard handler */
+    /* Info overlay — shows caption of active photo */
+    const info = document.createElement('div');
+    info.className = 'sq-info';
+    info.id = 'sq-info';
+    shell.appendChild(info);
+
+    container.appendChild(shell);
+
+    /* Keyboard */
     document.removeEventListener('keydown', squareKeyHandler);
     document.addEventListener('keydown', squareKeyHandler);
 }
 
 function squareKeyHandler(e) {
     if (APP.currentView !== 'square') return;
-    if (e.code === 'Space' || e.key === 'Enter') {
+    if (e.code === 'Space') {
         e.preventDefault();
-        shakeSquare();
-    } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        squarePaused = !squarePaused;
+    } else if (e.key === 'ArrowRight') {
         e.preventDefault();
-        selectSquareCategory((squareCategoryIdx + 1) % SQUARE_CATEGORIES.length);
-    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        squarePaused = true;
+        spotlightSquare((squareActiveIdx + 1) % squarePhotos.length);
+    } else if (e.key === 'ArrowLeft') {
         e.preventDefault();
-        selectSquareCategory((squareCategoryIdx - 1 + SQUARE_CATEGORIES.length) % SQUARE_CATEGORIES.length);
+        squarePaused = true;
+        spotlightSquare((squareActiveIdx - 1 + squarePhotos.length) % squarePhotos.length);
     }
 }
 
 function selectSquareCategory(idx) {
     squareCategoryIdx = idx;
 
-    document.querySelectorAll('.square-pill').forEach(pill => {
-        pill.classList.toggle('active', parseInt(pill.dataset.idx) === idx);
+    document.querySelectorAll('.sq-tab').forEach((tab, i) => {
+        tab.classList.toggle('active', i === idx);
     });
 
     const cat = SQUARE_CATEGORIES[idx];
-    squarePool = APP.data.photos.filter(p => p.thumb && cat.pool(p));
+    const pool = APP.data.photos.filter(p => p.thumb && cat.pool(p));
 
-    populateBoard();
+    /* Sort by aesthetic, take top batch */
+    pool.sort((a, b) => (b.aesthetic || 0) - (a.aesthetic || 0));
+
+    /* How many tiles fit in viewport? */
+    const w = window.innerWidth;
+    const cols = w <= 480 ? 4 : w <= 768 ? 6 : w <= 1200 ? 8 : 10;
+    const headerH = 52;
+    const tabsH = 44;
+    const availH = window.innerHeight - headerH - tabsH;
+    const tileSize = Math.floor((w - 2) / cols); /* 2px for minimal gap */
+    const rows = Math.floor(availH / tileSize);
+    const maxTiles = cols * rows;
+
+    squarePhotos = shuffleArray(pool.slice(0, Math.min(pool.length, maxTiles)));
+    squareActiveIdx = -1;
+
+    populateSquareGrid(cols);
 }
 
-function populateBoard() {
-    const board = document.getElementById('square-board');
-    if (!board) return;
-    board.innerHTML = '';
+function populateSquareGrid(cols) {
+    const grid = document.getElementById('sq-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    grid.style.setProperty('--sq-cols', cols);
 
-    const shuffled = shuffleArray([...squarePool]);
-    const tiles = shuffled.slice(0, squareTileCount);
-    squareVisible = tiles;
+    clearInterval(squareCycleTimer);
 
-    const cols = Math.round(Math.sqrt(squareTileCount));
-    const center = Math.floor(squareTileCount / 2);
-    const corners = [0, cols - 1, squareTileCount - cols, squareTileCount - 1];
-
-    let totalScore = 0;
-
-    for (let i = 0; i < tiles.length; i++) {
-        const photo = tiles[i];
-        const tile = document.createElement('div');
-        tile.className = 'square-tile';
-        const isPremium = corners.includes(i) || i === center;
-        if (isPremium) tile.classList.add('square-tile-premium');
-
-        /* Stagger animation delay */
-        tile.style.setProperty('--sq-delay', (i * 40) + 'ms');
+    for (let i = 0; i < squarePhotos.length; i++) {
+        const photo = squarePhotos[i];
+        const cell = document.createElement('div');
+        cell.className = 'sq-cell';
+        cell.dataset.idx = i;
+        cell.style.setProperty('--sq-delay', (i * 15) + 'ms');
 
         const img = document.createElement('img');
         loadProgressive(img, photo, 'thumb');
         img.alt = '';
-        tile.appendChild(img);
+        cell.appendChild(img);
 
-        /* Score badge */
-        const score = Math.round((photo.aesthetic || 5) * 10);
-        totalScore += score;
-        const badge = document.createElement('span');
-        badge.className = 'square-badge';
-        badge.textContent = score;
-        tile.appendChild(badge);
+        cell.addEventListener('click', () => {
+            if (squareActiveIdx === i) {
+                openLightbox(photo, squarePhotos);
+            } else {
+                squarePaused = true;
+                spotlightSquare(i);
+            }
+        });
 
-        /* Click to lightbox */
-        tile.addEventListener('click', () => openLightbox(photo, squareVisible));
-
-        board.appendChild(tile);
+        grid.appendChild(cell);
     }
 
-    /* Update score display */
-    const scoreEl = document.getElementById('square-score');
-    if (scoreEl) scoreEl.textContent = totalScore;
-
-    /* Trigger assembly animation */
+    /* Stagger entrance */
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-            board.classList.add('assembled');
+            grid.classList.add('sq-revealed');
+
+            /* Start auto-cycle after entrance settles */
+            setTimeout(() => {
+                spotlightSquare(Math.floor(Math.random() * squarePhotos.length));
+                squarePaused = false;
+                squareCycleTimer = setInterval(() => {
+                    if (squarePaused) return;
+                    const next = Math.floor(Math.random() * squarePhotos.length);
+                    spotlightSquare(next);
+                }, SQUARE_CYCLE_MS);
+                APP._activeTimers.push(squareCycleTimer);
+            }, 600);
         });
     });
 }
 
-function shakeSquare() {
-    const board = document.getElementById('square-board');
-    if (!board) return;
+function spotlightSquare(idx) {
+    if (idx < 0 || idx >= squarePhotos.length) return;
+    squareActiveIdx = idx;
+    const photo = squarePhotos[idx];
 
-    board.classList.add('shaking');
-
-    /* Set random shake offsets per tile */
-    board.querySelectorAll('.square-tile').forEach(tile => {
-        tile.style.setProperty('--shake-x', (Math.random() - 0.5) * 12 + 'px');
-        tile.style.setProperty('--shake-y', (Math.random() - 0.5) * 12 + 'px');
-        tile.style.setProperty('--shake-r', (Math.random() - 0.5) * 8 + 'deg');
+    /* Toggle active class */
+    document.querySelectorAll('.sq-cell').forEach((cell, i) => {
+        cell.classList.toggle('sq-active', i === idx);
     });
 
-    setTimeout(() => {
-        board.classList.remove('shaking');
-        board.classList.remove('assembled');
-        populateBoard();
-    }, 500);
+    /* Update info overlay */
+    const info = document.getElementById('sq-info');
+    if (info) {
+        const caption = photo.florence || photo.caption || '';
+        const camera = photo.camera || '';
+        info.classList.remove('sq-info-visible');
+        setTimeout(() => {
+            info.innerHTML = '';
+            if (caption) {
+                const capEl = document.createElement('span');
+                capEl.className = 'sq-info-caption';
+                capEl.textContent = caption.endsWith('.') ? caption.slice(0, -1) : caption;
+                info.appendChild(capEl);
+            }
+            if (camera) {
+                const camEl = document.createElement('span');
+                camEl.className = 'sq-info-camera';
+                camEl.textContent = camera;
+                info.appendChild(camEl);
+            }
+            info.classList.add('sq-info-visible');
+        }, 100);
+    }
+
+    /* Scroll the active cell into view if needed */
+    const activeCell = document.querySelector(`.sq-cell[data-idx="${idx}"]`);
+    if (activeCell) {
+        const grid = document.getElementById('sq-grid');
+        const cellRect = activeCell.getBoundingClientRect();
+        const gridRect = grid.getBoundingClientRect();
+        if (cellRect.bottom > gridRect.bottom || cellRect.top < gridRect.top) {
+            activeCell.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
 }

@@ -387,6 +387,12 @@ def load_identities(conn: Any) -> Dict[str, List[int]]:
     return dict(result)
 
 
+def load_borders(conn: Any) -> set:
+    """Return set of UUIDs that have has_border = 1."""
+    cur = conn.execute("SELECT image_uuid FROM border_crops WHERE has_border = 1")
+    return {row[0] for row in cur.fetchall()}
+
+
 def load_locations(conn: Any) -> Dict[str, Dict]:
     rows = conn.execute("""
         SELECT image_uuid, latitude, longitude, location_name
@@ -419,6 +425,7 @@ def build_photos(
     open_det_lk: Dict = None, poses_lk: Dict = None,
     segments_lk: Dict = None, florence_lk: Dict = None,
     identities_lk: Dict = None, locations_lk: Dict = None,
+    borders_set: set = None,
 ) -> Tuple[List[Dict], Dict]:
     """Build all photo objects and collect unique filter values."""
 
@@ -432,6 +439,7 @@ def build_photos(
     florence_lk = florence_lk or {}
     identities_lk = identities_lk or {}
     locations_lk = locations_lk or {}
+    borders_set = borders_set or set()
 
     photos = []
     filters = {
@@ -578,6 +586,7 @@ def build_photos(
             "florence": flor or "",
             "identities": idents if idents else None,
             "location": loc,
+            "has_border": uuid in borders_set,
         }
         photos.append(photo)
 
@@ -1021,7 +1030,8 @@ def export(pretty: bool = False) -> None:
     florence_lk = load_florence(conn)
     identities_lk = load_identities(conn)
     locations_lk = load_locations(conn)
-    print(f"  All v2 signal tables loaded")
+    borders_set = load_borders(conn)
+    print(f"  All v2 signal tables loaded ({len(borders_set)} bordered images)")
 
     conn.close()
 
@@ -1036,6 +1046,7 @@ def export(pretty: bool = False) -> None:
         open_det_lk=open_det_lk, poses_lk=poses_lk,
         segments_lk=segments_lk, florence_lk=florence_lk,
         identities_lk=identities_lk, locations_lk=locations_lk,
+        borders_set=borders_set,
     )
 
     print(f"Exported {len(photos)} photos")

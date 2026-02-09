@@ -2,27 +2,27 @@
    Caches static assets (JS, CSS, HTML) for offline use.
    Images use a runtime cache with LRU eviction. */
 
-const CACHE_NAME = 'madphotos-v1';
+const CACHE_NAME = 'madphotos-v2';
 const STATIC_ASSETS = [
     '/',
     '/index.html',
-    '/style.css?v=12',
-    '/app.js?v=12',
-    '/theme.js?v=12',
-    '/grid.js?v=12',
-    '/colors.js?v=12',
-    '/bento.js?v=12',
-    '/game.js?v=12',
-    '/faces.js?v=12',
-    '/compass.js?v=12',
-    '/nyu.js?v=12',
-    '/confetti.js?v=12',
-    '/square.js?v=12',
-    '/caption.js?v=12',
-    '/cinema.js?v=12',
-    '/reveal.js?v=12',
-    '/pulse.js?v=12',
-    '/drift.js?v=12',
+    '/style.css?v=13',
+    '/app.js?v=13',
+    '/theme.js?v=13',
+    '/grid.js?v=13',
+    '/colors.js?v=13',
+    '/bento.js?v=13',
+    '/game.js?v=13',
+    '/faces.js?v=13',
+    '/compass.js?v=13',
+    '/nyu.js?v=13',
+    '/confetti.js?v=13',
+    '/square.js?v=13',
+    '/caption.js?v=13',
+    '/cinema.js?v=13',
+    '/reveal.js?v=13',
+    '/pulse.js?v=13',
+    '/drift.js?v=13',
 ];
 
 const IMAGE_CACHE = 'madphotos-images-v1';

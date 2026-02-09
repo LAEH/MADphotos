@@ -47,6 +47,7 @@ export function dataUrl(apiPath: string): string {
     '/api/signal-inspector': 'data/signal_inspector.json',
     '/api/embedding-audit': 'data/embedding_audit.json',
     '/api/collection-coverage': 'data/collection_coverage.json',
+    '/api/schema': 'data/schema.json',
   }
   const staticPath = map[apiPath]
   if (staticPath) return `${import.meta.env.BASE_URL}${staticPath}`

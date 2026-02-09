@@ -78,6 +78,7 @@ function buildColorBuckets() {
     const grayPhotos = [];
     for (const photo of APP.data.photos) {
         if (!photo.thumb) continue;
+        if (photo.has_border) continue;
         if (isGrayPalette(photo.palette)) {
             grayPhotos.push(photo);
             continue;
@@ -116,21 +117,21 @@ function renderCouleursBento() {
         return;
     }
 
-    /* Pick 8 from this bucket, highest aesthetic first */
+    /* Pick 12 from this bucket, highest aesthetic first */
     const sorted = [...bucket.photos].sort((a, b) => (b.aesthetic || 0) - (a.aesthetic || 0));
-    let selected = sorted.slice(0, 8);
+    let selected = sorted.slice(0, 12);
 
     /* Fill from adjacent buckets if needed */
-    if (selected.length < 8) {
+    if (selected.length < 12) {
         const usedIds = new Set(selected.map(p => p.id));
-        for (let offset = 1; offset <= 3 && selected.length < 8; offset++) {
+        for (let offset = 1; offset <= 3 && selected.length < 12; offset++) {
             for (const dir of [-1, 1]) {
                 const adjIdx = (activeColorIdx + dir * offset + colorBuckets.length) % colorBuckets.length;
                 const adj = colorBuckets[adjIdx];
                 if (!adj) continue;
                 const adjSorted = [...adj.photos].sort((a, b) => (b.aesthetic || 0) - (a.aesthetic || 0));
                 for (const p of adjSorted) {
-                    if (selected.length >= 8) break;
+                    if (selected.length >= 12) break;
                     if (!usedIds.has(p.id)) {
                         selected.push(p);
                         usedIds.add(p.id);
@@ -146,8 +147,8 @@ function renderCouleursBento() {
     const mobile = window.matchMedia('(max-width: 768px)').matches;
 
     if (mobile) {
-        /* 4 rows of 2 */
-        const rows = [[0,1],[2,3],[4,5],[6,7]];
+        /* 4 rows of 3 */
+        const rows = [[0,1,2],[3,4,5],[6,7,8],[9,10,11]];
         for (const indices of rows) {
             const row = document.createElement('div');
             row.className = 'couleurs-row';
@@ -157,8 +158,8 @@ function renderCouleursBento() {
             card.appendChild(row);
         }
     } else {
-        /* 2 rows of 4 */
-        const rows = [[0,1,2,3],[4,5,6,7]];
+        /* 3 rows of 4 */
+        const rows = [[0,1,2,3],[4,5,6,7],[8,9,10,11]];
         for (const indices of rows) {
             const row = document.createElement('div');
             row.className = 'couleurs-row';

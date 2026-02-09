@@ -1,20 +1,27 @@
-/* caption.js — Caption: A typographic tapestry of photograph descriptions.
-   Dense flowing text wall. Hover reveals image preview, click opens lightbox.
-   Captions sized by aesthetic score — the best photos speak loudest. */
+/* caption.js — Caption: A typographic tapestry with auto-cycling spotlight.
+   Dense flowing text wall. Every 2.5s a caption lights up and its image appears
+   in a large panel. Click to spotlight + open lightbox. */
 
 let captionPhotos = [];
 let captionPreviewEl = null;
-let captionPreviewTimer = null;
+let captionSpotlightIdx = -1;
+let captionCycleTimer = null;
+let captionPaused = false;
 
-const CAPTION_COUNT_DESKTOP = 200;
-const CAPTION_COUNT_TABLET = 120;
+const CAPTION_COUNT_DESKTOP = 150;
+const CAPTION_COUNT_TABLET = 100;
 const CAPTION_COUNT_PHONE = 60;
+const CAPTION_CYCLE_MS = 2500;
 
 function initCaption() {
     const container = document.getElementById('view-caption');
     container.innerHTML = '';
 
-    /* Clean up any stale preview from previous visit */
+    /* Clean up timers + stale elements */
+    clearInterval(captionCycleTimer);
+    captionCycleTimer = null;
+    captionPaused = false;
+    captionSpotlightIdx = -1;
     if (captionPreviewEl) { captionPreviewEl.remove(); captionPreviewEl = null; }
 
     const w = window.innerWidth;
@@ -22,74 +29,73 @@ function initCaption() {
                 : w <= 768 ? CAPTION_COUNT_TABLET
                 : CAPTION_COUNT_DESKTOP;
 
-    /* Select photos that have captions, sorted by aesthetic */
-    const pool = APP.data.photos.filter(p => p.caption && p.caption.length > 8 && p.thumb);
+    /* Select photos with good captions — prefer florence, fall back to BLIP */
+    const pool = APP.data.photos.filter(p => {
+        const cap = p.florence || p.caption || '';
+        return cap.length > 12 && p.thumb;
+    });
     const sorted = [...pool].sort((a, b) => (b.aesthetic || 0) - (a.aesthetic || 0));
-
-    /* Take top N, then shuffle for visual variety */
     captionPhotos = shuffleArray(sorted.slice(0, count));
 
     renderCaptionWall(container);
 }
 
-function renderCaptionWall(container) {
-    /* Scroll wrapper */
-    const wrap = document.createElement('div');
-    wrap.className = 'caption-wrap';
+function getCaptionText(photo) {
+    /* Prefer Florence detailed caption, fall back to BLIP */
+    return photo.florence || photo.caption || '';
+}
 
-    /* The flowing text block */
+function renderCaptionWall(container) {
+    /* Main layout: image panel + text wall */
+    const layout = document.createElement('div');
+    layout.className = 'caption-layout';
+
+    /* Image panel — large, prominent */
+    const panel = document.createElement('div');
+    panel.className = 'caption-panel';
+    panel.id = 'caption-panel';
+
+    const panelImg = document.createElement('img');
+    panelImg.className = 'caption-panel-img';
+    panelImg.id = 'caption-panel-img';
+    panel.appendChild(panelImg);
+
+    const panelCaption = document.createElement('div');
+    panelCaption.className = 'caption-panel-text';
+    panelCaption.id = 'caption-panel-text';
+    panel.appendChild(panelCaption);
+
+    layout.appendChild(panel);
+
+    /* Text wall side */
+    const wallWrap = document.createElement('div');
+    wallWrap.className = 'caption-wall-wrap';
+
     const wall = document.createElement('div');
     wall.className = 'caption-wall';
     wall.id = 'caption-wall';
 
-    /* Aesthetic range for sizing */
-    const scores = captionPhotos.map(p => p.aesthetic || 5);
-    const minScore = Math.min(...scores);
-    const maxScore = Math.max(...scores);
-    const range = maxScore - minScore || 1;
-
     for (let i = 0; i < captionPhotos.length; i++) {
         const photo = captionPhotos[i];
-
-        /* Normalized 0–1 from aesthetic score */
-        const t = ((photo.aesthetic || 5) - minScore) / range;
-
-        /* Size tier: 5 tiers from the type scale */
-        const tier = Math.min(4, Math.floor(t * 5));
 
         const span = document.createElement('span');
         span.className = 'caption-phrase';
         span.dataset.idx = i;
-        span.dataset.tier = tier;
 
-        /* Opacity: lower-scored captions are dimmer */
-        span.style.opacity = (0.3 + t * 0.7).toFixed(2);
+        span.textContent = cleanCaption(getCaptionText(photo));
 
-        span.textContent = cleanCaption(photo.caption);
-
-        /* Hover: show preview */
-        span.addEventListener('mouseenter', (e) => showCaptionPreview(photo, e));
-        span.addEventListener('mousemove', (e) => moveCaptionPreview(e));
-        span.addEventListener('mouseleave', hideCaptionPreview);
-
-        /* Touch: tap to preview, second tap opens lightbox */
-        span.addEventListener('click', (e) => {
-            if ('ontouchstart' in window) {
-                if (span.classList.contains('caption-touched')) {
-                    openLightbox(photo, captionPhotos);
-                } else {
-                    document.querySelectorAll('.caption-touched').forEach(el => el.classList.remove('caption-touched'));
-                    span.classList.add('caption-touched');
-                    showCaptionPreview(photo, e);
-                }
-            } else {
+        /* Click: spotlight this one, second click opens lightbox */
+        span.addEventListener('click', () => {
+            if (captionSpotlightIdx === i) {
                 openLightbox(photo, captionPhotos);
+            } else {
+                captionPaused = true;
+                spotlightCaption(i);
             }
         });
 
         wall.appendChild(span);
 
-        /* Separator — thin interpunct between phrases */
         if (i < captionPhotos.length - 1) {
             const sep = document.createElement('span');
             sep.className = 'caption-sep';
@@ -98,73 +104,80 @@ function renderCaptionWall(container) {
         }
     }
 
-    wrap.appendChild(wall);
-    container.appendChild(wrap);
+    wallWrap.appendChild(wall);
+    layout.appendChild(wallWrap);
+    container.appendChild(layout);
 
-    /* Create the floating preview element once */
-    if (captionPreviewEl) captionPreviewEl.remove();
-    captionPreviewEl = document.createElement('div');
-    captionPreviewEl.className = 'caption-preview';
-    captionPreviewEl.id = 'caption-preview';
-    const previewImg = document.createElement('img');
-    previewImg.className = 'caption-preview-img';
-    captionPreviewEl.appendChild(previewImg);
-    document.body.appendChild(captionPreviewEl);
-
-    /* Stagger-fade the phrases in */
+    /* Stagger-reveal the text */
     requestAnimationFrame(() => {
         const phrases = wall.querySelectorAll('.caption-phrase');
         phrases.forEach((p, i) => {
-            p.style.setProperty('--caption-delay', Math.min(i * 8, 1500) + 'ms');
+            p.style.setProperty('--caption-delay', Math.min(i * 6, 800) + 'ms');
         });
-        requestAnimationFrame(() => wall.classList.add('revealed'));
+        requestAnimationFrame(() => {
+            wall.classList.add('revealed');
+            /* Start auto-cycle after reveal animation settles */
+            setTimeout(() => {
+                spotlightCaption(0);
+                captionCycleTimer = setInterval(() => {
+                    if (captionPaused) return;
+                    const next = (captionSpotlightIdx + 1) % captionPhotos.length;
+                    spotlightCaption(next);
+                }, CAPTION_CYCLE_MS);
+                APP._activeTimers.push(captionCycleTimer);
+            }, 1200);
+        });
     });
+
+    /* Unpause on wall click (not on a phrase) */
+    wall.addEventListener('click', (e) => {
+        if (e.target === wall || e.target.classList.contains('caption-sep')) {
+            captionPaused = false;
+        }
+    });
+}
+
+function spotlightCaption(idx) {
+    captionSpotlightIdx = idx;
+    const photo = captionPhotos[idx];
+    const wall = document.getElementById('caption-wall');
+    if (!wall) return;
+
+    /* Highlight active phrase */
+    wall.querySelectorAll('.caption-phrase').forEach((el, i) => {
+        el.classList.toggle('caption-active', i === idx);
+    });
+
+    /* Scroll the active phrase into view (smooth, centered) */
+    const activeEl = wall.querySelector(`.caption-phrase[data-idx="${idx}"]`);
+    if (activeEl) {
+        const wallWrap = wall.parentElement;
+        const elRect = activeEl.getBoundingClientRect();
+        const wrapRect = wallWrap.getBoundingClientRect();
+        const scrollTarget = wallWrap.scrollTop + (elRect.top - wrapRect.top) - wrapRect.height / 2 + elRect.height / 2;
+        wallWrap.scrollTo({ top: Math.max(0, scrollTarget), behavior: 'smooth' });
+    }
+
+    /* Update image panel */
+    const panelImg = document.getElementById('caption-panel-img');
+    const panelText = document.getElementById('caption-panel-text');
+    const panel = document.getElementById('caption-panel');
+    if (!panelImg || !panel) return;
+
+    panel.classList.remove('caption-panel-visible');
+
+    /* Short delay for crossfade */
+    setTimeout(() => {
+        loadProgressive(panelImg, photo, 'display');
+        panelImg.alt = getCaptionText(photo);
+        if (panelText) panelText.textContent = cleanCaption(getCaptionText(photo));
+        panel.classList.add('caption-panel-visible');
+    }, 150);
 }
 
 function cleanCaption(text) {
     if (!text) return '';
-    /* Strip leading "A/An/The" + trim to keep it punchy, capitalize first */
     let s = text.trim();
-    /* Remove trailing period */
     if (s.endsWith('.')) s = s.slice(0, -1);
     return s;
-}
-
-/* ===== Floating Preview ===== */
-function showCaptionPreview(photo, e) {
-    if (!captionPreviewEl) return;
-    clearTimeout(captionPreviewTimer);
-
-    const img = captionPreviewEl.querySelector('.caption-preview-img');
-    loadProgressive(img, photo, 'thumb');
-    img.alt = '';
-
-    captionPreviewEl.classList.add('visible');
-    positionPreview(e);
-}
-
-function moveCaptionPreview(e) {
-    positionPreview(e);
-}
-
-function positionPreview(e) {
-    if (!captionPreviewEl) return;
-    const pad = 20;
-    const pw = 180;
-    const ph = 130;
-
-    let x = e.clientX + pad;
-    let y = e.clientY - ph - pad;
-
-    /* Keep within viewport */
-    if (x + pw > window.innerWidth) x = e.clientX - pw - pad;
-    if (y < 0) y = e.clientY + pad;
-
-    captionPreviewEl.style.left = x + 'px';
-    captionPreviewEl.style.top = y + 'px';
-}
-
-function hideCaptionPreview() {
-    if (!captionPreviewEl) return;
-    captionPreviewEl.classList.remove('visible');
 }

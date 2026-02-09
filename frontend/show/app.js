@@ -605,7 +605,7 @@ async function init() {
     if (hash && validViews.includes(hash)) {
         switchView(hash);
     } else {
-        switchView('confetti');
+        switchView('couleurs');
     }
 }
 
