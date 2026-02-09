@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MADphotos Dashboard</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%23111'/></svg>">
+<style>
+  :root {
+    --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
+    --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif;
+    --font-mono: "SF Mono", ui-monospace, "Cascadia Code", monospace;
+    --text-xs: 11px; --text-sm: 13px; --text-base: 15px; --text-lg: 17px;
+    --text-xl: 20px; --text-2xl: 22px; --text-3xl: 28px;
+    --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+    --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px;
+    --radius-sm: 6px; --radius-md: 10px; --radius-lg: 14px;
+    --sidebar-w: 220px;
+    --apple-blue: #007AFF; --apple-green: #34C759;
+    --leading-normal: 1.47; --leading-relaxed: 1.6;
+    --tracking-tight: -0.01em; --tracking-caps: 0.06em;
+    --duration-fast: 150ms; --ease-default: cubic-bezier(0.25, 0.1, 0.25, 1);
+    --apple-purple: #AF52DE; --apple-pink: #FF2D55; --apple-orange: #FF9500;
+  }
+  [data-theme="light"] {
+    --bg: #F5F5F7; --bg-secondary: #FFFFFF; --fg: #1D1D1F;
+    --fg-secondary: #3A3A3C; --muted: #86868B;
+    --border: rgba(0,0,0,0.08); --border-strong: rgba(0,0,0,0.14);
+    --card-bg: #FFFFFF; --sidebar-bg: #FFFFFF;
+    --sidebar-active-bg: rgba(0,0,0,0.04); --hover-overlay: rgba(0,0,0,0.03);
+    color-scheme: light;
+  }
+  [data-theme="dark"] {
+    --bg: #1C1C1E; --bg-secondary: #2C2C2E; --fg: #F5F5F7;
+    --fg-secondary: #D1D1D6; --muted: #98989D;
+    --border: rgba(255,255,255,0.08); --border-strong: rgba(255,255,255,0.14);
+    --card-bg: #2C2C2E; --sidebar-bg: #2C2C2E;
+    --sidebar-active-bg: rgba(255,255,255,0.06); --hover-overlay: rgba(255,255,255,0.04);
+    color-scheme: dark;
+  }
+  @keyframes ai-gradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  html { scroll-behavior: smooth; }
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: var(--font-sans); font-size: var(--text-base);
+    line-height: var(--leading-normal); background: var(--bg); color: var(--fg);
+    display: flex; min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  .sidebar {
+    width: var(--sidebar-w); min-width: var(--sidebar-w);
+    background: var(--sidebar-bg); border-right: 1px solid var(--border);
+    padding: var(--space-5) 0; position: sticky; top: 0; height: 100vh;
+    overflow-y: auto; display: flex; flex-direction: column;
+    transition: width var(--duration-normal) var(--ease-default),
+                min-width var(--duration-normal) var(--ease-default);
+  }
+  .sidebar::after {
+    content: '';
+    position: absolute; top: 0; right: 0; width: 2px; height: 100%;
+    background: linear-gradient(180deg, var(--apple-blue) 0%, var(--apple-purple) 35%, var(--apple-pink) 65%, var(--apple-orange) 100%);
+    opacity: 0.35; background-size: 100% 300%; animation: ai-gradient 8s ease infinite;
+  }
+  .sidebar .sb-title {
+    font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700;
+    letter-spacing: var(--tracking-tight); padding: 0 var(--space-5) var(--space-4);
+    border-bottom: 1px solid var(--border); margin-bottom: var(--space-2);
+  }
+  .sidebar a {
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: var(--space-2) var(--space-5); color: var(--muted);
+    text-decoration: none; font-size: var(--text-sm);
+    transition: background var(--duration-fast) var(--ease-default),
+                color var(--duration-fast) var(--ease-default);
+  }
+  .sidebar a:hover { background: var(--sidebar-active-bg); color: var(--fg); }
+  .sidebar a.active {
+    color: var(--fg); font-weight: 600; background: var(--sidebar-active-bg);
+  }
+  .sidebar a.sb-sub { padding-left: var(--space-8); font-size: var(--text-xs); }
+  .sidebar .sb-sep { height: 1px; background: var(--border); margin: var(--space-2) var(--space-5); }
+  .sidebar .sb-group {
+    font-size: var(--text-xs); font-weight: 600; text-transform: uppercase;
+    letter-spacing: var(--tracking-caps); color: var(--muted);
+    padding: var(--space-3) var(--space-5) var(--space-1);
+  }
+  .sidebar .sb-bottom {
+    margin-top: auto; padding: var(--space-3) var(--space-5);
+    border-top: 1px solid var(--border);
+  }
+  .theme-toggle {
+    display: flex; align-items: center; gap: var(--space-2);
+    font-size: var(--text-sm); color: var(--muted); cursor: pointer;
+    padding: var(--space-2) 0; background: none; border: none;
+    font-family: inherit; width: 100%;
+    transition: color var(--duration-fast);
+  }
+  .theme-toggle:hover { color: var(--fg); }
+  .theme-toggle .theme-icon { font-size: 16px; }
+  .sb-collapse {
+    display: flex; align-items: center; gap: var(--space-2);
+    font-size: var(--text-sm); color: var(--muted); cursor: pointer;
+    padding: var(--space-2) 0; background: none; border: none;
+    font-family: inherit; width: 100%; transition: color var(--duration-fast);
+    margin-bottom: var(--space-2); white-space: nowrap; overflow: hidden;
+  }
+  .sb-collapse:hover { color: var(--fg); }
+  .sb-expand {
+    display: none; position: fixed; top: var(--space-4); left: var(--space-4);
+    z-index: 50; width: 36px; height: 36px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--card-bg);
+    cursor: pointer; color: var(--muted); box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    align-items: center; justify-content: center; font-size: 18px;
+    transition: color var(--duration-fast), box-shadow var(--duration-fast);
+  }
+  .sb-expand:hover { color: var(--fg); box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
+  body.sb-collapsed .sidebar { width: 0; min-width: 0; overflow: hidden; padding: 0; border-right: none; }
+  body.sb-collapsed .sb-expand { display: flex; }
+  .sb-hamburger {
+    display: none; align-items: center; justify-content: center;
+    width: 36px; height: 36px; background: none; border: none;
+    cursor: pointer; color: var(--fg); font-size: 20px;
+    border-radius: var(--radius-sm); flex-shrink: 0;
+  }
+  .main-content {
+    flex: 1; padding: var(--space-10) var(--space-8);
+    max-width: 900px; min-width: 0; margin: 0 auto;
+    animation: fade-up 0.5s var(--ease-default) both;
+  }
+  @media (max-width: 900px) {
+    body { flex-direction: column; }
+    body.sb-collapsed .sidebar {
+      width: 100%; min-width: unset; overflow: visible; padding: var(--space-2) var(--space-3);
+      border-right: none; border-bottom: 1px solid var(--border);
+    }
+    body.sb-collapsed .sb-expand { display: none; }
+    .sb-collapse { display: none !important; }
+    .sidebar { width: 100%; min-width: unset; height: auto; position: sticky; top: 0;
+               z-index: 100; border-right: none; border-bottom: 1px solid var(--border);
+               flex-direction: row; flex-wrap: wrap; padding: var(--space-2) var(--space-3);
+               backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+               background: color-mix(in srgb, var(--sidebar-bg) 85%, transparent); }
+    .sidebar .sb-title { width: auto; border-bottom: none; padding: 0 var(--space-2) 0 0; margin-bottom: 0; font-size: var(--text-base); }
+    .sb-hamburger { display: flex; margin-left: auto; }
+    .sidebar > a, .sidebar .sb-group, .sidebar .sb-sep, .sidebar .sb-bottom { display: none; }
+    .sidebar.open > a { display: flex; width: 100%; }
+    .sidebar.open .sb-sep { display: block; width: 100%; }
+    .sidebar.open .sb-bottom { display: block; width: 100%; }
+    .main-content { padding: var(--space-6); }
+  }
+  h1 { font-family: var(--font-display); font-size: var(--text-3xl); font-weight: 700;
+       letter-spacing: var(--tracking-tight); margin-bottom: var(--space-2); }
+  h2 { font-family: var(--font-display); font-size: var(--text-xl); font-weight: 700;
+       margin: var(--space-8) 0 var(--space-3); color: var(--fg);
+       border-bottom: 1px solid var(--border); padding-bottom: var(--space-2); }
+  h3 { font-size: var(--text-lg); font-weight: 600; margin: var(--space-6) 0 var(--space-2); color: var(--fg); }
+  h4 { font-size: var(--text-base); font-weight: 600; margin: var(--space-4) 0 var(--space-2); color: var(--muted); }
+  p { font-size: var(--text-sm); margin: var(--space-2) 0; line-height: var(--leading-relaxed); }
+  ul { font-size: var(--text-sm); margin: var(--space-2) 0 var(--space-2) var(--space-5); }
+  li { margin: var(--space-1) 0; }
+  table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); margin: var(--space-3) 0 var(--space-4); }
+  th { text-align: left; font-size: var(--text-xs); font-weight: 600; text-transform: uppercase;
+       letter-spacing: var(--tracking-caps); color: var(--muted);
+       border-bottom: 1px solid var(--border-strong); padding: var(--space-2) var(--space-3); }
+  td { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); }
+  code { background: var(--hover-overlay); padding: 2px var(--space-2); font-size: var(--text-sm);
+         font-family: var(--font-mono); border-radius: var(--radius-sm); }
+  strong { font-weight: 700; }
+  a { color: var(--fg); }
+  blockquote { font-size: var(--text-sm); color: var(--muted); border-left: 3px solid var(--border);
+               padding-left: var(--space-4); margin: var(--space-2) 0; font-style: normal; }
+  footer { margin-top: var(--space-10); padding-top: var(--space-4);
+           border-top: 1px solid var(--border); font-size: var(--text-xs); color: var(--muted); }
+  footer a { color: var(--muted); text-decoration: none; }
+  
+</style>
+</head>
+<body>
+<button class="sb-expand" onclick="toggleSidebar()" title="Show sidebar">&#9776;</button>
+<nav class="sidebar" id="sidebar">
+  <div class="sb-title">MADphotos</div>
+  <button class="sb-hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+  <a href="state.html">State</a>
+  <a href="journal.html">Journal de Bord</a>
+  <a href="instructions.html">System Instructions</a>
+  <div class="sb-sep"></div>
+  <div class="sb-group">Experiments</div>
+  <a href="drift.html">Similarity</a>
+  <a href="creative-drift.html">Drift</a>
+  <a href="blind-test.html">Blind Test</a>
+  <a href="mosaics.html" class="active">Mosaics</a>
+  <div class="sb-sep"></div>
+  <div class="sb-bottom">
+    <button class="sb-collapse" onclick="toggleSidebar()">&#x276E; Hide sidebar</button>
+    <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">
+      <span class="theme-icon" id="themeIcon">&#9790;</span>
+      <span id="themeLabel">Dark Mode</span>
+    </button>
+  </div>
+</nav>
+<div class="main-content">
+<style>
+  .mosaic-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: var(--space-6);
+    margin-top: var(--space-4);
+  }
+  .mosaic-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    overflow: hidden;
+    transition: transform var(--duration-fast) var(--ease-default),
+                box-shadow var(--duration-fast) var(--ease-default);
+  }
+  .mosaic-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  }
+  .mosaic-card img {
+    width: 100%;
+    display: block;
+    aspect-ratio: 1;
+    object-fit: cover;
+  }
+  .mosaic-meta {
+    padding: var(--space-3) var(--space-4);
+  }
+  .mosaic-title {
+    font-weight: 700;
+    font-size: var(--text-sm);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-caps);
+  }
+  .mosaic-desc {
+    font-size: var(--text-xs);
+    color: var(--muted);
+    margin-top: var(--space-1);
+    line-height: var(--leading-normal);
+  }
+  .mosaic-count {
+    font-size: var(--text-xs);
+    color: var(--muted);
+    margin-top: var(--space-1);
+    font-weight: 600;
+  }
+
+  /* Mosaic zoom modal — fullscreen overlay, keeps its own color scheme */
+  .mosaic-modal {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 9999;
+    background: rgba(0,0,0,0.92);
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+  }
+  .mosaic-modal.active {
+    display: flex;
+  }
+  .mosaic-modal-header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-4) var(--space-5);
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 10001;
+  }
+  .mosaic-modal-title {
+    font-size: var(--text-sm);
+    font-weight: 700;
+    color: rgba(255,255,255,0.95);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-caps);
+  }
+  .mosaic-modal-controls {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+  }
+  .mosaic-modal-controls button {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.25);
+    color: rgba(255,255,255,0.95);
+    padding: var(--space-1) var(--space-3);
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: background var(--duration-fast) var(--ease-default);
+  }
+  .mosaic-modal-controls button:hover {
+    background: rgba(255,255,255,0.25);
+  }
+  .mosaic-modal-zoom-label {
+    font-size: var(--text-xs);
+    color: rgba(255,255,255,0.6);
+    min-width: 48px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+  .mosaic-modal-viewport {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    overflow: auto;
+    cursor: grab;
+    z-index: 10000;
+    padding-top: 48px;
+  }
+  .mosaic-modal-viewport:active {
+    cursor: grabbing;
+  }
+  .mosaic-modal-viewport img {
+    display: block;
+    transform-origin: 0 0;
+    transition: transform var(--duration-fast) var(--ease-default);
+  }
+</style>
+
+<!-- Mosaic zoom modal -->
+<div class="mosaic-modal" id="mosaicModal">
+  <div class="mosaic-modal-header">
+    <div class="mosaic-modal-title" id="mosaicModalTitle"></div>
+    <div class="mosaic-modal-controls">
+      <button onclick="mosaicZoom(-1)" title="Zoom out (-)">-</button>
+      <span class="mosaic-modal-zoom-label" id="mosaicZoomLabel">100%</span>
+      <button onclick="mosaicZoom(1)" title="Zoom in (+)">+</button>
+      <button onclick="mosaicFit()" title="Fit to screen (F)">Fit</button>
+      <button onclick="mosaicActual()" title="Actual size (1)">1:1</button>
+      <button onclick="closeMosaic()" title="Close (Esc)">Close</button>
+    </div>
+  </div>
+  <div class="mosaic-modal-viewport" id="mosaicViewport">
+    <img id="mosaicImg" draggable="false">
+  </div>
+</div>
+
+<script>
+(function() {
+  var modal = document.getElementById('mosaicModal');
+  var viewport = document.getElementById('mosaicViewport');
+  var img = document.getElementById('mosaicImg');
+  var titleEl = document.getElementById('mosaicModalTitle');
+  var zoomLabel = document.getElementById('mosaicZoomLabel');
+  var scale = 1;
+  var isDragging = false;
+  var dragStart = {x: 0, y: 0};
+  var scrollStart = {x: 0, y: 0};
+
+  window.openMosaic = function(src, title) {
+    img.src = src;
+    titleEl.textContent = title;
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    img.onload = function() {
+      mosaicFit();
+    };
+  };
+
+  window.closeMosaic = function() {
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+    img.src = '';
+  };
+
+  window.mosaicZoom = function(dir) {
+    var steps = [0.25, 0.33, 0.5, 0.67, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4];
+    var idx = 0;
+    for (var i = 0; i < steps.length; i++) {
+      if (Math.abs(steps[i] - scale) < 0.01) { idx = i; break; }
+      if (steps[i] > scale) { idx = dir > 0 ? i : Math.max(0, i-1); break; }
+      idx = i;
+    }
+    idx = Math.max(0, Math.min(steps.length - 1, idx + dir));
+    setScale(steps[idx]);
+  };
+
+  window.mosaicFit = function() {
+    if (!img.naturalWidth) return;
+    var vw = viewport.clientWidth;
+    var vh = viewport.clientHeight - 48;
+    var s = Math.min(vw / img.naturalWidth, vh / img.naturalHeight, 1);
+    setScale(s);
+  };
+
+  window.mosaicActual = function() {
+    setScale(1);
+  };
+
+  function setScale(s) {
+    scale = s;
+    img.style.width = (img.naturalWidth * scale) + 'px';
+    img.style.height = (img.naturalHeight * scale) + 'px';
+    zoomLabel.textContent = Math.round(scale * 100) + '%';
+  }
+
+  // Mouse wheel zoom
+  viewport.addEventListener('wheel', function(e) {
+    e.preventDefault();
+    var dir = e.deltaY < 0 ? 1 : -1;
+    mosaicZoom(dir);
+  }, {passive: false});
+
+  // Drag to pan
+  viewport.addEventListener('mousedown', function(e) {
+    isDragging = true;
+    dragStart.x = e.clientX;
+    dragStart.y = e.clientY;
+    scrollStart.x = viewport.scrollLeft;
+    scrollStart.y = viewport.scrollTop;
+  });
+  window.addEventListener('mousemove', function(e) {
+    if (!isDragging) return;
+    viewport.scrollLeft = scrollStart.x - (e.clientX - dragStart.x);
+    viewport.scrollTop = scrollStart.y - (e.clientY - dragStart.y);
+  });
+  window.addEventListener('mouseup', function() {
+    isDragging = false;
+  });
+
+  // Keyboard shortcuts
+  window.addEventListener('keydown', function(e) {
+    if (!modal.classList.contains('active')) return;
+    if (e.key === 'Escape') closeMosaic();
+    else if (e.key === '+' || e.key === '=') mosaicZoom(1);
+    else if (e.key === '-') mosaicZoom(-1);
+    else if (e.key === 'f' || e.key === 'F') mosaicFit();
+    else if (e.key === '1') mosaicActual();
+  });
+})();
+</script>
+
+<h1>Mosaics</h1>
+<p style="font-size:var(--text-sm);color:var(--muted);margin-bottom:var(--space-4);">
+  Every photograph in the collection, tiled into ~4K square mosaics.
+  Each mosaic sorts the images by a different dimension. Click to zoom.
+  <span style="color:var(--muted);opacity:0.6;">Scroll to zoom, drag to pan. Keys: +/- zoom, F fit, 1 actual size, Esc close.</span>
+</p>
+<div class="mosaic-grid">
+<div class="mosaic-card" onclick="openMosaic('/mosaics/random.jpg', 'Random')"><img src="mosaics/random.jpg" loading="lazy" alt="Random"><div class="mosaic-meta"><div class="mosaic-title">Random</div><div class="mosaic-desc">9011 images in random order</div><div class="mosaic-count">9,011 images</div></div></div><div class="mosaic-card" onclick="openMosaic('/mosaics/by_category.jpg', 'By Category')"><img src="mosaics/by_category.jpg" loading="lazy" alt="By Category"><div class="mosaic-meta"><div class="mosaic-title">By Category</div><div class="mosaic-desc">Grouped by category — Digital: 3533, Osmo: 3116, Analog: 1126, Monochrome: 1099, G12: 137</div><div class="mosaic-count">9,011 images</div></div></div><div class="mosaic-card" onclick="openMosaic('/mosaics/by_camera.jpg', 'By Camera Body')"><img src="mosaics/by_camera.jpg" loading="lazy" alt="By Camera Body"><div class="mosaic-meta"><div class="mosaic-title">By Camera Body</div><div class="mosaic-desc">Grouped by camera — Leica Analog: 1126, Leica Digital: 3533, Leica Monochrom: 1099, Canon G12: 137, DJI Osmo Pro: 3032, DJI Osmo Memo: 84</div><div class="mosaic-count">9,011 images</div></div></div><div class="mosaic-card" onclick="openMosaic('/mosaics/by_brightness.jpg', 'By Brightness')"><img src="mosaics/by_brightness.jpg" loading="lazy" alt="By Brightness"><div class="mosaic-meta"><div class="mosaic-title">By Brightness</div><div class="mosaic-desc">Sorted dark → light by mean pixel brightness — 9011 images</div><div class="mosaic-count">9,011 images</div></div></div><div class="mosaic-card" onclick="openMosaic('/mosaics/by_hue.jpg', 'By Dominant Hue')"><img src="mosaics/by_hue.jpg" loading="lazy" alt="By Dominant Hue"><div class="mosaic-meta"><div class="mosaic-title">By Dominant Hue</div><div class="mosaic-desc">Sorted by dominant hue angle (0°→360°, red→yellow→green→blue→violet) — 9011 images</div><div class="mosaic-count">9,011 images</div></div></div><div class="mosaic-card" onclick="openMosaic('/mosaics/by_saturation.jpg', 'By Saturation')"><img src="mosaics/by_saturation.jpg" loading="lazy" alt="By Saturation"><div class="mosaic-meta"><div class="mosaic-title">By Saturation</div><div class="mosaic-desc">Sorted desaturated → vivid by mean saturation — 9011 images</div><div class="mosaic-count">9,011 images</div></div></div><div class="mosaic-card" onclick="openMosaic('/mosaics/by_colortemp.jpg', 'By Color Temperature')"><img src="mosaics/by_colortemp.jpg" loading="lazy" alt="By Color Temperature"><div class="mosaic-meta"><div class="mosaic-title">By Color Temperature</div><div class="mosaic-desc">Sorted warm → cool by estimated color temperature — 9011 images</div><div class="mosaic-count">9,011 images</div></div></div><div class="mosaic-card" onclick="openMosaic('/mosaics/by_dominant_color.jpg', 'By Dominant Color')"><img src="mosaics/by_dominant_color.jpg" loading="lazy" alt="By Dominant Color"><div class="mosaic-meta"><div class="mosaic-title">By Dominant Color</div><div class="mosaic-desc">Sorted by K-means primary cluster hue (HSV) — 9011 images</div><div class="mosaic-count">9,011 images</div></div></div><div class="mosaic-card" onclick="openMosaic('/mosaics/by_contrast.jpg', 'By Contrast')"><img src="mosaics/by_contrast.jpg" loading="lazy" alt="By Contrast"><div class="mosaic-meta"><div class="mosaic-title">By Contrast</div><div class="mosaic-desc">Sorted flat → punchy by contrast ratio — 9011 images</div><div class="mosaic-count">9,011 images</div></div></div><div class="mosaic-card" onclick="openMosaic('/mosaics/by_sharpness.jpg', 'By Sharpness')"><img src="mosaics/by_sharpness.jpg" loading="lazy" alt="By Sharpness"><div class="mosaic-meta"><div class="mosaic-title">By Sharpness</div><div class="mosaic-desc">Sorted soft → sharp by Laplacian blur score — 9011 images</div><div class="mosaic-count">9,011 images</div></div></div><div class="mosaic-card" onclick="openMosaic('/mosaics/by_time_of_day.jpg', 'By Time of Day')"><img src="mosaics/by_time_of_day.jpg" loading="lazy" alt="By Time of Day"><div class="mosaic-meta"><div class="mosaic-title">By Time of Day</div><div class="mosaic-desc">Grouped dawn → night (Gemini analysis) — midday: 2252, golden hour: 719, night: 2067, dusk/blue hour: 1</div><div class="mosaic-count">5,039 images</div></div></div><div class="mosaic-card" onclick="openMosaic('/mosaics/by_grading.jpg', 'By Grading Style')"><img src="mosaics/by_grading.jpg" loading="lazy" alt="By Grading Style"><div class="mosaic-meta"><div class="mosaic-title">By Grading Style</div><div class="mosaic-desc">Grouped by Gemini color grading — cinematic: 3157, natural: 1574, monochrome: 254, pastel: 54</div><div class="mosaic-count">5,039 images</div></div></div><div class="mosaic-card" onclick="openMosaic('/mosaics/by_faces.jpg', 'Faces First')"><img src="mosaics/by_faces.jpg" loading="lazy" alt="Faces First"><div class="mosaic-meta"><div class="mosaic-title">Faces First</div><div class="mosaic-desc">1676 images with faces (sorted by face count, most first), then 7335 without</div><div class="mosaic-count">9,011 images</div></div></div><div class="mosaic-card" onclick="openMosaic('/mosaics/by_latitude.jpg', 'By GPS Latitude')"><img src="mosaics/by_latitude.jpg" loading="lazy" alt="By GPS Latitude"><div class="mosaic-meta"><div class="mosaic-title">By GPS Latitude</div><div class="mosaic-desc">Sorted south → north (0.0° → 48.4°) — 1820 images with GPS</div><div class="mosaic-count">1,820 images</div></div></div>
+</div>
+<footer>MADphotos &mdash; <a href="https://github.com/LAEH/MADphotos">github.com/LAEH/MADphotos</a></footer>
+</div>
+<script>
+(function() {
+  function getTheme() {
+    var s = localStorage.getItem('mad-theme');
+    if (s) return s;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  function applyTheme(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    var icon = document.getElementById('themeIcon');
+    var label = document.getElementById('themeLabel');
+    if (icon) icon.textContent = t === 'dark' ? '\u2600' : '\u263E';
+    if (label) label.textContent = t === 'dark' ? 'Light Mode' : 'Dark Mode';
+  }
+  window.toggleTheme = function() {
+    var t = getTheme() === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('mad-theme', t);
+    applyTheme(t);
+  };
+  window.toggleSidebar = function() {
+    document.body.classList.toggle('sb-collapsed');
+    localStorage.setItem('mad-sidebar', document.body.classList.contains('sb-collapsed') ? 'collapsed' : 'expanded');
+  };
+  applyTheme(getTheme());
+  if (localStorage.getItem('mad-sidebar') === 'collapsed') {
+    document.body.classList.add('sb-collapsed');
+  }
+})();
+</script>
+
+</body>
+</html>

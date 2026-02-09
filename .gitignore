@@ -49,5 +49,23 @@ Thumbs.db
 # Claude
 .claude/
 
+# SeeSquare app
+SeeSquare.app/
+frontend/see-square/
+
+# Test/experimental scripts
+backend/border_crop.py
+backend/test_border_detect.py
+backend/test_quality_score.py
+
+# Model weights
+*.pt
+
+# Firebase debug
+firebase-debug.log
+
+# Build artifacts
+tsconfig.tsbuildinfo
+
 # Environment files
 .env*
