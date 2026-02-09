@@ -1333,3 +1333,51 @@ The biggest signal extraction session yet. Goal: fix broken data, replace useles
 | **Total new** | — | **~165K** | — |
 
 17 files modified, 6 new files. +1,353 / -158 lines (tracked). ~2,500 lines new scripts (untracked).
+
+## 2026-02-09
+
+### 11:21 — Stats Infographic Page + Analysis Pages Fix + Layout Fixes
+
+**New: `/stats` infographic page.** Built a full Stats page for State dashboard with 13 pure-CSS chart sections — no chart library, all CSS bars/histograms/swatches. Visualizations: aesthetic score histogram (log-scale to handle 7,046 images at 10.0), camera fleet horizontal bars, top styles, scenes, vibes, emotions, time of day (segmented bar), depth complexity, grading, exposure, composition, objects in frame, and dominant color palette (swatches sized by count). Hero stat row at top, two-column layout for smaller charts, scroll-reveal animation via IntersectionObserver, percentage labels on all bars. Added route in `App.tsx` and nav item in `Sidebar.tsx`.
+
+**Fixed: 3 analysis API endpoints.** Signal Inspector, Embedding Audit, and Collection Coverage pages (built by another agent) were failing because `generate_signal_inspector_data()`, `generate_embedding_audit_data()`, and `generate_collection_coverage_data()` in `dashboard.py` referenced nonexistent DB columns. Fixed 7 column name mismatches: `caption`→`alt_text`, `scene`→`scene_1` (from `scene_classification`), `hex_color`→`hex`, `pct`→`percentage`, `blip_caption`→`caption`. All three endpoints now return valid JSON.
+
+**Fixed: sidebar scrolling on iPad.** Sidebar was scrolling with the page on tablets. Root cause: `.app-layout` used `min-height: 100vh` which let the flex container grow. Fixed by wrapping main content in `.main-scroll` div with independent `overflow-y: auto`, constraining `.app-layout` to `height: 100dvh; overflow: hidden`. Mobile breakpoint reverts to natural scrolling.
+
+**Backend fix: aesthetic scores.** Fixed column name `overall_score`→`score` in `get_stats()` which was returning 0 for aesthetic average. Added `aesthetic_histogram` query for the Stats page distribution chart.
+
+Files modified: `backend/dashboard.py`, `frontend/state/src/pages/StatsPage.tsx` (new), `frontend/state/src/index.css`, `frontend/state/src/App.tsx`, `frontend/state/src/components/layout/Sidebar.tsx`, `frontend/state/src/components/layout/Layout.tsx`.
+
+### 11:48 — Signal Inspector: Full Signal Coverage + Model Attribution *("For all the labels you should have a mini pill that says the model they come from")*
+
+The Signal Inspector page was only showing ~12 of the 30+ signal tables in the DB, and had no indication of which AI model produced each signal. This was the wake-up call that pages need to stay in sync with the actual database schema — especially when new signals are added by other agents.
+
+**Backend overhaul (`dashboard.py`).** `generate_signal_inspector_data()` now queries ALL signal tables for each of the 300 sampled images. Added 14 new queries: `aesthetic_scores_v2` (TOPIQ+MUSIQ+LAION composite), `quality_scores` (technical+CLIP combined), `florence_captions` (Florence-2 short/detailed), `image_tags` (CLIP zero-shot, pipe-delimited not JSON — that was a bug), `open_detections` (Grounding DINO, 108K rows), `face_identities` (ArcFace identity labels), `foreground_masks` (u2net foreground/background percentages), `segmentation_masks` (SAM 2.1 segment count), `pose_detections` (YOLOv8-pose), `saliency_maps` (OpenCV spectral residual peak/spread), `image_locations` (EXIF GPS with location names), `image_hashes` (blur/sharpness/entropy), `image_analysis` (brightness/dynamic range/noise/color temp), `border_crops` (OpenCV edge detection).
+
+**Frontend overhaul (`SignalInspectorPage.tsx`).** Every signal chip now shows a model attribution pill — a small semi-transparent badge inside the chip showing the source model (e.g., `kitchen` `Places365`, `neon` `CLIP`, `2 faces` `RetinaFace`). The Chip component was redesigned from `Chip({ label, type })` to `Chip({ label, model, color })`. The detail modal now shows 4 sections (Identity, Content, Perception, Technical) with model attribution on every row. Cards in the grid show 13+ signal types instead of 7.
+
+**System instructions updated.** Added "Critical Rules" section to MEMORY.md: (1) ALWAYS check actual DB schema before writing SQL — run `PRAGMA table_info()` to verify column names exist, (2) ALWAYS check all signal tables when building signal pages, (3) ALWAYS attribute the model source on displayed signals, (4) `image_tags.tags` is pipe-delimited not JSON. Updated the Signal Pipeline table from 14 to 30+ entries with row counts and key columns. Updated the `/ship` skill with Signal Inspector review checklist.
+
+The lesson: when one agent adds new signals to the DB, ALL downstream consumers (dashboard pages, export scripts, See app filters) need to be updated. This was codified as a rule so it won't happen again.
+
+### 12:00 — New See app to let user flag good-looking images when square cropped
+
+**Intent.** Evaluate all 9,011 images for how they look when square-cropped. The `square_crop` flag determines which images can be used in square layouts across Show experiences (grids, bento, social cards). Rather than adding complexity to the full See app, build a dedicated, minimal app optimized for one task.
+
+> Built See Square (`frontend/see-square/`), a standalone macOS SwiftUI app (SPM, macOS 14+, sqlite3). Single-purpose UI: random grid of square-cropped thumbnails, multi-select, batch flag. New `square_crop` column on `images` table (NULL=pending, 1=good, 0=bad) with auto-migration. Lean DB layer with 3 JOINs (vs 11 in full See). Filter pills (Good/Pending/Bad), sort by Random/Quality/Camera/Date, pinch-to-zoom grid (3–10 columns). Keyboard shortcuts: P=good, R=bad, U=clear, Cmd+A=select all, Esc=deselect. ThumbnailLoader actor with 8-slot concurrency, NSCache (2000 items). 4 Swift files, zero dependencies.
+
+---
+
+### 13:36 — Parallel Florence workers, deploy pipeline fixes, live progress tracker *("Can't you have several process for florence")*
+
+Florence-2 was captioning at 0.4 img/s on a single MPS process — 5+ hours for 9,011 images. The user asked why CPU wasn't busy.
+
+**Parallel Florence-2 workers.** Created `_florence_worker.py`, a standalone Florence-2 captioning script that takes `--worker N --total-workers M` to partition pending UUIDs by modulo. Each worker loads its own model and processes independently. First attempt: 3 MPS workers — MPS contention dropped each to 0.22/s (worse than 1×0.4). Second: 2 MPS + 4 CPU — DB lock contention stalled most workers because each was writing per-image. Fix: batched writes with `executemany()` — accumulate 50 results in memory, flush in one short transaction. Final config: 2 MPS workers (0.29/s each) + 4 CPU workers (0.05/s each) = 0.79/s combined. CPU utilization went from 65% of one core to 908% across 16 cores. Florence-2 is heavily GPU-oriented — CPU inference is 6× slower, but free throughput when GPU is saturated.
+
+**Deploy pipeline (`/ship` skill) updates.** Five gaps found from the live deploy: (1) Firebase config lives at project root, not `frontend/show/` — `firebase deploy` must run from root; (2) `photos.json` regeneration via `export_gallery.py` was missing from the skill; (3) GitHub Pages needs explicit `npx gh-pages -d dist`, not just push-and-pray; (4) GCS metadata sync via `upload.py --version metadata` added as optional step; (5) hardcoded "17 models" references updated to dynamic.
+
+**V2 signals in photos.json.** Updated `export_gallery.py` with 10 new loaders: `load_aesthetic_v2()`, `load_tags()`, `load_saliency()`, `load_foreground()`, `load_open_detections()`, `load_poses()`, `load_segments()`, `load_florence()`, `load_identities()`, `load_locations()`. Each uses compact keys (e.g., `fg` for foreground_pct, `px`/`py` for saliency peak). Photos.json regenerated: 25.4 MB with all V2 signals. Coverage: aesthetic_v2 9,011, tags 7,080, saliency 9,011, foreground 9,011, open_labels 8,981, segments 9,011, florence 3,800+ (in progress), identities 700, location 1,820.
+
+**Live progress tracker.** Created `_progress.sh` — a terminal dashboard that monitors all running signal extraction processes. Uses `tput home` for flicker-free updates (overwrites in place instead of clearing). Shows: overall Florence progress bar, per-worker bars with `[MPS]`/`[CPU]` labels, rate, ETA, CPU%. Auto-detects florence_worker, signals_v2, vectors_v2, and rembg processes. Opens in a new Terminal window via `open -a Terminal`.
+
+The lesson: SQLite + multiple writers = pain. WAL mode helps readers but only one writer can hold the lock. Batching writes (accumulate in memory, flush with `executemany` every N images) is the pattern for multi-process pipelines.

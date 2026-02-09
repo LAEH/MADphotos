@@ -4796,24 +4796,34 @@ def generate_signal_inspector_data():
         # Gemini analysis
         g = conn.execute("SELECT * FROM gemini_analysis WHERE image_uuid=?", (uuid,)).fetchone()
         if g:
-            rec["caption"] = g["caption"] or ""
+            rec["caption"] = g["alt_text"] or ""
             rec["alt"] = g["alt_text"] or ""
-            rec["scene"] = g["scene"] or ""
-            rec["environment"] = g["environment"] or ""
             rec["style"] = g["grading_style"] or ""
             rec["grading"] = g["grading_style"] or ""
             rec["time"] = g["time_of_day"] or ""
             rec["setting"] = g["setting"] or ""
             rec["exposure"] = g["exposure"] or ""
             rec["composition"] = g["composition_technique"] or ""
+            rec["weather"] = g["weather"] or ""
+            rec["sharpness"] = g["sharpness"] or ""
             try:
                 rec["vibes"] = json.loads(g["vibe"]) if g["vibe"] else []
             except:
                 rec["vibes"] = []
         else:
-            rec.update({"caption": "", "alt": "", "scene": "", "environment": "",
-                       "style": "", "grading": "", "time": "", "setting": "",
-                       "exposure": "", "composition": "", "vibes": []})
+            rec.update({"caption": "", "alt": "", "style": "", "grading": "",
+                       "time": "", "setting": "", "exposure": "", "composition": "",
+                       "weather": "", "sharpness": "",
+                       "vibes": []})
+
+        # Scene classification
+        sc_row = conn.execute("SELECT scene_1, environment FROM scene_classification WHERE image_uuid=?", (uuid,)).fetchone()
+        if sc_row:
+            rec["scene"] = sc_row["scene_1"] or ""
+            rec["environment"] = sc_row["environment"] or ""
+        else:
+            rec["scene"] = ""
+            rec["environment"] = ""
 
         # Style classification
         sc = conn.execute("SELECT style FROM style_classification WHERE image_uuid=?", (uuid,)).fetchone()
@@ -4826,10 +4836,10 @@ def generate_signal_inspector_data():
 
         # Dominant colors (top 5)
         colors = conn.execute(
-            "SELECT hex_color, pct, color_name FROM dominant_colors WHERE image_uuid=? ORDER BY pct DESC LIMIT 5",
+            "SELECT hex, percentage, color_name FROM dominant_colors WHERE image_uuid=? ORDER BY percentage DESC LIMIT 5",
             (uuid,)
         ).fetchall()
-        rec["colors"] = [{"hex": c["hex_color"] or "#000", "pct": round(float(c["pct"] or 0), 1), "name": c["color_name"] or ""} for c in colors]
+        rec["colors"] = [{"hex": c["hex"] or "#000", "pct": round(float(c["percentage"] or 0), 1), "name": c["color_name"] or ""} for c in colors]
 
         # Depth
         de = conn.execute("SELECT near_pct, mid_pct, far_pct FROM depth_estimation WHERE image_uuid=?", (uuid,)).fetchone()
@@ -4868,21 +4878,92 @@ def generate_signal_inspector_data():
         rec["ocr"] = [o["text"] for o in ocr]
 
         # EXIF
-        ex = conn.execute("SELECT focal_length, aperture, shutter_speed, iso FROM exif_metadata WHERE image_uuid=?", (uuid,)).fetchone()
+        ex = conn.execute("SELECT focal_length, aperture, shutter_speed, iso, make, model, lens, date_taken FROM exif_metadata WHERE image_uuid=?", (uuid,)).fetchone()
         if ex:
             rec["exif"] = {
                 "focal": ex["focal_length"] or 0,
                 "aperture": ex["aperture"] or 0,
                 "shutter": ex["shutter_speed"] or "",
                 "iso": ex["iso"] or 0,
+                "make": ex["make"] or "",
+                "model": ex["model"] or "",
+                "lens": ex["lens"] or "",
+                "date": ex["date_taken"] or "",
             }
         else:
             rec["exif"] = {"focal": 0, "aperture": 0, "shutter": "", "iso": 0}
 
         # Caption from BLIP
-        cap = conn.execute("SELECT blip_caption FROM image_captions WHERE image_uuid=?", (uuid,)).fetchone()
-        if cap and cap["blip_caption"]:
-            rec["blip_caption"] = cap["blip_caption"]
+        cap = conn.execute("SELECT caption FROM image_captions WHERE image_uuid=?", (uuid,)).fetchone()
+        if cap and cap["caption"]:
+            rec["blip_caption"] = cap["caption"]
+
+        # aesthetic_scores_v2
+        av2 = conn.execute("SELECT topiq_score, musiq_score, laion_score, composite_score FROM aesthetic_scores_v2 WHERE image_uuid=?", (uuid,)).fetchone()
+        if av2:
+            rec["aesthetic_v2"] = {"topiq": round(float(av2["topiq_score"] or 0), 2), "musiq": round(float(av2["musiq_score"] or 0), 2), "laion": round(float(av2["laion_score"] or 0), 2), "composite": round(float(av2["composite_score"] or 0), 2)}
+
+        # quality_scores
+        qs = conn.execute("SELECT technical_score, clip_score, combined_score, sharpness, noise, exposure_quality, contrast FROM quality_scores WHERE image_uuid=?", (uuid,)).fetchone()
+        if qs:
+            rec["quality"] = {"technical": round(float(qs["technical_score"] or 0), 2), "clip": round(float(qs["clip_score"] or 0), 2), "combined": round(float(qs["combined_score"] or 0), 2)}
+
+        # florence_captions
+        fc = conn.execute("SELECT short_caption, detailed_caption FROM florence_captions WHERE image_uuid=?", (uuid,)).fetchone()
+        if fc:
+            rec["florence"] = {"short": fc["short_caption"] or "", "detailed": fc["detailed_caption"] or ""}
+
+        # image_tags (pipe-delimited)
+        tg = conn.execute("SELECT tags, tag_count FROM image_tags WHERE image_uuid=?", (uuid,)).fetchone()
+        if tg and tg["tags"]:
+            rec["tags"] = [t.strip() for t in tg["tags"].split("|")][:8]
+
+        # open_detections (Grounding DINO)
+        od = conn.execute("SELECT label, confidence FROM open_detections WHERE image_uuid=? ORDER BY confidence DESC LIMIT 8", (uuid,)).fetchall()
+        rec["open_objects"] = [{"label": o["label"], "conf": round(float(o["confidence"] or 0), 2)} for o in od]
+
+        # face_identities
+        fi = conn.execute("SELECT DISTINCT identity_label FROM face_identities WHERE image_uuid=? AND identity_label IS NOT NULL", (uuid,)).fetchall()
+        rec["identities"] = [f["identity_label"] for f in fi]
+
+        # foreground_masks
+        fg = conn.execute("SELECT foreground_pct, background_pct FROM foreground_masks WHERE image_uuid=?", (uuid,)).fetchone()
+        if fg:
+            rec["foreground"] = {"fg_pct": round(float(fg["foreground_pct"] or 0), 1), "bg_pct": round(float(fg["background_pct"] or 0), 1)}
+
+        # segmentation_masks
+        sg = conn.execute("SELECT segment_count, largest_segment_pct FROM segmentation_masks WHERE image_uuid=?", (uuid,)).fetchone()
+        if sg:
+            rec["segments"] = {"count": sg["segment_count"] or 0, "largest_pct": round(float(sg["largest_segment_pct"] or 0), 1)}
+
+        # pose_detections
+        pd_rows = conn.execute("SELECT pose_score FROM pose_detections WHERE image_uuid=?", (uuid,)).fetchall()
+        rec["poses"] = len(pd_rows)
+
+        # saliency_maps
+        sal = conn.execute("SELECT peak_x, peak_y, spread, center_bias FROM saliency_maps WHERE image_uuid=?", (uuid,)).fetchone()
+        if sal:
+            rec["saliency"] = {"peak_x": round(float(sal["peak_x"] or 0), 2), "peak_y": round(float(sal["peak_y"] or 0), 2), "spread": round(float(sal["spread"] or 0), 2), "center_bias": round(float(sal["center_bias"] or 0), 2)}
+
+        # image_locations
+        loc = conn.execute("SELECT location_name, latitude, longitude FROM image_locations WHERE image_uuid=?", (uuid,)).fetchone()
+        if loc:
+            rec["location"] = {"name": loc["location_name"] or "", "lat": loc["latitude"], "lon": loc["longitude"]}
+
+        # image_hashes
+        ih = conn.execute("SELECT blur_score, sharpness_score, edge_density, entropy FROM image_hashes WHERE image_uuid=?", (uuid,)).fetchone()
+        if ih:
+            rec["hashes"] = {"blur": round(float(ih["blur_score"] or 0), 1), "sharpness": round(float(ih["sharpness_score"] or 0), 1), "edge_density": round(float(ih["edge_density"] or 0), 3), "entropy": round(float(ih["entropy"] or 0), 2)}
+
+        # image_analysis
+        ia = conn.execute("SELECT mean_brightness, dynamic_range, noise_estimate, est_color_temp FROM image_analysis WHERE image_uuid=?", (uuid,)).fetchone()
+        if ia:
+            rec["analysis"] = {"brightness": round(float(ia["mean_brightness"] or 0), 1), "dynamic_range": round(float(ia["dynamic_range"] or 0), 1), "noise": round(float(ia["noise_estimate"] or 0), 2), "color_temp": int(ia["est_color_temp"] or 0)}
+
+        # border_crops
+        bc = conn.execute("SELECT has_border, border_pct FROM border_crops WHERE image_uuid=?", (uuid,)).fetchone()
+        if bc and bc["has_border"]:
+            rec["border"] = round(float(bc["border_pct"] or 0), 1)
 
         images.append(rec)
 
@@ -4939,14 +5020,14 @@ def generate_embedding_audit_data():
         query_row = matches.iloc[0]
 
         # Get metadata
-        g = conn.execute("SELECT caption, scene, vibe FROM gemini_analysis WHERE image_uuid=?", (uuid,)).fetchone()
+        g = conn.execute("SELECT alt_text, vibe FROM gemini_analysis WHERE image_uuid=?", (uuid,)).fetchone()
         sc = conn.execute("SELECT scene_1 FROM scene_classification WHERE image_uuid=?", (uuid,)).fetchone()
 
         anchor = {
             "uuid": uuid,
             "thumb": f"/rendered/thumb/jpeg/{uuid}.jpg",
             "display": f"/rendered/display/jpeg/{uuid}.jpg",
-            "caption": (g["caption"] or "") if g else "",
+            "caption": (g["alt_text"] or "") if g else "",
             "scene": (sc["scene_1"] or "") if sc else "",
             "vibes": [],
             "neighbors": {},
@@ -5174,8 +5255,8 @@ def generate_collection_coverage_data():
 
         # Full collection dimension distributions from DB
         full_scenes = {}
-        for r in conn.execute("SELECT scene, COUNT(*) as cnt FROM gemini_analysis WHERE scene IS NOT NULL AND raw_json != '' GROUP BY scene ORDER BY cnt DESC LIMIT 10").fetchall():
-            full_scenes[r["scene"]] = round(r["cnt"] / total * 100, 1)
+        for r in conn.execute("SELECT scene_1, COUNT(*) as cnt FROM scene_classification WHERE scene_1 IS NOT NULL GROUP BY scene_1 ORDER BY cnt DESC LIMIT 10").fetchall():
+            full_scenes[r["scene_1"]] = round(r["cnt"] / total * 100, 1)
 
         full_times = {}
         for r in conn.execute("SELECT time_of_day, COUNT(*) as cnt FROM gemini_analysis WHERE time_of_day IS NOT NULL GROUP BY time_of_day ORDER BY cnt DESC").fetchall():
