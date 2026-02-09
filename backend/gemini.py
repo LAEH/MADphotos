@@ -37,7 +37,7 @@ IMAGE_DIR = PROJECT_ROOT / "images" / "rendered" / "gemini" / "jpeg"
 MANIFEST_PATH = PROJECT_ROOT / "images" / "rendered" / "manifest.json"
 
 # Use Vertex AI with Application Default Credentials (same as imagen_engine)
-GCP_PROJECT = os.environ.get("GCP_PROJECT", "madbox-e4a35")
+GCP_PROJECT = os.environ.get("GCP_PROJECT", "laeh380to760")
 GCP_LOCATION = os.environ.get("GCP_LOCATION", "us-central1")
 
 MODEL_ID = "gemini-2.5-pro"

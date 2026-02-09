@@ -48,3 +48,6 @@ Thumbs.db
 
 # Claude
 .claude/
+
+# Environment files
+.env*

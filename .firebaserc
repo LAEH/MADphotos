@@ -1,5 +1,15 @@
 {
   "projects": {
-    "default": "madphotos-efbfb"
-  }
+    "default": "laeh380to760"
+  },
+  "targets": {
+    "laeh380to760": {
+      "hosting": {
+        "madphotos": [
+          "madphotos"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

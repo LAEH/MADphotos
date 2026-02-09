@@ -39,7 +39,7 @@ AI_VARIANTS_DIR = PROJECT_ROOT / "images" / "ai_variants"
 RENDERED_DIR = PROJECT_ROOT / "images" / "rendered"
 
 # Imagen 3 edit_image requires Vertex AI
-GCP_PROJECT = os.environ.get("GCP_PROJECT", "madbox-e4a35")
+GCP_PROJECT = os.environ.get("GCP_PROJECT", "laeh380to760")
 GCP_LOCATION = os.environ.get("GCP_LOCATION", "us-central1")
 
 IMAGEN_MODEL = "imagen-3.0-capability-001"

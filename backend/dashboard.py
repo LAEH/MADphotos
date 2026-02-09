@@ -2989,7 +2989,7 @@ def render_instructions():
   <span class="inst-pill inst-pill-blue">Infrastructure</span>
   <h2>GCS Image Hosting Strategy</h2>
   <ul>
-    <li><strong>GCP Project:</strong> madbox-e4a35 &mdash; account: laeh@madbits.ai</li>
+    <li><strong>GCP Project:</strong> laeh380to760 &mdash; account: laeh@madbits.ai</li>
     <li><strong>Bucket:</strong> <code>gs://myproject-public-assets/art/MADphotos/</code></li>
     <li><strong>URL pattern:</strong> <code>https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/{version}/{tier}/{format}/{uuid}.ext</code></li>
   </ul>
@@ -5290,6 +5290,142 @@ def generate_collection_coverage_data():
     }
 
 
+def generate_schema_data():
+    """Return full DB schema: tables, columns, row counts, model attribution, sample values."""
+    import os
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.row_factory = sqlite3.Row
+
+    db_size = os.path.getsize(str(DB_PATH))
+    total_images = conn.execute("SELECT COUNT(*) FROM images").fetchone()[0]
+
+    # Model attribution for each table
+    model_map = {
+        "images": {"model": "Import Pipeline", "category": "core", "description": "Master image table — one row per photograph with camera, format, dimensions, curation status"},
+        "aesthetic_scores": {"model": "LAION Aesthetics (NIMA)", "category": "v1_signal", "description": "Aesthetic quality score 1-10. WARNING: nearly useless — avg 9.9, range 8.2-10.0, zero discrimination"},
+        "aesthetic_scores_v2": {"model": "TOPIQ + MUSIQ + LAION", "category": "v2_signal", "description": "Three independent quality models combined into a composite score with real spread"},
+        "quality_scores": {"model": "Technical + CLIP", "category": "v2_signal", "description": "Technical quality (sharpness, noise, exposure, contrast) + CLIP aesthetic alignment"},
+        "depth_estimation": {"model": "Depth Anything v2 Large", "category": "v1_signal", "description": "Monocular depth estimation — near/mid/far percentages and scene complexity"},
+        "scene_classification": {"model": "Places365", "category": "v1_signal", "description": "Scene type classification (top 3 scenes + environment label)"},
+        "style_classification": {"model": "Rule-based classifier", "category": "v1_signal", "description": "Visual style labels (documentary, street, portrait, etc.)"},
+        "image_captions": {"model": "BLIP2", "category": "v1_signal", "description": "Natural language image captions"},
+        "florence_captions": {"model": "Florence-2-base", "category": "v2_signal", "description": "Three-tier captions: short, detailed, more detailed"},
+        "ocr_detections": {"model": "EasyOCR", "category": "v1_signal", "description": "Text detected in images with bounding boxes and confidence"},
+        "object_detections": {"model": "YOLOv8n", "category": "v1_signal", "description": "Object detection with labels, confidence, and bounding boxes"},
+        "open_detections": {"model": "Grounding DINO tiny", "category": "v2_signal", "description": "Open-vocabulary object detection — no fixed label set, finds anything"},
+        "face_detections": {"model": "YuNet / RetinaFace", "category": "v1_signal", "description": "Face locations with landmarks (eyes, nose, mouth) and area percentage"},
+        "facial_emotions": {"model": "DeepFace", "category": "v1_signal", "description": "Dominant emotion per detected face with confidence scores"},
+        "face_identities": {"model": "InsightFace ArcFace + DBSCAN", "category": "v2_signal", "description": "Face identity clustering — groups faces into identity clusters across images"},
+        "dominant_colors": {"model": "K-means LAB clustering", "category": "v1_signal", "description": "Top 5 dominant colors per image with hex, RGB, LAB, percentage, and color name"},
+        "image_tags": {"model": "CLIP zero-shot", "category": "v2_signal", "description": "Open-vocabulary tags via CLIP zero-shot classification (pipe-delimited)"},
+        "exif_metadata": {"model": "EXIF Parser", "category": "v1_signal", "description": "Camera make/model, lens, focal length, aperture, shutter speed, ISO, GPS, date"},
+        "image_hashes": {"model": "Perceptual Hashing", "category": "v1_signal", "description": "pHash, aHash, dHash, wHash for dedup + blur score, sharpness, edge density, entropy"},
+        "image_analysis": {"model": "NumPy / OpenCV", "category": "v1_signal", "description": "Pixel-level stats: brightness, dynamic range, noise, color temperature, histogram"},
+        "gemini_analysis": {"model": "Gemini 2.0 Flash", "category": "api_signal", "description": "Rich semantic analysis: exposure, composition, grading, time of day, weather, vibes, alt text"},
+        "foreground_masks": {"model": "rembg u2net", "category": "v2_signal", "description": "Foreground/background segmentation with percentages and centroid"},
+        "segmentation_masks": {"model": "SAM 2.1 hiera-tiny", "category": "v2_signal", "description": "Segment Anything — segment count, largest segment, complexity metrics"},
+        "pose_detections": {"model": "YOLOv8n-pose", "category": "v2_signal", "description": "Human pose estimation with 17 keypoints per person"},
+        "saliency_maps": {"model": "OpenCV Spectral Residual", "category": "v2_signal", "description": "Visual attention maps — peak saliency location, spread, center bias, rule-of-thirds"},
+        "image_locations": {"model": "EXIF GPS extraction", "category": "v2_signal", "description": "Geocoded location names from GPS coordinates in EXIF data"},
+        "border_crops": {"model": "OpenCV Edge Detection", "category": "v2_signal", "description": "Border/frame detection with crop suggestions and border percentage"},
+        "enhancement_plans": {"model": "Signal-driven Engine v1", "category": "pipeline", "description": "Per-image enhancement strategy based on signal analysis"},
+        "enhancement_plans_v2": {"model": "Signal-driven Engine v2", "category": "pipeline", "description": "V2 with depth/scene/style/vibe/face-aware adjustments"},
+        "ai_variants": {"model": "Imagen 3 (Google)", "category": "api_signal", "description": "AI-generated image variants (cartoon style) from enhanced source images"},
+        "tiers": {"model": "Render Pipeline", "category": "pipeline", "description": "Rendered image tiers (thumb, display, enhanced). WARNING: has duplicate rows per image"},
+        "pipeline_runs": {"model": "Pipeline Orchestrator", "category": "pipeline", "description": "Pipeline execution history with status, timing, error messages"},
+        "gcs_uploads": {"model": "GCS Upload Script", "category": "pipeline", "description": "Google Cloud Storage upload tracking"},
+        "schema_version": {"model": "Database", "category": "core", "description": "Schema version tracking"},
+    }
+
+    tables = []
+    total_rows = 0
+    for t in conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").fetchall():
+        name = t[0]
+        cnt = conn.execute(f"SELECT COUNT(*) FROM [{name}]").fetchone()[0]
+        total_rows += cnt
+
+        columns = []
+        for c in conn.execute(f"PRAGMA table_info([{name}])").fetchall():
+            columns.append({"name": c[1], "type": c[2], "pk": bool(c[5])})
+
+        meta = model_map.get(name, {"model": "Unknown", "category": "other", "description": ""})
+
+        # Coverage: how many of 9011 images have data in this table
+        has_uuid = any(col["name"] == "image_uuid" for col in columns)
+        if has_uuid and name != "images":
+            distinct = conn.execute(f"SELECT COUNT(DISTINCT image_uuid) FROM [{name}]").fetchone()[0]
+            coverage = round(distinct / total_images * 100, 1) if total_images else 0
+        elif name == "images":
+            distinct = cnt
+            coverage = 100.0
+        else:
+            distinct = None
+            coverage = None
+
+        # Sample values for interesting columns (skip blobs and long text)
+        samples = {}
+        skip_cols = {"raw_json", "raw_exif", "embedding", "plan_json", "exif_data",
+                     "histogram_json", "keypoints_json", "segments_json", "bbox_json",
+                     "emotion_scores", "confidence_json", "config", "error_message",
+                     "prompt", "negative_prompt", "original_path", "local_path",
+                     "gcs_url", "public_url", "gcs_path", "output_path"}
+        for col in columns[:8]:  # First 8 columns max
+            if col["name"] in skip_cols or col["name"].endswith("_at"):
+                continue
+            try:
+                vals = conn.execute(
+                    f"SELECT DISTINCT [{col['name']}] FROM [{name}] WHERE [{col['name']}] IS NOT NULL LIMIT 5"
+                ).fetchall()
+                if vals:
+                    sample_vals = []
+                    for v in vals:
+                        val = v[0]
+                        if isinstance(val, str) and len(val) > 60:
+                            val = val[:60] + "..."
+                        elif isinstance(val, bytes):
+                            continue
+                        sample_vals.append(val)
+                    if sample_vals:
+                        samples[col["name"]] = sample_vals
+            except:
+                pass
+
+        tables.append({
+            "name": name,
+            "rows": cnt,
+            "columns": columns,
+            "col_count": len(columns),
+            "model": meta["model"],
+            "category": meta["category"],
+            "description": meta["description"],
+            "coverage": coverage,
+            "distinct_images": distinct,
+            "samples": samples,
+        })
+
+    conn.close()
+
+    # Category summaries
+    categories = {}
+    for t in tables:
+        cat = t["category"]
+        if cat not in categories:
+            categories[cat] = {"count": 0, "rows": 0, "tables": []}
+        categories[cat]["count"] += 1
+        categories[cat]["rows"] += t["rows"]
+        categories[cat]["tables"].append(t["name"])
+
+    return {
+        "db_path": str(DB_PATH),
+        "db_size": db_size,
+        "total_images": total_images,
+        "table_count": len(tables),
+        "total_rows": total_rows,
+        "categories": categories,
+        "tables": tables,
+    }
+
+
 class Handler(BaseHTTPRequestHandler):
     def _json_response(self, data):
         body = json.dumps(data).encode()
@@ -5316,6 +5452,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json_response(generate_embedding_audit_data())
         elif self.path == "/api/collection-coverage":
             self._json_response(generate_collection_coverage_data())
+        elif self.path == "/api/schema":
+            self._json_response(generate_schema_data())
         elif self.path == "/mosaics":
             html = render_mosaics().encode()
             self.send_response(200)

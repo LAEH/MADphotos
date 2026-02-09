@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "target": "madphotos",
     "public": "frontend/show",
     "ignore": [
       "firebase.json",

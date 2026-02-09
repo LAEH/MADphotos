@@ -86,15 +86,29 @@ while true; do
     for pid in $(pgrep -f "vectors_v2.py" 2>/dev/null); do
         HAS=1
         cpu=$(ps -p "$pid" -o %cpu= 2>/dev/null | tr -d ' ')
-        last=$(grep -E "[0-9]+/" /tmp/mad_vectors_v2.log 2>/dev/null | tail -1)
-        v_done=$(echo "$last" | grep -oE '^[[:space:]]*[0-9]+' | tr -d ' ')
-        v_total=$(echo "$last" | grep -oE '[0-9]+/[0-9]+' | head -1 | cut -d/ -f2)
-        if [ -n "$v_done" ] && [ -n "$v_total" ] && [ "$v_total" -gt 0 ] 2>/dev/null; then
-            v_bar=$(mk_bar "$v_done" "$v_total" 30)
-            v_pct=$((v_done * 100 / v_total))
-            BUF+="  vectors_v2  ${v_bar}  ${v_done}/${v_total}  ${v_pct}%%  cpu:${cpu}%%\n"
+        # tqdm writes carriage returns; get last progress line
+        logfile="/tmp/vectors_v2.log"
+        if [ -f "$logfile" ]; then
+            # Detect current model phase
+            v_phase=$(grep -oE '\[(DINOv2-L|SigLIP2|CLIP)\]' "$logfile" | tail -1 | tr -d '[]')
+            # Parse tqdm: "  DINOv2-L:   4%|▍   | 23/580 [00:25<10:43,  1.15s/batch]"
+            last=$(tr '\r' '\n' < "$logfile" | grep -E '[0-9]+/[0-9]+.*batch' | tail -1)
+            v_done=$(echo "$last" | grep -oE '[0-9]+/[0-9]+' | head -1 | cut -d/ -f1)
+            v_total=$(echo "$last" | grep -oE '[0-9]+/[0-9]+' | head -1 | cut -d/ -f2)
+            v_rate=$(echo "$last" | grep -oE '[0-9]+\.[0-9]+s/batch' | head -1)
+            v_eta=$(echo "$last" | grep -oE '<[0-9:]+' | head -1 | tr -d '<')
+            if [ -n "$v_done" ] && [ -n "$v_total" ] && [ "$v_total" -gt 0 ] 2>/dev/null; then
+                v_bar=$(mk_bar "$v_done" "$v_total" 30)
+                v_pct=$((v_done * 100 / v_total))
+                BUF+="  vectors_v2 [MPS] ${v_phase:-...}  ${v_bar}  ${v_done}/${v_total}  ${v_pct}%%"
+                [ -n "$v_rate" ] && BUF+="  ${v_rate}"
+                [ -n "$v_eta" ] && BUF+="  ETA:${v_eta}"
+                BUF+="  cpu:${cpu}%%\n"
+            else
+                BUF+="  vectors_v2 [MPS] ${v_phase:-loading}...  cpu:${cpu}%%\n"
+            fi
         else
-            BUF+="  vectors_v2  loading...  cpu:${cpu}%%\n"
+            BUF+="  vectors_v2 [MPS]  loading...  cpu:${cpu}%%\n"
         fi
     done
 

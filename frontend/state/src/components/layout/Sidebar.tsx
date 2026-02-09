@@ -11,6 +11,7 @@ const navItems = [
 ]
 
 const analysis = [
+  { to: '/database', label: 'Database' },
   { to: '/signal-inspector', label: 'Signal Inspector' },
   { to: '/embedding-audit', label: 'Embedding Audit' },
   { to: '/collection-coverage', label: 'Coverage' },

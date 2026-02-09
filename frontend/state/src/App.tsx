@@ -13,6 +13,7 @@ import { SignalInspectorPage } from './pages/SignalInspectorPage'
 import { EmbeddingAuditPage } from './pages/EmbeddingAuditPage'
 import { CollectionCoveragePage } from './pages/CollectionCoveragePage'
 import { SeePage } from './pages/SeePage'
+import { DatabasePage } from './pages/DatabasePage'
 
 export default function App() {
   const themeCtx = useThemeProvider()
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="signal-inspector" element={<SignalInspectorPage />} />
           <Route path="embedding-audit" element={<EmbeddingAuditPage />} />
           <Route path="collection-coverage" element={<CollectionCoveragePage />} />
+          <Route path="database" element={<DatabasePage />} />
           <Route path="see" element={<SeePage />} />
         </Route>
       </Routes>
