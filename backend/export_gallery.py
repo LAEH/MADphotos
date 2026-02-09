@@ -919,6 +919,70 @@ def generate_stream_sequence(photos: List[Dict], pretty: bool = False) -> None:
     print(f"  stream_sequence.json: {len(sequence)} images ({path.stat().st_size / 1024:.0f} KB)")
 
 
+# ── Auxiliary: Drift Neighbors (vector similarity) ─────────────────────────
+
+DRIFT_NEIGHBORS = 8
+
+def generate_drift_neighbors(pretty: bool = False) -> None:
+    """Generate drift_neighbors.json from LanceDB v2 vectors (DINOv2-Large)."""
+    import lancedb
+    import numpy as np
+
+    lance_path = str(PROJECT_ROOT / "images" / "vectors.lance")
+    lance_db = lancedb.connect(lance_path)
+    tables = lance_db.table_names() if hasattr(lance_db, 'table_names') else lance_db.list_tables()
+
+    # Prefer v2, fall back to v1
+    table_name = "image_vectors_v2" if "image_vectors_v2" in tables else "image_vectors"
+    table = lance_db.open_table(table_name)
+    print(f"  drift: using '{table_name}'")
+
+    arrow = table.to_arrow()
+    uuids = arrow.column("uuid").to_pylist()
+    dino_vecs = arrow.column("dino").to_pylist()
+
+    # Build numpy matrix for fast cosine similarity
+    matrix = np.array(dino_vecs, dtype=np.float32)
+    # Normalize (should already be, but ensure)
+    norms = np.linalg.norm(matrix, axis=1, keepdims=True)
+    norms[norms == 0] = 1
+    matrix = matrix / norms
+
+    uuid_to_idx = {u: i for i, u in enumerate(uuids)}
+    neighbors = {}
+
+    batch_size = 500
+    total = len(uuids)
+    for start in range(0, total, batch_size):
+        end = min(start + batch_size, total)
+        batch = matrix[start:end]
+        # Cosine similarity: batch (B, D) @ matrix.T (D, N) -> (B, N)
+        sims = batch @ matrix.T
+        for local_i in range(end - start):
+            global_i = start + local_i
+            scores = sims[local_i]
+            # Get top K+1 (includes self), then exclude self
+            top_indices = np.argpartition(scores, -DRIFT_NEIGHBORS - 1)[-(DRIFT_NEIGHBORS + 1):]
+            top_indices = top_indices[top_indices != global_i]
+            # Sort by score descending
+            top_indices = top_indices[np.argsort(scores[top_indices])[::-1]][:DRIFT_NEIGHBORS]
+            neighbors[uuids[global_i]] = [
+                {"id": uuids[j], "score": round(float(scores[j]), 4)}
+                for j in top_indices
+            ]
+        if end % 2000 == 0 or end == total:
+            print(f"  drift: {end}/{total}...")
+
+    path = DATA_DIR / "drift_neighbors.json"
+    with open(path, "w") as f:
+        if pretty:
+            json.dump(neighbors, f, indent=2)
+        else:
+            json.dump(neighbors, f, separators=(",", ":"))
+
+    print(f"  drift_neighbors.json: {len(neighbors)} images, {DRIFT_NEIGHBORS} neighbors each ({path.stat().st_size / (1024*1024):.1f} MB)")
+
+
 # ── Main Export ──────────────────────────────────────────────────────────────
 
 def export(pretty: bool = False) -> None:
@@ -1009,6 +1073,7 @@ def export(pretty: bool = False) -> None:
     generate_faces_json(photos, faces_lk, emotions_lk, pretty)
     generate_game_rounds(photos, pretty)
     generate_stream_sequence(photos, pretty)
+    generate_drift_neighbors(pretty)
 
     print("Done.")
 

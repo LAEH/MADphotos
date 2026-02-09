@@ -1381,3 +1381,40 @@ Florence-2 was captioning at 0.4 img/s on a single MPS process — 5+ hours for 
 **Live progress tracker.** Created `_progress.sh` — a terminal dashboard that monitors all running signal extraction processes. Uses `tput home` for flicker-free updates (overwrites in place instead of clearing). Shows: overall Florence progress bar, per-worker bars with `[MPS]`/`[CPU]` labels, rate, ETA, CPU%. Auto-detects florence_worker, signals_v2, vectors_v2, and rembg processes. Opens in a new Terminal window via `open -a Terminal`.
 
 The lesson: SQLite + multiple writers = pain. WAL mode helps readers but only one writer can hold the lock. Batching writes (accumulate in memory, flush with `executemany` every N images) is the pattern for multi-process pipelines.
+
+### 18:00 — Signals V2 complete. Full pipeline audit. Everything regenerated. *("SO Can you do a thorough review to update all")*
+
+**Florence-2 captions: 9,011/9,011 (100%).** The 4 CPU workers (W2-W5) each finished their 1,049-image partition with zero errors at 0.05/s. Combined with the 2 MPS workers that finished earlier, all 6 workers completed in about 5.7 hours total. 6 parallel processes, 2 devices, zero errors across 9,011 images.
+
+**Vectors v2: 9,011/9,011 (100%).** DINOv2-Large (1024d) at ~14.5 img/s on MPS, SigLIP2-SO400M (1152d) at ~7.5 img/s, CLIP copied from v1. Total: ~35 minutes for all 9,011 images. `image_vectors_v2` table created in LanceDB alongside v1.
+
+**Full pipeline audit.** Launched 4 parallel audit agents: DB coverage, backend scripts, State frontend, Show frontend. Key findings:
+- 33 signal tables in DB, 22 at full 9,011 coverage, 9 conditional
+- `export_gallery.py` was already wired up correctly (identities + locations loaders called)
+- `pipeline.py` already had `face_identities` in SIGNAL_TABLES
+- `quality_scores.exposure_quality` blob corruption: FIXED (0 blobs)
+- `image_locations`: 1,820 rows (not empty anymore)
+- `HomePage.tsx`: stale — listed 10 models and "23 tables"
+- `drift_neighbors.json`: stale — generated from v1 DINOv2 (768d)
+
+**Fixes applied:**
+1. **HomePage.tsx** — Updated: 24 models (was 10), 33 signal tables (was 23), 11 pipeline stages (was 9), V2 models listed (Florence-2, Grounding DINO, SAM 2.1, TOPIQ, MUSIQ, LAION, rembg, InsightFace, YOLOv8n-pose, RAM++, OpenCV Saliency), correct script filenames.
+2. **export_gallery.py** — Added `generate_drift_neighbors()` function that reads v2 LanceDB vectors (DINOv2-Large 1024d), computes 8 nearest neighbors per image via batched cosine similarity, outputs `drift_neighbors.json`.
+3. **_progress.sh** — Updated vectors_v2 detection to parse tqdm output from `/tmp/vectors_v2.log` (was reading wrong log path).
+
+**All data regenerated:**
+- `photos.json`: 25.9 MB, 9,011 photos with all V1 + V2 signals including full Florence captions
+- `drift_neighbors.json`: 4.5 MB, 9,011 images × 8 neighbors, now using DINOv2-Large (1024d) v2 vectors
+- `faces.json`: 326 KB, 1,676 images with face data
+- `game_rounds.json`: 48 KB, 200 rounds
+- `stream_sequence.json`: 328 KB, 8,618 images
+- All 8 State data JSON files (stats, journal, instructions, mosaics, cartoon, signal_inspector, embedding_audit, collection_coverage)
+
+**Deployed everything:**
+- Firebase (Show): `madphotos.web.app` — photos.json + drift_neighbors.json with v2 data
+- GitHub Pages (State): HomePage with 24 models, all data files current
+- GCS metadata synced
+
+**MEMORY.md updated** with final V2 coverage numbers, v2 vector tables, fixed gotchas (blob corruption resolved, image_locations populated), 33 tables, 14 State routes, 24 models.
+
+The database is now feature-complete for V2. 24 models, 33 tables, 9,011 images fully analyzed. Every signal flows through export_gallery.py into photos.json for Show experiences. Next opportunities: new Show experiences that exploit V2 signals (saliency, segments, poses, tags, florence captions, open_labels), StatsPage V2 visualizations, interactive SimilarityPage with v2 vectors.

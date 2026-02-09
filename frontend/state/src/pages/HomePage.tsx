@@ -136,18 +136,20 @@ export function HomePage() {
       </Section>
 
       {/* The Pipeline */}
-      <Section label="The Pipeline" heading="Nine stages, per-image intelligence">
+      <Section label="The Pipeline" heading="Eleven stages, per-image intelligence">
         <ol style={{ listStyle: 'none', counterReset: 'step' }}>
           {[
-            { name: 'Render', desc: '6-tier resolution pyramid per image (64px to 3840px), plus 4-tier for AI variants.', file: 'render_pipeline.py' },
-            { name: 'Analyze', desc: 'Gemini 2.5 Pro structured analysis: vibes, exposure, composition, color grading, per-image edit instructions.', file: 'photography_engine.py' },
-            { name: 'Pixel Metrics', desc: 'Luminance, white balance shift, noise levels, clipping, contrast ratio, color temperature.', file: 'image_analysis.py' },
-            { name: 'Vectors', desc: 'Three embedding models (DINOv2, SigLIP, CLIP) into LanceDB for similarity search.', file: 'vector_engine.py' },
-            { name: 'Signals', desc: 'EXIF metadata, dominant colors (K-means in LAB), face detection (YuNet), object detection (YOLOv8n), perceptual hashes.', file: 'signal_extraction.py' },
-            { name: 'Advanced Signals', desc: 'Aesthetic scoring, depth estimation, scene/style classification, OCR, captions, facial emotions.', file: 'advanced_signals.py' },
-            { name: 'Enhance', desc: 'Camera-aware per-image enhancement: WB, exposure, shadows/highlights, contrast, saturation, sharpening.', file: 'enhance_engine.py' },
-            { name: 'Variants', desc: '4 AI variants via Imagen 3: gemini_edit, pro_edit, nano_feel, cartoon.', file: 'imagen_engine.py' },
-            { name: 'Sync', desc: 'Upload to Google Cloud Storage. Track public URLs in the database.', file: 'gcs_sync.py' },
+            { name: 'Render', desc: '6-tier resolution pyramid per image (64px to 3840px), plus 4-tier for AI variants.', file: 'render.py' },
+            { name: 'Analyze', desc: 'Gemini 2.5 Pro structured analysis: vibes, exposure, composition, color grading, per-image edit instructions.', file: 'gemini.py' },
+            { name: 'Pixel Metrics', desc: 'Luminance, white balance shift, noise levels, clipping, contrast ratio, color temperature.', file: 'signals.py' },
+            { name: 'Vectors v1', desc: 'DINOv2-base (768d), SigLIP-base (768d), CLIP ViT-B/32 (512d) into LanceDB.', file: 'vectors.py' },
+            { name: 'Vectors v2', desc: 'DINOv2-Large (1024d), SigLIP2-SO400M (1152d), CLIP (512d) \u2014 upgraded embeddings.', file: 'vectors_v2.py' },
+            { name: 'Signals v1', desc: 'EXIF, dominant colors, faces (YuNet), objects (YOLOv8n), hashes, depth, scenes, aesthetics, OCR, captions, emotions.', file: 'signals.py + signals_advanced.py' },
+            { name: 'Signals v2', desc: 'Florence-2 captions, Grounding DINO, SAM segmentation, TOPIQ/MUSIQ/LAION aesthetics, rembg, ArcFace identities, poses, saliency, tags.', file: 'signals_v2.py' },
+            { name: 'Enhance', desc: 'Camera-aware per-image enhancement: WB, exposure, shadows/highlights, contrast, saturation, sharpening.', file: 'enhance.py' },
+            { name: 'Variants', desc: 'AI variants via Imagen 3: cartoon cel-shaded illustrations.', file: 'imagen.py' },
+            { name: 'Export', desc: 'Merge all signals into photos.json, faces.json, drift_neighbors.json for Show app.', file: 'export_gallery.py' },
+            { name: 'Sync', desc: 'Upload to Google Cloud Storage. Track public URLs in the database.', file: 'upload.py' },
           ].map(step => (
             <li key={step.name} className="pipeline-item">
               <div style={{ fontWeight: 600, fontSize: 'var(--text-sm)', marginBottom: 2 }}>{step.name}</div>
@@ -162,8 +164,8 @@ export function HomePage() {
       <Section label="Infrastructure" heading="Under the hood">
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--space-3)' }} className="infra-grid">
           {[
-            { label: 'Database', value: 'SQLite \u2014 23 tables' },
-            { label: 'Vector Store', value: 'LanceDB \u2014 9,011 \u00D7 3' },
+            { label: 'Database', value: 'SQLite \u2014 33 signal tables' },
+            { label: 'Vector Store', value: 'LanceDB \u2014 9,011 \u00D7 3 (v2: 1024d + 1152d + 512d)' },
             { label: 'Cloud', value: 'gs://myproject-public-assets/', mono: true },
             { label: 'Platform', value: 'macOS, Python 3.9, Apple Silicon' },
             { label: 'AI Engine', value: 'Gemini 2.5 Pro + Imagen 3' },
@@ -197,12 +199,12 @@ export function HomePage() {
           fontSize: 'var(--text-xs)', fontWeight: 700, textTransform: 'uppercase',
           letterSpacing: 'var(--tracking-caps)', color: 'var(--muted)', marginTop: 'var(--space-6)',
         }}>
-          10 Models
+          24 Models
         </div>
         <div style={{
           display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)', marginTop: 'var(--space-4)',
         }} className="model-grid">
-          {['Gemini 2.5 Pro', 'Imagen 3', 'DINOv2', 'SigLIP', 'CLIP', 'YOLOv8n', 'YuNet', 'BLIP', 'Depth Anything v2', 'Places365'].map(m => (
+          {['Gemini 2.5 Pro', 'Imagen 3', 'DINOv2-Large', 'SigLIP2-SO400M', 'CLIP', 'YOLOv8n', 'YuNet', 'BLIP', 'Depth Anything v2', 'Places365', 'Florence-2', 'Grounding DINO', 'SAM 2.1', 'TOPIQ', 'MUSIQ', 'LAION Aesthetic', 'rembg / U2Net', 'InsightFace ArcFace', 'YOLOv8n-pose', 'EasyOCR', 'RAM++ Tags', 'DeepFace', 'OpenCV Saliency', 'K-means LAB'].map(m => (
             <div key={m} style={{
               background: 'var(--card-bg)', border: '1px solid var(--border)',
               borderRadius: 'var(--radius-md)', padding: 'var(--space-2) var(--space-3)',

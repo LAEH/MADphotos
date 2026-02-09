@@ -2864,7 +2864,7 @@ def render_instructions():
 
 <div class="inst-hero">
   <h1>System Instructions</h1>
-  <p>Everything needed to work on MADphotos effectively. Updated 2026-02-07.</p>
+  <p>Everything needed to work on MADphotos effectively. Updated 2026-02-09.</p>
 </div>
 
 <!-- ═══ PROJECT BRIEFING ═══ -->
@@ -2905,10 +2905,11 @@ def render_instructions():
 <div class="inst-card inst-status">
   <span class="inst-pill inst-pill-green">Status</span>
   <h2>What&rsquo;s Done vs. What&rsquo;s Next</h2>
-  <p><strong>Done (17/20):</strong> Rendering (97,898 tiers). EXIF. Pixel Analysis. Dominant Colors. Image Hashes. Vectors (DINOv2+SigLIP+CLIP). Aesthetic Scoring. Depth Estimation. Scene Classification. Style Classification. BLIP Captions. Facial Emotions. Enhancement Plans (v1+v2). <strong>Gemini 2.5 Pro analysis (9,011/9,011 &mdash; 100%).</strong> OCR / Text Detection (16,704 detections). &mdash; Dashboard + Journal. MADCurator. 14 web experiences. GCS upload (135,518 files: 72k original + 63k enhanced). Gallery export with GCS public URLs.</p>
-  <p><strong>Sparse signals (complete but partial by nature):</strong> Face Detections (1,676 images). Object Detections (5,363 images). OCR is also sparse &mdash; not every photo contains text.</p>
-  <p><strong>In progress:</strong> Curate in MADCurator (accept/reject + inline editing of 9 Gemini fields + vibe add/remove now live).</p>
-  <p><strong>Next:</strong> Imagen AI variants at scale. Location intelligence from EXIF GPS. Deploy Show to Firebase.</p>
+  <p><strong>V1 Signals (all 9,011/9,011):</strong> Rendering (97,898 tiers). EXIF. Pixel Analysis. Dominant Colors. Image Hashes. Vectors v1 (DINOv2-base+SigLIP-base+CLIP). Aesthetic Scoring. Depth Estimation. Scene Classification. Style Classification. BLIP Captions. Facial Emotions. Enhancement Plans (v1+v2). <strong>Gemini 2.5 Pro analysis (9,011/9,011).</strong> OCR (17,914 detections).</p>
+  <p><strong>V2 Signals (all complete):</strong> Aesthetic v2 (TOPIQ+MUSIQ+LAION). Quality Scores. Florence-2 Captions (9,011). CLIP Tags (9,011). Grounding DINO (108,861 detections). ArcFace Identities (2,264). rembg Foreground (9,011). SAM Segmentation (9,011). Pose Detection (3,595). Saliency Maps (9,011). GPS Locations (1,820). Border Detection (1,126). <strong>Vectors v2: DINOv2-Large (1024d) + SigLIP2-SO400M (1152d) + CLIP (512d).</strong></p>
+  <p><strong>Conditional signals (complete but partial by nature):</strong> Face Detections (1,676 images). Object Detections (5,363 images). Open Detections (8,981 images). Pose Detections (1,670 images). Face Identities (1,197 images). GPS Locations (1,820 images). Border Crops (1,126 analog images).</p>
+  <p><strong>Deployed:</strong> Show on Firebase (madphotos.web.app), State on GitHub Pages, images on GCS. 14 web experiences. MADCurator native macOS app.</p>
+  <p><strong>Next:</strong> New Show experiences using V2 signals. StatsPage V2 visualizations. Interactive SimilarityPage. More Imagen variants.</p>
 </div>
 
 <!-- ═══ CAMERAS + ARCHITECTURE ═══ -->
@@ -2931,29 +2932,36 @@ def render_instructions():
 
 <div class="inst-card">
   <span class="inst-pill inst-pill-blue">Architecture</span>
-  <h2>19 Python Scripts (backend/)</h2>
+  <h2>28 Python Scripts (backend/)</h2>
   <table>
     <thead><tr><th>Script</th><th>Purpose</th></tr></thead>
     <tbody>
       <tr><td><code>pipeline.py</code></td><td>Phase orchestrator</td></tr>
-      <tr><td><code>completions.py</code></td><td>Master orchestrator &mdash; checks all 20 stages, fixes gaps, updates State</td></tr>
+      <tr><td><code>completions.py</code></td><td>Master orchestrator &mdash; checks all stages, fixes gaps, updates State</td></tr>
       <tr><td><code>render.py</code></td><td>6-tier resolution pyramid</td></tr>
       <tr><td><code>gemini.py</code></td><td>Gemini 2.5 Pro structured analysis</td></tr>
-      <tr><td><code>imagen.py</code></td><td>4 AI variants via Imagen 3</td></tr>
+      <tr><td><code>imagen.py</code></td><td>AI variants via Imagen 3</td></tr>
       <tr><td><code>upload.py</code></td><td>Upload to GCS</td></tr>
-      <tr><td><code>database.py</code></td><td>SQLite schema (24 tables)</td></tr>
+      <tr><td><code>database.py</code></td><td>SQLite schema (33 tables)</td></tr>
       <tr><td><code>enhance.py</code></td><td>Camera-aware 6-step enhancement</td></tr>
-      <tr><td><code>signals_advanced.py</code></td><td>11 ML models</td></tr>
-      <tr><td><code>dashboard.py</code></td><td>Dashboard + Journal</td></tr>
-      <tr><td><code>export_gallery.py</code></td><td>Gallery data export to JSON</td></tr>
-      <tr><td><code>serve_show.py</code></td><td>Local dev server</td></tr>
-      <tr><td><code>signals.py</code></td><td>EXIF, colors, faces, objects, hashes</td></tr>
-      <tr><td><code>pixel_analysis.py</code></td><td>Pixel-level analysis for enhancement</td></tr>
-      <tr><td><code>vectors.py</code></td><td>DINOv2/SigLIP/CLIP embeddings</td></tr>
-      <tr><td><code>mosaics.py</code></td><td>4096px mosaic generator</td></tr>
       <tr><td><code>enhance_v2.py</code></td><td>Signal-aware enhancement v2</td></tr>
+      <tr><td><code>signals.py</code></td><td>EXIF, colors, faces, objects, hashes</td></tr>
+      <tr><td><code>signals_advanced.py</code></td><td>Aesthetics, depth, scenes, styles, OCR, captions, emotions</td></tr>
+      <tr><td><code>signals_v2.py</code></td><td>12-phase V2: Florence-2, DINO, SAM, rembg, TOPIQ, MUSIQ, saliency, poses, tags, identities</td></tr>
+      <tr><td><code>vectors.py</code></td><td>V1 embeddings: DINOv2-base/SigLIP-base/CLIP</td></tr>
+      <tr><td><code>vectors_v2.py</code></td><td>V2 embeddings: DINOv2-Large/SigLIP2-SO400M/CLIP</td></tr>
+      <tr><td><code>dashboard.py</code></td><td>Dashboard + Journal + Instructions</td></tr>
+      <tr><td><code>export_gallery.py</code></td><td>Gallery data export to 6 JSON files</td></tr>
+      <tr><td><code>serve_show.py</code></td><td>Local dev server</td></tr>
+      <tr><td><code>pixel_analysis.py</code></td><td>Pixel-level analysis for enhancement</td></tr>
+      <tr><td><code>quality_scores.py</code></td><td>Technical + CLIP quality scoring</td></tr>
+      <tr><td><code>border_crop.py</code></td><td>Analog border detection</td></tr>
+      <tr><td><code>mosaics.py</code></td><td>4096px mosaic generator</td></tr>
       <tr><td><code>render_enhanced.py</code></td><td>Enhanced image tier rendering</td></tr>
       <tr><td><code>prep_blind_test.py</code></td><td>A/B blind test preparation</td></tr>
+      <tr><td><code>pipeline_lock.py</code></td><td>Pipeline lock management</td></tr>
+      <tr><td><code>_florence_worker.py</code></td><td>Parallel Florence-2 captioning worker</td></tr>
+      <tr><td><code>_rembg_standalone.py</code></td><td>Standalone rembg foreground extraction</td></tr>
     </tbody>
   </table>
 </div>
@@ -3021,7 +3029,7 @@ def render_instructions():
 <div class="inst-card">
   <h2>Web Gallery (Show) &mdash; 14 Experiences</h2>
   <ul>
-    <li><code>backend/export_gallery.py</code> &rarr; 5 JSON files (photos, faces, game_rounds, stream_sequence, drift_neighbors)</li>
+    <li><code>backend/export_gallery.py</code> &rarr; 6 JSON files (photos, faces, game_rounds, stream_sequence, drift_neighbors)</li>
     <li><code>backend/serve_show.py</code> &rarr; localhost:3000</li>
     <li>18 files: index.html, style.css, app.js + 14 experience modules + data/</li>
     <li>La Grille, Le Bento, La Similarit&eacute;, La D&eacute;rive, Les Couleurs, Le Jeu, Chambre Noire, Le Flot, Les Visages, La Boussole, L&rsquo;Observatoire, La Carte, Machine &Agrave; &Eacute;crire, Le Pendule</li>
@@ -3035,28 +3043,56 @@ def render_instructions():
 <!-- ═══ SIGNAL INVENTORY ═══ -->
 <div class="inst-card">
   <span class="inst-pill inst-pill-teal">Signals</span>
-  <h2>Signal Inventory &mdash; 18 Signals per Image</h2>
+  <h2>Signal Inventory &mdash; 33 Tables, 24 Models</h2>
+
+  <h3>V1 Signals (all 9,011/9,011)</h3>
   <table>
     <thead><tr><th>Signal</th><th>Source</th><th>Status</th><th>Key Fields</th></tr></thead>
     <tbody>
       <tr><td>EXIF</td><td>Pillow</td><td class="done">9,011 &check;</td><td>Camera, lens, focal, aperture, shutter, ISO, GPS</td></tr>
       <tr><td>Pixel Analysis</td><td>NumPy/OpenCV</td><td class="done">9,011 &check;</td><td>Brightness, saturation, contrast, noise, WB shifts</td></tr>
-      <tr><td>Dominant Colors</td><td>K-means (LAB)</td><td class="done">9,011 &check;</td><td>5 clusters: hex, RGB, LAB, percentage</td></tr>
+      <tr><td>Dominant Colors</td><td>K-means (LAB)</td><td class="done">45,051 rows &check;</td><td>5 clusters: hex, RGB, LAB, percentage</td></tr>
       <tr><td>Faces</td><td>YuNet</td><td class="done">1,676 images &check;</td><td>3,187 faces: boxes, landmarks, confidence, area %</td></tr>
       <tr><td>Objects</td><td>YOLOv8n</td><td class="done">5,363 images &check;</td><td>14,534 detections, 80 COCO classes</td></tr>
       <tr><td>Hashes</td><td>imagehash</td><td class="done">9,011 &check;</td><td>pHash, aHash, dHash, wHash, blur, sharpness</td></tr>
-      <tr><td>Vectors</td><td>DINOv2+SigLIP+CLIP</td><td class="done">9,011 &check;</td><td>768d+768d+512d = 2,048 dims (LanceDB)</td></tr>
       <tr><td>Gemini</td><td>Gemini 2.5 Pro</td><td class="done">9,011 &check;</td><td>Alt, vibes, exposure, composition, grading, edit prompt</td></tr>
-      <tr><td>Aesthetic</td><td>LAION (CLIP MLP)</td><td class="done">9,011 &check;</td><td>Score 1&ndash;10</td></tr>
+      <tr><td>Aesthetic v1</td><td>LAION (CLIP MLP)</td><td class="done">9,011 &check;</td><td>Score 1&ndash;10 (low discrimination &mdash; use v2)</td></tr>
       <tr><td>Depth</td><td>Depth Anything v2</td><td class="done">9,011 &check;</td><td>Near/mid/far %, complexity bucket</td></tr>
       <tr><td>Scenes</td><td>Places365</td><td class="done">9,011 &check;</td><td>Top 3 labels, indoor/outdoor</td></tr>
-      <tr><td>Style</td><td>Derived</td><td class="done">9,011 &check;</td><td>street, portrait, landscape, macro, etc.</td></tr>
-      <tr><td>OCR</td><td>EasyOCR</td><td class="done">16,704 detections &check;</td><td>Text regions, language, confidence (sparse &mdash; not all images have text)</td></tr>
-      <tr><td>Captions</td><td>BLIP (Salesforce)</td><td class="done">9,011 &check;</td><td>Natural language description</td></tr>
-      <tr><td>Emotions</td><td>ViT expression</td><td class="done">1,676 &check;</td><td>7-class scores per face (3,185 emotion entries)</td></tr>
-      <tr><td>Enhancement</td><td>Camera engine</td><td class="done">9,011 &check;</td><td>WB, gamma, shadows, contrast, saturation, sharpening</td></tr>
-      <tr><td>Enhancement v2</td><td>Camera engine v2</td><td class="done">9,011 &check;</td><td>Updated parameters</td></tr>
-      <tr><td>AI Variants</td><td>Imagen 3</td><td>216/9,011</td><td>gemini_edit, pro_edit, nano_feel, cartoon</td></tr>
+      <tr><td>Style</td><td>Rule-based</td><td class="done">9,011 &check;</td><td>street, portrait, landscape, macro, etc.</td></tr>
+      <tr><td>OCR</td><td>EasyOCR</td><td class="done">17,914 detections &check;</td><td>Text regions, language, confidence</td></tr>
+      <tr><td>Captions</td><td>BLIP</td><td class="done">9,011 &check;</td><td>Natural language description</td></tr>
+      <tr><td>Emotions</td><td>DeepFace</td><td class="done">1,676 images &check;</td><td>7-class scores per face (3,187 emotion entries)</td></tr>
+      <tr><td>Enhancement</td><td>Camera engine v1+v2</td><td class="done">9,011 &times; 2 &check;</td><td>WB, gamma, shadows, contrast, saturation, sharpening</td></tr>
+    </tbody>
+  </table>
+
+  <h3>V2 Signals (added Feb 2026)</h3>
+  <table>
+    <thead><tr><th>Signal</th><th>Source</th><th>Status</th><th>Key Fields</th></tr></thead>
+    <tbody>
+      <tr><td>Aesthetic v2</td><td>TOPIQ + MUSIQ + LAION</td><td class="done">9,011 &check;</td><td>3-model composite score (0&ndash;100), real spread</td></tr>
+      <tr><td>Quality</td><td>Technical + CLIP</td><td class="done">9,011 &check;</td><td>Technical, CLIP, combined scores, sharpness, noise, exposure</td></tr>
+      <tr><td>Florence Captions</td><td>Florence-2-base</td><td class="done">9,011 &check;</td><td>Short, detailed, more_detailed captions</td></tr>
+      <tr><td>Tags</td><td>CLIP zero-shot</td><td class="done">9,011 &check;</td><td>Multi-label tags (pipe-delimited)</td></tr>
+      <tr><td>Open Detections</td><td>Grounding DINO tiny</td><td class="done">8,981 images &check;</td><td>108,861 detections, open-vocabulary</td></tr>
+      <tr><td>Face Identities</td><td>InsightFace ArcFace</td><td class="done">1,197 images &check;</td><td>2,264 face embeddings + identity clustering</td></tr>
+      <tr><td>Foreground</td><td>rembg / U2Net</td><td class="done">9,011 &check;</td><td>Foreground %, centroid, bounding box</td></tr>
+      <tr><td>Segmentation</td><td>SAM 2.1 hiera-tiny</td><td class="done">9,011 &check;</td><td>Segment count, figure/ground ratio, edge complexity</td></tr>
+      <tr><td>Poses</td><td>YOLOv8n-pose</td><td class="done">1,670 images &check;</td><td>3,595 pose keypoints (17 COCO joints)</td></tr>
+      <tr><td>Saliency</td><td>OpenCV spectral</td><td class="done">9,011 &check;</td><td>Peak location, spread, center bias, thirds grid</td></tr>
+      <tr><td>Locations</td><td>EXIF GPS</td><td class="done">1,820 images &check;</td><td>Latitude, longitude, location name</td></tr>
+      <tr><td>Border Crops</td><td>OpenCV edge</td><td class="done">1,126 analog &check;</td><td>Border detection, crop margins</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Vectors + Variants</h3>
+  <table>
+    <thead><tr><th>Signal</th><th>Source</th><th>Status</th><th>Key Fields</th></tr></thead>
+    <tbody>
+      <tr><td>Vectors v1</td><td>DINOv2-base + SigLIP-base + CLIP</td><td class="done">9,011 &check;</td><td>768d + 768d + 512d (LanceDB)</td></tr>
+      <tr><td>Vectors v2</td><td>DINOv2-Large + SigLIP2-SO400M + CLIP</td><td class="done">9,011 &check;</td><td>1024d + 1152d + 512d (LanceDB)</td></tr>
+      <tr><td>AI Variants</td><td>Imagen 3</td><td>290 / 173 images</td><td>Cartoon cel-shaded illustrations</td></tr>
     </tbody>
   </table>
 </div>
