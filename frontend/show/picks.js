@@ -55,13 +55,9 @@ function initPicks() {
     const mobile = isMobile();
     const picksData = APP.picksData || { portrait: [], landscape: [] };
 
-    /* Resolve IDs to photo objects */
+    /* Resolve IDs to photo objects — strict: portrait on mobile, landscape on desktop */
     const orientation = mobile ? 'portrait' : 'landscape';
-    let ids = picksData[orientation] || [];
-    /* Desktop fallback: if no landscape picks, use portrait */
-    if (!mobile && ids.length === 0) {
-        ids = picksData.portrait || [];
-    }
+    const ids = picksData[orientation] || [];
 
     const photos = [];
     for (const id of ids) {
@@ -73,9 +69,6 @@ function initPicks() {
     picksState.paused = false;
     picksState._inited = true;
 
-    /* Determine if we're in portrait-fallback mode on desktop */
-    const isPortraitFallback = !mobile && (picksData.landscape || []).length === 0 && photos.length > 0;
-
     /* Build DOM */
     container.innerHTML = '';
 
@@ -86,7 +79,6 @@ function initPicks() {
 
     const shell = document.createElement('div');
     shell.className = 'picks-shell';
-    if (isPortraitFallback) shell.classList.add('picks-shell--portrait');
 
     /* Background color layers */
     const bgA = document.createElement('div');
