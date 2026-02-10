@@ -44,6 +44,7 @@ const APP = {
 
 /* Experience registry */
 const EXPERIENCES = [
+    { id: 'picks',       name: '\ud83d\ude0e',              init: 'initPicks' },
     { id: 'couleurs',    name: 'Colors',           init: 'initCouleurs' },
     { id: 'faces',       name: 'Faces',            init: 'initFaces' },
     { id: 'compass',     name: 'Relation',         init: 'initCompass' },
@@ -109,6 +110,13 @@ async function loadDriftNeighbors() {
     try { APP.driftNeighbors = await fetchJSON('/data/drift_neighbors.json'); }
     catch { APP.driftNeighbors = {}; }
     return APP.driftNeighbors;
+}
+
+async function loadPicks() {
+    if (APP.picksData) return APP.picksData;
+    try { APP.picksData = await fetchJSON('/data/picks.json'); }
+    catch { APP.picksData = { portrait: [], landscape: [] }; }
+    return APP.picksData;
 }
 
 /* ===== Timer Management (prevent leaks) ===== */
@@ -210,9 +218,12 @@ function switchView(name) {
         _faceBatchRunning = false;
     }
 
-    /* Tinder viewport lock cleanup */
+    /* Viewport lock cleanup (Tinder & Picks both lock) */
     if (APP.currentView === 'tinder' && name !== 'tinder') {
         if (typeof tinderUnlockViewport === 'function') tinderUnlockViewport();
+    }
+    if (APP.currentView === 'picks' && name !== 'picks') {
+        if (typeof picksUnlockViewport === 'function') picksUnlockViewport();
     }
 
     APP.currentView = name;
@@ -617,18 +628,20 @@ async function init() {
         return; /* loadData already shows error UI */
     }
 
+    /* Load picks data (non-blocking — OK if missing) */
+    await loadPicks();
+
     initRouter();
     initLightbox();
     initFullscreen();
 
-    /* Navigate to hash or default view (tinder on mobile, couleurs on desktop) */
+    /* Navigate to hash or default view (picks for both mobile and desktop) */
     const hash = location.hash.slice(1);
     const validViews = EXPERIENCES.map(e => e.id);
     if (hash && validViews.includes(hash)) {
         switchView(hash);
     } else {
-        const isMobile = window.matchMedia('(max-width: 768px)').matches;
-        switchView(isMobile ? 'tinder' : 'game');
+        switchView('picks');
     }
 }
 

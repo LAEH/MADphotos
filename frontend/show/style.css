@@ -4308,3 +4308,139 @@ body {
     .tinder-btn,
     .tinder-mini-slot { transition: none !important; }
 }
+
+/* ============================================================
+   PICKS — Curated Slideshow
+   Perf: compositor-only (opacity, transform). Two-layer crossfade.
+   Ken Burns reuses @keyframes kb-1..kb-6 from Cinema section.
+   ============================================================ */
+.picks-shell {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    background: #000;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* ── Background palette layers (crossfade) ── */
+.picks-bg-layer {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 1s var(--ease-out-quart);
+    z-index: 0;
+}
+.picks-bg-layer.active {
+    opacity: 1;
+}
+
+/* ── Image layers (crossfade) ── */
+.picks-layer {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 1.2s var(--ease-out-quart);
+    z-index: 1;
+}
+.picks-layer.active {
+    opacity: 1;
+    z-index: 2;
+}
+
+.picks-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* ── Ken Burns wiring — reuse kb-1..kb-6 keyframes ── */
+.picks-layer.kb-1 .picks-img { animation: kb-1 8s var(--ease-out-quart) both; }
+.picks-layer.kb-2 .picks-img { animation: kb-2 8s var(--ease-out-quart) both; }
+.picks-layer.kb-3 .picks-img { animation: kb-3 8s var(--ease-out-quart) both; }
+.picks-layer.kb-4 .picks-img { animation: kb-4 8s var(--ease-out-quart) both; }
+.picks-layer.kb-5 .picks-img { animation: kb-5 8s var(--ease-out-quart) both; }
+.picks-layer.kb-6 .picks-img { animation: kb-6 8s var(--ease-out-quart) both; }
+
+/* ── Progress bar ── */
+.picks-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.1);
+    z-index: 10;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.picks-progress-fill {
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.6);
+    transform-origin: left;
+    transform: scaleX(0);
+    will-change: transform;
+}
+
+/* ── Counter ── */
+.picks-counter {
+    position: absolute;
+    bottom: var(--space-4);
+    right: var(--space-5);
+    font: 500 var(--text-caption)/1 var(--font);
+    color: rgba(255, 255, 255, 0.5);
+    z-index: 10;
+    user-select: none;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ── Empty state ── */
+.picks-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    height: 100dvh;
+    font: 400 var(--text-lg)/1.4 var(--font-display);
+    color: var(--text-dim);
+    text-align: center;
+    padding: var(--space-8);
+}
+
+/* ── Desktop: portrait fallback (contain + palette bg) ── */
+@media (min-width: 769px) {
+    .picks-shell--portrait .picks-img {
+        object-fit: contain;
+    }
+}
+
+/* ── Mobile safe area adjustments ── */
+@media (max-width: 768px) {
+    .picks-counter {
+        bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+        right: var(--space-4);
+    }
+}
+
+/* ── dvh fallback ── */
+.picks-shell { height: 100vh; height: 100dvh; }
+
+/* ── Tier C: instant transitions, no Ken Burns ── */
+:root.tier-c .picks-layer,
+:root.tier-c .picks-bg-layer {
+    transition-duration: 0.01ms !important;
+}
+:root.tier-c .picks-layer .picks-img {
+    animation-duration: 0.01ms !important;
+}
+
+/* ── Reduced motion: no Ken Burns, instant crossfade ── */
+@media (prefers-reduced-motion: reduce) {
+    .picks-layer,
+    .picks-bg-layer { transition-duration: 0.01ms !important; }
+    .picks-layer .picks-img { animation: none !important; }
+}

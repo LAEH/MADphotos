@@ -205,6 +205,47 @@ def sync_collection(conn: sqlite3.Connection, col: dict, token: str, dry: bool) 
     return new
 
 
+PICKS_JSON_PATH = PROJECT_ROOT / "frontend" / "show" / "data" / "picks.json"
+
+
+def generate_picks_json(conn: sqlite3.Connection) -> None:
+    """Generate picks.json from accepted tinder votes, grouped by device orientation.
+
+    Device 'mobile' → portrait picks, 'desktop' → landscape picks.
+    Output: { "portrait": [...ids], "landscape": [...ids], "generated": "..." }
+    """
+    try:
+        conn.execute("SELECT 1 FROM firestore_tinder_votes LIMIT 1")
+    except sqlite3.OperationalError:
+        log.info("  firestore_tinder_votes table not yet created — skipping picks.json")
+        return
+
+    portrait_ids = [
+        row[0] for row in conn.execute(
+            "SELECT DISTINCT photo FROM firestore_tinder_votes "
+            "WHERE vote = 'accept' AND device = 'mobile' "
+            "ORDER BY ts DESC"
+        ).fetchall()
+    ]
+    landscape_ids = [
+        row[0] for row in conn.execute(
+            "SELECT DISTINCT photo FROM firestore_tinder_votes "
+            "WHERE vote = 'accept' AND device = 'desktop' "
+            "ORDER BY ts DESC"
+        ).fetchall()
+    ]
+
+    picks = {
+        "portrait": portrait_ids,
+        "landscape": landscape_ids,
+        "generated": datetime.now(timezone.utc).isoformat(),
+    }
+
+    PICKS_JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
+    PICKS_JSON_PATH.write_text(json.dumps(picks, separators=(",", ":")))
+    log.info(f"  picks.json: {len(portrait_ids)} portrait, {len(landscape_ids)} landscape")
+
+
 def print_summary(conn: sqlite3.Connection):
     """Print current table counts."""
     for col in COLLECTIONS:
@@ -238,6 +279,13 @@ def main():
 
     log.info(f"Sync complete. {total_new} new rows total.")
     print_summary(conn)
+
+    # Always regenerate picks.json (cheap operation, keeps it fresh)
+    try:
+        generate_picks_json(conn)
+    except Exception as e:
+        log.warning(f"picks.json generation failed: {e}")
+
     conn.close()
 
     # Regenerate data + rebuild + deploy so dashboards reflect fresh data
