@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /couple-likes/{doc} {
+      allow create: if request.resource.data.keys().hasAll(['a', 'b'])
+                    && request.resource.data.a is string
+                    && request.resource.data.b is string
+                    && (!('strategy' in request.resource.data) || request.resource.data.strategy is string);
+      allow read, update, delete: if false;
+    }
+
+    match /couple-rejects/{doc} {
+      allow create: if request.resource.data.keys().hasAll(['photo', 'ts'])
+                    && request.resource.data.photo is string;
+      allow read, update, delete: if false;
+    }
+
+    match /couple-approves/{doc} {
+      allow create: if request.resource.data.keys().hasAll(['photo', 'ts'])
+                    && request.resource.data.photo is string;
+      allow read, update, delete: if false;
+    }
+
+    match /tinder-votes/{doc} {
+      allow create: if request.resource.data.keys().hasAll(['photo', 'vote', 'ts'])
+                    && request.resource.data.photo is string
+                    && request.resource.data.vote in ['accept', 'reject'];
+      allow read, update, delete: if false;
+    }
+  }
+}

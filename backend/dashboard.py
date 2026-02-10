@@ -697,6 +697,82 @@ def get_stats():
         v2_signals.get('face_identities', {}).get('rows', 0),
     ])
 
+    # ── Firestore feedback ─────────────────────────────────────
+    def _table_exists(name):
+        return conn.execute(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?", (name,)
+        ).fetchone()[0] > 0
+
+    tinder_total = 0
+    tinder_accepts = 0
+    tinder_rejects = 0
+    tinder_by_day = []
+    tinder_top_accepted = []
+    tinder_top_rejected = []
+    couple_likes_total = 0
+    couple_by_strategy = []
+    couple_approves_total = 0
+    couple_rejects_total = 0
+    feedback_last_sync = None
+
+    if _table_exists('firestore_tinder_votes'):
+        tinder_total = conn.execute("SELECT COUNT(*) FROM firestore_tinder_votes").fetchone()[0]
+        tinder_accepts = conn.execute(
+            "SELECT COUNT(*) FROM firestore_tinder_votes WHERE vote='accept'"
+        ).fetchone()[0]
+        tinder_rejects = tinder_total - tinder_accepts
+        tinder_by_day = [
+            {"date": r[0], "accepts": r[1], "rejects": r[2]}
+            for r in conn.execute("""
+                SELECT DATE(ts) as d,
+                       SUM(CASE WHEN vote='accept' THEN 1 ELSE 0 END),
+                       SUM(CASE WHEN vote='reject' THEN 1 ELSE 0 END)
+                FROM firestore_tinder_votes
+                WHERE ts IS NOT NULL
+                GROUP BY d ORDER BY d
+            """).fetchall()
+        ]
+        tinder_top_accepted = [
+            {"photo": r[0], "count": r[1]}
+            for r in conn.execute("""
+                SELECT photo, COUNT(*) as c FROM firestore_tinder_votes
+                WHERE vote='accept' GROUP BY photo ORDER BY c DESC LIMIT 10
+            """).fetchall()
+        ]
+        tinder_top_rejected = [
+            {"photo": r[0], "count": r[1]}
+            for r in conn.execute("""
+                SELECT photo, COUNT(*) as c FROM firestore_tinder_votes
+                WHERE vote='reject' GROUP BY photo ORDER BY c DESC LIMIT 10
+            """).fetchall()
+        ]
+        row = conn.execute(
+            "SELECT MAX(synced_at) FROM firestore_tinder_votes"
+        ).fetchone()
+        if row and row[0]:
+            feedback_last_sync = row[0]
+
+    if _table_exists('firestore_couple_likes'):
+        couple_likes_total = conn.execute("SELECT COUNT(*) FROM firestore_couple_likes").fetchone()[0]
+        couple_by_strategy = [
+            {"strategy": r[0] or "unknown", "count": r[1]}
+            for r in conn.execute("""
+                SELECT strategy, COUNT(*) as c FROM firestore_couple_likes
+                GROUP BY strategy ORDER BY c DESC
+            """).fetchall()
+        ]
+        row = conn.execute(
+            "SELECT MAX(synced_at) FROM firestore_couple_likes"
+        ).fetchone()
+        if row and row[0] and (not feedback_last_sync or row[0] > feedback_last_sync):
+            feedback_last_sync = row[0]
+
+    if _table_exists('firestore_couple_approves'):
+        couple_approves_total = conn.execute("SELECT COUNT(*) FROM firestore_couple_approves").fetchone()[0]
+
+    if _table_exists('firestore_couple_rejects'):
+        couple_rejects_total = conn.execute("SELECT COUNT(*) FROM firestore_couple_rejects").fetchone()[0]
+
     # ── Disk usage ───────────────────────────────────────────
     db_size = os.path.getsize(str(DB_PATH)) if DB_PATH.exists() else 0
     web_json_path = PROJECT_ROOT / "frontend" / "show" / "data" / "photos.json"
@@ -799,6 +875,24 @@ def get_stats():
         "aesthetic_v2_labels": aesthetic_v2_labels,
         "top_tags": top_tags,
         "top_open_labels": top_open_labels,
+        # Firestore feedback
+        "feedback": {
+            "last_sync": feedback_last_sync,
+            "tinder": {
+                "total": tinder_total,
+                "accepts": tinder_accepts,
+                "rejects": tinder_rejects,
+                "by_day": tinder_by_day,
+                "top_accepted": tinder_top_accepted,
+                "top_rejected": tinder_top_rejected,
+            },
+            "couple": {
+                "likes": couple_likes_total,
+                "by_strategy": couple_by_strategy,
+                "approves": couple_approves_total,
+                "rejects": couple_rejects_total,
+            },
+        },
     }
 
 

@@ -76,6 +76,24 @@ interface Stats {
   aesthetic_v2_labels?: { name: string; count: number }[]
   top_tags?: { name: string; count: number }[]
   top_open_labels?: { name: string; count: number }[]
+  // Firestore feedback
+  feedback?: {
+    last_sync: string | null
+    tinder: {
+      total: number
+      accepts: number
+      rejects: number
+      by_day: { date: string; accepts: number; rejects: number }[]
+      top_accepted: { photo: string; count: number }[]
+      top_rejected: { photo: string; count: number }[]
+    }
+    couple: {
+      likes: number
+      by_strategy: { strategy: string; count: number }[]
+      approves: number
+      rejects: number
+    }
+  }
 }
 
 /* ── SVG Icons ── */
@@ -364,6 +382,80 @@ export function DashboardPage() {
               <div className="signal-group-label">Aesthetic Quality (v2)</div>
               <div className="tag-row">
                 <Tags items={s.aesthetic_v2_labels || []} icon={IC.star} cat="aesthetic" />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══ FEEDBACK ═══ */}
+      {s.feedback && s.feedback.tinder.total > 0 && (
+        <div className="section">
+          <div className="section-title">Feedback</div>
+          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--muted)', marginBottom: 'var(--space-3)' }}>
+            Live votes from Firestore{s.feedback.last_sync && (
+              <> &mdash; last sync {new Date(s.feedback.last_sync).toLocaleString()}</>
+            )}
+          </p>
+
+          <div className="disk-row">
+            <div className="disk-item">
+              <div className="di-val">{fmt(s.feedback.tinder.total)}</div>
+              <div className="di-label">Tinder votes</div>
+            </div>
+            <div className="disk-item">
+              <div className="di-val" style={{ color: 'var(--system-green)' }}>{fmt(s.feedback.tinder.accepts)}</div>
+              <div className="di-label">Accepted ({s.feedback.tinder.total > 0 ? Math.round(s.feedback.tinder.accepts / s.feedback.tinder.total * 100) : 0}%)</div>
+            </div>
+            <div className="disk-item">
+              <div className="di-val" style={{ color: 'var(--system-red)' }}>{fmt(s.feedback.tinder.rejects)}</div>
+              <div className="di-label">Rejected ({s.feedback.tinder.total > 0 ? Math.round(s.feedback.tinder.rejects / s.feedback.tinder.total * 100) : 0}%)</div>
+            </div>
+            <div className="disk-item">
+              <div className="di-val">{fmt(s.feedback.couple.likes)}</div>
+              <div className="di-label">Couple likes</div>
+            </div>
+          </div>
+
+          {s.feedback.couple.by_strategy.length > 0 && (
+            <div className="signal-group" style={{ marginTop: 'var(--space-4)' }}>
+              <div className="signal-group-label">Couple — Liked Strategies</div>
+              <div className="tag-row">
+                {s.feedback.couple.by_strategy.map(st => (
+                  <div key={st.strategy} className="tag tag-cat-style">
+                    <span className="tag-icon">{IC.star}</span>
+                    <span className="tag-label">{st.strategy}</span>
+                    <span className="tag-count">{fmt(st.count)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {s.feedback.tinder.by_day.length > 1 && (
+            <div className="signal-group" style={{ marginTop: 'var(--space-4)' }}>
+              <div className="signal-group-label">Tinder — Daily Activity</div>
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th className="num" style={{ color: 'var(--system-green)' }}>Accepts</th>
+                      <th className="num" style={{ color: 'var(--system-red)' }}>Rejects</th>
+                      <th className="num">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {s.feedback.tinder.by_day.map(day => (
+                      <tr key={day.date}>
+                        <td>{day.date}</td>
+                        <td className="num">{fmt(day.accepts)}</td>
+                        <td className="num">{fmt(day.rejects)}</td>
+                        <td className="num">{fmt(day.accepts + day.rejects)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}

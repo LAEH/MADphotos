@@ -61,6 +61,12 @@ backend/test_quality_score.py
 # Model weights
 *.pt
 
+# Node modules
+node_modules/
+
+# Log files
+*.log
+
 # Firebase debug
 firebase-debug.log
 
