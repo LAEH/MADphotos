@@ -78,9 +78,10 @@ function BarChart({ items, color, max: maxOverride }: {
 }
 
 /* ── Section wrapper with scroll reveal ── */
-function ChartSection({ title, subtitle, children, className }: {
+function ChartSection({ title, subtitle, source, children, className }: {
   title: string
   subtitle: string
+  source?: string
   children: React.ReactNode
   className?: string
 }) {
@@ -93,6 +94,7 @@ function ChartSection({ title, subtitle, children, className }: {
       <h2 className="section-title">{title}</h2>
       <p className="chart-subtitle">{subtitle}</p>
       {children}
+      {source && <p className="chart-source">{source}</p>}
     </section>
   )
 }
@@ -134,6 +136,7 @@ function QualityCurve({ data }: { data: StatsData }) {
     <ChartSection
       title="The Quality Curve"
       subtitle="NIMA aesthetic score distribution — log scale to show the tail"
+      source="NIMA — MobileNet — TensorFlow"
     >
       <div className="histogram">
         {hist.map((h, i) => {
@@ -173,6 +176,7 @@ function Fleet({ data }: { data: StatsData }) {
     <ChartSection
       title="The Fleet"
       subtitle="Camera bodies that shot this archive"
+      source="EXIF Parser — Pillow — piexif"
     >
       <BarChart items={items} />
       <div className="chart-legend">
@@ -188,7 +192,7 @@ function Identity({ data }: { data: StatsData }) {
   const styles = data.top_styles.slice(0, 7)
   if (!styles.length) return null
   return (
-    <ChartSection title="The Identity" subtitle="Dominant visual styles in the collection">
+    <ChartSection title="The Identity" subtitle="Dominant visual styles in the collection" source="Style Net — Custom PyTorch classifier">
       <BarChart
         items={styles.map(s => ({ label: s.name, value: s.count }))}
         color="var(--system-purple)"
@@ -208,7 +212,7 @@ function Look({ data }: { data: StatsData }) {
   const grading = data.grading
   if (!grading?.length) return null
   return (
-    <ChartSection title="The Look" subtitle="Color grading and tonal treatment">
+    <ChartSection title="The Look" subtitle="Color grading and tonal treatment" source="Gemini 2.5 Pro — Vertex AI — Google Cloud">
       <BarChart
         items={grading.map(g => ({
           label: g.name,
@@ -225,7 +229,7 @@ function World({ data }: { data: StatsData }) {
   const scenes = data.top_scenes.slice(0, 12)
   if (!scenes.length) return null
   return (
-    <ChartSection title="The World" subtitle="What places and environments appear in the frames">
+    <ChartSection title="The World" subtitle="What places and environments appear in the frames" source="Places365 — ResNet-50 — MIT CSAIL">
       <BarChart
         items={scenes.map(s => ({ label: s.name, value: s.count }))}
         color="var(--system-teal)"
@@ -239,7 +243,7 @@ function Feeling({ data }: { data: StatsData }) {
   const vibes = data.vibes.slice(0, 12)
   if (!vibes.length) return null
   return (
-    <ChartSection title="The Feeling" subtitle="The moods and vibes that define the archive">
+    <ChartSection title="The Feeling" subtitle="The moods and vibes that define the archive" source="Gemini 2.5 Pro — Vertex AI — Google Cloud">
       <BarChart
         items={vibes.map(v => ({ label: v.name, value: v.count }))}
         color="var(--system-pink)"
@@ -263,7 +267,7 @@ function HumanElement({ data }: { data: StatsData }) {
   const emotions = data.top_emotions.slice(0, 6)
   if (!emotions.length) return null
   return (
-    <ChartSection title="The Human Element" subtitle="Dominant emotions detected in faces">
+    <ChartSection title="The Human Element" subtitle="Dominant emotions detected in faces" source="FER — Facial Emotion Recognition — CNN">
       <BarChart
         items={emotions.map(e => ({
           label: e.name,
@@ -285,7 +289,7 @@ function Layers({ data }: { data: StatsData }) {
     DEPTH_ORDER.indexOf(a.name) - DEPTH_ORDER.indexOf(b.name)
   )
   return (
-    <ChartSection title="The Layers" subtitle="Depth complexity across the archive">
+    <ChartSection title="The Layers" subtitle="Depth complexity across the archive" source="Depth Anything v2 — ViT — Hugging Face">
       <BarChart
         items={sorted.map((b, i) => ({
           label: b.name,
@@ -318,7 +322,7 @@ function Light({ data }: { data: StatsData }) {
   if (!tod.length) return null
   const total = tod.reduce((s, t) => s + t.count, 0)
   return (
-    <ChartSection title="The Light" subtitle="When these photos were taken">
+    <ChartSection title="The Light" subtitle="When these photos were taken" source="Gemini 2.5 Pro — Vertex AI — Google Cloud">
       <div className="segmented-bar">
         {tod.map((t, i) => (
           <div
@@ -354,7 +358,7 @@ function Exposure({ data }: { data: StatsData }) {
   const exp = data.exposure
   if (!exp?.length) return null
   return (
-    <ChartSection title="The Exposure" subtitle="How light is distributed across the archive">
+    <ChartSection title="The Exposure" subtitle="How light is distributed across the archive" source="Gemini 2.5 Pro — Vertex AI — Google Cloud">
       <BarChart
         items={exp.map(e => ({
           label: e.name,
@@ -371,7 +375,7 @@ function Composition({ data }: { data: StatsData }) {
   const comp = data.composition?.filter(c => !c.name.includes('|'))
   if (!comp?.length) return null
   return (
-    <ChartSection title="The Composition" subtitle="Compositional techniques identified by AI">
+    <ChartSection title="The Composition" subtitle="Compositional techniques identified by AI" source="Gemini 2.5 Pro — Vertex AI — Google Cloud">
       <BarChart
         items={comp.map(c => ({ label: c.name, value: c.count }))}
         color="var(--system-indigo)"
@@ -385,7 +389,7 @@ function InFrame({ data }: { data: StatsData }) {
   const objects = data.top_objects.slice(0, 12)
   if (!objects.length) return null
   return (
-    <ChartSection title="What's In Frame" subtitle="Most frequently detected objects">
+    <ChartSection title="What's In Frame" subtitle="Most frequently detected objects" source="YOLOv8n — Ultralytics — COCO">
       <BarChart
         items={objects.map(o => ({ label: o.name, value: o.count }))}
         color="var(--system-green)"
@@ -400,7 +404,7 @@ function Palette({ data }: { data: StatsData }) {
   if (!colors.length) return null
   const maxC = Math.max(...colors.map(c => c.count))
   return (
-    <ChartSection title="The Palette" subtitle="Dominant colors across the archive">
+    <ChartSection title="The Palette" subtitle="Dominant colors across the archive" source="K-means LAB — scikit-learn — 5 clusters per image">
       <div className="color-grid">
         {colors.map((c, i) => {
           const h = 40 + (c.count / maxC) * 48

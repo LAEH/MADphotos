@@ -1424,3 +1424,53 @@ The database is now feature-complete for V2. 24 models, 33 tables, 9,011 images 
 **New: `/database` page.** The user wanted a page that explains the entire database — every table, column, model source, coverage, and how they connect. Built `DatabasePage.tsx` with a new `/api/schema` endpoint in `dashboard.py`. The `generate_schema_data()` function introspects the live DB: iterates all 34 tables via `sqlite_master`, runs `PRAGMA table_info()` for columns, `COUNT(*)` for rows, `COUNT(DISTINCT image_uuid)` for coverage, and samples first 5 distinct values per column. Each table gets model attribution and a description from a hardcoded `model_map`. Categories: Core (2), V1 Signals (13), V2 Signals (12), API Signals (2), Pipeline (5). Page shows hero stats (9,011 images, 34 tables, 468K rows, 3.2 GB), clickable category filter cards, a "How it works" explainer section, search bar, and expandable table cards with full column details.
 
 **Production fix.** Database page was 404 on GitHub Pages because `config.ts` `dataUrl()` was missing the `/api/schema` → `data/schema.json` mapping. Added the mapping and regenerated all static JSON files (stats, schema, signal_inspector, collection_coverage, embedding_audit). The pattern: every new API endpoint that a page uses MUST be added to `config.ts` dataUrl map AND have its JSON pre-baked to `public/data/`. This is the third time a page worked in dev but broke in prod — now codified.
+
+---
+
+## 2026-02-10
+
+### 07:00 — Show: Performance audit, safe areas, mobile redesign, view cleanup
+
+**Full performance audit across all 9 Show views.** Launched a comprehensive 60fps audit. Found 6 RED and 6 YELLOW issues across Game, NYU, Square, Pulse. Fixed all of them:
+
+- **Game cards**: Replaced `transition: all 0.3s` (animates 12+ properties) with `transition: opacity, transform`. Replaced box-shadow transition on `.jeu-card-approved` with `::after` pseudo-element + keyframe animation (compositor-only).
+- **NYU background transitions**: Full-viewport `background` transition was causing 100% CPU repaint every frame. Replaced with opacity crossfade on two stacked layers (`.nyu-accent-layer`, `.nyu-canvas-bg`). Compositor-only, zero paint cost.
+- **Square drag**: Wrapped pointermove in `requestAnimationFrame` (was writing transform on every pointer event — 120+ writes/sec on ProMotion). Added JS-managed `will-change` lifecycle (promote on drag start, demote on drag end).
+- **Game buildAllPairs()**: Was blocking main thread 200-800ms computing 13 strategies × 500 pairs. Added `await new Promise(r => setTimeout(r, 0))` between each strategy to yield to the browser.
+- **Pulse/Confetti/NYU will-change**: Removed permanent `will-change` from 100+ elements. Now managed via parent class (`.pulse-animating`) with cleanup after animation settles.
+- **3-tier performance system**: Upgraded from 2 tiers (a/b) to 3 (a/b/c). Tier C targets ≤2 cores or ≤2GB RAM or save-data: no blur, no backdrop-filter, instant mosaic assembly, no will-change.
+
+**Safe area audit.** Systematically audited all 9 views for iPhone notch/Dynamic Island/home indicator. Fixed 5 views (Bento, Game, Compass, Square, Caption) with `env(safe-area-inset-*)` padding. 4 were already correct (Couleurs, Faces, Tinder, NYU).
+
+**View cleanup.** Removed 4 inactive views (Drift, Pulse, Cinema, Reveal) from codebase. Cleaned stale entries from SW cache (`square.js`, `similarity.js`).
+
+**Experience renaming.** Compass → "Relation" in EXPERIENCES array.
+
+Deployed v37 / SW v23. 15 files changed, +2,866 / -673 lines.
+
+### 15:00 — Firestore sync: automated feedback pipeline *("Start with sync script")*
+
+**The gap.** Four Firestore collections (tinder-votes, couple-likes, couple-approves, couple-rejects) were write-only — the frontend sends votes but nothing reads them back. No backend script existed to pull this data and feed it into the pipeline.
+
+**New: `backend/firestore_sync.py`.** Python script that pulls all 4 Firestore collections into SQLite via the Firestore REST API. Uses `gcloud auth application-default print-access-token` for authentication, paginates at 300 docs/page. Idempotent — Firestore document IDs as primary keys with `INSERT OR IGNORE`. Creates 4 new SQLite tables: `firestore_tinder_votes`, `firestore_couple_likes`, `firestore_couple_approves`, `firestore_couple_rejects`. Logs to `backend/firestore_sync.log`.
+
+**Automatic scheduling.** Created launchd plist at `~/Library/LaunchAgents/com.madphotos.firestore-sync.plist` — runs every 6 hours. After syncing new rows, automatically regenerates `stats.json` via `generate_static.py` so the State dashboard always shows fresh data.
+
+**First sync results:** 338 rows total — 325 tinder-votes (166 accept / 159 reject, 51%/49% split), 13 couple-likes (top strategies: lightdark 3, twins 3, chromatic 2). Couple-approves and couple-rejects are empty.
+
+### 17:00 — State dashboard: Feedback section + Stats model attribution
+
+**Dashboard Feedback section.** Added a new "Feedback" section to `DashboardPage.tsx` that displays live vote data from the synced Firestore tables. Shows 4 hero stats (total tinder votes, accepts in green, rejects in red, couple likes), strategy breakdown as signal tags, daily activity table. The `get_stats()` function in `dashboard.py` now queries all 4 `firestore_*` tables with graceful degradation if tables don't exist yet.
+
+**Stats model attribution.** Every chart section on the Stats page now credits the AI model that produced the data. Added `source` prop to `ChartSection` component, displayed as a monospace label below each chart:
+- The Quality Curve → NIMA — MobileNet — TensorFlow
+- The Fleet → EXIF Parser — Pillow — piexif
+- The Identity → Style Net — Custom PyTorch classifier
+- The Look / Feeling / Light / Exposure / Composition → Gemini 2.5 Pro — Vertex AI — Google Cloud
+- The World → Places365 — ResNet-50 — MIT CSAIL
+- The Human Element → FER — Facial Emotion Recognition — CNN
+- The Layers → Depth Anything v2 — ViT — Hugging Face
+- What's In Frame → YOLOv8n — Ultralytics — COCO
+- The Palette → K-means LAB — scikit-learn — 5 clusters per image
+
+Files modified: `backend/dashboard.py`, `backend/firestore_sync.py` (new), `frontend/state/src/pages/DashboardPage.tsx`, `frontend/state/src/pages/StatsPage.tsx`, `frontend/state/src/index.css`, `.gitignore`.
