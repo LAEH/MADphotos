@@ -140,16 +140,6 @@ function buildSideMenu() {
     if (!list) return;
     list.innerHTML = '';
 
-    /* About link — opens State dashboard in new tab */
-    const aboutLi = document.createElement('li');
-    aboutLi.className = 'side-menu-item side-menu-about';
-    aboutLi.textContent = 'About';
-    aboutLi.addEventListener('click', () => {
-        window.open('/state/', '_blank');
-        closeSideMenu();
-    });
-    list.appendChild(aboutLi);
-
     for (const exp of EXPERIENCES) {
         const li = document.createElement('li');
         li.className = 'side-menu-item';
@@ -161,6 +151,16 @@ function buildSideMenu() {
         });
         list.appendChild(li);
     }
+
+    /* State dashboard — distinct link at the bottom */
+    const stateLi = document.createElement('li');
+    stateLi.className = 'side-menu-item side-menu-state';
+    stateLi.textContent = 'State';
+    stateLi.addEventListener('click', () => {
+        window.open('/state/', '_blank');
+        closeSideMenu();
+    });
+    list.appendChild(stateLi);
 }
 
 function toggleSideMenu() {
