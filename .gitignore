@@ -28,6 +28,9 @@ mad_photos.db
 # Web gallery data (generated)
 frontend/show/data/
 
+# State app build (copied from frontend/state/dist/)
+frontend/show/state/
+
 # Python
 __pycache__/
 *.pyc

@@ -301,8 +301,13 @@ def main():
         except Exception as e:
             log.warning(f"Static data regeneration failed: {e}")
 
-        # Rebuild and deploy State app to GitHub Pages
+        # Build State app and copy into Show for unified Firebase deploy
+        import shutil
         state_dir = PROJECT_ROOT / "frontend" / "state"
+        show_dir = PROJECT_ROOT / "frontend" / "show"
+        show_state = show_dir / "state"
+        show_data = show_dir / "data"
+
         try:
             log.info("Building State app...")
             subprocess.run(
@@ -310,30 +315,28 @@ def main():
                 cwd=str(state_dir),
                 capture_output=True, text=True, timeout=120,
             )
-            log.info("Deploying State to GitHub Pages...")
-            subprocess.run(
-                ["npx", "gh-pages", "-d", "dist"],
-                cwd=str(state_dir),
-                capture_output=True, text=True, timeout=120,
-            )
-            log.info("State deployed.")
+            # Copy State dist → frontend/show/state/
+            if show_state.exists():
+                shutil.rmtree(str(show_state))
+            shutil.copytree(str(state_dir / "dist"), str(show_state))
+            log.info("State built → frontend/show/state/")
         except Exception as e:
-            log.warning(f"State build/deploy failed: {e}")
+            log.warning(f"State build failed: {e}")
 
-        # Deploy Show to Firebase (stats.json in show/data/)
-        show_data = PROJECT_ROOT / "frontend" / "show" / "data"
-        state_data = state_dir / "public" / "data" / "stats.json"
-        if state_data.exists() and show_data.exists():
-            import shutil
-            shutil.copy2(str(state_data), str(show_data / "stats.json"))
+        # Copy stats.json into show/data/ for Show app
+        state_stats = state_dir / "public" / "data" / "stats.json"
+        if state_stats.exists() and show_data.exists():
+            shutil.copy2(str(state_stats), str(show_data / "stats.json"))
+
+        # Single Firebase deploy covers both Show + State
         try:
-            log.info("Deploying Show to Firebase...")
+            log.info("Deploying to Firebase...")
             subprocess.run(
                 ["firebase", "deploy", "--only", "hosting:madphotos"],
                 cwd=str(PROJECT_ROOT),
                 capture_output=True, text=True, timeout=120,
             )
-            log.info("Show deployed.")
+            log.info("Firebase deployed (Show + State).")
         except Exception as e:
             log.warning(f"Firebase deploy failed: {e}")
 

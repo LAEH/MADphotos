@@ -145,7 +145,7 @@ function buildSideMenu() {
     aboutLi.className = 'side-menu-item side-menu-about';
     aboutLi.textContent = 'About';
     aboutLi.addEventListener('click', () => {
-        window.open('https://laeh.github.io/MADphotos/', '_blank');
+        window.open('/state/', '_blank');
         closeSideMenu();
     });
     list.appendChild(aboutLi);

@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig(({ mode }) => ({
   plugins: [react(), tailwindcss()],
-  base: mode === 'production' ? '/MADphotos/' : '/state/',
+  base: '/state/',
   server: {
     port: 5173,
     proxy: {
