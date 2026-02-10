@@ -1,18 +1,32 @@
 /* app.js — Core data loading, router, shared utilities */
 
 /* ===== Performance Tier Detection ===== */
-/* Tier A: full backdrop-filter. Tier B: solid backgrounds (Chrome Android, low-end). */
+/* Tier A: full fidelity (Safari, high-end Chrome).
+   Tier B: no backdrop-filter (Chrome Android, mid-range).
+   Tier C: minimal effects (very low-end, ≤2 cores, or save-data). */
 (function detectTier() {
     const ua = navigator.userAgent;
     const isWebKit = /AppleWebKit/.test(ua) && !/Chrome/.test(ua); /* Safari */
     const cores = navigator.hardwareConcurrency || 2;
     const dpr = devicePixelRatio || 1;
-    const tierA = isWebKit || (cores >= 4 && dpr <= 3);
-    document.documentElement.classList.add(tierA ? 'tier-a' : 'tier-b');
+    const mem = navigator.deviceMemory || 4; /* GB, Chrome-only */
+    const saveData = navigator.connection && navigator.connection.saveData;
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    let tier;
+    if (saveData || cores <= 2 || mem <= 2) {
+        tier = 'tier-c';
+    } else if (isWebKit || (cores >= 4 && dpr <= 3 && mem >= 4)) {
+        tier = 'tier-a';
+    } else {
+        tier = 'tier-b';
+    }
+
+    document.documentElement.classList.add(tier);
 })();
 
 /* ===== Constants ===== */
-const HEADER_HEIGHT = 52; /* px — sticky header */
+const HEADER_HEIGHT = 0; /* px — no header, floating pill */
 const LAZY_MARGIN = '300px'; /* IntersectionObserver preload distance */
 
 const APP = {
@@ -30,20 +44,15 @@ const APP = {
 
 /* Experience registry */
 const EXPERIENCES = [
-    { id: 'grille',      name: 'Sort By',         init: 'initGrille' },
     { id: 'couleurs',    name: 'Colors',           init: 'initCouleurs' },
     { id: 'faces',       name: 'Faces',            init: 'initFaces' },
-    { id: 'compass',     name: 'Relations',        init: 'initCompass' },
+    { id: 'compass',     name: 'Relation',         init: 'initCompass' },
     { id: 'bento',       name: 'Bento',            init: 'initBento' },
     { id: 'nyu',         name: 'NYU',              init: 'initNyu' },
     { id: 'game',        name: 'Couple',            init: 'initGame' },
     { id: 'confetti',    name: 'Boom',             init: 'initConfetti' },
-    { id: 'square',      name: 'Square',           init: 'initSquare' },
     { id: 'caption',     name: 'Caption',          init: 'initCaption' },
-    { id: 'cinema',      name: 'Cinema',           init: 'initCinema' },
-    { id: 'reveal',      name: 'Reveal',           init: 'initReveal' },
-    { id: 'pulse',       name: 'Pulse',            init: 'initPulse' },
-    { id: 'drift',       name: 'Drift',            init: 'initDrift' },
+    { id: 'tinder',      name: 'Tinder',           init: 'initTinder' },
 ];
 
 /* ===== Device Detection & Gating ===== */
@@ -67,8 +76,8 @@ async function loadData() {
         /* photo count removed — header shows experiment name instead */
         return APP.data;
     } catch (err) {
-        document.getElementById('view-grille').innerHTML =
-            '<div class="loading error">Failed to load photos. Check data/photos.json.</div>';
+        const errEl = document.getElementById('view-grille') || document.getElementById('view-couleurs');
+        if (errEl) errEl.innerHTML = '<div class="loading error">Failed to load photos. Check data/photos.json.</div>';
         console.error('loadData failed:', err);
         throw err;
     }
@@ -201,18 +210,20 @@ function switchView(name) {
         _faceBatchRunning = false;
     }
 
+    /* Tinder viewport lock cleanup */
+    if (APP.currentView === 'tinder' && name !== 'tinder') {
+        if (typeof tinderUnlockViewport === 'function') tinderUnlockViewport();
+    }
+
     APP.currentView = name;
     location.hash = name;
 
-    /* Update header — show experiment name */
-    const expNameEl = document.getElementById('header-exp-name');
     const exp = EXPERIENCES.find(e => e.id === name);
-    if (expNameEl) {
-        expNameEl.textContent = exp ? '\u201C' + exp.name + '\u201D' : '';
-    }
 
-    /* Update side menu active state */
+    /* Update side menu active state + mobile button label */
     updateSideMenuActive(name);
+    const btnLabel = document.getElementById('menu-btn-label');
+    if (btnLabel && exp) btnLabel.textContent = exp.name;
 
     /* Toggle views */
     document.querySelectorAll('.view').forEach(v => {
@@ -417,6 +428,11 @@ function loadProgressive(img, photo, targetTier) {
     const target = photo[targetTier] || photo.thumb;
     if (!target) return;
 
+    /* Content-aware focal point — prevents cropping faces/animals */
+    if (photo.focus) {
+        img.style.objectPosition = photo.focus[0] + '% ' + photo.focus[1] + '%';
+    }
+
     /* Start invisible — will fade in once target is fully decoded */
     img.classList.add('img-loading');
     img.classList.remove('img-loaded');
@@ -463,6 +479,11 @@ function createLazyImg(photo, targetTier) {
     img.decoding = 'async';
     img.dataset.src = photo[targetTier] || photo.thumb;
     img.dataset.id = photo.id;
+
+    /* Content-aware focal point — prevents cropping faces/animals */
+    if (photo.focus) {
+        img.style.objectPosition = photo.focus[0] + '% ' + photo.focus[1] + '%';
+    }
 
     /* Start invisible — no src set yet, nothing to paint */
     img.classList.add('img-loading');
@@ -587,7 +608,8 @@ function initFullscreen() {
 
 /* ===== Init ===== */
 async function init() {
-    document.getElementById('view-grille').innerHTML = '<div class="loading">Curating your photographs</div>';
+    const grille = document.getElementById('view-grille');
+    if (grille) grille.innerHTML = '<div class="loading">Curating your photographs</div>';
 
     try {
         await loadData();
@@ -599,13 +621,14 @@ async function init() {
     initLightbox();
     initFullscreen();
 
-    /* Navigate to hash or default to first experience */
+    /* Navigate to hash or default view (tinder on mobile, couleurs on desktop) */
     const hash = location.hash.slice(1);
     const validViews = EXPERIENCES.map(e => e.id);
     if (hash && validViews.includes(hash)) {
         switchView(hash);
     } else {
-        switchView('couleurs');
+        const isMobile = window.matchMedia('(max-width: 768px)').matches;
+        switchView(isMobile ? 'tinder' : 'game');
     }
 }
 

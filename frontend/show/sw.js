@@ -2,27 +2,22 @@
    Caches static assets (JS, CSS, HTML) for offline use.
    Images use a runtime cache with LRU eviction. */
 
-const CACHE_NAME = 'madphotos-v2';
+const CACHE_NAME = 'madphotos-v23';
 const STATIC_ASSETS = [
     '/',
     '/index.html',
-    '/style.css?v=13',
-    '/app.js?v=13',
-    '/theme.js?v=13',
-    '/grid.js?v=13',
-    '/colors.js?v=13',
-    '/bento.js?v=13',
-    '/game.js?v=13',
-    '/faces.js?v=13',
-    '/compass.js?v=13',
-    '/nyu.js?v=13',
-    '/confetti.js?v=13',
-    '/square.js?v=13',
-    '/caption.js?v=13',
-    '/cinema.js?v=13',
-    '/reveal.js?v=13',
-    '/pulse.js?v=13',
-    '/drift.js?v=13',
+    '/style.css?v=37',
+    '/app.js?v=37',
+    '/theme.js?v=37',
+    '/colors.js?v=37',
+    '/bento.js?v=37',
+    '/game.js?v=37',
+    '/faces.js?v=37',
+    '/compass.js?v=37',
+    '/nyu.js?v=37',
+    '/confetti.js?v=37',
+    '/caption.js?v=37',
+    '/tinder.js?v=37',
 ];
 
 const IMAGE_CACHE = 'madphotos-images-v1';
@@ -53,8 +48,11 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
     const url = new URL(event.request.url);
 
-    /* Skip non-GET */
+    /* Skip non-GET (let Firestore POSTs pass through to network) */
     if (event.request.method !== 'GET') return;
+
+    /* Let Firebase/Google API requests go straight to network */
+    if (url.hostname.includes('googleapis.com') || url.hostname.includes('gstatic.com') || url.hostname.includes('firebaseio.com')) return;
 
     /* Data files — network first, cache fallback */
     if (url.pathname.startsWith('/data/')) {
@@ -94,8 +92,14 @@ self.addEventListener('fetch', event => {
         return;
     }
 
-    /* Static assets — cache first, network fallback */
+    /* Static assets — network first, cache fallback (ensures fresh deploys land immediately) */
     event.respondWith(
-        caches.match(event.request).then(cached => cached || fetch(event.request))
+        fetch(event.request)
+            .then(resp => {
+                const clone = resp.clone();
+                caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
+                return resp;
+            })
+            .catch(() => caches.match(event.request))
     );
 });

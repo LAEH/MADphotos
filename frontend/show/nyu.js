@@ -120,6 +120,7 @@ let nyuReelIdx = 0;
 
 function renderNyuReel(vp) {
     nyuReelIdx = 0;
+    _reelPositions = null; /* reset position cache */
 
     const reel = document.createElement('div');
     reel.className = 'nyu-reel';
@@ -177,17 +178,30 @@ function scrollNyuReel(dir) {
     updateReelCounter();
 }
 
+/* Cached item positions — avoids reading 150 offsets on every scroll */
+let _reelPositions = null;
+function cacheReelPositions() {
+    const reel = document.getElementById('nyu-reel');
+    if (!reel) return;
+    const items = reel.querySelectorAll('.nyu-reel-item');
+    _reelPositions = [];
+    items.forEach(item => {
+        _reelPositions.push(item.offsetLeft + item.offsetWidth / 2);
+    });
+}
+
 function updateReelCounter() {
     const reel = document.getElementById('nyu-reel');
     const counter = document.getElementById('nyu-reel-counter');
     if (!reel || !counter) return;
-    const items = reel.querySelectorAll('.nyu-reel-item');
+    if (!_reelPositions || _reelPositions.length === 0) cacheReelPositions();
+    if (!_reelPositions) return;
     const center = reel.scrollLeft + reel.clientWidth / 2;
     let closest = 0, minDist = Infinity;
-    items.forEach((item, i) => {
-        const d = Math.abs(item.offsetLeft + item.offsetWidth / 2 - center);
+    for (let i = 0; i < _reelPositions.length; i++) {
+        const d = Math.abs(_reelPositions[i] - center);
         if (d < minDist) { minDist = d; closest = i; }
-    });
+    }
     nyuReelIdx = closest;
     counter.textContent = (closest + 1) + ' / ' + nyuPhotos.length;
 }
@@ -241,6 +255,16 @@ function renderNyuDeckView(vp) {
     const accent = document.createElement('div');
     accent.className = 'nyu-accent';
     accent.id = 'nyu-accent';
+    /* Two layers for opacity crossfade (avoids full-viewport background repaint) */
+    const layer0 = document.createElement('div');
+    layer0.className = 'nyu-accent-layer';
+    layer0.id = 'nyu-accent-layer-0';
+    const layer1 = document.createElement('div');
+    layer1.className = 'nyu-accent-layer';
+    layer1.id = 'nyu-accent-layer-1';
+    layer1.style.opacity = '0';
+    accent.appendChild(layer0);
+    accent.appendChild(layer1);
     vp.appendChild(accent);
 
     const stack = document.createElement('div');
@@ -302,12 +326,24 @@ function updateNyuDeckCards() {
 
     if (counter) counter.textContent = (nyuDeckIdx + 1) + ' / ' + nyuPhotos.length;
 
+    /* Crossfade accent layers (compositor-only opacity, no background repaint) */
     const topPhoto = nyuPhotos[nyuDeckIdx % nyuPhotos.length];
-    if (accent && topPhoto.palette && topPhoto.palette[0]) {
-        accent.style.background =
-            `radial-gradient(ellipse at center, ${topPhoto.palette[0]}18 0%, transparent 70%)`;
-    } else if (accent) {
-        accent.style.background = 'none';
+    if (accent) {
+        const l0 = document.getElementById('nyu-accent-layer-0');
+        const l1 = document.getElementById('nyu-accent-layer-1');
+        if (l0 && l1) {
+            /* Determine which layer is currently visible */
+            const incoming = parseFloat(l0.style.opacity) === 0 ? l0 : l1;
+            const outgoing = incoming === l0 ? l1 : l0;
+            if (topPhoto.palette && topPhoto.palette[0]) {
+                incoming.style.background =
+                    `radial-gradient(ellipse at center, ${topPhoto.palette[0]}18 0%, transparent 70%)`;
+            } else {
+                incoming.style.background = 'none';
+            }
+            incoming.style.opacity = '1';
+            outgoing.style.opacity = '0';
+        }
     }
 }
 
@@ -351,6 +387,17 @@ function renderNyuCanvas(vp) {
         }
     }, {passive: true});
 
+    /* Background layers for opacity crossfade (avoids full-viewport repaint) */
+    const bg0 = document.createElement('div');
+    bg0.className = 'nyu-canvas-bg';
+    bg0.id = 'nyu-canvas-bg-0';
+    const bg1 = document.createElement('div');
+    bg1.className = 'nyu-canvas-bg';
+    bg1.id = 'nyu-canvas-bg-1';
+    bg1.style.opacity = '0';
+    canvas.appendChild(bg0);
+    canvas.appendChild(bg1);
+
     const imgWrap = document.createElement('div');
     imgWrap.className = 'nyu-canvas-img-wrap';
     imgWrap.id = 'nyu-canvas-img-wrap';
@@ -386,21 +433,32 @@ function updateNyuCanvas() {
     img.alt = photo.alt || photo.caption || '';
     imgWrap.appendChild(img);
 
+    /* Crossfade background layers (compositor-only opacity) */
+    function setCanvasBg(color) {
+        const b0 = document.getElementById('nyu-canvas-bg-0');
+        const b1 = document.getElementById('nyu-canvas-bg-1');
+        if (!b0 || !b1) return;
+        const incoming = parseFloat(b0.style.opacity) === 0 ? b0 : b1;
+        const outgoing = incoming === b0 ? b1 : b0;
+        incoming.style.background = color;
+        incoming.style.opacity = '1';
+        outgoing.style.opacity = '0';
+    }
+
     /* Click image to cycle palette colors */
     img.addEventListener('click', (e) => {
         e.stopPropagation();
         if (photo.palette && photo.palette.length > 1) {
             nyuCanvasColorIdx = (nyuCanvasColorIdx + 1) % photo.palette.length;
-            canvas.style.background = photo.palette[nyuCanvasColorIdx];
+            setCanvasBg(photo.palette[nyuCanvasColorIdx]);
         }
     });
 
     /* Set background from palette */
-    if (photo.palette && photo.palette[nyuCanvasColorIdx]) {
-        canvas.style.background = photo.palette[nyuCanvasColorIdx];
-    } else {
-        canvas.style.background = 'var(--bg-elevated)';
-    }
+    const bgColor = (photo.palette && photo.palette[nyuCanvasColorIdx])
+        ? photo.palette[nyuCanvasColorIdx]
+        : 'var(--bg-elevated)';
+    setCanvasBg(bgColor);
 
     if (counter) counter.textContent = (nyuCanvasIdx + 1) + ' / ' + nyuPhotos.length;
 }

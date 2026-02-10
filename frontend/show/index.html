@@ -9,38 +9,38 @@
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
     <link rel="apple-touch-icon" href="icon-192.png">
-    <meta name="theme-color" content="#1c1c1e">
-    <link rel="stylesheet" href="style.css?v=13">
+    <meta name="theme-color" content="#ffffff" id="theme-color">
+    <link rel="stylesheet" href="style.css?v=37">
 </head>
 <body>
-    <header id="header">
-        <div class="header-left">
-            <button class="menu-btn" id="menu-btn" aria-label="Menu">
-                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 5h12M3 9h12M3 13h12"/></svg>
-            </button>
-            <a href="#" class="logo" id="logo-home"><span class="logo-mad">MAD</span><span class="logo-photos">photos</span></a>
-            <span class="header-exp-name" id="header-exp-name"></span>
-        </div>
-        <div class="header-right">
-            <button id="fullscreen-toggle" class="fullscreen-toggle" aria-label="Toggle fullscreen">
-                <svg class="fs-icon-expand" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"/></svg>
-                <svg class="fs-icon-collapse" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v4H2M10 6h4V2M10 14v-4h4M6 10H2v4"/></svg>
-            </button>
-            <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">
-                <svg class="theme-icon-sun" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1M3.4 3.4l.7.7M11.9 11.9l.7.7M3.4 12.6l.7-.7M11.9 4.1l.7-.7"/></svg>
-                <svg class="theme-icon-moon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 8.5a5.5 5.5 0 0 1-7-7 5.5 5.5 0 1 0 7 7z"/></svg>
-            </button>
-        </div>
-    </header>
+    <div id="floating-nav" class="floating-nav">
+        <button class="menu-btn" id="menu-btn" aria-label="Menu">
+            <svg class="menu-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h12M4 10h8M4 14h12"/></svg>
+            <span class="menu-btn-label" id="menu-btn-label"></span>
+            <svg class="menu-chevron" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4l3.5 3 3.5-3"/></svg>
+        </button>
+        <a href="#" class="logo" id="logo-home"><span class="logo-mad">MAD</span><span class="logo-photos">photos</span></a>
+    </div>
 
     <!-- Side menu -->
     <div id="side-menu-backdrop" class="side-menu-backdrop"></div>
     <nav id="side-menu" class="side-menu">
         <ul class="side-menu-list" id="side-menu-list"></ul>
+        <div class="side-menu-footer">
+            <button id="theme-toggle" class="side-menu-action" aria-label="Toggle theme">
+                <svg class="theme-icon-sun" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1M3.4 3.4l.7.7M11.9 11.9l.7.7M3.4 12.6l.7-.7M11.9 4.1l.7-.7"/></svg>
+                <svg class="theme-icon-moon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 8.5a5.5 5.5 0 0 1-7-7 5.5 5.5 0 1 0 7 7z"/></svg>
+                <span>Theme</span>
+            </button>
+            <button id="fullscreen-toggle" class="side-menu-action" aria-label="Fullscreen">
+                <svg class="fs-icon-expand" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"/></svg>
+                <svg class="fs-icon-collapse" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v4H2M10 6h4V2M10 14v-4h4M6 10H2v4"/></svg>
+                <span>Fullscreen</span>
+            </button>
+        </div>
     </nav>
 
     <main id="main">
-        <section id="view-grille" class="view"></section>
         <section id="view-couleurs" class="view"></section>
         <section id="view-faces" class="view"></section>
         <section id="view-compass" class="view"></section>
@@ -48,12 +48,8 @@
         <section id="view-nyu" class="view"></section>
         <section id="view-game" class="view"></section>
         <section id="view-confetti" class="view"></section>
-        <section id="view-square" class="view"></section>
         <section id="view-caption" class="view"></section>
-        <section id="view-cinema" class="view"></section>
-        <section id="view-reveal" class="view"></section>
-        <section id="view-pulse" class="view"></section>
-        <section id="view-drift" class="view"></section>
+        <section id="view-tinder" class="view"></section>
     </main>
 
     <div id="lightbox" class="lightbox hidden">
@@ -74,29 +70,51 @@
     <script>
         (function() {
             var t = localStorage.getItem('theme');
-            if (t === 'dark') document.documentElement.classList.add('dark');
+            if (t === 'dark') {
+                document.documentElement.classList.add('dark');
+                document.getElementById('theme-color').content = '#000000';
+            }
         })();
     </script>
-    <script src="theme.js?v=13" defer></script>
-    <script src="app.js?v=13" defer></script>
-    <script src="grid.js?v=13" defer></script>
-    <script src="colors.js?v=13" defer></script>
-    <script src="bento.js?v=13" defer></script>
-    <script src="game.js?v=13" defer></script>
-    <script src="faces.js?v=13" defer></script>
-    <script src="compass.js?v=13" defer></script>
-    <script src="nyu.js?v=13" defer></script>
-    <script src="confetti.js?v=13" defer></script>
-    <script src="square.js?v=13" defer></script>
-    <script src="caption.js?v=13" defer></script>
-    <script src="cinema.js?v=13" defer></script>
-    <script src="reveal.js?v=13" defer></script>
-    <script src="pulse.js?v=13" defer></script>
-    <script src="drift.js?v=13" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+    <script>
+        firebase.initializeApp({
+            apiKey: "AIzaSyBVFSttlVE3gL78fEqL8c5rwwMplJxfSVg",
+            authDomain: "laeh380to760.firebaseapp.com",
+            projectId: "laeh380to760",
+            storageBucket: "laeh380to760.firebasestorage.app",
+            messagingSenderId: "116107774294",
+            appId: "1:116107774294:web:c815f367ce3cc6f9536ef7"
+        });
+        var db = firebase.firestore();
+    </script>
+    <script src="theme.js?v=37" defer></script>
+    <script src="app.js?v=37" defer></script>
+    <script src="colors.js?v=37" defer></script>
+    <script src="bento.js?v=37" defer></script>
+    <script src="game.js?v=37" defer></script>
+    <script src="faces.js?v=37" defer></script>
+    <script src="compass.js?v=37" defer></script>
+    <script src="nyu.js?v=37" defer></script>
+    <script src="confetti.js?v=37" defer></script>
+    <script src="caption.js?v=37" defer></script>
+    <script src="tinder.js?v=37" defer></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/sw.js');
+                navigator.serviceWorker.register('/sw.js').then(function(reg) {
+                    reg.addEventListener('updatefound', function() {
+                        var w = reg.installing;
+                        if (!w) return;
+                        w.addEventListener('statechange', function() {
+                            if (w.state === 'installed' && navigator.serviceWorker.controller) {
+                                w.postMessage({ type: 'SKIP_WAITING' });
+                                window.location.reload();
+                            }
+                        });
+                    });
+                });
             });
         }
     </script>

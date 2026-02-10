@@ -129,6 +129,19 @@ function renderCaptionWall(container) {
         });
     });
 
+    /* Touch swipe: left/right to navigate captions */
+    let capTx = 0;
+    wallWrap.addEventListener('touchstart', e => { capTx = e.touches[0].clientX; }, { passive: true });
+    wallWrap.addEventListener('touchend', e => {
+        const dx = e.changedTouches[0].clientX - capTx;
+        if (Math.abs(dx) > 60) {
+            captionPaused = true;
+            const dir = dx > 0 ? -1 : 1;
+            const next = (captionSpotlightIdx + dir + captionPhotos.length) % captionPhotos.length;
+            spotlightCaption(next);
+        }
+    }, { passive: true });
+
     /* Unpause on wall click (not on a phrase) */
     wall.addEventListener('click', (e) => {
         if (e.target === wall || e.target.classList.contains('caption-sep')) {

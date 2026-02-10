@@ -121,8 +121,9 @@ function renderFacesGrid() {
         const h = rect.height - pad * 2;
         if (w <= 0 || h <= 0) return;
 
-        const MIN_SIZE = 8;
-        const MAX_SIZE = 96;
+        const mobile = window.matchMedia('(max-width: 768px)').matches;
+        const MIN_SIZE = mobile ? 40 : 8;
+        const MAX_SIZE = mobile ? 64 : 96;
         const n = shuffled.length;
 
         /* Binary search for largest cell size that fits ALL n faces */

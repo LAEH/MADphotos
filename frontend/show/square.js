@@ -1,217 +1,240 @@
-/* square.js — Square: Living contact sheet.
-   Dense grid fills viewport. One photo at a time pulses — scales up
-   with a glow, caption overlay. Auto-cycles every 2.5s. Click any for lightbox. */
+/* square.js — Shuffleboard: Polaroid toss experience.
+   Deck at bottom center, toss cards onto a scattered stage.
+   Cards are draggable, clickable for lightbox. Auto-toss every ~2s. */
 
-let squarePhotos = [];
-let squareActiveIdx = -1;
-let squareCycleTimer = null;
-let squarePaused = false;
-let squareCategoryIdx = 0;
+let sqPool = [];
+let sqDeckIdx = 0;
+let sqTossed = [];
+let sqAutoPlay = true;
+let sqAutoTimer = null;
+let sqDragging = null;
 
-const SQUARE_CYCLE_MS = 2500;
-
-const SQUARE_CATEGORIES = [
-    { label: 'All',       pool: () => true },
-    { label: 'Best',      pool: p => (p.aesthetic || 0) >= 7 },
-    { label: 'Mono',      pool: p => p.mono },
-    { label: 'Night',     pool: p => p.time === 'Night' },
-    { label: 'Urban',     pool: p => p.setting === 'Urban' || p.environment === 'urban' },
-    { label: 'Golden',    pool: p => p.time === 'Golden Hour' },
-    { label: 'Serene',    pool: p => vibeHas(p, 'serene', 'calm', 'peaceful', 'tranquil') },
-    { label: 'Intense',   pool: p => vibeHas(p, 'dramatic', 'intense', 'powerful', 'bold') },
-];
+const SQ_AUTO_MS = 2000;
+const SQ_MAX_CARDS = 25;
 
 function initSquare() {
     const container = document.getElementById('view-square');
     container.innerHTML = '';
 
-    clearInterval(squareCycleTimer);
-    squareCycleTimer = null;
-    squarePaused = false;
-    squareActiveIdx = -1;
+    clearInterval(sqAutoTimer);
+    sqAutoTimer = null;
+    sqTossed = [];
+    sqDeckIdx = 0;
+    sqAutoPlay = true;
+    sqDragging = null;
 
-    renderSquareShell(container);
-    selectSquareCategory(0);
-}
+    /* Shuffle photo pool */
+    sqPool = APP.data.photos.filter(p => p.thumb);
+    shuffleArray(sqPool);
 
-function renderSquareShell(container) {
-    const shell = document.createElement('div');
-    shell.className = 'sq-shell';
+    /* Build shell */
+    const stage = document.createElement('div');
+    stage.className = 'sq-stage';
+    stage.id = 'sq-stage';
 
-    /* Category tabs along top */
-    const tabs = document.createElement('div');
-    tabs.className = 'sq-tabs';
-    tabs.id = 'sq-tabs';
+    const deck = document.createElement('div');
+    deck.className = 'sq-deck';
+    deck.id = 'sq-deck';
 
-    for (let i = 0; i < SQUARE_CATEGORIES.length; i++) {
-        const cat = SQUARE_CATEGORIES[i];
-        const btn = document.createElement('button');
-        btn.className = 'sq-tab';
-        btn.dataset.idx = i;
-        btn.textContent = cat.label;
-        btn.addEventListener('click', () => selectSquareCategory(i));
-        tabs.appendChild(btn);
-    }
-    shell.appendChild(tabs);
+    const deckStack = document.createElement('div');
+    deckStack.className = 'sq-deck-stack';
+    deckStack.addEventListener('click', () => tossSq());
 
-    /* Grid area */
-    const grid = document.createElement('div');
-    grid.className = 'sq-grid';
-    grid.id = 'sq-grid';
-    shell.appendChild(grid);
+    const deckCount = document.createElement('div');
+    deckCount.className = 'sq-deck-count';
+    deckCount.id = 'sq-deck-count';
+    deckCount.textContent = sqPool.length;
 
-    /* Info overlay — shows caption of active photo */
-    const info = document.createElement('div');
-    info.className = 'sq-info';
-    info.id = 'sq-info';
-    shell.appendChild(info);
+    deck.appendChild(deckStack);
+    deck.appendChild(deckCount);
 
-    container.appendChild(shell);
+    container.appendChild(stage);
+    container.appendChild(deck);
 
     /* Keyboard */
-    document.removeEventListener('keydown', squareKeyHandler);
-    document.addEventListener('keydown', squareKeyHandler);
+    document.removeEventListener('keydown', sqKeyHandler);
+    document.addEventListener('keydown', sqKeyHandler);
+
+    /* Start auto-play */
+    startSqAuto();
 }
 
-function squareKeyHandler(e) {
+function startSqAuto() {
+    clearInterval(sqAutoTimer);
+    if (!sqAutoPlay) return;
+    sqAutoTimer = setInterval(() => {
+        if (!sqAutoPlay || APP.currentView !== 'square') return;
+        tossSq();
+    }, SQ_AUTO_MS);
+    APP._activeTimers.push(sqAutoTimer);
+}
+
+function tossSq() {
+    if (sqDeckIdx >= sqPool.length) {
+        /* Reshuffle when deck exhausted */
+        shuffleArray(sqPool);
+        sqDeckIdx = 0;
+    }
+
+    const photo = sqPool[sqDeckIdx++];
+    const stage = document.getElementById('sq-stage');
+    if (!stage) return;
+
+    /* Random landing position & rotation */
+    const stageRect = stage.getBoundingClientRect();
+    const cardW = window.innerWidth <= 480 ? 110 : window.innerWidth <= 768 ? 140 : 180;
+    const padX = cardW / 2 + 10;
+    const padY = cardW * 1.25 / 2 + 10;
+    const endX = padX + Math.random() * (stageRect.width - padX * 2);
+    const endY = padY + Math.random() * (stageRect.height - padY * 2 - 80);
+    const endRot = (Math.random() - 0.5) * 30; /* -15 to 15 degrees */
+
+    /* Build card */
+    const card = document.createElement('div');
+    card.className = 'sq-card';
+    card.style.setProperty('--sq-end-x', endX + 'px');
+    card.style.setProperty('--sq-end-y', endY + 'px');
+    card.style.setProperty('--sq-end-rot', endRot + 'deg');
+    card.dataset.photoId = photo.id;
+
+    const img = document.createElement('img');
+    loadProgressive(img, photo, 'thumb');
+    img.alt = '';
+    img.draggable = false;
+    card.appendChild(img);
+
+    const caption = photo.florence || photo.caption || '';
+    if (caption) {
+        const capEl = document.createElement('div');
+        capEl.className = 'sq-card-caption';
+        capEl.textContent = caption.length > 60 ? caption.slice(0, 57) + '...' : caption;
+        card.appendChild(capEl);
+    }
+
+    /* Toss animation */
+    card.classList.add('sq-tossing');
+    card.addEventListener('animationend', () => {
+        card.classList.remove('sq-tossing');
+        card.style.transform = `translate(${endX}px, ${endY}px) rotate(${endRot}deg)`;
+    }, { once: true });
+
+    /* Click → lightbox (only if not dragging) */
+    let didDrag = false;
+    card.addEventListener('click', (e) => {
+        if (didDrag) { didDrag = false; return; }
+        openLightbox(photo, sqPool);
+    });
+
+    /* Drag via pointer events — rAF-throttled for 120Hz */
+    card.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        card.setPointerCapture(e.pointerId);
+        didDrag = false;
+
+        const rect = card.getBoundingClientRect();
+        const stageR = stage.getBoundingClientRect();
+        const offsetX = e.clientX - rect.left;
+        const offsetY = e.clientY - rect.top;
+
+        /* Lift to top + promote layer for drag */
+        card.style.zIndex = Date.now() % 100000;
+        card.style.transition = 'none';
+        card.style.willChange = 'transform';
+        card.classList.add('sq-dragging');
+
+        let rafId = 0;
+        let lastX = 0, lastY = 0;
+
+        const onMove = (ev) => {
+            didDrag = true;
+            lastX = ev.clientX - stageR.left - offsetX;
+            lastY = ev.clientY - stageR.top - offsetY;
+            if (!rafId) {
+                rafId = requestAnimationFrame(() => {
+                    card.style.transform = `translate(${lastX}px, ${lastY}px) rotate(${endRot}deg)`;
+                    rafId = 0;
+                });
+            }
+        };
+
+        const onUp = (ev) => {
+            card.removeEventListener('pointermove', onMove);
+            card.removeEventListener('pointerup', onUp);
+            if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
+            card.style.transition = '';
+            card.style.willChange = 'auto';
+            card.classList.remove('sq-dragging');
+            /* Update end position for future reference */
+            const finalRect = card.getBoundingClientRect();
+            const finalX = finalRect.left - stageR.left;
+            const finalY = finalRect.top - stageR.top;
+            card.style.setProperty('--sq-end-x', finalX + 'px');
+            card.style.setProperty('--sq-end-y', finalY + 'px');
+        };
+
+        card.addEventListener('pointermove', onMove);
+        card.addEventListener('pointerup', onUp);
+    });
+
+    stage.appendChild(card);
+    sqTossed.push({ card, photo });
+
+    /* Enforce max cards on stage */
+    while (sqTossed.length > SQ_MAX_CARDS) {
+        const oldest = sqTossed.shift();
+        oldest.card.classList.add('sq-scatter');
+        oldest.card.addEventListener('animationend', () => {
+            oldest.card.remove();
+        }, { once: true });
+    }
+
+    /* Update deck count */
+    updateSqDeckCount();
+}
+
+function undoToss() {
+    if (sqTossed.length === 0) return;
+    const last = sqTossed.pop();
+    last.card.classList.add('sq-scatter');
+    last.card.addEventListener('animationend', () => {
+        last.card.remove();
+    }, { once: true });
+    sqDeckIdx = Math.max(0, sqDeckIdx - 1);
+    updateSqDeckCount();
+}
+
+function clearSqStage() {
+    for (const item of sqTossed) {
+        item.card.classList.add('sq-scatter');
+        item.card.addEventListener('animationend', () => {
+            item.card.remove();
+        }, { once: true });
+    }
+    sqTossed = [];
+    updateSqDeckCount();
+}
+
+function updateSqDeckCount() {
+    const el = document.getElementById('sq-deck-count');
+    if (el) el.textContent = sqTossed.length + ' on stage';
+}
+
+function sqKeyHandler(e) {
     if (APP.currentView !== 'square') return;
     if (e.code === 'Space') {
         e.preventDefault();
-        squarePaused = !squarePaused;
+        sqAutoPlay = !sqAutoPlay;
+        if (sqAutoPlay) startSqAuto();
+        else clearInterval(sqAutoTimer);
     } else if (e.key === 'ArrowRight') {
         e.preventDefault();
-        squarePaused = true;
-        spotlightSquare((squareActiveIdx + 1) % squarePhotos.length);
+        tossSq();
     } else if (e.key === 'ArrowLeft') {
         e.preventDefault();
-        squarePaused = true;
-        spotlightSquare((squareActiveIdx - 1 + squarePhotos.length) % squarePhotos.length);
-    }
-}
-
-function selectSquareCategory(idx) {
-    squareCategoryIdx = idx;
-
-    document.querySelectorAll('.sq-tab').forEach((tab, i) => {
-        tab.classList.toggle('active', i === idx);
-    });
-
-    const cat = SQUARE_CATEGORIES[idx];
-    const pool = APP.data.photos.filter(p => p.thumb && cat.pool(p));
-
-    /* Sort by aesthetic, take top batch */
-    pool.sort((a, b) => (b.aesthetic || 0) - (a.aesthetic || 0));
-
-    /* How many tiles fit in viewport? */
-    const w = window.innerWidth;
-    const cols = w <= 480 ? 4 : w <= 768 ? 6 : w <= 1200 ? 8 : 10;
-    const headerH = 52;
-    const tabsH = 44;
-    const availH = window.innerHeight - headerH - tabsH;
-    const tileSize = Math.floor((w - 2) / cols); /* 2px for minimal gap */
-    const rows = Math.floor(availH / tileSize);
-    const maxTiles = cols * rows;
-
-    squarePhotos = shuffleArray(pool.slice(0, Math.min(pool.length, maxTiles)));
-    squareActiveIdx = -1;
-
-    populateSquareGrid(cols);
-}
-
-function populateSquareGrid(cols) {
-    const grid = document.getElementById('sq-grid');
-    if (!grid) return;
-    grid.innerHTML = '';
-    grid.style.setProperty('--sq-cols', cols);
-
-    clearInterval(squareCycleTimer);
-
-    for (let i = 0; i < squarePhotos.length; i++) {
-        const photo = squarePhotos[i];
-        const cell = document.createElement('div');
-        cell.className = 'sq-cell';
-        cell.dataset.idx = i;
-        cell.style.setProperty('--sq-delay', (i * 15) + 'ms');
-
-        const img = document.createElement('img');
-        loadProgressive(img, photo, 'thumb');
-        img.alt = '';
-        cell.appendChild(img);
-
-        cell.addEventListener('click', () => {
-            if (squareActiveIdx === i) {
-                openLightbox(photo, squarePhotos);
-            } else {
-                squarePaused = true;
-                spotlightSquare(i);
-            }
-        });
-
-        grid.appendChild(cell);
-    }
-
-    /* Stagger entrance */
-    requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-            grid.classList.add('sq-revealed');
-
-            /* Start auto-cycle after entrance settles */
-            setTimeout(() => {
-                spotlightSquare(Math.floor(Math.random() * squarePhotos.length));
-                squarePaused = false;
-                squareCycleTimer = setInterval(() => {
-                    if (squarePaused) return;
-                    const next = Math.floor(Math.random() * squarePhotos.length);
-                    spotlightSquare(next);
-                }, SQUARE_CYCLE_MS);
-                APP._activeTimers.push(squareCycleTimer);
-            }, 600);
-        });
-    });
-}
-
-function spotlightSquare(idx) {
-    if (idx < 0 || idx >= squarePhotos.length) return;
-    squareActiveIdx = idx;
-    const photo = squarePhotos[idx];
-
-    /* Toggle active class */
-    document.querySelectorAll('.sq-cell').forEach((cell, i) => {
-        cell.classList.toggle('sq-active', i === idx);
-    });
-
-    /* Update info overlay */
-    const info = document.getElementById('sq-info');
-    if (info) {
-        const caption = photo.florence || photo.caption || '';
-        const camera = photo.camera || '';
-        info.classList.remove('sq-info-visible');
-        setTimeout(() => {
-            info.innerHTML = '';
-            if (caption) {
-                const capEl = document.createElement('span');
-                capEl.className = 'sq-info-caption';
-                capEl.textContent = caption.endsWith('.') ? caption.slice(0, -1) : caption;
-                info.appendChild(capEl);
-            }
-            if (camera) {
-                const camEl = document.createElement('span');
-                camEl.className = 'sq-info-camera';
-                camEl.textContent = camera;
-                info.appendChild(camEl);
-            }
-            info.classList.add('sq-info-visible');
-        }, 100);
-    }
-
-    /* Scroll the active cell into view if needed */
-    const activeCell = document.querySelector(`.sq-cell[data-idx="${idx}"]`);
-    if (activeCell) {
-        const grid = document.getElementById('sq-grid');
-        const cellRect = activeCell.getBoundingClientRect();
-        const gridRect = grid.getBoundingClientRect();
-        if (cellRect.bottom > gridRect.bottom || cellRect.top < gridRect.top) {
-            activeCell.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
+        undoToss();
+    } else if (e.key === 'Escape') {
+        e.preventDefault();
+        clearSqStage();
     }
 }

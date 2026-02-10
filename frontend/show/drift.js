@@ -41,25 +41,15 @@ function renderDriftShell(container) {
     shell.className = 'drift-shell';
     shell.id = 'drift-shell';
 
-    /* Center — the hero image */
-    const center = document.createElement('div');
-    center.className = 'drift-center-wrap';
-    center.id = 'drift-center';
-    shell.appendChild(center);
+    /* Header — label + random button */
+    const header = document.createElement('div');
+    header.className = 'drift-header';
 
-    /* Neighbors ring */
-    const ring = document.createElement('div');
-    ring.className = 'drift-ring';
-    ring.id = 'drift-ring';
-    shell.appendChild(ring);
+    const label = document.createElement('div');
+    label.className = 'drift-score-label';
+    label.id = 'drift-score-label';
+    header.appendChild(label);
 
-    /* Breadcrumb trail */
-    const trail = document.createElement('div');
-    trail.className = 'drift-trail';
-    trail.id = 'drift-trail';
-    shell.appendChild(trail);
-
-    /* Random button */
     const random = document.createElement('button');
     random.className = 'drift-random';
     random.textContent = '\uD83C\uDFB2';
@@ -70,13 +60,46 @@ function renderDriftShell(container) {
         driftHistory = [];
         navigateDrift(pick.id);
     });
-    shell.appendChild(random);
+    header.appendChild(random);
 
-    /* Similarity score label */
-    const label = document.createElement('div');
-    label.className = 'drift-score-label';
-    label.id = 'drift-score-label';
-    shell.appendChild(label);
+    shell.appendChild(header);
+
+    /* Main — hero + neighbor strip */
+    const main = document.createElement('div');
+    main.className = 'drift-main';
+
+    const center = document.createElement('div');
+    center.className = 'drift-center-wrap';
+    center.id = 'drift-center';
+    main.appendChild(center);
+
+    const strip = document.createElement('div');
+    strip.className = 'drift-strip';
+    strip.id = 'drift-strip';
+    main.appendChild(strip);
+
+    shell.appendChild(main);
+
+    /* Onboarding hint — disappears after first click */
+    const hint = document.createElement('div');
+    hint.className = 'drift-hint';
+    hint.id = 'drift-hint';
+    hint.textContent = 'Tap or click any image to explore similar ones';
+    shell.appendChild(hint);
+
+    /* Breadcrumb trail */
+    const trail = document.createElement('div');
+    trail.className = 'drift-trail';
+    trail.id = 'drift-trail';
+    shell.appendChild(trail);
+
+    /* Touch: swipe right to go back */
+    let dtx = 0;
+    shell.addEventListener('touchstart', e => { dtx = e.touches[0].clientX; }, { passive: true });
+    shell.addEventListener('touchend', e => {
+        const dx = e.changedTouches[0].clientX - dtx;
+        if (dx > 80) driftBack();
+    }, { passive: true });
 
     /* Keyboard */
     document.removeEventListener('keydown', driftKeyHandler);
@@ -93,9 +116,9 @@ function driftKeyHandler(e) {
     }
     if (e.key >= '1' && e.key <= '8') {
         e.preventDefault();
-        const ring = document.getElementById('drift-ring');
-        if (!ring) return;
-        const cards = ring.querySelectorAll('.drift-card');
+        const strip = document.getElementById('drift-strip');
+        if (!strip) return;
+        const cards = strip.querySelectorAll('.drift-card');
         const idx = parseInt(e.key) - 1;
         if (idx < cards.length) cards[idx].click();
     }
@@ -105,6 +128,9 @@ function navigateDrift(photoId) {
     if (driftCurrentId && driftCurrentId !== photoId) {
         driftHistory.push(driftCurrentId);
         if (driftHistory.length > 30) driftHistory.shift();
+        /* Dismiss hint after first real navigation */
+        const hint = document.getElementById('drift-hint');
+        if (hint) hint.classList.add('drift-hint-hide');
     }
     driftCurrentId = photoId;
 
@@ -146,11 +172,11 @@ function renderDriftCenter(photo) {
 }
 
 function renderDriftNeighbors(neighbors) {
-    const ring = document.getElementById('drift-ring');
-    if (!ring) return;
+    const strip = document.getElementById('drift-strip');
+    if (!strip) return;
 
     /* Fade out old cards */
-    const oldCards = ring.querySelectorAll('.drift-card');
+    const oldCards = strip.querySelectorAll('.drift-card');
     oldCards.forEach(c => {
         c.classList.add('drift-card-exit');
         setTimeout(() => c.remove(), 300);
@@ -170,15 +196,9 @@ function renderDriftNeighbors(neighbors) {
         loadProgressive(img, photo, 'thumb');
         card.appendChild(img);
 
-        /* Score badge */
-        const score = document.createElement('span');
-        score.className = 'drift-card-score';
-        score.textContent = (n.score * 100).toFixed(0) + '%';
-        card.appendChild(score);
-
         card.addEventListener('click', () => navigateDrift(n.id));
 
-        ring.appendChild(card);
+        strip.appendChild(card);
     });
 }
 

@@ -37,6 +37,20 @@ function initCouleurs() {
         spectrum.appendChild(band);
     }
 
+    /* Touch swipe between bands */
+    let cstx = 0;
+    spectrum.addEventListener('touchstart', e => { cstx = e.touches[0].clientX; }, { passive: true });
+    spectrum.addEventListener('touchend', e => {
+        const dx = e.changedTouches[0].clientX - cstx;
+        if (Math.abs(dx) > 40) {
+            const dir = dx > 0 ? -1 : 1;
+            let next = activeColorIdx + dir;
+            if (next < 0) next = colorBuckets.length - 1;
+            if (next >= colorBuckets.length) next = 0;
+            selectCouleursBand(next);
+        }
+    }, { passive: true });
+
     wrap.appendChild(spectrum);
 
     /* Bento card */
@@ -147,13 +161,24 @@ function renderCouleursBento() {
     const mobile = window.matchMedia('(max-width: 768px)').matches;
 
     if (mobile) {
-        /* 4 rows of 3 */
-        const rows = [[0,1,2],[3,4,5],[6,7,8],[9,10,11]];
-        for (const indices of rows) {
+        /* Bento: alternating wide/narrow tiles */
+        const patterns = [
+            [2, 1, 1],
+            [1, 1, 2],
+            [1, 2, 1],
+            [2, 1, 1],
+        ];
+        let idx = 0;
+        for (const pattern of patterns) {
             const row = document.createElement('div');
             row.className = 'couleurs-row';
-            for (const i of indices) {
-                if (selected[i]) row.appendChild(makeCouleursTile(selected[i]));
+            for (const flex of pattern) {
+                if (idx < selected.length) {
+                    const tile = makeCouleursTile(selected[idx]);
+                    if (flex > 1) tile.classList.add('couleurs-tile-wide');
+                    row.appendChild(tile);
+                    idx++;
+                }
             }
             card.appendChild(row);
         }

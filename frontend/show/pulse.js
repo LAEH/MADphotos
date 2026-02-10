@@ -175,16 +175,18 @@ function populatePulseGrid() {
         pulseCells.push(cell);
     }
 
-    /* Trigger reveal */
+    /* Trigger reveal — promote layers during animation */
     requestAnimationFrame(() => {
         grid.classList.remove('revealed');
+        grid.classList.add('pulse-animating');
         void grid.offsetWidth;
         grid.classList.add('revealed');
     });
 
     /* Start pulse animation after reveal completes */
     setTimeout(() => {
-        /* Remove transition so rAF inline styles take over */
+        /* Clean up will-change after reveal settles, then remove transition */
+        grid.classList.remove('pulse-animating');
         pulseCells.forEach(cell => {
             cell.style.transition = 'none';
         });
