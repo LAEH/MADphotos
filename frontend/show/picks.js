@@ -141,18 +141,15 @@ function initPicks() {
         }
     }, { passive: true });
 
-    /* Event: click left/right halves (desktop) */
+    /* Event: click (desktop) — left half = prev, right half / center = next */
     shell.addEventListener('click', (e) => {
         if (e.target.closest('.picks-progress') || e.target.closest('.picks-counter')) return;
         const rect = shell.getBoundingClientRect();
         const x = e.clientX - rect.left;
-        const third = rect.width / 3;
-        if (x < third) {
+        if (x < rect.width / 3) {
             picksGo(-1);
-        } else if (x > third * 2) {
-            picksGo(1);
         } else {
-            openLightbox(picksState.photos[picksState.index], picksState.photos);
+            picksGo(1);
         }
     });
 
