@@ -4121,8 +4121,8 @@ body {
     contain: layout style paint;
 }
 @media (min-width: 769px) {
-    .tinder-container { justify-content: center; padding-top: var(--space-6); }
-    .tinder-stack { max-width: 640px; aspect-ratio: 3 / 2; }
+    .tinder-container { justify-content: center; padding: var(--space-6) var(--space-8) var(--space-8); }
+    .tinder-stack { max-width: min(75vw, 960px); aspect-ratio: 3 / 2; }
 }
 
 /* ── Card ── */

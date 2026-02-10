@@ -68,7 +68,7 @@ function initTinder() {
     tinderState._cache = {};
 
     tinderLockViewport();
-    tinderEnterFullscreen();
+    if (tinderState.isMobile) tinderEnterFullscreen();
 
     container.innerHTML = '';
 
