@@ -240,18 +240,54 @@ def main():
     print_summary(conn)
     conn.close()
 
-    # Regenerate stats.json so the dashboard reflects fresh data
+    # Regenerate data + rebuild + deploy so dashboards reflect fresh data
     if total_new > 0 and not dry:
         try:
-            log.info("Regenerating stats.json...")
+            log.info("Regenerating static data...")
             subprocess.run(
                 [sys.executable, str(PROJECT_ROOT / "scripts" / "generate_static.py")],
                 cwd=str(PROJECT_ROOT),
                 capture_output=True, text=True, timeout=120,
             )
-            log.info("stats.json updated.")
+            log.info("Static data updated.")
         except Exception as e:
-            log.warning(f"stats.json regeneration failed: {e}")
+            log.warning(f"Static data regeneration failed: {e}")
+
+        # Rebuild and deploy State app to GitHub Pages
+        state_dir = PROJECT_ROOT / "frontend" / "state"
+        try:
+            log.info("Building State app...")
+            subprocess.run(
+                ["npm", "run", "build"],
+                cwd=str(state_dir),
+                capture_output=True, text=True, timeout=120,
+            )
+            log.info("Deploying State to GitHub Pages...")
+            subprocess.run(
+                ["npx", "gh-pages", "-d", "dist"],
+                cwd=str(state_dir),
+                capture_output=True, text=True, timeout=120,
+            )
+            log.info("State deployed.")
+        except Exception as e:
+            log.warning(f"State build/deploy failed: {e}")
+
+        # Deploy Show to Firebase (stats.json in show/data/)
+        show_data = PROJECT_ROOT / "frontend" / "show" / "data"
+        state_data = state_dir / "public" / "data" / "stats.json"
+        if state_data.exists() and show_data.exists():
+            import shutil
+            shutil.copy2(str(state_data), str(show_data / "stats.json"))
+        try:
+            log.info("Deploying Show to Firebase...")
+            subprocess.run(
+                ["firebase", "deploy", "--only", "hosting:madphotos"],
+                cwd=str(PROJECT_ROOT),
+                capture_output=True, text=True, timeout=120,
+            )
+            log.info("Show deployed.")
+        except Exception as e:
+            log.warning(f"Firebase deploy failed: {e}")
 
 
 if __name__ == "__main__":
