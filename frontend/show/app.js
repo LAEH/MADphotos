@@ -44,7 +44,6 @@ const APP = {
 
 /* Experience registry */
 const EXPERIENCES = [
-    { id: 'picks',       route: 'tinder',  name: 'Tinder',           init: 'initPicks' },
     { id: 'couleurs',    route: 'couleurs', name: 'Colors',          init: 'initCouleurs' },
 
     { id: 'compass',     route: 'compass',  name: 'Relation',        init: 'initCompass' },
@@ -242,12 +241,9 @@ function switchView(name) {
         img.removeAttribute('src');
     });
 
-    /* Viewport lock cleanup (ISIT, Tinder & Picks all lock) */
+    /* Viewport lock cleanup (ISIT & Picks lock viewport) */
     if (APP.currentView === 'isit' && name !== 'isit') {
         if (typeof isitUnlockViewport === 'function') isitUnlockViewport();
-    }
-    if (APP.currentView === 'tinder' && name !== 'tinder') {
-        if (typeof tinderUnlockViewport === 'function') tinderUnlockViewport();
     }
     if (APP.currentView === 'picks' && name !== 'picks') {
         if (typeof picksUnlockViewport === 'function') picksUnlockViewport();

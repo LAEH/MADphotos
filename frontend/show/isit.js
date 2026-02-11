@@ -613,55 +613,74 @@ function voteIsit(vote, swipeVelocity) {
 
 /* ===== Minimap ===== */
 
+function isitEnsureMinimapSlots() {
+  const el = document.getElementById("isit-minimap");
+  if (!el || el.children.length === 7) return;
+  el.innerHTML = "";
+  for (let s = 0; s < 7; s++) {
+    const slot = document.createElement("div");
+    slot.className = "isit-mini-slot isit-mini-empty";
+    const img = document.createElement("img");
+    img.draggable = false;
+    img.style.display = "none";
+    slot.appendChild(img);
+    const tint = document.createElement("div");
+    tint.className = "isit-mini-tint";
+    tint.style.display = "none";
+    slot.appendChild(tint);
+    el.appendChild(slot);
+  }
+}
+
 function renderIsitMinimap() {
   const el = document.getElementById("isit-minimap");
   if (!el) return;
-  el.innerHTML = "";
+  isitEnsureMinimapSlots();
 
   const idx = isitState.index;
   const photos = isitState.photos;
   const total = photos.length;
-  if (total === 0) return;
+  const slots = el.children;
 
-  for (let i = idx - 3; i <= idx + 3; i++) {
-    const slot = document.createElement("div");
+  for (let s = 0; s < 7; s++) {
+    const i = idx - 3 + s;
+    const slot = slots[s];
+    const img = slot.querySelector("img");
+    const tint = slot.querySelector(".isit-mini-tint");
+
+    /* Reset classes */
     slot.className = "isit-mini-slot";
+    slot.style.cursor = "";
+    slot.onclick = null;
+    tint.style.display = "none";
+    tint.className = "isit-mini-tint";
 
     if (i < 0 || i >= total) {
       slot.classList.add("isit-mini-empty");
-      el.appendChild(slot);
+      img.style.display = "none";
+      img.removeAttribute("src");
       continue;
     }
 
     const photo = photos[i];
-    const img = document.createElement("img");
-    img.draggable = false;
     const src = photo.thumb || photo.mobile || "";
-    if (src) img.src = src;
-    if (photo.focus)
-      img.style.objectPosition = photo.focus[0] + "% " + photo.focus[1] + "%";
-    slot.appendChild(img);
+    if (src) { img.src = src; img.style.display = ""; }
+    else { img.style.display = "none"; }
+    img.style.objectPosition = photo.focus
+      ? photo.focus[0] + "% " + photo.focus[1] + "%"
+      : "";
 
     if (i === idx) {
       slot.classList.add("isit-mini-current");
     } else if (i < idx) {
       const v = isitState.votes[photo.id];
-      const tint = document.createElement("div");
-      tint.className = "isit-mini-tint";
-      tint.classList.add(
-        v === "accept" ? "isit-mini-accept" : "isit-mini-reject",
-      );
-      slot.appendChild(tint);
+      tint.style.display = "";
+      tint.classList.add(v === "accept" ? "isit-mini-accept" : "isit-mini-reject");
       slot.style.cursor = "pointer";
-      slot.addEventListener("click", () => {
-        if (isitState.animating) return;
-        isitGoBack(i);
-      });
+      slot.onclick = () => { if (!isitState.animating) isitGoBack(i); };
     } else {
       slot.classList.add("isit-mini-future");
     }
-
-    el.appendChild(slot);
   }
 }
 

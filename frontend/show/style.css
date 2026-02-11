@@ -6187,6 +6187,8 @@ body {
   gap: 4px;
   align-items: center;
   flex-shrink: 0;
+  width: calc(7 * 40px + 6 * 4px); /* 7 slots + 6 gaps — stable width */
+  contain: layout style;
 }
 
 .isit-mini-slot {

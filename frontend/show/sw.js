@@ -17,7 +17,6 @@ const STATIC_ASSETS = [
     '/nyu.js?v=73',
     '/confetti.js?v=73',
     '/caption.js?v=73',
-    '/tinder.js?v=73',
     '/picks.js?v=73',
     '/isit.js?v=73',
 ];
