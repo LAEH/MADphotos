@@ -66,17 +66,6 @@ export function BlindTestPage() {
     }, 1200)
   }, [revealed, enhancedIsLeft, pair, index, data])
 
-  const next = useCallback(() => {
-    setIndex(i => Math.min(i + 1, (data?.pairs.length || 1) - 1))
-    setChoice(null)
-    setRevealed(false)
-  }, [data])
-
-  const prev = useCallback(() => {
-    setIndex(i => Math.max(0, i - 1))
-    setChoice(null)
-    setRevealed(false)
-  }, [])
 
   if (loading) return <div style={{ color: 'var(--muted)', padding: 'var(--space-10)' }}>Loading blind test...</div>
   if (error) return <div style={{ color: 'var(--system-red)', padding: 'var(--space-10)' }}>Error: {error}</div>
