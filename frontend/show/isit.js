@@ -119,21 +119,21 @@ function initIsit() {
   stack.className = "isit-stack";
   stack.id = "isit-stack";
 
-  const counter = document.createElement("div");
-  counter.className = "isit-counter";
-  counter.id = "isit-counter";
+  const pillsDisplay = document.createElement("div");
+  pillsDisplay.className = "isit-pills-display";
+  pillsDisplay.id = "isit-pills-display";
 
   const minimap = document.createElement("div");
   minimap.className = "isit-minimap";
   minimap.id = "isit-minimap";
 
-  const subbar = document.createElement("div");
-  subbar.className = "isit-subbar";
-  subbar.appendChild(counter);
-  subbar.appendChild(minimap);
+  const bottom = document.createElement("div");
+  bottom.className = "isit-bottom";
+  bottom.appendChild(pillsDisplay);
+  bottom.appendChild(minimap);
 
   wrapper.appendChild(stack);
-  wrapper.appendChild(subbar);
+  wrapper.appendChild(bottom);
   container.appendChild(wrapper);
 
   if (isitState._keyHandler) {
@@ -156,18 +156,11 @@ function initIsit() {
   loadLabelsPromise.then(() => {
     isitPreloadBuffer();
     isitRenderStack();
-    updateIsitCounter();
+
     renderIsitMinimap();
   });
 }
 
-function updateIsitCounter() {
-  const el = document.getElementById("isit-counter");
-  if (!el) return;
-  const total = isitState.photos.length;
-  const current = Math.min(isitState.index + 1, total);
-  el.textContent = total === 0 ? "All done" : current + " / " + total;
-}
 
 /* ===== Preload buffer ===== */
 
@@ -260,13 +253,8 @@ function isitBuildCard(photo, isFront) {
 
   card.appendChild(wrap);
 
-  /* Gorgeous pills — camera + top 4 unified labels on front card.
-     Placed BELOW the wrap inside the card. Card has no overflow/radius,
-     so pills display cleanly without any bleeding. */
-  if (isFront && isitState.labelsData && isitState.labelsData[photo.id]) {
-    const pillsContainer = isitCreatePills(photo);
-    if (pillsContainer) card.appendChild(pillsContainer);
-  }
+  /* Pills are rendered in the external pills-display, not inside the card */
+  if (isFront) updateIsitPills(photo);
 
   return card;
 }
@@ -279,16 +267,11 @@ function isitCreatePills(photo) {
 
   const pills = [];
 
-  if (data.camera) {
-    pills.push({ text: data.camera, category: "camera", primary: true });
-  }
-
   if (data.labels && data.labels.length > 0) {
-    data.labels.slice(0, 4).forEach((label) => {
+    data.labels.slice(0, 3).forEach((label) => {
       pills.push({
         text: label.label,
         category: label.category,
-        primary: false,
       });
     });
   }
@@ -300,13 +283,55 @@ function isitCreatePills(photo) {
 
   pills.forEach((pill) => {
     const el = document.createElement("span");
-    el.className = "gorgeous-pill" + (pill.primary ? " primary" : "");
+    el.className = "gorgeous-pill";
     el.setAttribute("data-category", pill.category);
     el.textContent = pill.text.charAt(0).toUpperCase() + pill.text.slice(1);
     container.appendChild(el);
   });
 
   return container;
+}
+
+/* ===== Update external pills display ===== */
+
+function updateIsitPills(photo) {
+  const el = document.getElementById("isit-pills-display");
+  if (!el) return;
+  el.innerHTML = "";
+
+  /* Photo label pills */
+  if (photo && isitState.labelsData && isitState.labelsData[photo.id]) {
+    const pillsContainer = isitCreatePills(photo);
+    if (pillsContainer) el.appendChild(pillsContainer);
+  }
+
+  /* Vote count pills - picked, rejected, unflagged */
+  const votes = isitState.votes;
+  let accepted = 0, rejected = 0;
+  for (const v of Object.values(votes)) {
+    if (v === "accept") accepted++;
+    else if (v === "reject") rejected++;
+  }
+
+  /* Calculate unflagged: total photos in orientation minus voted */
+  const orientation = isitState.isMobile ? "portrait" : "landscape";
+  const totalInOrientation = APP.allPhotos.filter(p => p.orientation === orientation).length;
+  const unflagged = totalInOrientation - accepted - rejected;
+
+  const counts = document.createElement("div");
+  counts.className = "isit-vote-counts";
+
+  const mkPill = (n, cls) => {
+    const s = document.createElement("span");
+    s.className = "isit-count-pill " + cls;
+    s.textContent = n;
+    return s;
+  };
+
+  counts.appendChild(mkPill(accepted, "isit-count-accept"));
+  counts.appendChild(mkPill(rejected, "isit-count-reject"));
+  counts.appendChild(mkPill(unflagged, "isit-count-unflagged"));
+  el.appendChild(counts);
 }
 
 /* ===== Desktop hover zones ===== */
@@ -380,7 +405,7 @@ function isitRenderStack() {
   if (idx >= photos.length) {
     stack.innerHTML =
       '<div class="isit-empty">No more photos to review</div>';
-    updateIsitCounter();
+
     return;
   }
 
@@ -416,7 +441,7 @@ function isitAdvance() {
   if (idx >= photos.length) {
     stack.innerHTML =
       '<div class="isit-empty">No more photos to review</div>';
-    updateIsitCounter();
+
     renderIsitMinimap();
     return;
   }
@@ -437,12 +462,9 @@ function isitAdvance() {
       const wrap = backCard.querySelector(".isit-image-wrap");
       if (wrap) setupIsitHoverZones(wrap, backCard);
     }
-    /* Add pills to promoted card */
+    /* Update external pills display for the promoted card */
     const promotedPhoto = isitState.photos[idx];
-    if (promotedPhoto && isitState.labelsData && isitState.labelsData[promotedPhoto.id]) {
-      const pillsContainer = isitCreatePills(promotedPhoto);
-      if (pillsContainer) backCard.appendChild(pillsContainer);
-    }
+    if (promotedPhoto) updateIsitPills(promotedPhoto);
   }
 
   /* Build new back card for the one after */
@@ -456,7 +478,6 @@ function isitAdvance() {
   }
 
   isitPreloadBuffer();
-  updateIsitCounter();
   renderIsitMinimap();
 }
 
@@ -568,6 +589,9 @@ function voteIsit(vote, swipeVelocity) {
     localStorage.setItem("isit-votes", JSON.stringify(isitState.votes));
   } catch {}
 
+  /* Update counts immediately after vote */
+  updateIsitPills(photo);
+
   try {
     if (typeof db !== "undefined") {
       db.collection("isit-votes").add({
@@ -615,9 +639,9 @@ function voteIsit(vote, swipeVelocity) {
 
 function isitEnsureMinimapSlots() {
   const el = document.getElementById("isit-minimap");
-  if (!el || el.children.length === 7) return;
+  if (!el || el.children.length === 5) return;
   el.innerHTML = "";
-  for (let s = 0; s < 7; s++) {
+  for (let s = 0; s < 5; s++) {
     const slot = document.createElement("div");
     slot.className = "isit-mini-slot isit-mini-empty";
     const img = document.createElement("img");
@@ -642,13 +666,13 @@ function renderIsitMinimap() {
   const total = photos.length;
   const slots = el.children;
 
-  for (let s = 0; s < 7; s++) {
-    const i = idx - 3 + s;
+  for (let s = 0; s < 5; s++) {
+    const i = idx + s - 2;
     const slot = slots[s];
     const img = slot.querySelector("img");
     const tint = slot.querySelector(".isit-mini-tint");
 
-    /* Reset classes */
+    /* Reset */
     slot.className = "isit-mini-slot";
     slot.style.cursor = "";
     slot.onclick = null;
@@ -671,14 +695,16 @@ function renderIsitMinimap() {
       : "";
 
     if (i === idx) {
-      slot.classList.add("isit-mini-current");
+      /* Current — no tint, no dim */
     } else if (i < idx) {
+      /* Past — dimmed with green (accept) or red (reject) tint */
       const v = isitState.votes[photo.id];
       tint.style.display = "";
       tint.classList.add(v === "accept" ? "isit-mini-accept" : "isit-mini-reject");
       slot.style.cursor = "pointer";
       slot.onclick = () => { if (!isitState.animating) isitGoBack(i); };
     } else {
+      /* Future — dimmed gray */
       slot.classList.add("isit-mini-future");
     }
   }
@@ -696,6 +722,5 @@ function isitGoBack(targetIndex) {
   isitState.index = targetIndex;
   isitState.animating = false;
   isitRenderStack();
-  updateIsitCounter();
   renderIsitMinimap();
 }

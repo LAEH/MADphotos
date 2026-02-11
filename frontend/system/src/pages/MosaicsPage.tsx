@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, type ImgHTMLAttributes } from 'react'
 import { useFetch } from '../hooks/useFetch'
 import { imageUrl } from '../config'
-import { Footer } from '../components/layout/Footer'
+import { PageShell } from '../components/layout/PageShell'
 
 function FadeImg({ className, style, ...props }: ImgHTMLAttributes<HTMLImageElement>) {
   const [loaded, setLoaded] = useState(false)
@@ -43,21 +43,10 @@ export function MosaicsPage() {
   if (!data) return null
 
   return (
-    <>
-      <h1 style={{
-        fontFamily: 'var(--font-display)', fontSize: 'var(--text-3xl)', fontWeight: 700,
-        letterSpacing: 'var(--tracking-tight)', marginBottom: 'var(--space-2)',
-      }}>
-        Mosaics
-      </h1>
-      <p style={{
-        fontSize: 'var(--text-sm)', color: 'var(--muted)', marginBottom: 'var(--space-4)',
-        lineHeight: 'var(--leading-relaxed)',
-      }}>
-        Every photograph in the collection, tiled into ~4K square mosaics.
-        Each mosaic sorts the images by a different dimension. Tap to zoom.
-      </p>
-
+    <PageShell
+      title="Mosaics"
+      subtitle="Every photograph in the collection, tiled into ~4K square mosaics. Each mosaic sorts the images by a different dimension. Tap to zoom."
+    >
       <div className="mosaic-grid">
         {data.mosaics.map(m => (
           <div
@@ -99,9 +88,7 @@ export function MosaicsPage() {
       </div>
 
       {modalSrc && <MosaicModal src={modalSrc} title={modalTitle} onClose={closeMosaic} />}
-
-      <Footer />
-    </>
+    </PageShell>
   )
 }
 

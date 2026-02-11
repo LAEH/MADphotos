@@ -1,7 +1,8 @@
 import { useState, useCallback, useMemo, type ImgHTMLAttributes } from 'react'
 import { useFetch } from '../hooks/useFetch'
 import { imageUrl } from '../config'
-import { Footer } from '../components/layout/Footer'
+import { PageShell } from '../components/layout/PageShell'
+import { Card } from '../components/layout/Card'
 
 function FadeImg({ style, ...props }: ImgHTMLAttributes<HTMLImageElement>) {
   const [loaded, setLoaded] = useState(false)
@@ -44,7 +45,26 @@ export function BlindTestPage() {
       correct: s.correct + (pickedEnhanced ? 1 : 0),
       total: s.total + 1,
     }))
-  }, [revealed, enhancedIsLeft])
+
+    // Save result to localStorage
+    const results = JSON.parse(localStorage.getItem('blind-test-results') || '[]')
+    results.push({
+      uuid: pair?.uuid,
+      choice: c,
+      pickedEnhanced,
+      timestamp: new Date().toISOString(),
+    })
+    localStorage.setItem('blind-test-results', JSON.stringify(results))
+
+    // Auto-advance after brief delay to show the reveal
+    setTimeout(() => {
+      if (index < (data?.pairs.length || 0) - 1) {
+        setIndex(i => i + 1)
+        setChoice(null)
+        setRevealed(false)
+      }
+    }, 1200)
+  }, [revealed, enhancedIsLeft, pair, index, data])
 
   const next = useCallback(() => {
     setIndex(i => Math.min(i + 1, (data?.pairs.length || 1) - 1))
@@ -73,20 +93,13 @@ export function BlindTestPage() {
   const rightLabel = enhancedIsLeft ? 'Original' : 'Enhanced'
 
   return (
-    <>
-      <div style={{ marginBottom: 'var(--space-6)' }}>
-        <h1 style={{
-          fontFamily: 'var(--font-display)', fontSize: 'var(--text-3xl)', fontWeight: 700,
-          letterSpacing: 'var(--tracking-tight)', marginBottom: 'var(--space-2)',
-        }}>
-          Blind Test
-        </h1>
-        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--muted)' }}>
-          Can you spot the AI-enhanced photo? One side is the original, the other has been
-          through our 6-step enhancement pipeline. Click the one you think looks better.
-        </p>
+    <PageShell
+      title="Blind Test"
+      subtitle="Which one did I pick? One side is the original, the other has been enhanced. Click the one you think I originally curated."
+    >
+      <Card>
         <div style={{
-          display: 'flex', gap: 'var(--space-6)', marginTop: 'var(--space-4)',
+          display: 'flex', gap: 'var(--space-6)', marginBottom: 'var(--space-4)',
           fontSize: 'var(--text-sm)', alignItems: 'center',
         }}>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -103,103 +116,96 @@ export function BlindTestPage() {
                 {score.correct}/{score.total}
               </span>
               <span style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 'var(--tracking-caps)' }}>
-                Enhanced picked
+                Preferred enhanced
               </span>
             </div>
           )}
         </div>
-      </div>
 
-      {/* Comparison grid */}
-      <div className="bt-grid">
-        <div
-          className="bt-cell"
-          data-clickable={!revealed ? 'true' : undefined}
-          onClick={() => handleChoice('a')}
-          style={{
-            outline: choice === 'a' ? '3px solid var(--system-blue)' : 'none',
-            outlineOffset: '-3px',
-          }}
-        >
-          <FadeImg
-            src={leftSrc}
-            alt="Option A"
-            style={{ width: '100%', height: '100%' }}
-          />
-          <span style={{
-            position: 'absolute', top: 'var(--space-2)', left: 'var(--space-2)',
-            fontSize: 'var(--text-sm)', fontWeight: 700, padding: 'var(--space-1) var(--space-3)',
-            borderRadius: 'var(--radius-sm)', backdropFilter: 'blur(12px)',
-            background: 'rgba(0,0,0,0.5)', color: '#fff', zIndex: 2,
-          }}>
-            A
-          </span>
-          {revealed && (
+        {/* Comparison grid */}
+        <div className="bt-grid">
+          <div
+            className="bt-cell"
+            data-clickable={!revealed ? 'true' : undefined}
+            onClick={() => handleChoice('a')}
+            style={{
+              outline: choice === 'a' ? '3px solid var(--system-blue)' : 'none',
+              outlineOffset: '-3px',
+            }}
+          >
+            <FadeImg
+              src={leftSrc}
+              alt="Option A"
+              style={{ width: '100%', height: '100%' }}
+            />
             <span style={{
-              position: 'absolute', bottom: 'var(--space-2)', left: 'var(--space-2)',
-              fontSize: 'var(--text-sm)', fontWeight: 600, padding: 'var(--space-1) var(--space-3)',
-              borderRadius: 'var(--radius-sm)', zIndex: 2,
-              background: enhancedIsLeft ? 'var(--badge-green-bg)' : 'var(--badge-amber-bg)',
-              color: enhancedIsLeft ? 'var(--badge-green-fg)' : 'var(--badge-amber-fg)',
+              position: 'absolute', top: 'var(--space-2)', left: 'var(--space-2)',
+              fontSize: 'var(--text-sm)', fontWeight: 700, padding: 'var(--space-1) var(--space-3)',
+              borderRadius: 'var(--radius-sm)', backdropFilter: 'blur(12px)',
+              background: 'rgba(0,0,0,0.5)', color: '#fff', zIndex: 2,
             }}>
-              {leftLabel}
+              A
             </span>
-          )}
-        </div>
-        <div
-          className="bt-cell"
-          data-clickable={!revealed ? 'true' : undefined}
-          onClick={() => handleChoice('b')}
-          style={{
-            outline: choice === 'b' ? '3px solid var(--system-blue)' : 'none',
-            outlineOffset: '-3px',
-          }}
-        >
-          <FadeImg
-            src={rightSrc}
-            alt="Option B"
-            style={{ width: '100%', height: '100%' }}
-          />
-          <span style={{
-            position: 'absolute', top: 'var(--space-2)', right: 'var(--space-2)',
-            fontSize: 'var(--text-sm)', fontWeight: 700, padding: 'var(--space-1) var(--space-3)',
-            borderRadius: 'var(--radius-sm)', backdropFilter: 'blur(12px)',
-            background: 'rgba(0,0,0,0.5)', color: '#fff', zIndex: 2,
-          }}>
-            B
-          </span>
-          {revealed && (
+            {revealed && (
+              <span style={{
+                position: 'absolute', bottom: 'var(--space-2)', left: 'var(--space-2)',
+                fontSize: 'var(--text-sm)', fontWeight: 600, padding: 'var(--space-1) var(--space-3)',
+                borderRadius: 'var(--radius-sm)', zIndex: 2,
+                background: enhancedIsLeft ? 'var(--badge-green-bg)' : 'var(--badge-amber-bg)',
+                color: enhancedIsLeft ? 'var(--badge-green-fg)' : 'var(--badge-amber-fg)',
+              }}>
+                {leftLabel}
+              </span>
+            )}
+          </div>
+          <div
+            className="bt-cell"
+            data-clickable={!revealed ? 'true' : undefined}
+            onClick={() => handleChoice('b')}
+            style={{
+              outline: choice === 'b' ? '3px solid var(--system-blue)' : 'none',
+              outlineOffset: '-3px',
+            }}
+          >
+            <FadeImg
+              src={rightSrc}
+              alt="Option B"
+              style={{ width: '100%', height: '100%' }}
+            />
             <span style={{
-              position: 'absolute', bottom: 'var(--space-2)', right: 'var(--space-2)',
-              fontSize: 'var(--text-sm)', fontWeight: 600, padding: 'var(--space-1) var(--space-3)',
-              borderRadius: 'var(--radius-sm)', zIndex: 2,
-              background: !enhancedIsLeft ? 'var(--badge-green-bg)' : 'var(--badge-amber-bg)',
-              color: !enhancedIsLeft ? 'var(--badge-green-fg)' : 'var(--badge-amber-fg)',
+              position: 'absolute', top: 'var(--space-2)', right: 'var(--space-2)',
+              fontSize: 'var(--text-sm)', fontWeight: 700, padding: 'var(--space-1) var(--space-3)',
+              borderRadius: 'var(--radius-sm)', backdropFilter: 'blur(12px)',
+              background: 'rgba(0,0,0,0.5)', color: '#fff', zIndex: 2,
             }}>
-              {rightLabel}
+              B
             </span>
-          )}
+            {revealed && (
+              <span style={{
+                position: 'absolute', bottom: 'var(--space-2)', right: 'var(--space-2)',
+                fontSize: 'var(--text-sm)', fontWeight: 600, padding: 'var(--space-1) var(--space-3)',
+                borderRadius: 'var(--radius-sm)', zIndex: 2,
+                background: !enhancedIsLeft ? 'var(--badge-green-bg)' : 'var(--badge-amber-bg)',
+                color: !enhancedIsLeft ? 'var(--badge-green-fg)' : 'var(--badge-amber-fg)',
+              }}>
+                {rightLabel}
+              </span>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Navigation */}
-      <div className="bt-nav">
-        <button className="bt-btn" onClick={prev} disabled={index === 0}>
-          Previous
-        </button>
-        {revealed && (
-          <button className="bt-btn primary" onClick={next} disabled={index === data.pairs.length - 1}>
-            Next
-          </button>
-        )}
+        {/* Status */}
         {!revealed && (
-          <span style={{ fontSize: 'var(--text-sm)', color: 'var(--muted)', textAlign: 'center' }}>
-            Tap the photo you think is enhanced
-          </span>
+          <div style={{ marginTop: 'var(--space-4)', fontSize: 'var(--text-sm)', color: 'var(--muted)', textAlign: 'center' }}>
+            Click the photo you think I originally picked
+          </div>
         )}
-      </div>
-
-      <Footer />
-    </>
+        {revealed && index === data.pairs.length - 1 && (
+          <div style={{ marginTop: 'var(--space-4)', fontSize: 'var(--text-base)', color: 'var(--fg)', textAlign: 'center', fontWeight: 600 }}>
+            Test complete! You preferred enhanced {score.correct}/{score.total} times
+          </div>
+        )}
+      </Card>
+    </PageShell>
   )
 }

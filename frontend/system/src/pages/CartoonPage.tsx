@@ -2,7 +2,8 @@ import { useState, useMemo, type ImgHTMLAttributes } from 'react'
 import { useFetch } from '../hooks/useFetch'
 import { imageUrl } from '../config'
 import { FilterBar } from '../components/ui/FilterBar'
-import { Footer } from '../components/layout/Footer'
+import { PageShell } from '../components/layout/PageShell'
+import { Card } from '../components/layout/Card'
 
 function FadeImg({ style, ...props }: ImgHTMLAttributes<HTMLImageElement>) {
   const [loaded, setLoaded] = useState(false)
@@ -58,19 +59,13 @@ export function CartoonPage() {
   const digitalCount = data.pairs.filter(p => p.category === 'Digital').length
 
   return (
-    <>
-      <div style={{ marginBottom: 'var(--space-8)' }}>
-        <h1 style={{
-          fontFamily: 'var(--font-display)', fontSize: 'var(--text-3xl)', fontWeight: 700,
-          letterSpacing: 'var(--tracking-tight)', marginBottom: 'var(--space-2)',
-        }}>
-          Cartoon Variants
-        </h1>
-        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--muted)' }}>
-          Imagen 3 cel-shaded illustration transforms of curated photos
-        </p>
+    <PageShell
+      title="Cartoon Variants"
+      subtitle="Imagen 3 cel-shaded illustration transforms of curated photos"
+    >
+      <Card>
         <div style={{
-          display: 'flex', gap: 'var(--space-6)', margin: 'var(--space-4) 0',
+          display: 'flex', gap: 'var(--space-6)', marginBottom: 'var(--space-4)',
           fontSize: 'var(--text-sm)',
         }}>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -86,7 +81,7 @@ export function CartoonPage() {
             <span style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 'var(--tracking-caps)' }}>Digital</span>
           </div>
         </div>
-      </div>
+      </Card>
 
       <FilterBar items={categories} active={filter} onSelect={setFilter} />
 
@@ -144,8 +139,6 @@ export function CartoonPage() {
           </div>
         ))}
       </div>
-
-      <Footer />
-    </>
+    </PageShell>
   )
 }

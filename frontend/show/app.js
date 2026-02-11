@@ -44,15 +44,14 @@ const APP = {
 
 /* Experience registry */
 const EXPERIENCES = [
-    { id: 'couleurs',    route: 'couleurs', name: 'Colors',          init: 'initCouleurs' },
-
-    { id: 'compass',     route: 'compass',  name: 'Relation',        init: 'initCompass' },
-    { id: 'bento',       route: 'bento',    name: 'Bento',           init: 'initBento' },
-    { id: 'nyu',         route: 'nyu',      name: 'NYU',             init: 'initNyu' },
-    { id: 'game',        route: 'game',     name: 'Couple',          init: 'initGame' },
-    { id: 'confetti',    route: 'confetti', name: 'Boom',            init: 'initConfetti' },
-    { id: 'caption',     route: 'caption',  name: 'Caption',         init: 'initCaption' },
-    { id: 'isit',        route: 'isit',     name: 'ISIT',            init: 'initIsit' },
+    { id: 'couleurs',    route: 'couleurs', name: 'Colors',    emoji: '🎨', init: 'initCouleurs' },
+    { id: 'compass',     route: 'compass',  name: 'Relation',  emoji: '💞', init: 'initCompass' },
+    { id: 'bento',       route: 'bento',    name: 'Bento',     emoji: '🍱', init: 'initBento' },
+    { id: 'nyu',         route: 'nyu',      name: 'NYU',       emoji: '🗽', init: 'initNyu' },
+    { id: 'game',        route: 'game',     name: 'Couple',    emoji: '💕', init: 'initGame' },
+    { id: 'confetti',    route: 'confetti', name: 'Boom',      emoji: '🎉', init: 'initConfetti' },
+    { id: 'caption',     route: 'caption',  name: 'Caption',   emoji: '✍️', init: 'initCaption' },
+    { id: 'isit',        route: 'isit',     name: 'ISIT',      emoji: '✨', init: 'initIsit' },
 ];
 
 /* ===== Device Detection & Gating ===== */
@@ -150,7 +149,7 @@ function buildSideMenu() {
         const li = document.createElement('li');
         li.className = 'side-menu-item';
         li.dataset.view = exp.id;
-        li.textContent = exp.name;
+        li.innerHTML = `<span>${exp.name}</span><span class="side-menu-emoji">${exp.emoji || ''}</span>`;
         li.addEventListener('click', () => {
             switchView(exp.id);
             closeSideMenu();
@@ -182,15 +181,11 @@ function toggleSideMenu() {
     backdrop.classList.toggle('open', open);
     menuBtn.classList.toggle('menu-open', open);
     floatingNav.classList.toggle('menu-expanded', open);
-    /* Sync menu width to nav width so they visually connect */
-    if (open) menu.style.width = floatingNav.offsetWidth + 'px';
-    else menu.style.width = '';
 }
 
 function closeSideMenu() {
     const menu = document.getElementById('side-menu');
     menu.classList.remove('open');
-    menu.style.width = '';
     document.getElementById('side-menu-backdrop').classList.remove('open');
     document.getElementById('menu-btn').classList.remove('menu-open');
     document.getElementById('floating-nav').classList.remove('menu-expanded');

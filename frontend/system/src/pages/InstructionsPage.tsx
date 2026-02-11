@@ -1,5 +1,6 @@
 import { useFetch } from '../hooks/useFetch'
-import { Footer } from '../components/layout/Footer'
+import { PageShell } from '../components/layout/PageShell'
+import { Card } from '../components/layout/Card'
 
 interface InstructionsData {
   html: string
@@ -13,15 +14,10 @@ export function InstructionsPage() {
   if (!data) return null
 
   return (
-    <>
-      <h1 style={{
-        fontFamily: 'var(--font-display)', fontSize: 'var(--text-3xl)', fontWeight: 700,
-        letterSpacing: 'var(--tracking-tight)', marginBottom: 'var(--space-2)',
-      }}>
-        System Instructions
-      </h1>
-      <div className="prose" dangerouslySetInnerHTML={{ __html: data.html }} />
-      <Footer />
-    </>
+    <PageShell title="System Instructions">
+      <Card>
+        <div className="prose" dangerouslySetInnerHTML={{ __html: data.html }} />
+      </Card>
+    </PageShell>
   )
 }

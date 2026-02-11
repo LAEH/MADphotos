@@ -246,15 +246,26 @@ VOTED_JSON_PATH = PROJECT_ROOT / "frontend" / "show" / "data" / "voted.json"
 
 
 def generate_picks_json(conn: sqlite3.Connection) -> None:
-    """Generate picks.json from accepted tinder votes, grouped by device orientation.
+    """Generate picks.json from accepted votes (tinder + isit), grouped by orientation.
 
     Device 'mobile' → portrait picks, 'desktop' → landscape picks.
+    ISIT votes override tinder votes for the same photo (newer curation pass).
     Output: { "portrait": [...ids], "landscape": [...ids], "generated": "..." }
     """
+    # Check at least one vote table exists
+    has_tinder = has_isit = False
     try:
         conn.execute("SELECT 1 FROM firestore_tinder_votes LIMIT 1")
+        has_tinder = True
     except sqlite3.OperationalError:
-        log.info("  firestore_tinder_votes table not yet created — skipping picks.json")
+        pass
+    try:
+        conn.execute("SELECT 1 FROM firestore_isit_votes LIMIT 1")
+        has_isit = True
+    except sqlite3.OperationalError:
+        pass
+    if not has_tinder and not has_isit:
+        log.info("  No vote tables yet — skipping picks.json")
         return
 
     # Collect photos rejected in picks re-curation pass
@@ -268,21 +279,27 @@ def generate_picks_json(conn: sqlite3.Connection) -> None:
     except sqlite3.OperationalError:
         pass  # table not yet created
 
+    # Build per-photo vote map: tinder first, then isit overrides
+    # This ensures ISIT (the current UI) takes priority over old tinder votes
+    vote_map: dict[str, tuple[str, str]] = {}  # photo -> (vote, device)
+    if has_tinder:
+        for photo, vote, device in conn.execute(
+            "SELECT photo, vote, device FROM firestore_tinder_votes ORDER BY ts ASC"
+        ).fetchall():
+            vote_map[photo] = (vote, device or "desktop")
+    if has_isit:
+        for photo, vote, device in conn.execute(
+            "SELECT photo, vote, device FROM firestore_isit_votes ORDER BY ts ASC"
+        ).fetchall():
+            vote_map[photo] = (vote, device or "desktop")
+
     portrait_ids = [
-        row[0] for row in conn.execute(
-            "SELECT DISTINCT photo FROM firestore_tinder_votes "
-            "WHERE vote = 'accept' AND device = 'mobile' "
-            "ORDER BY ts DESC"
-        ).fetchall()
-        if row[0] not in rejected
+        pid for pid, (vote, device) in vote_map.items()
+        if vote == "accept" and device == "mobile" and pid not in rejected
     ]
     landscape_ids = [
-        row[0] for row in conn.execute(
-            "SELECT DISTINCT photo FROM firestore_tinder_votes "
-            "WHERE vote = 'accept' AND device = 'desktop' "
-            "ORDER BY ts DESC"
-        ).fetchall()
-        if row[0] not in rejected
+        pid for pid, (vote, device) in vote_map.items()
+        if vote == "accept" and device == "desktop" and pid not in rejected
     ]
 
     picks = {
@@ -297,26 +314,35 @@ def generate_picks_json(conn: sqlite3.Connection) -> None:
 
 
 def generate_voted_json(conn: sqlite3.Connection) -> None:
-    """Generate voted.json — all tinder votes keyed by photo ID.
+    """Generate voted.json — all votes (tinder + isit) keyed by photo ID.
 
     Used by the frontend to hydrate localStorage so votes from any device
     are reflected everywhere (prevents double-voting across devices).
+    ISIT votes override tinder votes (newer curation pass).
     Output: { "photo-uuid": "accept", ... }
     """
-    try:
-        conn.execute("SELECT 1 FROM firestore_tinder_votes LIMIT 1")
-    except sqlite3.OperationalError:
-        return
-
-    # Take the latest vote per photo (in case of re-votes)
-    rows = conn.execute(
-        "SELECT photo, vote FROM firestore_tinder_votes "
-        "ORDER BY ts ASC"
-    ).fetchall()
-
     votes: dict[str, str] = {}
-    for photo, vote in rows:
-        votes[photo] = vote  # later votes overwrite earlier ones
+
+    # Tinder votes first (older)
+    try:
+        for photo, vote in conn.execute(
+            "SELECT photo, vote FROM firestore_tinder_votes ORDER BY ts ASC"
+        ).fetchall():
+            votes[photo] = vote
+    except sqlite3.OperationalError:
+        pass
+
+    # ISIT votes override (newer curation UI)
+    try:
+        for photo, vote in conn.execute(
+            "SELECT photo, vote FROM firestore_isit_votes ORDER BY ts ASC"
+        ).fetchall():
+            votes[photo] = vote
+    except sqlite3.OperationalError:
+        pass
+
+    if not votes:
+        return
 
     VOTED_JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
     VOTED_JSON_PATH.write_text(json.dumps(votes, separators=(",", ":")))

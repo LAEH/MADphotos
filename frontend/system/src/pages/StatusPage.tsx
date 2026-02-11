@@ -1,5 +1,6 @@
 import { useFetch } from '../hooks/useFetch'
-import { Footer } from '../components/layout/Footer'
+import { PageShell } from '../components/layout/PageShell'
+import { Card } from '../components/layout/Card'
 
 interface Stats {
   timestamp: string
@@ -168,50 +169,44 @@ export function StatusPage() {
   const modelCount = models.length
 
   return (
-    <>
-      {/* ═══ HEADER ═══ */}
-      <div className="state-hero" style={{ paddingBottom: 'var(--space-2)' }}>
-        <h1 style={{ marginBottom: 'var(--space-1)' }}>Status</h1>
-        <p style={{ color: 'var(--muted)', fontSize: 'var(--text-sm)', margin: 0 }}>
-          <span className="live-dot" />{s.timestamp}
-        </p>
-      </div>
-
+    <PageShell title="System Status" subtitle={<><span className="live-dot" />{s.timestamp}</>}>
       {/* ═══ OVERVIEW GRID ═══ */}
-      <div className="overview-grid">
-        <div className="ov-card">
-          <div className="ov-val">{fmt(s.total)}</div>
-          <div className="ov-label">Photos</div>
+      <Card>
+        <div className="overview-grid" style={{ marginBottom: 0 }}>
+          <div className="ov-card">
+            <div className="ov-val">{fmt(s.total)}</div>
+            <div className="ov-label">Photos</div>
+          </div>
+          <div className="ov-card">
+            <div className="ov-val">{s.cameras.length}</div>
+            <div className="ov-label">Cameras</div>
+          </div>
+          <div className="ov-card">
+            <div className="ov-val">{fmt(s.picks?.total || 0)}</div>
+            <div className="ov-label">Picks</div>
+          </div>
+          <div className="ov-card">
+            <div className="ov-val">{modelCount}</div>
+            <div className="ov-label">AI Models</div>
+          </div>
+          <div className="ov-card">
+            <div className="ov-val">{fmt(s.total_signals)}</div>
+            <div className="ov-label">Signals</div>
+          </div>
+          <div className="ov-card">
+            <div className="ov-val">{s.models_complete}/{modelCount}</div>
+            <div className="ov-label">Complete</div>
+          </div>
+          <div className="ov-card">
+            <div className="ov-val">{s.total_rendered_human}</div>
+            <div className="ov-label">Storage</div>
+          </div>
+          <div className="ov-card">
+            <div className="ov-val">{fmt(s.feedback?.tinder.total || 0)}</div>
+            <div className="ov-label">Votes</div>
+          </div>
         </div>
-        <div className="ov-card">
-          <div className="ov-val">{s.cameras.length}</div>
-          <div className="ov-label">Cameras</div>
-        </div>
-        <div className="ov-card">
-          <div className="ov-val">{fmt(s.picks?.total || 0)}</div>
-          <div className="ov-label">Picks</div>
-        </div>
-        <div className="ov-card">
-          <div className="ov-val">{modelCount}</div>
-          <div className="ov-label">AI Models</div>
-        </div>
-        <div className="ov-card">
-          <div className="ov-val">{fmt(s.total_signals)}</div>
-          <div className="ov-label">Signals</div>
-        </div>
-        <div className="ov-card">
-          <div className="ov-val">{s.models_complete}/{modelCount}</div>
-          <div className="ov-label">Complete</div>
-        </div>
-        <div className="ov-card">
-          <div className="ov-val">{s.total_rendered_human}</div>
-          <div className="ov-label">Storage</div>
-        </div>
-        <div className="ov-card">
-          <div className="ov-val">{fmt(s.feedback?.tinder.total || 0)}</div>
-          <div className="ov-label">Votes</div>
-        </div>
-      </div>
+      </Card>
 
       {/* ════════════════════════════════════════════════════════════════
           INGESTION — pipeline, rendering, storage
@@ -799,8 +794,7 @@ export function StatusPage() {
       </div>
       </div>
 
-      <Footer />
-    </>
+    </PageShell>
   )
 }
 

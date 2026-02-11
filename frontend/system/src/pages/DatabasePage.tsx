@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useFetch } from '../hooks/useFetch'
-import { Footer } from '../components/layout/Footer'
+import { PageShell } from '../components/layout/PageShell'
+import { Card } from '../components/layout/Card'
 
 interface Column {
   name: string
@@ -88,7 +89,7 @@ function ModelPill({ model }: { model: string }) {
 }
 
 function CoverageBar({ coverage }: { coverage: number | null }) {
-  if (coverage === null) return <span style={{ color: 'var(--muted)', fontSize: 'var(--text-xs)' }}>—</span>
+  if (coverage === null) return <span style={{ color: 'var(--muted)', fontSize: 'var(--text-xs)' }}>&mdash;</span>
   const color = coverage >= 95 ? 'var(--system-green)' : coverage >= 50 ? 'var(--system-blue)' : 'var(--system-orange)'
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -169,7 +170,7 @@ function TableCard({ table, expanded, onToggle }: { table: TableInfo; expanded: 
           transition: 'transform 0.2s',
           transform: expanded ? 'rotate(180deg)' : 'rotate(0)',
         }}>
-          ▾
+          &#9662;
         </span>
       </div>
 
@@ -224,7 +225,7 @@ function TableCard({ table, expanded, onToggle }: { table: TableInfo; expanded: 
                   <td style={{ padding: '4px 8px', color: 'var(--muted)' }}>
                     {(table.samples[col.name] || []).map((v, i) => (
                       <span key={i}>
-                        {i > 0 && <span style={{ opacity: 0.3 }}> · </span>}
+                        {i > 0 && <span style={{ opacity: 0.3 }}> &middot; </span>}
                         <span style={{ color: typeof v === 'number' ? 'var(--system-blue)' : 'var(--fg)', opacity: 0.7 }}>
                           {String(v)}
                         </span>
@@ -298,8 +299,8 @@ export function DatabasePage() {
       })
   }, [data, filter, search])
 
-  if (loading) return <div className="main-content"><p style={{ color: 'var(--muted)' }}>Loading schema...</p></div>
-  if (error) return <div className="main-content"><p style={{ color: 'var(--system-red)' }}>Error: {error}</p></div>
+  if (loading) return <div style={{ color: 'var(--muted)', padding: 'var(--space-10)' }}>Loading schema...</div>
+  if (error) return <div style={{ color: 'var(--system-red)', padding: 'var(--space-10)' }}>Error: {error}</div>
   if (!data) return null
 
   const catCounts = Object.entries(data.categories).sort(
@@ -307,41 +308,38 @@ export function DatabasePage() {
   )
 
   return (
-    <div className="main-content">
-      {/* Hero */}
-      <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ marginBottom: '4px' }}>Database</h1>
-        <p style={{ color: 'var(--muted)', fontSize: 'var(--text-sm)', margin: 0 }}>
-          {data.table_count} tables · {fmt(data.total_rows)} total rows · {fmtBytes(data.db_size)}
-        </p>
-      </div>
-
-      {/* Hero stats */}
-      <div className="hero-stats" style={{ marginBottom: '32px' }}>
-        <div className="hero-stat">
-          <span className="hero-stat-num">{fmt(data.total_images)}</span>
-          <span className="hero-stat-label">Images</span>
+    <PageShell
+      title="Database"
+      subtitle={`${data.table_count} tables \u00B7 ${fmt(data.total_rows)} total rows \u00B7 ${fmtBytes(data.db_size)}`}
+    >
+      {/* Summary stats */}
+      <Card>
+        <div className="hero-stats" style={{ marginBottom: 0, borderBottom: 'none', paddingBottom: 0 }}>
+          <div className="hero-stat">
+            <span className="hero-stat-num">{fmt(data.total_images)}</span>
+            <span className="hero-stat-label">Images</span>
+          </div>
+          <div className="hero-stat">
+            <span className="hero-stat-num">{data.table_count}</span>
+            <span className="hero-stat-label">Tables</span>
+          </div>
+          <div className="hero-stat">
+            <span className="hero-stat-num">{fmt(data.total_rows)}</span>
+            <span className="hero-stat-label">Rows</span>
+          </div>
+          <div className="hero-stat">
+            <span className="hero-stat-num">{fmtBytes(data.db_size)}</span>
+            <span className="hero-stat-label">Size</span>
+          </div>
         </div>
-        <div className="hero-stat">
-          <span className="hero-stat-num">{data.table_count}</span>
-          <span className="hero-stat-label">Tables</span>
-        </div>
-        <div className="hero-stat">
-          <span className="hero-stat-num">{fmt(data.total_rows)}</span>
-          <span className="hero-stat-label">Rows</span>
-        </div>
-        <div className="hero-stat">
-          <span className="hero-stat-num">{fmtBytes(data.db_size)}</span>
-          <span className="hero-stat-label">Size</span>
-        </div>
-      </div>
+      </Card>
 
       {/* Category summary cards */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
         gap: '12px',
-        marginBottom: '32px',
+        marginBottom: 'var(--space-6)',
       }}>
         {catCounts.map(([cat, info]) => {
           const meta = categoryLabels[cat] || categoryLabels.other
@@ -388,32 +386,28 @@ export function DatabasePage() {
       </div>
 
       {/* How it works */}
-      <div style={{
-        padding: '16px 20px',
-        borderRadius: '10px',
-        background: 'var(--card-bg)',
-        border: '1px solid var(--border)',
-        marginBottom: '32px',
-        fontSize: 'var(--text-sm)',
-        lineHeight: 1.6,
-        color: 'var(--muted)',
-      }}>
-        <h3 style={{ margin: '0 0 8px', color: 'var(--fg)', fontSize: 'var(--text-sm)' }}>How it works</h3>
-        <p style={{ margin: '0 0 8px' }}>
-          Every image in the archive gets a UUID. The <code style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', padding: '1px 4px', borderRadius: '3px', background: 'var(--bg-secondary)' }}>images</code> table
-          is the master — one row per photograph. All signal tables link back via <code style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', padding: '1px 4px', borderRadius: '3px', background: 'var(--bg-secondary)' }}>image_uuid</code>.
-        </p>
-        <p style={{ margin: '0 0 8px' }}>
-          <strong style={{ color: 'var(--fg)' }}>V1 Signals</strong> were the first wave — EXIF, BLIP captions, YOLOv8 objects, face detection, aesthetic scores, depth, colors, scene/style classification, Gemini semantic analysis.
-        </p>
-        <p style={{ margin: '0 0 8px' }}>
-          <strong style={{ color: 'var(--fg)' }}>V2 Signals</strong> came next — better quality scoring (TOPIQ+MUSIQ), open-vocabulary detection (Grounding DINO, CLIP tags), segmentation (SAM 2.1), pose estimation, saliency maps, face identity clustering, location geocoding.
-        </p>
-        <p style={{ margin: 0 }}>
-          <strong style={{ color: 'var(--fg)' }}>Pipeline tables</strong> track rendering, enhancement, and uploads.
-          All signals feed into the Show experiences and the State dashboard. The richer the signals, the more creative possibilities unlock.
-        </p>
-      </div>
+      <Card title="How it works">
+        <div style={{
+          fontSize: 'var(--text-sm)',
+          lineHeight: 1.6,
+          color: 'var(--muted)',
+        }}>
+          <p style={{ margin: '0 0 8px' }}>
+            Every image in the archive gets a UUID. The <code style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', padding: '1px 4px', borderRadius: '3px', background: 'var(--bg-secondary)' }}>images</code> table
+            is the master &mdash; one row per photograph. All signal tables link back via <code style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', padding: '1px 4px', borderRadius: '3px', background: 'var(--bg-secondary)' }}>image_uuid</code>.
+          </p>
+          <p style={{ margin: '0 0 8px' }}>
+            <strong style={{ color: 'var(--fg)' }}>V1 Signals</strong> were the first wave &mdash; EXIF, BLIP captions, YOLOv8 objects, face detection, aesthetic scores, depth, colors, scene/style classification, Gemini semantic analysis.
+          </p>
+          <p style={{ margin: '0 0 8px' }}>
+            <strong style={{ color: 'var(--fg)' }}>V2 Signals</strong> came next &mdash; better quality scoring (TOPIQ+MUSIQ), open-vocabulary detection (Grounding DINO, CLIP tags), segmentation (SAM 2.1), pose estimation, saliency maps, face identity clustering, location geocoding.
+          </p>
+          <p style={{ margin: 0 }}>
+            <strong style={{ color: 'var(--fg)' }}>Pipeline tables</strong> track rendering, enhancement, and uploads.
+            All signals feed into the Show experiences and the State dashboard. The richer the signals, the more creative possibilities unlock.
+          </p>
+        </div>
+      </Card>
 
       {/* Filter + search bar */}
       <div style={{
@@ -473,7 +467,7 @@ export function DatabasePage() {
       </div>
 
       {/* Table cards */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '40px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {filtered.map(table => (
           <TableCard
             key={table.name}
@@ -483,8 +477,6 @@ export function DatabasePage() {
           />
         ))}
       </div>
-
-      <Footer />
-    </div>
+    </PageShell>
   )
 }

@@ -307,17 +307,24 @@ body {
   -webkit-text-size-adjust: 100%;
 }
 
-/* ===== Floating Nav Pill ===== */
-.floating-nav {
+/* ===== Unified Nav Container ===== */
+.nav-container {
   position: fixed;
-  top: 12px;
-  left: 12px;
+  top: 32px;
+  left: 32px;
   z-index: 100;
+  display: flex;
+  flex-direction: column;
+  min-width: 240px;
+  box-sizing: border-box;
+}
+
+/* Floating Nav - Header of the container */
+.floating-nav {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 16px;
-  min-width: 220px;
+  padding: 12px 18px;
   box-sizing: border-box;
   background: rgba(255, 255, 255, 0.98);
   border: 1px solid rgba(0, 0, 0, 0.08);
@@ -326,6 +333,8 @@ body {
     0 2px 20px rgba(0, 0, 0, 0.08),
     0 0 0 1px rgba(0, 0, 0, 0.02) inset;
   transition: border-radius 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
 }
 
 :root.dark .floating-nav {
@@ -522,11 +531,6 @@ body {
 }
 
 .side-menu {
-  position: fixed;
-  top: 48px; /* Align right below floating-nav */
-  left: 12px;
-  z-index: 99;
-  min-width: 220px;
   box-sizing: border-box;
   max-height: 0;
   overflow: hidden;
@@ -537,9 +541,11 @@ body {
   box-shadow:
     0 2px 20px rgba(0, 0, 0, 0.08),
     0 0 0 1px rgba(0, 0, 0, 0.02) inset;
-  padding: 0 8px;
+  padding: 0 10px;
   opacity: 0;
   pointer-events: none;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   transition:
     max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
     opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
@@ -555,8 +561,8 @@ body {
 }
 
 .side-menu.open {
-  max-height: calc(100vh - 64px);
-  padding: 18px 14px 12px 20px;
+  max-height: calc(100vh - 100px);
+  padding: 20px 18px 14px 22px;
   opacity: 1;
   pointer-events: auto;
   overflow-y: auto;
@@ -574,6 +580,9 @@ body {
 }
 
 .side-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   font-family:
     -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
   font-size: 13px;
@@ -588,6 +597,10 @@ body {
     color 0.15s;
   white-space: nowrap;
   line-height: 1.2;
+}
+.side-menu-emoji {
+  font-size: 14px;
+  line-height: 1;
 }
 
 :root.dark .side-menu-item {
@@ -4187,10 +4200,12 @@ body {
     --text-sm: 14px;
   }
 
-  .floating-nav {
+  .nav-container {
     top: var(--space-5);
     left: var(--space-5);
-    right: auto;
+  }
+
+  .floating-nav {
     background: rgba(255, 255, 255, 0.55);
     backdrop-filter: saturate(200%) blur(30px);
     -webkit-backdrop-filter: saturate(200%) blur(30px);
@@ -4275,6 +4290,7 @@ body {
   }
 
   .side-menu {
+    position: fixed;
     top: auto;
     left: auto;
     bottom: calc(var(--space-5) + env(safe-area-inset-bottom) + 56px);
@@ -4287,9 +4303,11 @@ body {
     -webkit-backdrop-filter: saturate(200%) blur(40px);
     border-radius: var(--radius-xl);
     padding: var(--space-3);
+    border: 1px solid rgba(255, 255, 255, 0.35);
   }
   :root.dark .side-menu {
     background: rgba(28, 28, 30, 0.82);
+    border-color: rgba(255, 255, 255, 0.08);
   }
   .side-menu-item {
     font-size: var(--text-lg);
@@ -5784,47 +5802,20 @@ body {
   --isit-radius: clamp(16px, 4vmin, 40px);
   position: fixed;
   inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  padding: calc(env(safe-area-inset-top, 0px) + var(--isit-edge))
-    var(--isit-edge)
-    calc(env(safe-area-inset-bottom, 0px) + var(--isit-edge));
+  display: grid;
+  grid-template-rows: 13dvh 67dvh 20dvh;
+  grid-template-columns: 1fr;
+  justify-items: center;
+  padding: 0 var(--isit-edge);
   background: var(--bg);
-  overflow: hidden;
+  overflow: visible;
   overscroll-behavior: none;
-  -webkit-overflow-scrolling: auto;
   z-index: 50;
   transition: background 0.3s ease-out;
 }
+/* Row 1 = 13% top spacer (empty pseudo-element) */
+.isit-container::before { content: ''; grid-row: 1; }
 
-/* ── Subbar: counter + minimap on one row under the card ── */
-.isit-subbar {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  width: 100%;
-  max-width: 100%;
-  /* Extra margin to clear pills that overflow below the stack */
-  margin-top: 48px;
-}
-@media (min-width: 769px) {
-  .isit-subbar {
-    max-width: min(80vw, 1100px);
-  }
-}
-
-.isit-counter {
-  font: 500 var(--text-caption)/1 var(--font);
-  color: var(--text-muted);
-  letter-spacing: 0.02em;
-  user-select: none;
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-}
 
 /* ── Stack: positioning context only ──
    contain: layout style (NO paint — paint clips box-shadows on children)
@@ -5834,19 +5825,17 @@ body {
    Uses both width + height caps so the card never overflows, even
    on iPad landscape or short windows. */
 .isit-stack {
+  grid-row: 2;
   position: relative;
-  width: 100%;
-  aspect-ratio: 3 / 4;
-  /* Cap height so card + subbar fit the available vertical space */
-  max-height: calc(100vh - 2 * var(--isit-edge) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 80px);
-  /* If height-capped, let width follow from aspect-ratio */
+  height: 100%;
+  /* Width from height × ratio — no aspect-ratio property (it overrides height) */
+  width: calc(67dvh * 1.5);
   max-width: 100%;
   contain: layout style;
 }
-@media (min-width: 769px) {
+@media (max-width: 768px) {
   .isit-stack {
-    aspect-ratio: 3 / 2;
-    max-width: min(80vw, 1100px);
+    width: calc(67dvh * 2 / 3);
   }
 }
 
@@ -5892,29 +5881,35 @@ body {
 .isit-image-wrap {
   position: relative;
   width: 100%;
-  aspect-ratio: 3 / 4;
+  aspect-ratio: 3 / 2;
+  max-height: 100%;
   border-radius: var(--isit-radius);
   overflow: hidden;
   background: var(--bg-elevated);
   background-clip: padding-box;
   -webkit-background-clip: padding-box;
-  /* Splendid elevation — every card in the stack feels lifted */
+  /* Graceful elevation — soft ambient glow + deep lift */
   box-shadow:
-    0 2px 4px rgba(0, 0, 0, 0.04),
-    0 4px 12px rgba(0, 0, 0, 0.06),
-    0 8px 24px rgba(0, 0, 0, 0.08),
-    0 16px 48px rgba(0, 0, 0, 0.10);
+    0 1px 2px rgba(0, 0, 0, 0.03),
+    0 3px 6px rgba(0, 0, 0, 0.04),
+    0 8px 16px rgba(0, 0, 0, 0.06),
+    0 16px 32px rgba(0, 0, 0, 0.08),
+    0 32px 64px rgba(0, 0, 0, 0.12),
+    0 0 0 1px rgba(0, 0, 0, 0.03);
 }
 :root.dark .isit-image-wrap {
   box-shadow:
-    0 2px 4px rgba(0, 0, 0, 0.12),
-    0 4px 12px rgba(0, 0, 0, 0.18),
-    0 8px 24px rgba(0, 0, 0, 0.24),
-    0 16px 48px rgba(0, 0, 0, 0.32);
+    0 1px 2px rgba(0, 0, 0, 0.08),
+    0 3px 6px rgba(0, 0, 0, 0.12),
+    0 8px 16px rgba(0, 0, 0, 0.18),
+    0 16px 32px rgba(0, 0, 0, 0.24),
+    0 32px 64px rgba(0, 0, 0, 0.36),
+    0 0 0 1px rgba(255, 255, 255, 0.04);
 }
-@media (min-width: 769px) {
+
+@media (max-width: 768px) {
   .isit-image-wrap {
-    aspect-ratio: 3 / 2;
+    aspect-ratio: 2 / 3;
   }
 }
 
@@ -5939,12 +5934,86 @@ body {
    No will-change or translate3d needed. These sit in normal flow
    below the image wrap. Because .isit-stack has no paint containment
    and no fixed aspect-ratio, pills are never clipped. */
+/* ── Bottom 20% container: labels | counter | minimap in one row ── */
+.isit-bottom {
+  grid-row: 3;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  align-self: start;
+  /* Match card width and center under it */
+  width: calc(67dvh * 1.5);
+  max-width: 100%;
+  padding-top: 20px;
+}
+@media (max-width: 768px) {
+  .isit-bottom {
+    width: calc(67dvh * 2 / 3);
+  }
+}
+
+.isit-pills-display {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ── Vote count pills ── */
+.isit-vote-counts {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.isit-count-pill {
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 12px;
+  white-space: nowrap;
+  font-family: -apple-system, BlinkMacSystemFont, var(--font);
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: 0.02em;
+}
+.isit-count-accept {
+  background: rgba(52, 199, 89, 0.15);
+  color: rgba(52, 199, 89, 0.9);
+  border: 1px solid rgba(52, 199, 89, 0.25);
+}
+.isit-count-reject {
+  background: rgba(255, 59, 48, 0.12);
+  color: rgba(255, 59, 48, 0.85);
+  border: 1px solid rgba(255, 59, 48, 0.2);
+}
+.isit-count-unflagged {
+  background: rgba(128, 128, 128, 0.1);
+  color: rgba(128, 128, 128, 0.7);
+  border: 1px solid rgba(128, 128, 128, 0.15);
+}
+:root.dark .isit-count-accept {
+  background: rgba(52, 199, 89, 0.12);
+  color: rgba(52, 199, 89, 0.8);
+  border: 1px solid rgba(52, 199, 89, 0.2);
+}
+:root.dark .isit-count-reject {
+  background: rgba(255, 59, 48, 0.1);
+  color: rgba(255, 59, 48, 0.75);
+  border: 1px solid rgba(255, 59, 48, 0.18);
+}
+:root.dark .isit-count-unflagged {
+  background: rgba(200, 200, 200, 0.08);
+  color: rgba(200, 200, 200, 0.5);
+  border: 1px solid rgba(200, 200, 200, 0.12);
+}
+
 .isit-gorgeous-pills {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  align-items: center;
   gap: 4px;
-  padding: 10px 0;
   pointer-events: none;
+  overflow: hidden;
 }
 
 .isit-gorgeous-pills .gorgeous-pill {
@@ -5960,12 +6029,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Category colors — same palette as tinder pills */
-.isit-gorgeous-pills .gorgeous-pill[data-category="camera"] {
-  background: linear-gradient(135deg, rgba(255, 107, 0, 0.2), rgba(255, 148, 77, 0.2));
-  color: #ff8844;
-  border: 1px solid rgba(255, 107, 0, 0.3);
-}
+/* Category colors */
 .isit-gorgeous-pills .gorgeous-pill[data-category="scene"],
 .isit-gorgeous-pills .gorgeous-pill[data-category="setting"] {
   background: linear-gradient(135deg, rgba(75, 192, 200, 0.18), rgba(91, 228, 238, 0.18));
@@ -6000,21 +6064,7 @@ body {
   color: #5ddb74;
   border: 1px solid rgba(52, 199, 89, 0.25);
 }
-.isit-gorgeous-pills .gorgeous-pill.primary {
-  font-weight: 700;
-  font-size: 10px;
-  padding: 3px 10px;
-  background: linear-gradient(135deg, rgba(255, 107, 0, 0.25), rgba(255, 148, 77, 0.25));
-  border: 1px solid rgba(255, 107, 0, 0.4);
-  box-shadow: 0 1px 4px rgba(255, 107, 0, 0.12);
-}
-
 /* Dark mode pills */
-:root.dark .isit-gorgeous-pills .gorgeous-pill[data-category="camera"] {
-  background: linear-gradient(135deg, rgba(255, 107, 0, 0.22), rgba(255, 148, 77, 0.22));
-  color: #ffaa66;
-  border-color: rgba(255, 107, 0, 0.35);
-}
 :root.dark .isit-gorgeous-pills .gorgeous-pill[data-category="scene"],
 :root.dark .isit-gorgeous-pills .gorgeous-pill[data-category="setting"] {
   background: linear-gradient(135deg, rgba(75, 192, 200, 0.22), rgba(91, 228, 238, 0.22));
@@ -6049,25 +6099,13 @@ body {
   color: #77e98d;
   border-color: rgba(52, 199, 89, 0.3);
 }
-:root.dark .isit-gorgeous-pills .gorgeous-pill.primary {
-  background: linear-gradient(135deg, rgba(255, 107, 0, 0.28), rgba(255, 148, 77, 0.28));
-  color: #ffbb77;
-  border-color: rgba(255, 107, 0, 0.45);
-  box-shadow: 0 2px 12px rgba(255, 107, 0, 0.2);
-}
-
 @media (max-width: 768px) {
   .isit-gorgeous-pills {
-    padding: 8px 10px;
     gap: 4px;
   }
   .isit-gorgeous-pills .gorgeous-pill {
     font-size: 9px;
     padding: 3px 8px;
-  }
-  .isit-gorgeous-pills .gorgeous-pill.primary {
-    font-size: 9px;
-    padding: 3px 10px;
   }
 }
 
@@ -6181,26 +6219,21 @@ body {
   padding: var(--space-16) var(--space-6);
 }
 
-/* ── Minimap filmstrip ── */
+/* ── Minimap filmstrip — 5 slots, same size, no border ── */
 .isit-minimap {
   display: flex;
-  gap: 4px;
+  gap: 3px;
   align-items: center;
   flex-shrink: 0;
-  width: calc(7 * 40px + 6 * 4px); /* 7 slots + 6 gaps — stable width */
-  contain: layout style;
 }
 
 .isit-mini-slot {
   position: relative;
-  width: 40px;
-  height: 54px;
-  border-radius: 6px;
+  width: 36px;
+  height: 48px;
+  border-radius: 5px;
   overflow: hidden;
   flex-shrink: 0;
-  transition:
-    transform 0.2s var(--ease-out-quart),
-    opacity 0.2s ease;
 }
 .isit-mini-slot img {
   width: 100%;
@@ -6210,16 +6243,17 @@ body {
 }
 
 .isit-mini-empty {
-  background: var(--fill-quaternary);
-  opacity: 0.3;
-}
-
-.isit-mini-current {
-  box-shadow: 0 0 0 2px var(--text);
+  background: rgba(128, 128, 128, 0.15);
 }
 
 .isit-mini-future {
-  opacity: 0.35;
+  opacity: 1;
+}
+.isit-mini-future::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(128, 128, 128, 0.5);
 }
 
 .isit-mini-tint {
@@ -6228,10 +6262,10 @@ body {
   pointer-events: none;
 }
 .isit-mini-accept {
-  background: rgba(52, 199, 89, 0.45);
+  background: rgba(52, 199, 89, 0.5);
 }
 .isit-mini-reject {
-  background: rgba(255, 59, 48, 0.4);
+  background: rgba(255, 59, 48, 0.45);
 }
 
 /* Reduced motion */

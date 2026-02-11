@@ -319,10 +319,12 @@
   width: calc(var(--sidebar-w) + 48px);
   min-width: calc(var(--sidebar-w) + 48px);
   padding: 24px;
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
   height: 100vh;
   flex-shrink: 0;
+  z-index: 50;
 }
 .sidebar {
   width: var(--sidebar-w);
@@ -533,6 +535,38 @@ body.sb-collapsed .refresh-bar { left: calc(var(--sidebar-collapsed-w, 48px) + 2
   margin: 0 auto;
   padding: 64px 48px 80px;
   animation: fade-up 0.35s ease both;
+}
+
+/* ═══ PAGE SHELL ═══ */
+.page-header {
+  text-align: center;
+  margin-bottom: var(--space-8);
+}
+.page-title {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  letter-spacing: var(--tracking-tight);
+}
+.page-subtitle {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  margin-top: var(--space-1);
+}
+
+/* ═══ SYSTEM CARD ═══ */
+.sys-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  margin-bottom: var(--space-4);
+}
+.sys-card-title {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  margin-bottom: var(--space-4);
+  color: var(--fg);
 }
 
 /* ═══ PIPELINE ITEMS (counter) ═══ */
