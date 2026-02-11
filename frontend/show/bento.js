@@ -236,38 +236,78 @@ function renderBentoGrid(layout, photos) {
         tile.style.gridRow = cell.r + ' / ' + (cell.r + cell.rs);
         tile.style.gridColumn = cell.c + ' / ' + (cell.c + cell.cs);
 
+        /* Dominant color placeholder while image loads */
+        const dominant = photo.palette && photo.palette[0];
+        if (dominant) tile.style.backgroundColor = dominant + '99';
+
         const img = document.createElement('img');
         loadProgressive(img, photo, 'display');
         img.alt = '';
         tile.appendChild(img);
 
-        tile.addEventListener('click', () => openLightbox(photo, bentoPhotos));
+        /* Fullscreen icon — visible on hover */
+        const fsBtn = document.createElement('button');
+        fsBtn.className = 'bento-tile-fs';
+        fsBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>';
+        fsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const p = bentoPhotos.find(ph => ph.id === tile.dataset.id);
+            if (p) openLightbox(p, bentoPhotos);
+        });
+        tile.appendChild(fsBtn);
+
+        /* Click tile → swap for new image */
+        tile.addEventListener('click', () => swapBentoTile(tile));
         grid.appendChild(tile);
     }
 
     wrap.appendChild(grid);
-
-    /* Navigation arrows */
-    const prevBtn = document.createElement('button');
-    prevBtn.className = 'bento-nav bento-nav-prev';
-    prevBtn.innerHTML = '&#8249;';
-    prevBtn.addEventListener('click', () => bentoCycle(-1));
-    wrap.appendChild(prevBtn);
-
-    const nextBtn = document.createElement('button');
-    nextBtn.className = 'bento-nav bento-nav-next';
-    nextBtn.innerHTML = '&#8250;';
-    nextBtn.addEventListener('click', () => bentoCycle(1));
-    wrap.appendChild(nextBtn);
-
-    /* Regen button */
-    const btn = document.createElement('button');
-    btn.className = 'bento-regen';
-    btn.textContent = '\uD83C\uDFB2';
-    btn.addEventListener('click', generateBento);
-    wrap.appendChild(btn);
-
     container.appendChild(wrap);
+
+    /* Dice button in nav bar (next to experience label) */
+    let diceBtn = document.getElementById('bento-dice-nav');
+    if (!diceBtn) {
+        diceBtn = document.createElement('button');
+        diceBtn.id = 'bento-dice-nav';
+        diceBtn.className = 'bento-dice-nav';
+        diceBtn.textContent = '\uD83C\uDFB2';
+        diceBtn.addEventListener('click', generateBento);
+        document.getElementById('floating-nav').appendChild(diceBtn);
+    }
+    diceBtn.style.display = '';
+}
+
+function swapBentoTile(tile) {
+    const oldId = tile.dataset.id;
+    const currentIds = new Set(bentoPhotos.map(p => p.id));
+    const pool = APP.data.photos.filter(p => p.thumb && p.display && p.aesthetic && !currentIds.has(p.id));
+    if (pool.length === 0) return;
+
+    const newPhoto = randomFrom(pool);
+    tile.style.opacity = '0';
+
+    const finish = () => {
+        tile.removeEventListener('transitionend', finish);
+        const img = tile.querySelector('img');
+        const target = newPhoto.display || newPhoto.thumb;
+        const preload = new Image();
+        preload.decoding = 'async';
+        preload.onload = () => {
+            img.src = target;
+            img.classList.remove('img-loading', 'img-loaded');
+            tile.dataset.id = newPhoto.id;
+            const dominant = newPhoto.palette && newPhoto.palette[0];
+            if (dominant) tile.style.backgroundColor = dominant + '99';
+            const bIdx = bentoPhotos.findIndex(p => p.id === oldId);
+            if (bIdx >= 0) bentoPhotos[bIdx] = newPhoto;
+            requestAnimationFrame(() => { tile.style.opacity = '1'; });
+        };
+        preload.onerror = () => { requestAnimationFrame(() => { tile.style.opacity = '1'; }); };
+        preload.src = target;
+    };
+
+    tile.addEventListener('transitionend', finish);
+    setTimeout(() => { if (tile.style.opacity === '0') finish(); }, 1000);
 }
 
 function crossfadeOneTile() {
@@ -301,11 +341,13 @@ function crossfadeOneTile() {
             img.classList.remove('img-loaded');
             img.alt = '';
             tile.dataset.id = newPhoto.id;
+            const dominant = newPhoto.palette && newPhoto.palette[0];
+            if (dominant) tile.style.backgroundColor = dominant + '99';
 
             const bIdx = bentoPhotos.findIndex(p => p.id === oldId);
             if (bIdx >= 0) bentoPhotos[bIdx] = newPhoto;
 
-            tile.onclick = () => openLightbox(newPhoto);
+            tile.onclick = () => swapBentoTile(tile);
             requestAnimationFrame(() => { tile.style.opacity = '1'; });
         };
         preload.onerror = () => {

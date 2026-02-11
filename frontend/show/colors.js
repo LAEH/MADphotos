@@ -199,6 +199,8 @@ function renderCouleursBento() {
 function makeCouleursTile(photo) {
     const tile = document.createElement('div');
     tile.className = 'couleurs-tile';
+    if (photo.palette && photo.palette[2]) tile.style.backgroundColor = photo.palette[2] + '4D';
+    else if (photo.palette && photo.palette[0]) tile.style.backgroundColor = photo.palette[0] + '4D';
 
     const img = document.createElement('img');
     loadProgressive(img, photo, 'display');

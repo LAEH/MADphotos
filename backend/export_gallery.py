@@ -227,9 +227,9 @@ def load_emotions(conn: Any) -> Dict[str, List[Dict]]:
 
 
 def load_objects(conn: Any) -> Dict[str, List[Dict]]:
-    """Object detections grouped by image (top 10 per image)."""
+    """Object detections grouped by image (top 10 per image), with bbox."""
     rows = conn.execute("""
-        SELECT image_uuid, label, confidence, area_pct
+        SELECT image_uuid, label, confidence, area_pct, x, y, w, h
         FROM object_detections
         ORDER BY image_uuid, confidence DESC
     """).fetchall()
@@ -239,6 +239,10 @@ def load_objects(conn: Any) -> Dict[str, List[Dict]]:
             result[r["image_uuid"]].append({
                 "label": r["label"] or "",
                 "conf": round(r["confidence"] or 0, 2),
+                "x": round(r["x"] or 0, 3),
+                "y": round(r["y"] or 0, 3),
+                "w": round(r["w"] or 0, 3),
+                "h": round(r["h"] or 0, 3),
             })
     return dict(result)
 
@@ -387,10 +391,102 @@ def load_identities(conn: Any) -> Dict[str, List[int]]:
     return dict(result)
 
 
-def load_borders(conn: Any) -> set:
-    """Return set of UUIDs that have has_border = 1."""
-    cur = conn.execute("SELECT image_uuid FROM border_crops WHERE has_border = 1")
-    return {row[0] for row in cur.fetchall()}
+def load_borders(conn: Any) -> Dict[str, Dict]:
+    """Return dict of UUID → crop percentages for bordered images."""
+    cur = conn.execute("""
+        SELECT image_uuid, crop_top, crop_bottom, crop_left, crop_right
+        FROM border_crops WHERE has_border = 1
+    """)
+    result = {}
+    for row in cur.fetchall():
+        uuid, ct, cb, cl, cr = row
+        # Get display tier dimensions to convert pixels → percentages
+        tier_row = conn.execute(
+            "SELECT width, height FROM tiers WHERE image_uuid = ? AND tier_name = 'display' AND format = 'webp' LIMIT 1",
+            (uuid,)
+        ).fetchone()
+        if tier_row:
+            tw, th = tier_row
+            result[uuid] = {
+                "top": round(ct / th * 100, 1),
+                "bottom": round(cb / th * 100, 1),
+                "left": round(cl / tw * 100, 1),
+                "right": round(cr / tw * 100, 1),
+            }
+    return result
+
+
+def load_gemma(conn: Any) -> Dict[str, Dict]:
+    """Gemma analysis keyed by uuid (picks only)."""
+    rows = conn.execute("""
+        SELECT uuid, gemma_json, gemma_mood, print_worthy FROM gemma_picks
+    """).fetchall()
+    result = {}
+    for r in rows:
+        try:
+            parsed = json.loads(r["gemma_json"])
+        except (json.JSONDecodeError, TypeError):
+            parsed = {}
+        parsed["mood_summary"] = r["gemma_mood"] or ""
+        parsed["print_worthy"] = bool(r["print_worthy"]) if r["print_worthy"] is not None else None
+        result[r["uuid"]] = parsed
+    return result
+
+
+def load_best_captions(conn: Any) -> Dict[str, Dict[str, str]]:
+    """Best caption per text_type per image from unified_texts."""
+    rows = conn.execute("""
+        SELECT t1.image_uuid, t1.text_type, t1.content
+        FROM unified_texts t1
+        WHERE t1.priority = (
+            SELECT MIN(t2.priority) FROM unified_texts t2
+            WHERE t2.image_uuid = t1.image_uuid AND t2.text_type = t1.text_type
+        )
+        ORDER BY t1.image_uuid, t1.text_type
+    """).fetchall()
+    result = defaultdict(dict)  # type: Dict[str, Dict[str, str]]
+    for r in rows:
+        result[r["image_uuid"]][r["text_type"]] = r["content"]
+    return dict(result)
+
+
+def load_consensus_labels(conn: Any, min_models: int = 2) -> Dict[str, List[Dict]]:
+    """Labels agreed upon by 2+ models, with model count + avg confidence."""
+    rows = conn.execute("""
+        SELECT image_uuid, label, category,
+               COUNT(DISTINCT source_model) as models,
+               GROUP_CONCAT(DISTINCT source_model) as which_models,
+               AVG(confidence) as avg_conf
+        FROM unified_labels
+        GROUP BY image_uuid, label
+        HAVING models >= ?
+        ORDER BY image_uuid, avg_conf DESC
+    """, (min_models,)).fetchall()
+    result = defaultdict(list)  # type: Dict[str, List[Dict]]
+    for r in rows:
+        result[r["image_uuid"]].append({
+            "label": r["label"],
+            "category": r["category"],
+            "models": r["models"],
+            "conf": round(r["avg_conf"] or 0, 3),
+        })
+    return dict(result)
+
+
+def load_unified_labels_by_category(conn: Any) -> Dict[str, Dict[str, List[str]]]:
+    """Top labels per category per image (best confidence, deduplicated, capped at 8)."""
+    rows = conn.execute("""
+        SELECT image_uuid, label, category, MAX(confidence) as best_conf
+        FROM unified_labels
+        GROUP BY image_uuid, label, category
+        ORDER BY image_uuid, category, best_conf DESC
+    """).fetchall()
+    result = defaultdict(lambda: defaultdict(list))  # type: Dict[str, Dict[str, List[str]]]
+    for r in rows:
+        cat_list = result[r["image_uuid"]][r["category"]]
+        if len(cat_list) < 8 and r["label"] not in cat_list:
+            cat_list.append(r["label"])
+    return {uuid: dict(cats) for uuid, cats in result.items()}
 
 
 def load_locations(conn: Any) -> Dict[str, Dict]:
@@ -403,6 +499,77 @@ def load_locations(conn: Any) -> Dict[str, Dict]:
         "lon": round(r["longitude"], 5) if r["longitude"] else None,
         "name": r["location_name"] or "",
     } for r in rows}
+
+
+# ── Content-Aware Focal Point ────────────────────────────────────────────────
+
+ANIMAL_LABELS = frozenset([
+    "cat", "dog", "bird", "horse", "sheep", "cow",
+    "elephant", "bear", "zebra", "giraffe",
+])
+
+
+def compute_focal_point(
+    face_list: List[Dict],
+    obj_list: List[Dict],
+    saliency: Optional[Dict],
+    foreground: Optional[Dict],
+) -> List[int]:
+    """Compute content-aware focal point (x%, y%) for object-position CSS.
+
+    Priority cascade — highest priority with data wins:
+      P1: Human faces (face_detections bbox)
+      P2: Animal bodies (object_detections bbox for animal labels)
+      P3: Person bodies (object_detections bbox for 'person')
+      P4: Saliency peak
+      P5: Foreground centroid
+      Default: [50, 50] (center crop)
+
+    For the winning priority: compute the union bounding box of all regions,
+    then the focal point is the center of that union. This ensures multiple
+    faces/subjects all stay in frame when object-fit: cover crops the image.
+    """
+    # Collect regions by priority tier
+    # Each region is (x, y, w, h) normalized 0-1
+    face_regions = [(f["x"], f["y"], f["w"], f["h"]) for f in face_list]
+    animal_regions = [
+        (o["x"], o["y"], o["w"], o["h"])
+        for o in obj_list if o.get("label") in ANIMAL_LABELS
+    ]
+    person_regions = [
+        (o["x"], o["y"], o["w"], o["h"])
+        for o in obj_list if o.get("label") == "person"
+    ]
+
+    # Priority cascade
+    regions = None
+    if face_regions:
+        regions = face_regions
+    elif animal_regions:
+        regions = animal_regions
+    elif person_regions:
+        regions = person_regions
+
+    if regions:
+        # Union bounding box of all regions at this priority
+        min_x = min(r[0] for r in regions)
+        min_y = min(r[1] for r in regions)
+        max_x = max(r[0] + r[2] for r in regions)
+        max_y = max(r[1] + r[3] for r in regions)
+        cx = (min_x + max_x) / 2
+        cy = (min_y + max_y) / 2
+        return [round(cx * 100), round(cy * 100)]
+
+    if saliency and saliency.get("px") is not None:
+        return [round(saliency["px"] * 100), round(saliency["py"] * 100)]
+
+    if foreground and foreground.get("cx") is not None:
+        fg_cx = foreground["cx"]
+        fg_cy = foreground["cy"]
+        if fg_cx > 0 or fg_cy > 0:  # skip (0,0) fallback
+            return [round(fg_cx * 100), round(fg_cy * 100)]
+
+    return [50, 50]
 
 
 # ── Build Photo Objects ──────────────────────────────────────────────────────
@@ -425,7 +592,10 @@ def build_photos(
     open_det_lk: Dict = None, poses_lk: Dict = None,
     segments_lk: Dict = None, florence_lk: Dict = None,
     identities_lk: Dict = None, locations_lk: Dict = None,
-    borders_set: set = None,
+    borders_lk: Dict = None,
+    # Unified signal layer
+    gemma_lk: Dict = None, best_caps_lk: Dict = None,
+    consensus_lk: Dict = None, labels_by_cat_lk: Dict = None,
 ) -> Tuple[List[Dict], Dict]:
     """Build all photo objects and collect unique filter values."""
 
@@ -439,7 +609,11 @@ def build_photos(
     florence_lk = florence_lk or {}
     identities_lk = identities_lk or {}
     locations_lk = locations_lk or {}
-    borders_set = borders_set or set()
+    borders_lk = borders_lk or {}
+    gemma_lk = gemma_lk or {}
+    best_caps_lk = best_caps_lk or {}
+    consensus_lk = consensus_lk or {}
+    labels_by_cat_lk = labels_by_cat_lk or {}
 
     photos = []
     filters = {
@@ -586,7 +760,20 @@ def build_photos(
             "florence": flor or "",
             "identities": idents if idents else None,
             "location": loc,
-            "has_border": uuid in borders_set,
+            "has_border": uuid in borders_lk,
+            "border_crop": borders_lk.get(uuid),
+            "focus": compute_focal_point(face_list, obj_list, sal, fg),
+            # Unified signal layer
+            "best_caption": (best_caps_lk.get(uuid, {}).get("caption_detailed")
+                             or best_caps_lk.get(uuid, {}).get("caption_short") or ""),
+            "best_short": best_caps_lk.get(uuid, {}).get("caption_short", ""),
+            "consensus": [c["label"] for c in consensus_lk.get(uuid, [])[:8]],
+            "all_vibes": labels_by_cat_lk.get(uuid, {}).get("vibe", [])[:8],
+            "all_objects": labels_by_cat_lk.get(uuid, {}).get("object", [])[:10],
+            "all_scenes": labels_by_cat_lk.get(uuid, {}).get("scene", [])[:4],
+            "gemma_mood": gemma_lk.get(uuid, {}).get("mood_summary") if uuid in gemma_lk else None,
+            "gemma_strength": gemma_lk.get(uuid, {}).get("strength") if uuid in gemma_lk else None,
+            "print_worthy": gemma_lk.get(uuid, {}).get("print_worthy") if uuid in gemma_lk else None,
         }
         photos.append(photo)
 
@@ -992,6 +1179,90 @@ def generate_drift_neighbors(pretty: bool = False) -> None:
     print(f"  drift_neighbors.json: {len(neighbors)} images, {DRIFT_NEIGHBORS} neighbors each ({path.stat().st_size / (1024*1024):.1f} MB)")
 
 
+# ── Auxiliary: Picks Enriched ────────────────────────────────────────────
+
+def generate_picks_enriched(
+    photos: List[Dict],
+    gemma_lk: Dict,
+    best_caps_lk: Dict,
+    consensus_lk: Dict,
+    labels_by_cat_lk: Dict,
+    pretty: bool = False,
+) -> None:
+    """Generate picks_enriched.json — full signal package for curated picks."""
+    picks_json_path = DATA_DIR / "picks.json"
+    if not picks_json_path.exists():
+        print("  picks_enriched.json: skipped (no picks.json)")
+        return
+
+    picks_data = json.loads(picks_json_path.read_text())
+    pick_uuids = set(picks_data.get("portrait", []) + picks_data.get("landscape", []))
+    photo_map = {p["id"]: p for p in photos}
+
+    enriched = []
+    for uuid in pick_uuids:
+        p = photo_map.get(uuid)
+        if not p:
+            continue
+
+        gemma = gemma_lk.get(uuid)
+        caps = best_caps_lk.get(uuid, {})
+        cons = consensus_lk.get(uuid, [])
+        cats = labels_by_cat_lk.get(uuid, {})
+
+        entry = {
+            "id": uuid,
+            "orientation": p.get("orientation", ""),
+            "camera": p.get("camera", ""),
+            "mono": p.get("mono", False),
+            "best_caption": caps.get("caption_detailed") or caps.get("caption_short") or p.get("alt", ""),
+            "best_short": caps.get("caption_short", ""),
+            "consensus_tags": [c["label"] for c in cons[:8]],
+            "all_vibes": cats.get("vibe", [])[:8],
+            "all_objects": cats.get("object", [])[:10],
+            # Existing fields carried over
+            "vibes": p.get("vibes", []),
+            "palette": p.get("palette", []),
+            "aesthetic": p.get("aesthetic"),
+            "scene": p.get("scene", ""),
+            "style": p.get("style", ""),
+            "emotion": p.get("emotion", ""),
+            "date": p.get("date", ""),
+            "gps": p.get("gps"),
+            "focus": p.get("focus", [50, 50]),
+            "thumb": p.get("thumb", ""),
+            "mobile": p.get("mobile", ""),
+            "display": p.get("display", ""),
+        }
+
+        if gemma:
+            entry["gemma"] = {
+                "description": gemma.get("description", ""),
+                "subject": gemma.get("subject", ""),
+                "story": gemma.get("story", ""),
+                "mood": gemma.get("mood_summary", ""),
+                "composition": gemma.get("composition", ""),
+                "lighting": gemma.get("lighting", ""),
+                "colors": gemma.get("colors", ""),
+                "texture": gemma.get("texture", ""),
+                "technical": gemma.get("technical", ""),
+                "strength": gemma.get("strength", ""),
+                "print_worthy": gemma.get("print_worthy"),
+            }
+
+        enriched.append(entry)
+
+    path = DATA_DIR / "picks_enriched.json"
+    with open(path, "w") as f:
+        if pretty:
+            json.dump(enriched, f, indent=2, ensure_ascii=False)
+        else:
+            json.dump(enriched, f, separators=(",", ":"), ensure_ascii=False)
+
+    size_kb = path.stat().st_size / 1024
+    print(f"  picks_enriched.json: {len(enriched)} picks ({size_kb:.0f} KB)")
+
+
 # ── Main Export ──────────────────────────────────────────────────────────────
 
 def export(pretty: bool = False) -> None:
@@ -1030,8 +1301,23 @@ def export(pretty: bool = False) -> None:
     florence_lk = load_florence(conn)
     identities_lk = load_identities(conn)
     locations_lk = load_locations(conn)
-    borders_set = load_borders(conn)
-    print(f"  All v2 signal tables loaded ({len(borders_set)} bordered images)")
+    borders_lk = load_borders(conn)
+    print(f"  All v2 signal tables loaded ({len(borders_lk)} bordered images)")
+
+    # Unified signal layer (from populate_unified.py)
+    gemma_lk = {}
+    best_caps_lk = {}
+    consensus_lk = {}
+    labels_by_cat_lk = {}
+    try:
+        gemma_lk = load_gemma(conn)
+        best_caps_lk = load_best_captions(conn)
+        consensus_lk = load_consensus_labels(conn)
+        labels_by_cat_lk = load_unified_labels_by_category(conn)
+        print(f"  Unified: {len(gemma_lk)} gemma, {len(best_caps_lk)} captions, "
+              f"{len(consensus_lk)} consensus, {len(labels_by_cat_lk)} label profiles")
+    except Exception as e:
+        print(f"  Unified tables not yet populated ({e}) — skipping unified fields")
 
     conn.close()
 
@@ -1046,7 +1332,9 @@ def export(pretty: bool = False) -> None:
         open_det_lk=open_det_lk, poses_lk=poses_lk,
         segments_lk=segments_lk, florence_lk=florence_lk,
         identities_lk=identities_lk, locations_lk=locations_lk,
-        borders_set=borders_set,
+        borders_lk=borders_lk,
+        gemma_lk=gemma_lk, best_caps_lk=best_caps_lk,
+        consensus_lk=consensus_lk, labels_by_cat_lk=labels_by_cat_lk,
     )
 
     print(f"Exported {len(photos)} photos")
@@ -1085,6 +1373,8 @@ def export(pretty: bool = False) -> None:
     generate_game_rounds(photos, pretty)
     generate_stream_sequence(photos, pretty)
     generate_drift_neighbors(pretty)
+    generate_picks_enriched(photos, gemma_lk, best_caps_lk,
+                            consensus_lk, labels_by_cat_lk, pretty)
 
     print("Done.")
 

@@ -5,21 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>MADphotos — Show</title>
+    <title>MADphotos</title>
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
     <link rel="apple-touch-icon" href="icon-192.png">
     <meta name="theme-color" content="#ffffff" id="theme-color">
-    <link rel="stylesheet" href="style.css?v=39">
-</head>
+    <link rel="preconnect" href="https://storage.googleapis.com" crossorigin>
+    <link rel="stylesheet" href="style.css?v=72">
+    <!-- Favicon -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://madphotos.laeh.ai">
+    <meta property="og:title" content="MADphotos">
+    <meta property="og:description" content="10 years of Photography">
+    <meta property="og:image" content="https://madphotos.laeh.ai/android-chrome-512x512.png">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="MADphotos">
+    <meta name="twitter:description" content="10 years of Photography">
+    <meta name="twitter:image" content="https://madphotos.laeh.ai/android-chrome-512x512.png">
+  </head>
 <body>
     <div id="floating-nav" class="floating-nav">
         <button class="menu-btn" id="menu-btn" aria-label="Menu">
-            <svg class="menu-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h12M4 10h8M4 14h12"/></svg>
-            <span class="menu-btn-label" id="menu-btn-label"></span>
-            <svg class="menu-chevron" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4l3.5 3 3.5-3"/></svg>
+            <a href="#" class="logo" id="logo-home"><span class="logo-mad">MAD</span><span class="logo-photos">photos</span></a>
+            <svg class="menu-chevron" width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+                <path d="M2 3.5L5 6.5L8 3.5z"/>
+            </svg>
         </button>
-        <a href="#" class="logo" id="logo-home"><span class="logo-mad">MAD</span><span class="logo-photos">photos</span></a>
+        <span class="nav-exp-label" id="nav-exp-label"></span>
     </div>
 
     <!-- Side menu -->
@@ -43,7 +60,7 @@
     <main id="main">
         <section id="view-picks" class="view"></section>
         <section id="view-couleurs" class="view"></section>
-        <section id="view-faces" class="view"></section>
+
         <section id="view-compass" class="view"></section>
         <section id="view-bento" class="view"></section>
         <section id="view-nyu" class="view"></section>
@@ -51,6 +68,7 @@
         <section id="view-confetti" class="view"></section>
         <section id="view-caption" class="view"></section>
         <section id="view-tinder" class="view"></section>
+        <section id="view-isit" class="view"></section>
     </main>
 
     <div id="lightbox" class="lightbox hidden">
@@ -90,18 +108,18 @@
         });
         var db = firebase.firestore();
     </script>
-    <script src="theme.js?v=39" defer></script>
-    <script src="app.js?v=39" defer></script>
-    <script src="colors.js?v=39" defer></script>
-    <script src="bento.js?v=39" defer></script>
-    <script src="game.js?v=39" defer></script>
-    <script src="faces.js?v=39" defer></script>
-    <script src="compass.js?v=39" defer></script>
-    <script src="nyu.js?v=39" defer></script>
-    <script src="confetti.js?v=39" defer></script>
-    <script src="caption.js?v=39" defer></script>
-    <script src="tinder.js?v=39" defer></script>
-    <script src="picks.js?v=39" defer></script>
+    <script src="theme.js?v=72" defer></script>
+    <script src="app.js?v=72" defer></script>
+    <script src="colors.js?v=72" defer></script>
+    <script src="bento.js?v=72" defer></script>
+    <script src="game.js?v=72" defer></script>
+<script src="compass.js?v=72" defer></script>
+    <script src="nyu.js?v=72" defer></script>
+    <script src="confetti.js?v=72" defer></script>
+    <script src="caption.js?v=72" defer></script>
+    <script src="tinder.js?v=72" defer></script>
+    <script src="picks.js?v=72" defer></script>
+    <script src="isit.js?v=72" defer></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {

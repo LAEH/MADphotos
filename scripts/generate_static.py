@@ -3,7 +3,7 @@
 Generate static JSON data files for GitHub Pages deployment.
 
 Runs the dashboard.py API functions and saves their output as static JSON
-files into frontend/state/public/data/ so the React app can load them
+files into frontend/state/public/data/ so the System app can load them
 without a backend.
 
 Usage:
@@ -28,6 +28,7 @@ def main():
         get_instructions_html,
         get_mosaics_data,
         get_cartoon_data,
+        get_gemma_data,
     )
 
     # Stats
@@ -54,6 +55,11 @@ def main():
     cartoon = {"pairs": get_cartoon_data()}
     (OUTPUT_DIR / "cartoon.json").write_text(json.dumps(cartoon, indent=None))
     print(f"  cartoon.json        ({len(json.dumps(cartoon)):,} bytes)")
+
+    # Gemma
+    gemma = get_gemma_data()
+    (OUTPUT_DIR / "gemma.json").write_text(json.dumps(gemma, indent=None))
+    print(f"  gemma.json          ({len(json.dumps(gemma)):,} bytes)")
 
     print(f"\nAll files written to {OUTPUT_DIR}")
 

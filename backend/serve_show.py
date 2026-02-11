@@ -21,7 +21,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 WEB_DIR = PROJECT_ROOT / "frontend" / "show"
-STATE_DIR = PROJECT_ROOT / "frontend" / "state"
+STATE_DIR = PROJECT_ROOT / "frontend" / "system"
 STATE_DIST = STATE_DIR / "dist"  # Vite build output
 RENDERED_DIR = PROJECT_ROOT / "images" / "rendered"
 AI_VARIANTS_DIR = PROJECT_ROOT / "images" / "ai_variants"
@@ -66,9 +66,9 @@ class GalleryHandler(SimpleHTTPRequestHandler):
             self.send_error(404)
             return
 
-        # Serve State React SPA (Vite build)
-        if self.path.startswith("/state"):
-            self._serve_state()
+        # Serve System React SPA (Vite build)
+        if self.path.startswith("/system"):
+            self._serve_system()
             return
 
         # Default: serve from web/ (Show app)
@@ -79,14 +79,16 @@ class GalleryHandler(SimpleHTTPRequestHandler):
         try:
             from dashboard import (get_stats, get_journal_html,
                                    get_instructions_html, get_mosaics_data,
-                                   get_cartoon_data, similarity_search, drift_search)
+                                   get_cartoon_data, similarity_search, drift_search,
+                                   get_gemma_data)
         except ImportError:
             # Try relative import path
             import sys
             sys.path.insert(0, str(Path(__file__).resolve().parent))
             from dashboard import (get_stats, get_journal_html,
                                    get_instructions_html, get_mosaics_data,
-                                   get_cartoon_data, similarity_search, drift_search)
+                                   get_cartoon_data, similarity_search, drift_search,
+                                   get_gemma_data)
 
         if self.path == "/api/stats":
             self._json_response(get_stats())
@@ -98,6 +100,8 @@ class GalleryHandler(SimpleHTTPRequestHandler):
             self._json_response({"mosaics": get_mosaics_data()})
         elif self.path == "/api/cartoon":
             self._json_response({"pairs": get_cartoon_data()})
+        elif self.path == "/api/gemma":
+            self._json_response(get_gemma_data())
         elif self.path.startswith("/api/similarity/"):
             uuid_part = self.path[16:]
             if uuid_part == "random":
@@ -133,14 +137,14 @@ class GalleryHandler(SimpleHTTPRequestHandler):
         else:
             self.send_error(404)
 
-    def _serve_state(self):
-        """Serve State React SPA with fallback to index.html for client-side routing."""
-        # Strip /state prefix and optional trailing content
+    def _serve_system(self):
+        """Serve System React SPA with fallback to index.html for client-side routing."""
+        # Strip /system prefix and optional trailing content
         path = self.path
-        if path == "/state":
-            path = "/state/"
+        if path == "/system":
+            path = "/system/"
 
-        rel = path[len("/state/"):]
+        rel = path[len("/system/"):]
         if not rel:
             rel = "index.html"
 
@@ -151,7 +155,7 @@ class GalleryHandler(SimpleHTTPRequestHandler):
                 self._serve_file(file_path)
                 return
 
-        # SPA fallback: serve index.html for any unmatched /state/* route
+        # SPA fallback: serve index.html for any unmatched /system/* route
         for base_dir in [STATE_DIST, STATE_DIR]:
             index = base_dir / "index.html"
             if index.is_file():

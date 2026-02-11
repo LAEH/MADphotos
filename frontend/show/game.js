@@ -733,12 +733,13 @@ function renderJeuPair() {
     if (!pair) return;
 
     pairEl.innerHTML = '';
-    pairEl.classList.remove('jeu-pair-exit', 'jeu-pair-bento', 'jeu-pair-bento-flip');
+    pairEl.classList.remove('jeu-pair-exit', 'jeu-pair-bento', 'jeu-pair-bento-flip', 'jeu-pair-portrait');
     pairEl.classList.add('jeu-pair-enter');
 
-    /* Detect mixed orientations for bento layout */
+    /* Detect orientations for layout */
     const oA = pair.a.orientation, oB = pair.b.orientation;
     const mixed = oA && oB && oA !== oB;
+    const bothPortrait = oA === 'portrait' && oB === 'portrait';
     let ordered = [pair.a, pair.b];
     if (mixed) {
         /* Randomize which side the portrait lands on */
@@ -748,11 +749,14 @@ function renderJeuPair() {
         ordered = portraitFirst ? [portrait, landscape] : [landscape, portrait];
         pairEl.classList.add('jeu-pair-bento');
         if (!portraitFirst) pairEl.classList.add('jeu-pair-bento-flip');
+    } else if (bothPortrait) {
+        pairEl.classList.add('jeu-pair-portrait');
     }
 
     for (const photo of ordered) {
         const card = document.createElement('div');
         card.className = 'jeu-card';
+        if (photo.palette && photo.palette[0]) card.style.backgroundColor = photo.palette[0] + '40';
         const img = document.createElement('img');
         const orient = photo.orientation === 'portrait' ? 'jeu-img-portrait' : 'jeu-img-landscape';
         img.className = `jeu-img clickable-img${mixed ? ' ' + orient : ''}`;

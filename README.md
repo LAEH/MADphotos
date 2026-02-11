@@ -131,17 +131,21 @@ images/rendered/{tier}/{format}/{uuid}.ext    ← flat layout, no category subdi
 
 ### Show — `frontend/show/`
 
-14 interactive gallery experiences. Vanilla JS, no framework. Apple HIG design system with 74+ CSS custom properties. PWA with service worker for offline browsing. Each experience answers *"what can you do with 9,011 images and every possible signal?"*
+Public-facing photo experience with 9 interactive views. Vanilla JS, no framework. Apple HIG design system with 74+ CSS custom properties. PWA with service worker for offline browsing. Each view explores the collection through a different lens.
 
-**Sort By** / **Colors** / **Faces** / **Relations** / **Bento** / **NYU** / **Couple** / **Boom** / **Square** / **Caption** / **Cinema** / **Reveal** / **Pulse** / **Drift**
+**Picks** (😎) / **Colors** / **Relation** / **Bento** / **NYU** / **Couple** / **Boom** / **Caption** / **WIP** (Tinder)
 
-### State — `frontend/state/`
+Deployed at https://madphotos.laeh.ai
 
-React + Vite + Tailwind SPA deployed to GitHub Pages. Routes: state, stats, journal, instructions, mosaics, cartoon, similarity, blind-test. Pre-baked JSON data regenerated from `backend/dashboard.py`.
+### System — `frontend/system/`
 
-### See — `frontend/see/`
+Internal dashboard for monitoring project state, pipeline progress, and experiments. React + TypeScript + Vite. Routes: status, journal, instructions, database overview, experiments (Gemma, mosaics, cartoon, blind test).
 
-Native macOS SwiftUI curation app. Two-window architecture: Collection (sidebar + grid + toolbar) and Viewer (hero image + metadata + curation controls). Reads directly from SQLite via raw C API. 24+ filter dimensions with union/intersection mode, 8 sort options (random, aesthetic, date, exposure, saturation, depth, brightness, faces). Keyboard-driven workflow: `p` pick, `r` reject, `u` unflag, `←/→` navigate. Select mode for batch operations. Async thumbnail loading, cached properties, pre-computed counts. Inline label editing with DB write-back. The human eye decides what's worth showing.
+**Two modes:**
+- **Production**: Static snapshot deployed at https://madphotos.laeh.ai/system (updated on each sync/deploy)
+- **Development**: Live data via local API server at http://localhost:3000/system
+
+Pre-built JSON data regenerated from `backend/dashboard.py` and deployed alongside Show for unified hosting.
 
 ## Infrastructure
 
@@ -153,7 +157,7 @@ Native macOS SwiftUI curation app. Two-window architecture: Collection (sidebar 
 | AI Platform | GCP Vertex AI (Gemini 2.5 Pro + Imagen 3), project `madbox-e4a35` |
 | Auth | Application Default Credentials (ADC), no API keys |
 | Runtime | Python 3.9.6, Apple Silicon MPS acceleration |
-| Web Hosting | Firebase (Show), GitHub Pages (State), GCS (images) |
+| Web Hosting | Firebase (Show + System), GCS (images) |
 
 ## Development
 
@@ -173,14 +177,17 @@ python3 backend/pipeline.py --phase gemini
 # Live dashboard
 python3 backend/dashboard.py --serve
 
-# Gallery dev server
-python3 backend/serve_show.py
+# Local dev server (Show + System with live data)
+python3 backend/serve_show.py  # http://localhost:3000
+
+# System dev only (Vite with live API)
+cd frontend/system && npm run dev  # http://localhost:5173
+
+# Full sync + deploy
+python3 backend/firestore_sync.py
 
 # Export gallery data
 python3 backend/export_gallery.py --pretty
-
-# Build See
-cd frontend/see && swift build
 ```
 
 ## Key Conventions

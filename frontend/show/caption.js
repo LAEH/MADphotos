@@ -1,196 +1,190 @@
-/* caption.js — Caption: A typographic tapestry with auto-cycling spotlight.
-   Dense flowing text wall. Every 2.5s a caption lights up and its image appears
-   in a large panel. Click to spotlight + open lightbox. */
+/* caption.js — Caption: Cinematic photo storytelling.
+   Full-screen image with word-by-word story reveal using Gemma analysis.
+   No text on the image. Story appears beside (desktop) or below (mobile).
+   Auto-advances after reading time. */
 
 let captionPhotos = [];
-let captionPreviewEl = null;
-let captionSpotlightIdx = -1;
-let captionCycleTimer = null;
+let captionGemma = null;
+let captionIdx = -1;
+let captionTimer = null;
+let captionWordTimer = null;
 let captionPaused = false;
 
-const CAPTION_COUNT_DESKTOP = 150;
-const CAPTION_COUNT_TABLET = 100;
-const CAPTION_COUNT_PHONE = 60;
-const CAPTION_CYCLE_MS = 2500;
+/* ms per word for the typewriter reveal */
+const WORD_DELAY = 120;
+/* Extra reading time after all words revealed (ms) */
+const READ_PAUSE = 3000;
 
 function initCaption() {
     const container = document.getElementById('view-caption');
     container.innerHTML = '';
-
-    /* Clean up timers + stale elements */
-    clearInterval(captionCycleTimer);
-    captionCycleTimer = null;
+    clearTimeout(captionTimer);
+    clearTimeout(captionWordTimer);
+    captionTimer = null;
+    captionWordTimer = null;
     captionPaused = false;
-    captionSpotlightIdx = -1;
-    if (captionPreviewEl) { captionPreviewEl.remove(); captionPreviewEl = null; }
+    captionIdx = -1;
 
-    const w = window.innerWidth;
-    const count = w <= 480 ? CAPTION_COUNT_PHONE
-                : w <= 768 ? CAPTION_COUNT_TABLET
-                : CAPTION_COUNT_DESKTOP;
+    /* Load Gemma data, then start */
+    if (captionGemma) {
+        _startCaption(container);
+    } else {
+        fetch('data/gemma_picks.json?v=' + Date.now())
+            .then(r => r.json())
+            .then(data => { captionGemma = data; _startCaption(container); })
+            .catch(() => { captionGemma = {}; _startCaption(container); });
+    }
+}
 
-    /* Select photos with good captions — prefer florence, fall back to BLIP */
+function _startCaption(container) {
+    /* Filter to photos that have Gemma story data */
     const pool = APP.data.photos.filter(p => {
-        const cap = p.florence || p.caption || '';
-        return cap.length > 12 && p.thumb;
+        if (!p.thumb || !p.display) return false;
+        const g = captionGemma[p.id];
+        return g && (g.story || g.description);
     });
+
+    if (pool.length === 0) {
+        container.innerHTML = '<div class="loading">No stories available yet.</div>';
+        return;
+    }
+
     const sorted = [...pool].sort((a, b) => (b.aesthetic || 0) - (a.aesthetic || 0));
-    captionPhotos = shuffleArray(sorted.slice(0, count));
+    captionPhotos = shuffleArray(sorted.slice(0, 80));
 
-    renderCaptionWall(container);
+    renderCaptionView(container);
+    showNextStory();
 }
 
-function getCaptionText(photo) {
-    /* Prefer Florence detailed caption, fall back to BLIP */
-    return photo.florence || photo.caption || '';
+function buildStoryText(photo) {
+    const g = captionGemma[photo.id];
+    if (!g) return '';
+
+    const parts = [];
+    if (g.description) parts.push(g.description);
+    if (g.story && g.story !== g.description) parts.push(g.story);
+    if (g.mood) parts.push(g.mood + '.');
+    return parts.join(' ').replace(/\s+/g, ' ').trim();
 }
 
-function renderCaptionWall(container) {
-    /* Main layout: image panel + text wall */
+function renderCaptionView(container) {
     const layout = document.createElement('div');
     layout.className = 'caption-layout';
 
-    /* Image panel — large, prominent */
-    const panel = document.createElement('div');
-    panel.className = 'caption-panel';
-    panel.id = 'caption-panel';
+    /* Image side — clean, no overlay text */
+    const imgWrap = document.createElement('div');
+    imgWrap.className = 'caption-img-wrap';
+    imgWrap.id = 'caption-img-wrap';
+    const img = document.createElement('img');
+    img.className = 'caption-img';
+    img.id = 'caption-img';
+    imgWrap.appendChild(img);
+    layout.appendChild(imgWrap);
 
-    const panelImg = document.createElement('img');
-    panelImg.className = 'caption-panel-img';
-    panelImg.id = 'caption-panel-img';
-    panel.appendChild(panelImg);
+    /* Story side */
+    const storyWrap = document.createElement('div');
+    storyWrap.className = 'caption-story-wrap';
+    storyWrap.id = 'caption-story-wrap';
 
-    const panelCaption = document.createElement('div');
-    panelCaption.className = 'caption-panel-text';
-    panelCaption.id = 'caption-panel-text';
-    panel.appendChild(panelCaption);
+    const storyText = document.createElement('div');
+    storyText.className = 'caption-story-text';
+    storyText.id = 'caption-story-text';
+    storyWrap.appendChild(storyText);
 
-    layout.appendChild(panel);
+    /* Counter */
+    const counter = document.createElement('div');
+    counter.className = 'caption-counter';
+    counter.id = 'caption-counter';
+    storyWrap.appendChild(counter);
 
-    /* Text wall side */
-    const wallWrap = document.createElement('div');
-    wallWrap.className = 'caption-wall-wrap';
-
-    const wall = document.createElement('div');
-    wall.className = 'caption-wall';
-    wall.id = 'caption-wall';
-
-    for (let i = 0; i < captionPhotos.length; i++) {
-        const photo = captionPhotos[i];
-
-        const span = document.createElement('span');
-        span.className = 'caption-phrase';
-        span.dataset.idx = i;
-
-        span.textContent = cleanCaption(getCaptionText(photo));
-
-        /* Click: spotlight this one, second click opens lightbox */
-        span.addEventListener('click', () => {
-            if (captionSpotlightIdx === i) {
-                openLightbox(photo, captionPhotos);
-            } else {
-                captionPaused = true;
-                spotlightCaption(i);
-            }
-        });
-
-        wall.appendChild(span);
-
-        if (i < captionPhotos.length - 1) {
-            const sep = document.createElement('span');
-            sep.className = 'caption-sep';
-            sep.textContent = '\u2009\u00B7\u2009';
-            wall.appendChild(sep);
-        }
-    }
-
-    wallWrap.appendChild(wall);
-    layout.appendChild(wallWrap);
+    layout.appendChild(storyWrap);
     container.appendChild(layout);
 
-    /* Stagger-reveal the text */
-    requestAnimationFrame(() => {
-        const phrases = wall.querySelectorAll('.caption-phrase');
-        phrases.forEach((p, i) => {
-            p.style.setProperty('--caption-delay', Math.min(i * 6, 800) + 'ms');
-        });
-        requestAnimationFrame(() => {
-            wall.classList.add('revealed');
-            /* Start auto-cycle after reveal animation settles */
-            setTimeout(() => {
-                spotlightCaption(0);
-                captionCycleTimer = setInterval(() => {
-                    if (captionPaused) return;
-                    const next = (captionSpotlightIdx + 1) % captionPhotos.length;
-                    spotlightCaption(next);
-                }, CAPTION_CYCLE_MS);
-                APP._activeTimers.push(captionCycleTimer);
-            }, 1200);
-        });
+    /* Click story area to pause/unpause */
+    storyWrap.addEventListener('click', () => {
+        captionPaused = !captionPaused;
+        if (!captionPaused) scheduleNext();
     });
 
-    /* Touch swipe: left/right to navigate captions */
-    let capTx = 0;
-    wallWrap.addEventListener('touchstart', e => { capTx = e.touches[0].clientX; }, { passive: true });
-    wallWrap.addEventListener('touchend', e => {
-        const dx = e.changedTouches[0].clientX - capTx;
-        if (Math.abs(dx) > 60) {
-            captionPaused = true;
-            const dir = dx > 0 ? -1 : 1;
-            const next = (captionSpotlightIdx + dir + captionPhotos.length) % captionPhotos.length;
-            spotlightCaption(next);
-        }
-    }, { passive: true });
-
-    /* Unpause on wall click (not on a phrase) */
-    wall.addEventListener('click', (e) => {
-        if (e.target === wall || e.target.classList.contains('caption-sep')) {
-            captionPaused = false;
-        }
+    /* Click image to open lightbox */
+    imgWrap.addEventListener('click', () => {
+        if (captionIdx >= 0) openLightbox(captionPhotos[captionIdx], captionPhotos);
     });
 }
 
-function spotlightCaption(idx) {
-    captionSpotlightIdx = idx;
-    const photo = captionPhotos[idx];
-    const wall = document.getElementById('caption-wall');
-    if (!wall) return;
+function showNextStory() {
+    captionIdx = (captionIdx + 1) % captionPhotos.length;
+    const photo = captionPhotos[captionIdx];
+    const story = buildStoryText(photo);
+    const words = story.split(/\s+/).filter(Boolean);
 
-    /* Highlight active phrase */
-    wall.querySelectorAll('.caption-phrase').forEach((el, i) => {
-        el.classList.toggle('caption-active', i === idx);
-    });
+    const imgWrap = document.getElementById('caption-img-wrap');
+    const img = document.getElementById('caption-img');
+    const textEl = document.getElementById('caption-story-text');
+    const counter = document.getElementById('caption-counter');
+    if (!imgWrap || !img || !textEl) return;
 
-    /* Scroll the active phrase into view (smooth, centered) */
-    const activeEl = wall.querySelector(`.caption-phrase[data-idx="${idx}"]`);
-    if (activeEl) {
-        const wallWrap = wall.parentElement;
-        const elRect = activeEl.getBoundingClientRect();
-        const wrapRect = wallWrap.getBoundingClientRect();
-        const scrollTarget = wallWrap.scrollTop + (elRect.top - wrapRect.top) - wrapRect.height / 2 + elRect.height / 2;
-        wallWrap.scrollTo({ top: Math.max(0, scrollTarget), behavior: 'smooth' });
-    }
+    /* Fade out current */
+    imgWrap.classList.remove('caption-visible');
+    textEl.classList.remove('caption-visible');
 
-    /* Update image panel */
-    const panelImg = document.getElementById('caption-panel-img');
-    const panelText = document.getElementById('caption-panel-text');
-    const panel = document.getElementById('caption-panel');
-    if (!panelImg || !panel) return;
-
-    panel.classList.remove('caption-panel-visible');
-
-    /* Short delay for crossfade */
     setTimeout(() => {
-        loadProgressive(panelImg, photo, 'display');
-        panelImg.alt = getCaptionText(photo);
-        if (panelText) panelText.textContent = cleanCaption(getCaptionText(photo));
-        panel.classList.add('caption-panel-visible');
-    }, 150);
+        /* Set dominant color bg */
+        if (photo.palette && photo.palette[0]) {
+            imgWrap.style.backgroundColor = photo.palette[0] + '40';
+        }
+
+        /* Load image */
+        loadProgressive(img, photo, 'display');
+        img.alt = '';
+
+        /* Update counter */
+        if (counter) counter.textContent = (captionIdx + 1) + ' / ' + captionPhotos.length;
+
+        /* Clear old words */
+        textEl.innerHTML = '';
+
+        /* Create word spans */
+        for (let i = 0; i < words.length; i++) {
+            const span = document.createElement('span');
+            span.className = 'caption-word';
+            span.textContent = words[i];
+            textEl.appendChild(span);
+            if (i < words.length - 1) textEl.appendChild(document.createTextNode(' '));
+        }
+
+        /* Fade in image */
+        requestAnimationFrame(() => {
+            imgWrap.classList.add('caption-visible');
+            textEl.classList.add('caption-visible');
+        });
+
+        /* Reveal words one by one */
+        const wordSpans = textEl.querySelectorAll('.caption-word');
+        let wi = 0;
+        clearTimeout(captionWordTimer);
+
+        function revealNext() {
+            if (wi < wordSpans.length) {
+                wordSpans[wi].classList.add('caption-word-visible');
+                wi++;
+                captionWordTimer = setTimeout(revealNext, WORD_DELAY);
+            } else {
+                /* All words revealed — wait for reading, then advance */
+                scheduleNext();
+            }
+        }
+        /* Start word reveal after image fades in */
+        captionWordTimer = setTimeout(revealNext, 500);
+    }, 400);
 }
 
-function cleanCaption(text) {
-    if (!text) return '';
-    let s = text.trim();
-    if (s.endsWith('.')) s = s.slice(0, -1);
-    return s;
+function scheduleNext() {
+    clearTimeout(captionTimer);
+    if (captionPaused) return;
+    captionTimer = setTimeout(() => {
+        if (APP.currentView !== 'caption') return;
+        showNextStory();
+    }, READ_PAUSE);
+    APP._activeTimers.push(captionTimer);
 }

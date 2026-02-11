@@ -345,6 +345,7 @@ function buildConfettiMosaic(photos) {
         const photo = shuffled[i];
         const cell = document.createElement('div');
         cell.className = 'confetti-cell';
+        if (photo.palette && photo.palette[0]) cell.style.backgroundColor = photo.palette[0] + '80';
 
         const img = document.createElement('img');
         loadProgressive(img, photo, 'thumb');

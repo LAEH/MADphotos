@@ -74,6 +74,7 @@ function renderCompass(photo, fromDirection) {
     center.className = 'compass-center';
     center.id = 'compass-center';
     center.style.gridArea = 'center';
+    if (photo.palette && photo.palette[0]) center.style.backgroundColor = photo.palette[0] + '66';
     const centerImg = document.createElement('img');
     centerImg.className = 'compass-center-img clickable-img';
     loadProgressive(centerImg, photo, 'display');
@@ -220,6 +221,7 @@ function buildCompassArm(direction, match) {
         return arm;
     }
 
+    if (match.photo.palette && match.photo.palette[0]) arm.style.backgroundColor = match.photo.palette[0] + '66';
     const img = document.createElement('img');
     img.className = 'compass-arm-img';
     loadProgressive(img, match.photo, 'thumb');

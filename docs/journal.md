@@ -1474,3 +1474,198 @@ Deployed v37 / SW v23. 15 files changed, +2,866 / -673 lines.
 - The Palette → K-means LAB — scikit-learn — 5 clusters per image
 
 Files modified: `backend/dashboard.py`, `backend/firestore_sync.py` (new), `frontend/state/src/pages/DashboardPage.tsx`, `frontend/state/src/pages/StatsPage.tsx`, `frontend/state/src/index.css`, `.gitignore`.
+
+### 22:00 — Picks view rewritten: slideshow → tinder-style card swipe *("Implement the picks rewrite")*
+
+**The change.** The Picks view (default view, the first thing you see) was a Ken Burns crossfade slideshow of accepted Tinder photos. Replaced it entirely with a tinder-style card-swipe UX — functioning as a second-round curation pass. Swipe right = keep, swipe left = remove from picks. Votes accumulate — rejected photos are excluded from future loads, accepted photos stay in the deck for potential re-review.
+
+**Frontend: `picks.js` full rewrite.**
+- Replaced slideshow (two-layer crossfade, progress bar, auto-advance timer) with a two-card stack reusing all `.tinder-*` CSS classes
+- Data source: `APP.picksData` (picks.json), filtered by orientation (portrait on mobile, landscape on desktop), excluding photos with `reject` in `localStorage('picks-votes')`
+- Same swipe mechanics as tinder.js: rAF-throttled touch, velocity-aware exit animation, spring-back on insufficient swipe, eased green/red overlays
+- Desktop: reject/accept buttons + ArrowLeft/ArrowRight keyboard shortcuts
+- Minimap filmstrip (±3 photos) with tinted past slots (green for accept, red for reject), clickable to go back and re-vote
+- 10-ahead preload buffer with decode-on-cache
+- Counter: `"5 / 42"`, empty state: `"All reviewed 🎉"`
+- DOM IDs prefixed `picks-` (`picks-stack`, `picks-counter`, `picks-minimap`, `picks-actions`) to avoid conflicts with the tinder view
+- Card selector scoped to `#picks-stack .tinder-card-front`
+- No fullscreen enter on mobile (unlike tinder — picks is the default landing view)
+
+**CSS cleanup: `style.css`.**
+- Removed ~130 lines of old slideshow CSS: `.picks-shell`, `.picks-bg-layer`, `.picks-layer`, `.picks-img`, `.picks-progress`, `.picks-progress-fill`, `.picks-counter`, Ken Burns wiring (`.picks-layer.kb-1..kb-6`), tier-c overrides, reduced-motion overrides
+- Kept `.picks-empty` (empty state styling)
+- All card styling now comes from the shared `.tinder-*` classes — zero duplication
+
+**Backend: `firestore_sync.py` updated.**
+- Added `picks-votes` as 5th Firestore collection → `firestore_picks_votes` table (doc_id, photo, vote, device, ts, synced_at) with indexes on photo and vote
+- `generate_picks_json()` now queries `firestore_picks_votes` for rejected photos and excludes them from both portrait and landscape pick lists
+- Docstring updated to list all 5 synced collections
+
+**Sync results.** Ran full sync: 568 new tinder votes pulled (1,314 total). Picks.json updated: 415 portrait picks (up from 259), 36 landscape. iPhone voting stats: 434 accepts, 777 rejects out of 1,211 total swipes.
+
+**`CLAUDE.md` created.** Added project-level instructions at repo root documenting the sync pipeline, deploy command, quick SQL stats, and frontend versioning.
+
+### 22:30 — State dashboard: "Show" navigation link *("Add Show above State that links back")*
+
+**State sidebar update.** Added a "Show" external link at the top of the sidebar navigation (above "State") that links back to `https://madphotos.laeh.ai/`. Styled with `font-weight: 600` and `color: var(--system-blue)` to stand out as a navigation escape hatch. Files modified: `Sidebar.tsx`, `index.css`.
+
+Files modified: `frontend/show/picks.js` (rewrite), `frontend/show/style.css`, `backend/firestore_sync.py`, `CLAUDE.md` (new), `frontend/state/src/components/layout/Sidebar.tsx`, `frontend/state/src/index.css`.
+
+### 22:45 — Desktop voting UX: hover zones replace buttons *("when I hover on the right, green overlay + icon, click to pick")*
+
+**Intent.** The desktop tinder experience felt broken — separate buttons below the card felt disconnected from the image. The user wanted the vote action to happen directly on the photograph: hover right half → green overlay + accept icon appears at bottom, click to accept. Hover left half → red overlay + reject icon, click to reject. The image itself becomes the interface.
+
+**Implementation.**
+- Removed `.tinder-actions` buttons entirely (the separate reject/accept buttons below the card)
+- Added two transparent hover zones (`.tinder-hover-zone`) covering left and right halves of the card, z-index above overlays
+- Each zone contains a `.tinder-hover-icon` — a small 44px circle with the check/X SVG, positioned at bottom center of its half
+- On `mouseenter`: the corresponding color overlay fades to 35% opacity (`.15s ease`), the icon slides up and fades in
+- On `mouseleave`: everything fades back to invisible
+- On `click`: fires `voteTinder('accept')` or `voteTinder('reject')` — same exit animation as before
+- Hover zones are added to front cards at build time and on back→front promotion
+- Dark mode: icon background switches from white to dark translucent
+- Arrow keys still work as before
+
+**Applied to both views.** Tinder and Picks now both use hover zones on desktop — consistent UX across both card-swipe experiences. `setupPicksHoverZones()` mirrors `setupTinderHoverZones()`.
+
+Files modified: `frontend/show/tinder.js`, `frontend/show/picks.js`, `frontend/show/style.css`.
+
+---
+
+## 2026-02-10
+
+### iPad Pro detection & iPadOS sticky hover
+
+**Intent:** "on ipad in safari with my keyboard trackpad I do not see overlays. Normal?"
+
+iPad Pro with Magic Keyboard trackpad is a hybrid device — touch AND cursor. The single `isMobile` flag couldn't express this. Split device detection into three independent flags:
+- `isMobile = window.innerWidth <= 768` — screen size for orientation/image tier
+- `hasTouch = 'ontouchstart' in window` — enables swipe handlers
+- `hasHover = window.matchMedia('(any-hover: hover)').matches` — enables hover zones
+
+Key insight: `(hover: hover)` doesn't match iPad with trackpad because touch is the primary input. `(any-hover: hover)` does, because the trackpad is a secondary hover-capable input. Both swipe and hover now coexist on iPad.
+
+Follow-up: CSS `:hover` on iPadOS is sticky — once a trackpad cursor enters an element, `:hover` stays even after the cursor leaves. Replaced CSS `:hover` with JS `pointerenter`/`pointerleave` toggling a `.hovered` class.
+
+### Image loading performance — thumb-first strategy
+
+**Intent:** "you need to much improve performance, loading, caching, optimizing given mobile browser I do not like the performance on my ipad pro on the pick and reject"
+
+Core problem: cards showed nothing (opacity:0) until the full-res image loaded and decoded. On iPad Pro, decoding a 2048px webp takes noticeable time → blank cards between swipes.
+
+Two changes:
+1. **Thumb-first instant display** — card images now show the `thumb` tier (~480px) immediately on build, visible at full opacity. The full-res image loads in background and silently upgrades `img.src` when decoded. No more blank cards.
+2. **Right-sized tier for iPad** — added `cardImageTier()` helper: screens ≤1400px get `mobile` tier (1280px), only large desktop monitors get `display` (2048px). iPad Pro 11" landscape (1194px CSS) was loading 2048px images for no reason.
+
+Preload buffer still prefetches 10 ahead at full-res, but decoded images are used directly (skip thumb entirely). Front card gets `fetchpriority="high"`.
+
+Files modified: `frontend/show/app.js`, `frontend/show/tinder.js`, `frontend/show/picks.js`.
+Version bump: v=41, SW madphotos-v27.
+
+---
+
+## 2026-02-11
+
+### Picks-only filtering — all views see curated photos only
+
+**Intent:** "all Show experiences should display only the curated picks"
+
+All views except Tinder were showing the full 9K+ photo collection. Now `app.js:init()` filters `APP.data.photos` to picks-only (1,246 curated photos) after loading. Full collection stashed as `APP.allPhotos` for Tinder, which needs unvoted photos for curation. Removed Faces view entirely (9 active views remain).
+
+### Analog border removal
+
+**Intent:** "can you remove the white or black frame in analog?"
+
+386 analog photos in picks, 27 with visible film scan borders (25 white, 2 black). Updated border detection to catch both white (brightness > 230, std < 15) and black (brightness < 15, std < 4). Re-scanned all 1,126 analog photos: 90 borders total.
+
+Added `border_crop` percentages to `photos.json` (top/right/bottom/left %). Frontend applies `transform: scale()` in card views (parent overflow:hidden clips borders) and `clip-path: inset()` in lightbox. Zero re-rendering — pure CSS approach.
+
+### Couple game — portrait layout fix
+
+**Intent:** "you should not crop portrait image to landscape"
+
+Portrait pairs were forced to landscape `3/2` crop. Added `jeu-pair-portrait` class: both-portrait pairs now display at native `2/3` ratio side by side on desktop, `3/4` stacked on mobile.
+
+### Gemma analysis — continued
+
+Started Gemma 3 4B vision analysis on remaining picks (205/1,246 done). Running in background via Ollama.
+
+Files modified: `frontend/show/app.js`, `frontend/show/game.js`, `frontend/show/tinder.js`, `frontend/show/style.css`, `frontend/show/index.html`, `backend/export_gallery.py`.
+Version bump: v=42.
+
+### Cross-device vote deduplication
+
+**Intent:** "deduplicate votes across devices"
+
+Tinder votes were split across two devices (iPad + Mac), creating conflicting curation states. Built `voted.json` — a unified set of all UUIDs that have been voted on across any device. Tinder now loads `voted.json` at init and skips already-voted photos, regardless of which device cast the original vote. Firestore sync generates `voted.json` from the merged tinder-votes collection.
+
+Version bump: v=43.
+
+### State app reorganization — experiments prefix + Gemma page
+
+**Intent:** "reorganize the State dashboard routes"
+
+Moved all experiment pages under `/experiments/` prefix for cleaner URL hierarchy:
+- `/mosaics` → `/experiments/mosaics`
+- `/cartoon` → `/experiments/cartoon`
+- `/similarity` → `/experiments/similarity`
+- `/blind-test` → `/experiments/blind-test`
+
+Added Gemma analysis page at `/experiments/gemma` — shows Gemma 3 4B vision analysis results with progress bar, card grid (photo + structured analysis fields: description, subject, mood, story, lighting, composition, colors, texture, technical, strength, tags, print-worthy badge).
+
+Removed Embedding Audit and Collection Coverage pages from sidebar and routes (unused).
+
+Files modified: `frontend/state/src/App.tsx`, `frontend/state/src/components/layout/Sidebar.tsx`, `frontend/state/src/config.ts`, `frontend/state/src/pages/GemmaPage.tsx` (new), `backend/dashboard.py`, `backend/serve_show.py`, `scripts/generate_static.py`.
+
+### State → System: Full Restructure *("Rename State to System with cleaner hierarchy")*
+
+**Intent.** The State dashboard at `/state/` needed a cleaner name and URL hierarchy. "State" was confusing — it's the system dashboard, not application state. Pages needed consolidation: too many unused analysis pages cluttering the sidebar.
+
+**URL rename: `/state/` → `/system/`.** Updated `vite.config.ts` base, `firebase.json` rewrite rule, `serve_show.py` routing, `firestore_sync.py` build output path, `app.js` side menu link, `generate_static.py` comment. The entire infrastructure now serves from `/system/`.
+
+**New route hierarchy:**
+- `/system/` → redirects to `/system/state/status`
+- `/system/state/status` — reworked Status page (was Dashboard)
+- `/system/journal` — Journal
+- `/system/instructions` — Instructions
+- `/system/db/overview` — Database schema browser
+- `/system/experiments/{gemma,mosaics,cartoon,blind-test}` — Experiments
+
+**Sidebar restructured.** Title changed from "MADphotos" to "System". Three sections: nav (Status, Journal, Instructions), Database (Overview), Experiments (Gemma, Mosaics, Cartoon, Blind Test). Removed: "State" nav item, "Stats" nav item, "See App" link, "Analysis" section header, "Signal Inspector" link, "Similarity" link.
+
+**DashboardPage → StatusPage.** Renamed export and file. Reorganized all sections into 3 signal categories:
+- **Ingestion** — Render Tiers, Pipeline Runs, Storage breakdown, GCS uploads
+- **Verified** — Picks (total, portrait/landscape, curation %), Re-curation votes by device, Tinder feedback (accepts/rejects, daily), Couple game stats
+- **Predicted** — Models grid (24 models), Signal coverage (Semantic, Visual, Content), V2 signals, Camera fleet, AI variants, Embeddings
+
+Replaced hero mission statement with compact header showing timestamp + total signals. Removed Sample Analysis JSON section.
+
+**6 pages removed:** SeePage, StatsPage, SimilarityPage, SignalInspectorPage (emptied files), plus removed `/api/signal-inspector` from `config.ts` data URL map.
+
+Files modified: `vite.config.ts`, `main.tsx`, `App.tsx`, `Sidebar.tsx`, `StatusPage.tsx` (new), `DashboardPage.tsx` (re-export), `config.ts`, `firebase.json`, `firestore_sync.py`, `serve_show.py`, `app.js`, `generate_static.py`. Files emptied: `SeePage.tsx`, `StatsPage.tsx`, `SimilarityPage.tsx`, `SignalInspectorPage.tsx`.
+
+### Maximum image performance
+
+**Intent:** "images should load as fast as possible — fix the SW bug, add blur-up, smarter caching"
+
+**Critical SW bug fix.** Line 56 of `sw.js` checked `url.hostname.includes('googleapis.com')` which matched `storage.googleapis.com`, causing ALL GCS image fetches to bypass the service worker. The `madphotos-images-v1` cache was dead code. Narrowed the bypass to Firebase/Firestore APIs only — storage.googleapis.com now goes through the SW fetch handler.
+
+**3-tier image cache.** Replaced single `madphotos-images-v1` with 3 purpose-built caches: `mp-micro-v1` (64px placeholders, never evict, ~750KB for all picks), `mp-thumb-v1` (480px previews, LRU 2000), `mp-image-v1` (mobile+display, LRU 500). Micro images precached in background via SW `postMessage` after picks data loads.
+
+**Blur-up loading.** `loadProgressive()` now shows micro image immediately as a blurred placeholder (`filter: blur(8px); transform: scale(1.05)`), then crossfades to target tier once decoded. Falls back to invisible→reveal when no micro available.
+
+**Smart tier selection.** Replaced binary `cardImageTier()` with DPR + connection-aware `optimalTier(role)`. Accounts for device pixel ratio (capped at 3x), viewport width, and network conditions (saveData, 2g/slow-2g). Card views use `optimalTier('card')`, fullscreen views keep explicit tier names.
+
+**Decode queue.** Browser-aware concurrency limiter prevents decode storms: 2 concurrent on iOS Safari, 3 on desktop Safari/Android, 6 on desktop Chrome/Firefox. Wired into `loadProgressive`, `lazyObserver`, and `picksPreloadBuffer`.
+
+**Minimap optimization.** Minimap slots now load micro (64px, ~600B) instead of thumb (480px, ~15KB) — saves ~100KB per render.
+
+**Memory cleanup.** `switchView()` now releases decoded image memory from inactive views by clearing `img.src` on hidden view containers.
+
+**Preconnect hint.** Added `<link rel="preconnect" href="https://storage.googleapis.com" crossorigin>` for early DNS+TLS handshake.
+
+**CSS.** Added `contain: layout style paint; will-change: auto` to `.tinder-card img`. New `.img-blur-up` class for blur-up transitions.
+
+Files modified: `sw.js`, `app.js`, `picks.js`, `style.css`, `index.html`.
+Version bump: v=44, SW madphotos-v28.
+New agent: `~/.claude/agents/web-images-perf.md` — reusable image performance agent for all web projects.

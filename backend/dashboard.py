@@ -21,7 +21,7 @@ from typing import Optional
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DB_PATH = PROJECT_ROOT / "images" / "mad_photos.db"
 VECTOR_PATH = PROJECT_ROOT / "images" / "vectors.lance"
-OUT_PATH = PROJECT_ROOT / "frontend" / "state" / "state.html"
+OUT_PATH = PROJECT_ROOT / "frontend" / "system" / "system.html"
 MOSAIC_DIR = PROJECT_ROOT / "images" / "rendered" / "mosaics"
 
 
@@ -773,6 +773,40 @@ def get_stats():
     if _table_exists('firestore_couple_rejects'):
         couple_rejects_total = conn.execute("SELECT COUNT(*) FROM firestore_couple_rejects").fetchone()[0]
 
+    # ── Picks curation ────────────────────────────────────────
+    picks_portrait = 0
+    picks_landscape = 0
+    picks_votes_total = 0
+    picks_votes_accept = 0
+    picks_votes_reject = 0
+    picks_by_device = []
+
+    picks_json = PROJECT_ROOT / "frontend" / "show" / "data" / "picks.json"
+    if picks_json.exists():
+        try:
+            pdata = json.loads(picks_json.read_text())
+            picks_portrait = len(pdata.get("portrait", []))
+            picks_landscape = len(pdata.get("landscape", []))
+        except Exception:
+            pass
+
+    if _table_exists('firestore_picks_votes'):
+        picks_votes_total = conn.execute("SELECT COUNT(*) FROM firestore_picks_votes").fetchone()[0]
+        picks_votes_accept = conn.execute(
+            "SELECT COUNT(*) FROM firestore_picks_votes WHERE vote='accept'"
+        ).fetchone()[0]
+        picks_votes_reject = picks_votes_total - picks_votes_accept
+        picks_by_device = [
+            {"device": r[0] or "unknown", "accepts": r[1], "rejects": r[2]}
+            for r in conn.execute("""
+                SELECT device,
+                       SUM(CASE WHEN vote='accept' THEN 1 ELSE 0 END),
+                       SUM(CASE WHEN vote='reject' THEN 1 ELSE 0 END)
+                FROM firestore_picks_votes
+                GROUP BY device
+            """).fetchall()
+        ]
+
     # ── Disk usage ───────────────────────────────────────────
     db_size = os.path.getsize(str(DB_PATH)) if DB_PATH.exists() else 0
     web_json_path = PROJECT_ROOT / "frontend" / "show" / "data" / "photos.json"
@@ -875,6 +909,16 @@ def get_stats():
         "aesthetic_v2_labels": aesthetic_v2_labels,
         "top_tags": top_tags,
         "top_open_labels": top_open_labels,
+        # Picks curation
+        "picks": {
+            "portrait": picks_portrait,
+            "landscape": picks_landscape,
+            "total": picks_portrait + picks_landscape,
+            "votes_total": picks_votes_total,
+            "votes_accept": picks_votes_accept,
+            "votes_reject": picks_votes_reject,
+            "by_device": picks_by_device,
+        },
         # Firestore feedback
         "feedback": {
             "last_sync": feedback_last_sync,
@@ -1405,11 +1449,11 @@ PAGE_HTML = r"""<!DOCTYPE html>
   .manifesto strong { color: var(--fg); font-weight: 700; }
 
   /* ═══ HERO HEADER ═══ */
-  .state-hero {
+  .system-hero {
     margin-bottom: var(--space-8);
     animation: fade-up 0.6s var(--ease-default) both;
   }
-  .state-hero h1 { margin-bottom: var(--space-1); }
+  .system-hero h1 { margin-bottom: var(--space-1); }
   .live-dot {
     display: inline-block;
     width: 7px; height: 7px;
@@ -1924,7 +1968,7 @@ PAGE_HTML = r"""<!DOCTYPE html>
 
 <div class="main-content">
 
-<div class="state-hero">
+<div class="system-hero">
   <h1>System State</h1>
   <p class="subtitle" id="subtitle">System Dashboard</p>
   <p class="manifesto">We started with 9,011 raw images and zero metadata.<br>We will create the best UX UIs on photos.<br>Game ON.</p>
@@ -4849,6 +4893,66 @@ def get_cartoon_data():
     return pairs
 
 
+def get_gemma_data():
+    """Return Gemma 3 analysis results for picks."""
+    conn = sqlite3.connect(str(DB_PATH))
+    # Total picks
+    picks_json = PROJECT_ROOT / "frontend" / "show" / "data" / "picks.json"
+    try:
+        picks = json.loads(picks_json.read_text())
+        total = len(set(picks.get("portrait", []) + picks.get("landscape", [])))
+    except Exception:
+        total = 0
+
+    results = []
+    try:
+        for row in conn.execute(
+            "SELECT uuid, gemma_json, processed_at FROM gemma_picks ORDER BY processed_at DESC"
+        ).fetchall():
+            uuid, gemma_json, processed_at = row
+            try:
+                gemma = json.loads(gemma_json)
+            except (json.JSONDecodeError, TypeError):
+                gemma = {"raw": gemma_json}
+
+            # Get camera info
+            camera_data = conn.execute(
+                "SELECT camera_body, film_stock, medium FROM images WHERE uuid = ?", (uuid,)
+            ).fetchone()
+            camera_body = camera_data[0] if camera_data and camera_data[0] else None
+            film_stock = camera_data[1] if camera_data and camera_data[1] else None
+            medium = camera_data[2] if camera_data and camera_data[2] else None
+
+            # Get top 4 labels by confidence
+            top_labels = []
+            for label_row in conn.execute(
+                """SELECT label, category, confidence
+                   FROM unified_labels
+                   WHERE image_uuid = ?
+                   ORDER BY confidence DESC
+                   LIMIT 4""", (uuid,)
+            ).fetchall():
+                top_labels.append({
+                    "label": label_row[0],
+                    "category": label_row[1],
+                    "confidence": label_row[2]
+                })
+
+            results.append({
+                "uuid": uuid,
+                "gemma": gemma,
+                "processed_at": processed_at or "",
+                "camera_body": camera_body,
+                "film_stock": film_stock,
+                "medium": medium,
+                "top_labels": top_labels
+            })
+    except Exception:
+        pass
+    conn.close()
+    return {"total": total, "processed": len(results), "results": results}
+
+
 def generate_signal_inspector_data():
     """Generate signal inspector data: 300 stratified images with all signals."""
     import random
@@ -5611,7 +5715,7 @@ class Handler(BaseHTTPRequestHandler):
             mosaic_path = RENDERED_DIR / "mosaics" / "by_brightness.jpg"
             if mosaic_path.exists():
                 # Serve a resized version for the hero
-                hero_cache = PROJECT_ROOT / "frontend" / "state" / "hero-mosaic.jpg"
+                hero_cache = PROJECT_ROOT / "frontend" / "system" / "hero-mosaic.jpg"
                 if hero_cache.exists():
                     data = hero_cache.read_bytes()
                 else:
@@ -5727,7 +5831,7 @@ def serve(port):
 def _static_links(html):
     # type: (str) -> str
     """Rewrite server routes to static file paths for GitHub Pages."""
-    html = html.replace('href="/"', 'href="state.html"')
+    html = html.replace('href="/"', 'href="system.html"')
     html = html.replace('href="/journal"', 'href="journal.html"')
     html = html.replace('href="/instructions"', 'href="instructions.html"')
     html = html.replace('href="/mosaics"', 'href="mosaics.html"')
@@ -5760,7 +5864,7 @@ def generate_static():
                          f'As of {ts_pretty}</p>')
     html = _static_links(html)
     OUT_PATH.write_text(html)
-    print(f"  state.html ({len(html):,} bytes)")
+    print(f"  system.html ({len(html):,} bytes)")
 
     # 2. Journal de Bord
     journal_html = _static_links(render_journal())
@@ -5787,7 +5891,7 @@ def generate_static():
     (docs_dir / "mosaics.html").write_text(mosaics_html)
     print(f"  mosaics.html ({len(mosaics_html):,} bytes)")
 
-    print(f"\nGenerated 6 pages in frontend/state/ — snapshot {ts}")
+    print(f"\nGenerated 6 pages in frontend/system/ — snapshot {ts}")
 
 
 # ---------------------------------------------------------------------------

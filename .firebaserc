@@ -5,8 +5,8 @@
   "targets": {
     "laeh380to760": {
       "hosting": {
-        "madphotos": [
-          "madphotos"
+        "laeh-madphotos": [
+          "laeh-madphotos"
         ]
       }
     }

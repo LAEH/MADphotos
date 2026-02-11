@@ -458,7 +458,7 @@ def regenerate_exports() -> bool:
         from dashboard import generate_collection_coverage_data
         import json as _json
 
-        state_data_dir = PROJECT_ROOT / "frontend" / "state" / "public" / "data"
+        state_data_dir = PROJECT_ROOT / "frontend" / "system" / "public" / "data"
         state_data_dir.mkdir(parents=True, exist_ok=True)
 
         for name, fn in [
@@ -539,8 +539,11 @@ def main() -> None:
                     if done:
                         print("  All stages complete!")
                         if not args.status and not args.no_state:
-                            print("\n  Regenerating exports...")
-                            regenerate_exports()
+                            print("\n  Running deploy pipeline (--full)...")
+                            subprocess.run(
+                                [sys.executable, str(PROJECT_ROOT / "scripts" / "deploy.py"), "--full"],
+                                cwd=str(PROJECT_ROOT),
+                            )
                         break
                     time.sleep(args.watch)
             except KeyboardInterrupt:
@@ -550,8 +553,11 @@ def main() -> None:
             if done and not args.status:
                 print("  Everything is complete!")
                 if not args.no_state:
-                    print("\n  Regenerating exports...")
-                    regenerate_exports()
+                    print("\n  Running deploy pipeline (--full)...")
+                    subprocess.run(
+                        [sys.executable, str(PROJECT_ROOT / "scripts" / "deploy.py"), "--full"],
+                        cwd=str(PROJECT_ROOT),
+                    )
             elif not args.status:
                 print("\n  Run with --watch to monitor ongoing processes.")
     finally:

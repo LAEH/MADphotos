@@ -4,7 +4,7 @@
     "indexes": "firestore.indexes.json"
   },
   "hosting": {
-    "target": "madphotos",
+    "target": "laeh-madphotos",
     "public": "frontend/show",
     "ignore": [
       "firebase.json",
@@ -27,8 +27,8 @@
     ],
     "rewrites": [
       {
-        "source": "/state/**",
-        "destination": "/state/index.html"
+        "source": "/system/**",
+        "destination": "/system/index.html"
       }
     ]
   }

@@ -10,6 +10,7 @@ Collections synced:
   - couple-likes    → firestore_couple_likes (a, b, strategy, ts)
   - couple-approves → firestore_couple_approves (photo, ts)
   - couple-rejects  → firestore_couple_rejects (photo, ts)
+  - picks-votes     → firestore_picks_votes (photo, vote, device, ts)
 
 Usage:
   python3 backend/firestore_sync.py          # sync all collections
@@ -97,6 +98,23 @@ COLLECTIONS = [
             CREATE INDEX IF NOT EXISTS idx_fcr_photo ON firestore_couple_rejects(photo);
         """,
         "fields": ["photo", "ts"],
+    },
+    {
+        "name": "picks-votes",
+        "table": "firestore_picks_votes",
+        "schema": """
+            CREATE TABLE IF NOT EXISTS firestore_picks_votes (
+                doc_id    TEXT PRIMARY KEY,
+                photo     TEXT NOT NULL,
+                vote      TEXT NOT NULL,
+                device    TEXT,
+                ts        TEXT,
+                synced_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_fpv_photo ON firestore_picks_votes(photo);
+            CREATE INDEX IF NOT EXISTS idx_fpv_vote ON firestore_picks_votes(vote);
+        """,
+        "fields": ["photo", "vote", "device", "ts"],
     },
 ]
 
@@ -206,6 +224,7 @@ def sync_collection(conn: sqlite3.Connection, col: dict, token: str, dry: bool) 
 
 
 PICKS_JSON_PATH = PROJECT_ROOT / "frontend" / "show" / "data" / "picks.json"
+VOTED_JSON_PATH = PROJECT_ROOT / "frontend" / "show" / "data" / "voted.json"
 
 
 def generate_picks_json(conn: sqlite3.Connection) -> None:
@@ -220,12 +239,24 @@ def generate_picks_json(conn: sqlite3.Connection) -> None:
         log.info("  firestore_tinder_votes table not yet created — skipping picks.json")
         return
 
+    # Collect photos rejected in picks re-curation pass
+    rejected: set[str] = set()
+    try:
+        rejected = {
+            row[0] for row in conn.execute(
+                "SELECT DISTINCT photo FROM firestore_picks_votes WHERE vote = 'reject'"
+            ).fetchall()
+        }
+    except sqlite3.OperationalError:
+        pass  # table not yet created
+
     portrait_ids = [
         row[0] for row in conn.execute(
             "SELECT DISTINCT photo FROM firestore_tinder_votes "
             "WHERE vote = 'accept' AND device = 'mobile' "
             "ORDER BY ts DESC"
         ).fetchall()
+        if row[0] not in rejected
     ]
     landscape_ids = [
         row[0] for row in conn.execute(
@@ -233,6 +264,7 @@ def generate_picks_json(conn: sqlite3.Connection) -> None:
             "WHERE vote = 'accept' AND device = 'desktop' "
             "ORDER BY ts DESC"
         ).fetchall()
+        if row[0] not in rejected
     ]
 
     picks = {
@@ -244,6 +276,33 @@ def generate_picks_json(conn: sqlite3.Connection) -> None:
     PICKS_JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
     PICKS_JSON_PATH.write_text(json.dumps(picks, separators=(",", ":")))
     log.info(f"  picks.json: {len(portrait_ids)} portrait, {len(landscape_ids)} landscape")
+
+
+def generate_voted_json(conn: sqlite3.Connection) -> None:
+    """Generate voted.json — all tinder votes keyed by photo ID.
+
+    Used by the frontend to hydrate localStorage so votes from any device
+    are reflected everywhere (prevents double-voting across devices).
+    Output: { "photo-uuid": "accept", ... }
+    """
+    try:
+        conn.execute("SELECT 1 FROM firestore_tinder_votes LIMIT 1")
+    except sqlite3.OperationalError:
+        return
+
+    # Take the latest vote per photo (in case of re-votes)
+    rows = conn.execute(
+        "SELECT photo, vote FROM firestore_tinder_votes "
+        "ORDER BY ts ASC"
+    ).fetchall()
+
+    votes: dict[str, str] = {}
+    for photo, vote in rows:
+        votes[photo] = vote  # later votes overwrite earlier ones
+
+    VOTED_JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
+    VOTED_JSON_PATH.write_text(json.dumps(votes, separators=(",", ":")))
+    log.info(f"  voted.json: {len(votes)} photos ({sum(1 for v in votes.values() if v == 'accept')} accept, {sum(1 for v in votes.values() if v == 'reject')} reject)")
 
 
 def print_summary(conn: sqlite3.Connection):
@@ -280,11 +339,16 @@ def main():
     log.info(f"Sync complete. {total_new} new rows total.")
     print_summary(conn)
 
-    # Always regenerate picks.json (cheap operation, keeps it fresh)
+    # Always regenerate picks.json + voted.json (cheap, keeps fresh)
     try:
         generate_picks_json(conn)
     except Exception as e:
         log.warning(f"picks.json generation failed: {e}")
+
+    try:
+        generate_voted_json(conn)
+    except Exception as e:
+        log.warning(f"voted.json generation failed: {e}")
 
     conn.close()
 
@@ -301,34 +365,34 @@ def main():
         except Exception as e:
             log.warning(f"Static data regeneration failed: {e}")
 
-        # Build State app and copy into Show for unified Firebase deploy
+        # Build System app and copy into Show for unified Firebase deploy
         import shutil
-        state_dir = PROJECT_ROOT / "frontend" / "state"
+        system_dir = PROJECT_ROOT / "frontend" / "system"
         show_dir = PROJECT_ROOT / "frontend" / "show"
-        show_state = show_dir / "state"
+        show_system = show_dir / "system"
         show_data = show_dir / "data"
 
         try:
-            log.info("Building State app...")
+            log.info("Building System app...")
             subprocess.run(
                 ["npm", "run", "build"],
-                cwd=str(state_dir),
+                cwd=str(system_dir),
                 capture_output=True, text=True, timeout=120,
             )
-            # Copy State dist → frontend/show/state/
-            if show_state.exists():
-                shutil.rmtree(str(show_state))
-            shutil.copytree(str(state_dir / "dist"), str(show_state))
-            log.info("State built → frontend/show/state/")
+            # Copy System dist → frontend/show/system/
+            if show_system.exists():
+                shutil.rmtree(str(show_system))
+            shutil.copytree(str(system_dir / "dist"), str(show_system))
+            log.info("System built → frontend/show/system/")
         except Exception as e:
-            log.warning(f"State build failed: {e}")
+            log.warning(f"System build failed: {e}")
 
         # Copy stats.json into show/data/ for Show app
-        state_stats = state_dir / "public" / "data" / "stats.json"
-        if state_stats.exists() and show_data.exists():
-            shutil.copy2(str(state_stats), str(show_data / "stats.json"))
+        system_stats = system_dir / "public" / "data" / "stats.json"
+        if system_stats.exists() and show_data.exists():
+            shutil.copy2(str(system_stats), str(show_data / "stats.json"))
 
-        # Single Firebase deploy covers both Show + State
+        # Single Firebase deploy covers both Show + System
         try:
             log.info("Deploying to Firebase...")
             subprocess.run(
@@ -336,7 +400,7 @@ def main():
                 cwd=str(PROJECT_ROOT),
                 capture_output=True, text=True, timeout=120,
             )
-            log.info("Firebase deployed (Show + State).")
+            log.info("Firebase deployed (Show + System).")
         except Exception as e:
             log.warning(f"Firebase deploy failed: {e}")
 

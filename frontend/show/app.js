@@ -44,16 +44,16 @@ const APP = {
 
 /* Experience registry */
 const EXPERIENCES = [
-    { id: 'picks',       name: '\ud83d\ude0e',              init: 'initPicks' },
-    { id: 'couleurs',    name: 'Colors',           init: 'initCouleurs' },
-    { id: 'faces',       name: 'Faces',            init: 'initFaces' },
-    { id: 'compass',     name: 'Relation',         init: 'initCompass' },
-    { id: 'bento',       name: 'Bento',            init: 'initBento' },
-    { id: 'nyu',         name: 'NYU',              init: 'initNyu' },
-    { id: 'game',        name: 'Couple',            init: 'initGame' },
-    { id: 'confetti',    name: 'Boom',             init: 'initConfetti' },
-    { id: 'caption',     name: 'Caption',          init: 'initCaption' },
-    { id: 'tinder',      name: 'Tinder',           init: 'initTinder' },
+    { id: 'picks',       route: 'tinder',  name: 'Tinder',           init: 'initPicks' },
+    { id: 'couleurs',    route: 'couleurs', name: 'Colors',          init: 'initCouleurs' },
+
+    { id: 'compass',     route: 'compass',  name: 'Relation',        init: 'initCompass' },
+    { id: 'bento',       route: 'bento',    name: 'Bento',           init: 'initBento' },
+    { id: 'nyu',         route: 'nyu',      name: 'NYU',             init: 'initNyu' },
+    { id: 'game',        route: 'game',     name: 'Couple',          init: 'initGame' },
+    { id: 'confetti',    route: 'confetti', name: 'Boom',            init: 'initConfetti' },
+    { id: 'caption',     route: 'caption',  name: 'Caption',         init: 'initCaption' },
+    { id: 'isit',        route: 'isit',     name: 'ISIT',            init: 'initIsit' },
 ];
 
 /* ===== Device Detection & Gating ===== */
@@ -119,6 +119,13 @@ async function loadPicks() {
     return APP.picksData;
 }
 
+async function loadVoted() {
+    if (APP.votedData) return APP.votedData;
+    try { APP.votedData = await fetchJSON('/data/voted.json'); }
+    catch { APP.votedData = {}; }
+    return APP.votedData;
+}
+
 /* ===== Timer Management (prevent leaks) ===== */
 function registerTimer(id) {
     APP._activeTimers.push(id);
@@ -155,9 +162,9 @@ function buildSideMenu() {
     /* State dashboard — distinct link at the bottom */
     const stateLi = document.createElement('li');
     stateLi.className = 'side-menu-item side-menu-state';
-    stateLi.textContent = 'State';
+    stateLi.textContent = 'System';
     stateLi.addEventListener('click', () => {
-        window.open('/state/', '_blank');
+        window.open('/system/', '_blank');
         closeSideMenu();
     });
     list.appendChild(stateLi);
@@ -166,13 +173,19 @@ function buildSideMenu() {
 function toggleSideMenu() {
     const menu = document.getElementById('side-menu');
     const backdrop = document.getElementById('side-menu-backdrop');
+    const menuBtn = document.getElementById('menu-btn');
+    const floatingNav = document.getElementById('floating-nav');
     const open = menu.classList.toggle('open');
     backdrop.classList.toggle('open', open);
+    menuBtn.classList.toggle('menu-open', open);
+    floatingNav.classList.toggle('menu-expanded', open);
 }
 
 function closeSideMenu() {
     document.getElementById('side-menu').classList.remove('open');
     document.getElementById('side-menu-backdrop').classList.remove('open');
+    document.getElementById('menu-btn').classList.remove('menu-open');
+    document.getElementById('floating-nav').classList.remove('menu-expanded');
 }
 
 function updateSideMenuActive(viewId) {
@@ -184,14 +197,12 @@ function updateSideMenuActive(viewId) {
 function initRouter() {
     buildSideMenu();
 
-    document.getElementById('logo-home').addEventListener('click', (e) => {
+    document.getElementById('menu-btn').addEventListener('click', (e) => {
         e.preventDefault();
         toggleSideMenu();
     });
 
-    document.getElementById('menu-btn').addEventListener('click', () => {
-        toggleSideMenu();
-    });
+    /* Desktop: click to toggle collapse (no hover behavior) */
 
     document.getElementById('side-menu-backdrop').addEventListener('click', closeSideMenu);
 
@@ -201,11 +212,9 @@ function initRouter() {
 
     window.addEventListener('hashchange', () => {
         const hash = location.hash.slice(1);
-        if (hash && hash !== APP.currentView) {
-            const validViews = EXPERIENCES.map(e => e.id);
-            if (validViews.includes(hash)) {
-                switchView(hash);
-            }
+        const exp = EXPERIENCES.find(e => e.route === hash);
+        if (exp && exp.id !== APP.currentView) {
+            switchView(exp.id);
         }
     });
 }
@@ -218,7 +227,16 @@ function switchView(name) {
         _faceBatchRunning = false;
     }
 
-    /* Viewport lock cleanup (Tinder & Picks both lock) */
+    /* Release decoded image memory from inactive views */
+    document.querySelectorAll('.view:not(.active) img[src]').forEach(img => {
+        if (img.closest('#lightbox')) return; /* don't touch lightbox */
+        img.removeAttribute('src');
+    });
+
+    /* Viewport lock cleanup (ISIT, Tinder & Picks all lock) */
+    if (APP.currentView === 'isit' && name !== 'isit') {
+        if (typeof isitUnlockViewport === 'function') isitUnlockViewport();
+    }
     if (APP.currentView === 'tinder' && name !== 'tinder') {
         if (typeof tinderUnlockViewport === 'function') tinderUnlockViewport();
     }
@@ -227,7 +245,12 @@ function switchView(name) {
     }
 
     APP.currentView = name;
-    location.hash = name;
+    const expForHash = EXPERIENCES.find(e => e.id === name);
+    location.hash = expForHash ? expForHash.route : name;
+
+    /* Hide bento dice when leaving bento */
+    const bentoDice = document.getElementById('bento-dice-nav');
+    if (bentoDice) bentoDice.style.display = name === 'bento' ? '' : 'none';
 
     const exp = EXPERIENCES.find(e => e.id === name);
 
@@ -235,6 +258,9 @@ function switchView(name) {
     updateSideMenuActive(name);
     const btnLabel = document.getElementById('menu-btn-label');
     if (btnLabel && exp) btnLabel.textContent = exp.name;
+    /* Desktop: show experience name next to logo */
+    const navExpLabel = document.getElementById('nav-exp-label');
+    if (navExpLabel && exp) navExpLabel.textContent = exp.name;
 
     /* Toggle views */
     document.querySelectorAll('.view').forEach(v => {
@@ -285,6 +311,32 @@ function createGlassTag(text, opts = {}) {
 function titleCase(str) {
     if (!str) return '';
     return str.replace(/\b\w/g, c => c.toUpperCase());
+}
+
+/* ===== Border Crop ===== */
+/**
+ * Apply border crop to an img element. For object-fit:cover contexts,
+ * scaling up hides borders (parent overflow:hidden clips them).
+ * For the lightbox (natural size), clip-path trims precisely.
+ */
+function applyBorderCrop(img, crop) {
+    const t = crop.top || 0, r = crop.right || 0;
+    const b = crop.bottom || 0, l = crop.left || 0;
+    /* Scale factor: enough to push all borders outside the container */
+    const scaleX = 100 / (100 - l - r);
+    const scaleY = 100 / (100 - t - b);
+    const scale = Math.max(scaleX, scaleY);
+    img.style.transform = 'scale(' + scale.toFixed(4) + ')';
+}
+
+/**
+ * Apply clip-path for lightbox (full image, no object-fit:cover).
+ */
+function applyBorderClip(img, crop) {
+    if (!crop) { img.style.clipPath = ''; return; }
+    const t = crop.top || 0, r = crop.right || 0;
+    const b = crop.bottom || 0, l = crop.left || 0;
+    img.style.clipPath = 'inset(' + t + '% ' + r + '% ' + b + '% ' + l + '%)';
 }
 
 /* ===== Palette Dots ===== */
@@ -357,13 +409,24 @@ function showLightboxPhoto(photo) {
     const prevBtn = lb.querySelector('.lightbox-prev');
     const nextBtn = lb.querySelector('.lightbox-next');
 
+    /* Reset border scale from card views, use clip-path for lightbox */
+    img.style.transform = '';
     loadProgressive(img, photo, 'display');
+    applyBorderClip(img, photo.border_crop);
     img.alt = photo.alt || photo.caption || '';
-    alt.textContent = photo.caption || photo.alt || '';
+    alt.textContent = photo.best_caption || photo.caption || photo.alt || '';
 
     tags.innerHTML = '';
+    /* Consensus tags first (visually distinct — agreed by 2+ models) */
+    const consensusSet = new Set(photo.consensus || []);
+    for (const c of (photo.consensus || [])) {
+        tags.appendChild(createGlassTag(c, { category: 'consensus' }));
+    }
+    /* Then vibes (skip any already shown as consensus) */
     for (const v of (photo.vibes || [])) {
-        tags.appendChild(createGlassTag(v, { category: 'vibe' }));
+        if (!consensusSet.has(v.toLowerCase())) {
+            tags.appendChild(createGlassTag(v, { category: 'vibe' }));
+        }
     }
     if (photo.grading) tags.appendChild(createGlassTag(photo.grading, { category: 'grading' }));
     if (photo.time) tags.appendChild(createGlassTag(photo.time, { category: 'time' }));
@@ -423,56 +486,124 @@ function revealImg(img) {
     setTimeout(() => {
         img.classList.remove('img-loaded');
         img.classList.remove('img-loading');
-    }, 600);
+    }, 800);
 }
+
+/* ===== Image Tier Selection ===== */
+/**
+ * DPR + connection-aware tier selection.
+ * role: 'card' (tinder/picks card) or 'full' (bento, game, caption fullscreen).
+ */
+function optimalTier(role) {
+    const w = window.innerWidth;
+    const dpr = Math.min(devicePixelRatio || 1, 3);
+    const cssW = role === 'card' ? Math.min(w, 600) : w;
+    const needed = cssW * dpr;
+    const slow = navigator.connection &&
+        (navigator.connection.saveData ||
+         navigator.connection.effectiveType === '2g' ||
+         navigator.connection.effectiveType === 'slow-2g');
+
+    if (slow) return needed <= 600 ? 'thumb' : 'mobile';
+    if (needed <= 540)  return 'thumb';   /* 480px tier */
+    if (needed <= 1400) return 'mobile';  /* 1280px tier */
+    return 'display';                      /* 2048px tier */
+}
+
+/* Back-compat alias — callers in other files use this */
+function cardImageTier() {
+    return optimalTier('card');
+}
+
+/* ===== Decode Queue (browser-aware concurrency) ===== */
+const DECODE_QUEUE = {
+    max: /AppleWebKit.*Mobile/.test(navigator.userAgent) ? 2 :
+         /AppleWebKit/.test(navigator.userAgent) ? 3 :
+         /Android/.test(navigator.userAgent) ? 3 : 6,
+    active: 0,
+    pending: [],
+    enqueue(img) {
+        return new Promise(resolve => {
+            this.pending.push({ img, resolve });
+            this._drain();
+        });
+    },
+    _drain() {
+        while (this.active < this.max && this.pending.length) {
+            this.active++;
+            const { img, resolve } = this.pending.shift();
+            (typeof img.decode === 'function' ? img.decode() : Promise.resolve())
+                .then(resolve).catch(resolve)
+                .finally(() => { this.active--; this._drain(); });
+        }
+    }
+};
 
 /* ===== Progressive Image Loading ===== */
 /**
- * Load an image progressively: start invisible, preload the target tier
- * off-screen, then set src and fade in once fully decoded.
- *
- * Compositing note: only opacity is transitioned (compositor-only).
- * The .img-loading class starts at opacity:0; .img-loaded transitions
- * to opacity:1 via CSS. No layout or paint properties are animated.
+ * Load an image with blur-up: show micro immediately as blurred placeholder,
+ * then crossfade to the target tier once fully decoded.
+ * Falls back to invisible→reveal if no micro is available.
  */
 function loadProgressive(img, photo, targetTier) {
     const target = photo[targetTier] || photo.thumb;
     if (!target) return;
+
+    /* Dominant color placeholder on parent — fallback only (per-view code
+       may already have set a custom color/opacity). */
+    if (photo.palette && photo.palette[0] && img.parentElement
+        && !img.parentElement.style.backgroundColor) {
+        img.parentElement.style.backgroundColor = photo.palette[0] + '55';
+    }
 
     /* Content-aware focal point — prevents cropping faces/animals */
     if (photo.focus) {
         img.style.objectPosition = photo.focus[0] + '% ' + photo.focus[1] + '%';
     }
 
-    /* Start invisible — will fade in once target is fully decoded */
-    img.classList.add('img-loading');
-    img.classList.remove('img-loaded');
+    /* Border crop — scale up slightly to hide film scan borders */
+    if (photo.border_crop) {
+        applyBorderCrop(img, photo.border_crop);
+    }
 
-    const preload = new Image();
-    preload.decoding = 'async';
-    preload.onload = () => {
+    /* Phase 1: Show micro immediately as blurred placeholder */
+    if (photo.micro) {
+        img.src = photo.micro;
+        img.classList.add('img-blur-up');
+        img.classList.remove('img-loading', 'img-loaded');
+    } else {
+        /* No micro — fall back to invisible until target loads */
+        img.classList.add('img-loading');
+        img.classList.remove('img-loaded', 'img-blur-up');
+    }
+
+    /* Phase 2: Preload target, crossfade when ready */
+    const pre = new Image();
+    pre.decoding = 'async';
+    pre.src = target;
+    const swap = () => {
         img.src = target;
-        /* Use decode() where available so the frame that adds .img-loaded
-           is guaranteed to have the pixels ready — no flash of blank. */
-        if (typeof img.decode === 'function') {
-            img.decode().then(() => {
-                revealImg(img);
-            }).catch(() => {
-                /* decode() can reject if img is detached from DOM */
-                revealImg(img);
-            });
-        } else {
-            revealImg(img);
-        }
+        img.classList.remove('img-blur-up');
+        img.style.filter = '';
+        img.style.transform = '';
+        /* Re-apply border crop if needed (blur-up used scale(1.05)) */
+        if (photo.border_crop) applyBorderCrop(img, photo.border_crop);
+        revealImg(img);
     };
-    preload.onerror = () => {
-        /* Fallback: if target fails, try showing micro at least */
+    const doLoad = () => {
+        DECODE_QUEUE.enqueue(pre).then(swap).catch(swap);
+    };
+    pre.onload = doLoad;
+    pre.onerror = () => {
+        /* Fallback: if target fails, at least show micro */
         if (photo.micro && target !== photo.micro) {
             img.src = photo.micro;
         }
+        img.classList.remove('img-blur-up');
         revealImg(img);
     };
-    preload.src = target;
+    /* If already cached, onload may have fired synchronously */
+    if (pre.complete && pre.naturalWidth) doLoad();
 }
 
 /* ===== Lazy Loading with IntersectionObserver ===== */
@@ -496,6 +627,11 @@ function createLazyImg(photo, targetTier) {
         img.style.objectPosition = photo.focus[0] + '% ' + photo.focus[1] + '%';
     }
 
+    /* Border crop — scale up slightly to hide film scan borders */
+    if (photo.border_crop) {
+        applyBorderCrop(img, photo.border_crop);
+    }
+
     /* Start invisible — no src set yet, nothing to paint */
     img.classList.add('img-loading');
 
@@ -516,15 +652,9 @@ const lazyObserver = new IntersectionObserver((entries) => {
             preload.onload = () => {
                 img.src = src;
                 img.removeAttribute('data-src');
-                if (typeof img.decode === 'function') {
-                    img.decode().then(() => {
-                        revealImg(img);
-                    }).catch(() => {
-                        revealImg(img);
-                    });
-                } else {
+                DECODE_QUEUE.enqueue(img).then(() => {
                     revealImg(img);
-                }
+                });
             };
             preload.onerror = () => {
                 /* Show whatever we have — don't leave invisible */
@@ -631,15 +761,41 @@ async function init() {
     /* Load picks data (non-blocking — OK if missing) */
     await loadPicks();
 
+    /* Load server-side vote history for cross-device dedup */
+    await loadVoted();
+
+    /* Stash full collection for Tinder (needs all photos for curation) */
+    APP.allPhotos = APP.data.photos;
+    APP.allPhotoMap = { ...APP.photoMap };
+
+    /* Filter to picks only for all other experiences */
+    const picksSet = new Set([
+        ...(APP.picksData.portrait || []),
+        ...(APP.picksData.landscape || [])
+    ]);
+    APP.data.photos = APP.allPhotos.filter(p => picksSet.has(p.id));
+    APP.photoMap = {};
+    for (const photo of APP.data.photos) {
+        APP.photoMap[photo.id] = photo;
+    }
+
+    /* Precache micro images via service worker */
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        const micros = APP.data.photos.filter(p => p.micro).map(p => p.micro);
+        if (micros.length) {
+            navigator.serviceWorker.controller.postMessage({ type: 'precache-micros', urls: micros });
+        }
+    }
+
     initRouter();
     initLightbox();
     initFullscreen();
 
-    /* Navigate to hash or default view (picks for both mobile and desktop) */
+    /* Navigate to hash or default view */
     const hash = location.hash.slice(1);
-    const validViews = EXPERIENCES.map(e => e.id);
-    if (hash && validViews.includes(hash)) {
-        switchView(hash);
+    const matchedExp = EXPERIENCES.find(e => e.route === hash);
+    if (matchedExp) {
+        switchView(matchedExp.id);
     } else {
         switchView('picks');
     }

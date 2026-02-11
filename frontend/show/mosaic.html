@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Mosaic Flyover</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #0a0a0a;
+  --fg: #fff;
+  --muted: rgba(255,255,255,0.45);
+  --dim: rgba(255,255,255,0.25);
+  --faint: rgba(255,255,255,0.08);
+  --glass-bg: rgba(255,255,255,0.06);
+  --glass-border: rgba(255,255,255,0.08);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-smooth: cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-snap-type: y mandatory;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Sections ─────────────────────────────────────── */
+
+.section {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  scroll-snap-align: start;
+  padding: 60px max(24px, env(safe-area-inset-left, 24px));
+}
+
+/* ── Hero ─────────────────────────────────────────── */
+
+.hero {
+  gap: 24px;
+  text-align: center;
+}
+
+.hero-overline {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.hero-title {
+  font-size: clamp(56px, 12vw, 140px);
+  font-weight: 900;
+  letter-spacing: -0.05em;
+  line-height: 0.9;
+  background: linear-gradient(135deg, #ff3c8e, #ffe14d, #3ce8ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero-sub {
+  font-size: clamp(14px, 1.5vw, 18px);
+  font-weight: 300;
+  line-height: 1.6;
+  color: var(--muted);
+  max-width: 520px;
+}
+
+.hero-stats {
+  display: flex;
+  gap: 32px;
+  margin-top: 8px;
+}
+
+.stat {
+  text-align: center;
+}
+
+.stat-value {
+  font-size: clamp(28px, 4vw, 42px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--fg);
+}
+
+.stat-label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-top: 2px;
+}
+
+.scroll-hint {
+  position: absolute;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--dim);
+  font-size: 0.6rem;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  animation: pulse-down 2s var(--ease-smooth) infinite;
+}
+
+.scroll-hint svg {
+  width: 20px;
+  height: 20px;
+  opacity: 0.4;
+}
+
+@keyframes pulse-down {
+  0%, 100% { opacity: 0.4; transform: translateX(-50%) translateY(0); }
+  50% { opacity: 0.8; transform: translateX(-50%) translateY(6px); }
+}
+
+/* ── Video Sections ───────────────────────────────── */
+
+.video-section {
+  gap: 0;
+  padding-top: 40px;
+  padding-bottom: 40px;
+}
+
+.video-wrapper {
+  position: relative;
+  width: min(90vw, 1200px);
+  aspect-ratio: 16 / 9;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #111;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.06),
+    0 20px 60px rgba(0,0,0,0.6),
+    0 0 120px rgba(0,0,0,0.3);
+}
+
+.video-wrapper video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* play button overlay */
+.play-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.3);
+  cursor: pointer;
+  transition: opacity 0.4s var(--ease-out);
+  z-index: 2;
+}
+
+.play-overlay.hidden { opacity: 0; pointer-events: none; }
+
+.play-btn {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.12);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s var(--ease-out), background 0.3s;
+}
+
+.play-btn:hover {
+  transform: scale(1.1);
+  background: rgba(255,255,255,0.2);
+}
+
+.play-btn svg {
+  width: 28px;
+  height: 28px;
+  fill: #fff;
+  margin-left: 4px;
+}
+
+/* vignette on video */
+.video-wrapper::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 16px;
+  box-shadow: inset 0 0 80px rgba(0,0,0,0.15);
+}
+
+.video-meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  width: min(90vw, 1200px);
+  margin-top: 24px;
+  gap: 24px;
+}
+
+.video-info {
+  flex: 1;
+}
+
+.style-overline {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-bottom: 6px;
+}
+
+.style-name {
+  font-size: clamp(28px, 5vw, 48px);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  margin-bottom: 10px;
+}
+
+.style-desc {
+  font-size: clamp(13px, 1.3vw, 16px);
+  font-weight: 300;
+  line-height: 1.6;
+  color: var(--muted);
+  max-width: 480px;
+}
+
+.video-badges {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.badge {
+  padding: 6px 14px;
+  border-radius: 100px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* ── Reveal Animation ─────────────────────────────── */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(40px);
+  transition:
+    opacity 0.8s var(--ease-out),
+    transform 0.8s var(--ease-out);
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.reveal-delay-1 { transition-delay: 0.1s; }
+.reveal-delay-2 { transition-delay: 0.2s; }
+.reveal-delay-3 { transition-delay: 0.35s; }
+
+/* ── Nav Dots ─────────────────────────────────────── */
+
+.nav-dots {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right, 16px));
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 100;
+}
+
+.nav-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.3s var(--ease-out), background 0.3s;
+}
+
+.nav-dot:hover { background: rgba(255,255,255,0.4); }
+
+.nav-dot.active {
+  background: #fff;
+  transform: scale(1.4);
+}
+
+/* ── Back Button ──────────────────────────────────── */
+
+.back-pill {
+  position: fixed;
+  top: max(14px, env(safe-area-inset-top, 14px));
+  left: max(14px, env(safe-area-inset-left, 14px));
+  z-index: 100;
+  padding: 8px 16px;
+  border-radius: 14px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.back-pill:hover {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+}
+
+.back-pill svg {
+  width: 14px;
+  height: 14px;
+  opacity: 0.6;
+}
+
+/* ── Progress Bar ─────────────────────────────────── */
+
+.progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: rgba(255,255,255,0.04);
+  z-index: 100;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff3c8e, #ffe14d, #3ce8ff);
+  width: 0%;
+  transition: width 0.1s linear;
+}
+
+/* ── Responsive ───────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .video-meta {
+    flex-direction: column;
+    gap: 16px;
+  }
+  .video-badges {
+    order: -1;
+  }
+  .hero-stats {
+    gap: 20px;
+  }
+  .nav-dots {
+    display: none;
+  }
+  .video-wrapper {
+    border-radius: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; transition: none; }
+  .scroll-hint { animation: none; }
+  html { scroll-snap-type: none; scroll-behavior: auto; }
+}
+</style>
+</head>
+<body>
+
+<!-- Progress -->
+<div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+
+<!-- Back -->
+<a class="back-pill" href="./">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+  MADphotos
+</a>
+
+<!-- Nav Dots -->
+<nav class="nav-dots" id="navDots">
+  <button class="nav-dot active" data-idx="0" aria-label="Intro"></button>
+  <button class="nav-dot" data-idx="1" aria-label="Breathing"></button>
+  <button class="nav-dot" data-idx="2" aria-label="Drift"></button>
+  <button class="nav-dot" data-idx="3" aria-label="Dives"></button>
+</nav>
+
+<!-- ── Hero ──────────────────────────────────────── -->
+<section class="section hero" id="s0">
+  <div class="hero-overline reveal">MADphotos</div>
+  <h1 class="hero-title reveal reveal-delay-1">Mosaic<br>Flyover</h1>
+  <p class="hero-sub reveal reveal-delay-2">
+    846 curated photos projected to 2D by visual similarity.
+    A drone-like camera glides above the constellation, revealing
+    clusters of mood, color, and composition.
+  </p>
+  <div class="hero-stats reveal reveal-delay-3">
+    <div class="stat">
+      <div class="stat-value">846</div>
+      <div class="stat-label">Photos</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">3</div>
+      <div class="stat-label">Styles</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">60</div>
+      <div class="stat-label">FPS</div>
+    </div>
+  </div>
+  <div class="scroll-hint">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+  </div>
+</section>
+
+<!-- ── Breathing ─────────────────────────────────── -->
+<section class="section video-section" id="s1">
+  <div class="video-wrapper reveal">
+    <video id="v1" loop playsinline muted preload="metadata" poster="">
+      <source src="data/mosaic_breathing_30s.mp4" type="video/mp4">
+    </video>
+    <div class="play-overlay" data-video="v1">
+      <div class="play-btn">
+        <svg viewBox="0 0 24 24"><polygon points="8,5 19,12 8,19"/></svg>
+      </div>
+    </div>
+  </div>
+  <div class="video-meta reveal reveal-delay-1">
+    <div class="video-info">
+      <div class="style-overline">Style I</div>
+      <h2 class="style-name">Breathing</h2>
+      <p class="style-desc">
+        Wide constellation slowly contracts into intimate clusters.
+        A meditative zoom into a single photograph, then a final
+        exhale back to the full mosaic. Cinematic and contemplative.
+      </p>
+    </div>
+    <div class="video-badges">
+      <span class="badge">30s</span>
+      <span class="badge">1080p</span>
+      <span class="badge">Meditative</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── Drift ──────────────────────────────────────── -->
+<section class="section video-section" id="s2">
+  <div class="video-wrapper reveal">
+    <video id="v2" loop playsinline muted preload="metadata" poster="">
+      <source src="data/mosaic_drift_30s.mp4" type="video/mp4">
+    </video>
+    <div class="play-overlay" data-video="v2">
+      <div class="play-btn">
+        <svg viewBox="0 0 24 24"><polygon points="8,5 19,12 8,19"/></svg>
+      </div>
+    </div>
+  </div>
+  <div class="video-meta reveal reveal-delay-1">
+    <div class="video-info">
+      <div class="style-overline">Style II</div>
+      <h2 class="style-name">Drift</h2>
+      <p class="style-desc">
+        Steady satellite-like observation at medium altitude.
+        Continuous drift following density-based waypoints with
+        gentle zoom pulses. Calm and exploratory.
+      </p>
+    </div>
+    <div class="video-badges">
+      <span class="badge">30s</span>
+      <span class="badge">1080p</span>
+      <span class="badge">Exploratory</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── Dives ──────────────────────────────────────── -->
+<section class="section video-section" id="s3">
+  <div class="video-wrapper reveal">
+    <video id="v3" loop playsinline muted preload="metadata" poster="">
+      <source src="data/mosaic_dives_30s.mp4" type="video/mp4">
+    </video>
+    <div class="play-overlay" data-video="v3">
+      <div class="play-btn">
+        <svg viewBox="0 0 24 24"><polygon points="8,5 19,12 8,19"/></svg>
+      </div>
+    </div>
+  </div>
+  <div class="video-meta reveal reveal-delay-1">
+    <div class="video-info">
+      <div class="style-overline">Style III</div>
+      <h2 class="style-name">Dives</h2>
+      <p class="style-desc">
+        Rapid zoom dives into individual photographs, holding
+        just long enough to take in the detail before pulling
+        back and sliding to the next target. Energetic and punchy.
+      </p>
+    </div>
+    <div class="video-badges">
+      <span class="badge">30s</span>
+      <span class="badge">1080p</span>
+      <span class="badge">Energetic</span>
+    </div>
+  </div>
+</section>
+
+<script>
+(function() {
+  'use strict';
+
+  // ── Scroll progress ──
+  const progressEl = document.getElementById('progress');
+  function updateProgress() {
+    const h = document.documentElement.scrollHeight - window.innerHeight;
+    const pct = h > 0 ? (window.scrollY / h) * 100 : 0;
+    progressEl.style.width = pct + '%';
+  }
+
+  // ── Reveal on scroll ──
+  const reveals = document.querySelectorAll('.reveal');
+  const revealObs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(e) {
+      if (e.isIntersecting) {
+        e.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.15 });
+  reveals.forEach(function(el) { revealObs.observe(el); });
+
+  // ── Section tracking for nav dots ──
+  const sections = document.querySelectorAll('.section');
+  const dots = document.querySelectorAll('.nav-dot');
+
+  const sectionObs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(e) {
+      if (e.isIntersecting) {
+        var idx = Array.from(sections).indexOf(e.target);
+        dots.forEach(function(d, i) {
+          d.classList.toggle('active', i === idx);
+        });
+      }
+    });
+  }, { threshold: 0.5 });
+  sections.forEach(function(s) { sectionObs.observe(s); });
+
+  // Dot click → scroll
+  dots.forEach(function(dot) {
+    dot.addEventListener('click', function() {
+      var idx = parseInt(this.dataset.idx);
+      sections[idx].scrollIntoView({ behavior: 'smooth' });
+    });
+  });
+
+  // ── Video play/pause on visibility ──
+  var videos = document.querySelectorAll('video');
+  var overlays = document.querySelectorAll('.play-overlay');
+
+  // Play overlay click
+  overlays.forEach(function(ov) {
+    ov.addEventListener('click', function() {
+      var vid = document.getElementById(this.dataset.video);
+      vid.play();
+      this.classList.add('hidden');
+    });
+  });
+
+  // Click video to pause/play
+  videos.forEach(function(vid) {
+    vid.addEventListener('click', function() {
+      if (this.paused) {
+        this.play();
+        this.parentElement.querySelector('.play-overlay').classList.add('hidden');
+      } else {
+        this.pause();
+        this.parentElement.querySelector('.play-overlay').classList.remove('hidden');
+      }
+    });
+  });
+
+  // Auto-play when section scrolls into view, pause when out
+  var videoSections = document.querySelectorAll('.video-section');
+  var videoObs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(e) {
+      var vid = e.target.querySelector('video');
+      var ov = e.target.querySelector('.play-overlay');
+      if (e.isIntersecting && e.intersectionRatio > 0.6) {
+        vid.play();
+        ov.classList.add('hidden');
+      } else if (!e.isIntersecting) {
+        vid.pause();
+      }
+    });
+  }, { threshold: [0, 0.6] });
+  videoSections.forEach(function(s) { videoObs.observe(s); });
+
+  // Pause when tab hidden
+  document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+      videos.forEach(function(v) { v.pause(); });
+    }
+  });
+
+  // ── Scroll listener ──
+  var ticking = false;
+  window.addEventListener('scroll', function() {
+    if (!ticking) {
+      requestAnimationFrame(function() {
+        updateProgress();
+        ticking = false;
+      });
+      ticking = true;
+    }
+  }, { passive: true });
+
+  updateProgress();
+})();
+</script>
+</body>
+</html>

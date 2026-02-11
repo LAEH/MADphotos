@@ -235,6 +235,7 @@ function renderNyuGrid(vp) {
             const photo = nyuPhotos[i];
             const cell = document.createElement('div');
             cell.className = 'nyu-grid-cell';
+            if (photo.palette && photo.palette[0]) cell.style.backgroundColor = photo.palette[0] + '33';
 
             const img = createLazyImg(photo, 'display');
             cell.appendChild(img);
@@ -311,6 +312,7 @@ function updateNyuDeckCards() {
         const card = document.createElement('div');
         card.className = 'nyu-card';
         card.style.setProperty('--card-index', i);
+        if (photo.palette && photo.palette[0]) card.style.backgroundColor = photo.palette[0] + '33';
 
         const img = document.createElement('img');
         loadProgressive(img, photo, 'display');
@@ -482,6 +484,7 @@ function renderNyuOverview(vp) {
         const photo = nyuPhotos[i];
         const cell = document.createElement('div');
         cell.className = 'nyu-mosaic-cell';
+        if (photo.palette && photo.palette[0]) cell.style.backgroundColor = photo.palette[0] + '33';
 
         const img = document.createElement('img');
         loadProgressive(img, photo, 'thumb');
