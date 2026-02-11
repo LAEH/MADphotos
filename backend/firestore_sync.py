@@ -11,6 +11,7 @@ Collections synced:
   - couple-approves → firestore_couple_approves (photo, ts)
   - couple-rejects  → firestore_couple_rejects (photo, ts)
   - picks-votes     → firestore_picks_votes (photo, vote, device, ts)
+  - isit-votes      → firestore_isit_votes (photo, vote, device, ts)
 
 Usage:
   python3 backend/firestore_sync.py          # sync all collections
@@ -113,6 +114,23 @@ COLLECTIONS = [
             );
             CREATE INDEX IF NOT EXISTS idx_fpv_photo ON firestore_picks_votes(photo);
             CREATE INDEX IF NOT EXISTS idx_fpv_vote ON firestore_picks_votes(vote);
+        """,
+        "fields": ["photo", "vote", "device", "ts"],
+    },
+    {
+        "name": "isit-votes",
+        "table": "firestore_isit_votes",
+        "schema": """
+            CREATE TABLE IF NOT EXISTS firestore_isit_votes (
+                doc_id    TEXT PRIMARY KEY,
+                photo     TEXT NOT NULL,
+                vote      TEXT NOT NULL,
+                device    TEXT,
+                ts        TEXT,
+                synced_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_fiv_photo ON firestore_isit_votes(photo);
+            CREATE INDEX IF NOT EXISTS idx_fiv_vote ON firestore_isit_votes(vote);
         """,
         "fields": ["photo", "vote", "device", "ts"],
     },

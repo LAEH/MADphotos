@@ -2,24 +2,24 @@
    Caches static assets (JS, CSS, HTML) for offline use.
    Images use a 3-tier runtime cache with LRU eviction. */
 
-const CACHE_NAME = 'madphotos-v39';
+const CACHE_NAME = 'madphotos-v40';
 const STATIC_ASSETS = [
     '/',
     '/index.html',
-    '/style.css?v=72',
-    '/app.js?v=72',
-    '/theme.js?v=72',
-    '/colors.js?v=72',
-    '/bento.js?v=72',
-    '/game.js?v=72',
-    '/faces.js?v=72',
-    '/compass.js?v=72',
-    '/nyu.js?v=72',
-    '/confetti.js?v=72',
-    '/caption.js?v=72',
-    '/tinder.js?v=72',
-    '/picks.js?v=72',
-    '/isit.js?v=72',
+    '/style.css?v=73',
+    '/app.js?v=73',
+    '/theme.js?v=73',
+    '/colors.js?v=73',
+    '/bento.js?v=73',
+    '/game.js?v=73',
+    '/faces.js?v=73',
+    '/compass.js?v=73',
+    '/nyu.js?v=73',
+    '/confetti.js?v=73',
+    '/caption.js?v=73',
+    '/tinder.js?v=73',
+    '/picks.js?v=73',
+    '/isit.js?v=73',
 ];
 
 /* 3-tier image caches */

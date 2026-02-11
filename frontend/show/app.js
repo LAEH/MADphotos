@@ -159,15 +159,19 @@ function buildSideMenu() {
         list.appendChild(li);
     }
 
-    /* State dashboard — distinct link at the bottom */
-    const stateLi = document.createElement('li');
-    stateLi.className = 'side-menu-item side-menu-state';
-    stateLi.textContent = 'System';
-    stateLi.addEventListener('click', () => {
-        window.open('/system/', '_blank');
-        closeSideMenu();
-    });
-    list.appendChild(stateLi);
+    /* System button — in the footer, above Theme */
+    const footer = document.querySelector('.side-menu-footer');
+    if (footer) {
+        const sysBtn = document.createElement('button');
+        sysBtn.className = 'side-menu-action';
+        sysBtn.setAttribute('aria-label', 'System');
+        sysBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3"/><path d="M13.4 10a1.2 1.2 0 0 0 .2 1.3l.1.1a1.5 1.5 0 1 1-2.1 2.1l-.1-.1a1.2 1.2 0 0 0-1.3-.2 1.2 1.2 0 0 0-.7 1.1v.2a1.5 1.5 0 0 1-3 0v-.1a1.2 1.2 0 0 0-.8-1.1 1.2 1.2 0 0 0-1.3.2l-.1.1a1.5 1.5 0 1 1-2.1-2.1l.1-.1a1.2 1.2 0 0 0 .2-1.3 1.2 1.2 0 0 0-1.1-.7h-.2a1.5 1.5 0 0 1 0-3h.1a1.2 1.2 0 0 0 1.1-.8 1.2 1.2 0 0 0-.2-1.3l-.1-.1a1.5 1.5 0 1 1 2.1-2.1l.1.1a1.2 1.2 0 0 0 1.3.2h.1a1.2 1.2 0 0 0 .7-1.1v-.2a1.5 1.5 0 0 1 3 0v.1a1.2 1.2 0 0 0 .7 1.1 1.2 1.2 0 0 0 1.3-.2l.1-.1a1.5 1.5 0 1 1 2.1 2.1l-.1.1a1.2 1.2 0 0 0-.2 1.3v.1a1.2 1.2 0 0 0 1.1.7h.2a1.5 1.5 0 0 1 0 3h-.1a1.2 1.2 0 0 0-1.1.7z"/></svg><span>System</span>';
+        sysBtn.addEventListener('click', () => {
+            window.open('/system/', '_blank');
+            closeSideMenu();
+        });
+        footer.insertBefore(sysBtn, footer.firstChild);
+    }
 }
 
 function toggleSideMenu() {
@@ -179,10 +183,15 @@ function toggleSideMenu() {
     backdrop.classList.toggle('open', open);
     menuBtn.classList.toggle('menu-open', open);
     floatingNav.classList.toggle('menu-expanded', open);
+    /* Sync menu width to nav width so they visually connect */
+    if (open) menu.style.width = floatingNav.offsetWidth + 'px';
+    else menu.style.width = '';
 }
 
 function closeSideMenu() {
-    document.getElementById('side-menu').classList.remove('open');
+    const menu = document.getElementById('side-menu');
+    menu.classList.remove('open');
+    menu.style.width = '';
     document.getElementById('side-menu-backdrop').classList.remove('open');
     document.getElementById('menu-btn').classList.remove('menu-open');
     document.getElementById('floating-nav').classList.remove('menu-expanded');

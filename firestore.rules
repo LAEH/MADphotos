@@ -27,5 +27,12 @@ service cloud.firestore {
                     && request.resource.data.vote in ['accept', 'reject'];
       allow read, update, delete: if false;
     }
+
+    match /isit-votes/{doc} {
+      allow create: if request.resource.data.keys().hasAll(['photo', 'vote', 'ts'])
+                    && request.resource.data.photo is string
+                    && request.resource.data.vote in ['accept', 'reject'];
+      allow read, update, delete: if false;
+    }
   }
 }
