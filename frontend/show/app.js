@@ -806,7 +806,7 @@ async function init() {
     if (matchedExp) {
         switchView(matchedExp.id);
     } else {
-        switchView('picks');
+        switchView('isit');
     }
 }
 
