@@ -1,0 +1,102 @@
+/* ═══════════════════════════════════════════════════════════
+   STICKERS — Self-contained component
+   Drop into any project. No external dependencies.
+   ═══════════════════════════════════════════════════════════ */
+
+:root {
+  /* Colors — Apple HIG SF */
+  --stk-accent: #0a84ff;
+  --stk-green: #30d158;
+  --stk-orange: #ff9f0a;
+  --stk-red: #ff453a;
+  --stk-purple: #bf5af2;
+  --stk-pink: #ff375f;
+  --stk-teal: #40cbe0;
+  --stk-indigo: #5e5ce6;
+
+  /* Shape */
+  --stk-height: 32px;
+  --stk-padding: 0 12px;
+  --stk-gap: 8px;
+  --stk-radius: 6px;
+  --stk-font: 13px;
+  --stk-weight: 600;
+  --stk-icon: 16px;
+}
+
+/* Light overrides */
+@media (prefers-color-scheme: light) {
+  :root {
+    --stk-accent: #007aff;
+    --stk-green: #34c759;
+    --stk-orange: #ff9500;
+    --stk-red: #ff3b30;
+    --stk-purple: #af52de;
+    --stk-pink: #ff2d55;
+    --stk-teal: #30b0c7;
+    --stk-indigo: #5856d6;
+  }
+}
+
+/* ── Base ── */
+.sticker {
+  display: inline-flex;
+  height: var(--stk-height);
+  padding: var(--stk-padding);
+  align-items: center;
+  gap: var(--stk-gap);
+  border-radius: var(--stk-radius);
+  font-size: var(--stk-font);
+  font-weight: var(--stk-weight);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+  white-space: nowrap;
+  line-height: 1;
+  box-sizing: border-box;
+}
+
+/* ── Icon slot ── */
+.sticker-icon {
+  width: var(--stk-icon);
+  height: var(--stk-icon);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sticker-icon svg {
+  width: var(--stk-icon);
+  height: var(--stk-icon);
+  color: currentColor;
+}
+
+/* ── Plain (solid fill) ── */
+.sticker-plain { color: #fff; }
+.sticker-plain.sticker-green  { background: var(--stk-green);  border: 1px solid var(--stk-green); }
+.sticker-plain.sticker-accent { background: var(--stk-accent); border: 1px solid var(--stk-accent); }
+.sticker-plain.sticker-orange { background: var(--stk-orange); border: 1px solid var(--stk-orange); color: #000; }
+.sticker-plain.sticker-red    { background: var(--stk-red);    border: 1px solid var(--stk-red); }
+.sticker-plain.sticker-purple { background: var(--stk-purple); border: 1px solid var(--stk-purple); }
+.sticker-plain.sticker-pink   { background: var(--stk-pink);   border: 1px solid var(--stk-pink); }
+.sticker-plain.sticker-teal   { background: var(--stk-teal);   border: 1px solid var(--stk-teal); color: #000; }
+.sticker-plain.sticker-indigo { background: var(--stk-indigo); border: 1px solid var(--stk-indigo); }
+
+/* ── Outline (border only) ── */
+.sticker-outline { background: transparent; }
+.sticker-outline.sticker-green  { border: 1px solid var(--stk-green);  color: var(--stk-green); }
+.sticker-outline.sticker-accent { border: 1px solid var(--stk-accent); color: var(--stk-accent); }
+.sticker-outline.sticker-orange { border: 1px solid var(--stk-orange); color: var(--stk-orange); }
+.sticker-outline.sticker-red    { border: 1px solid var(--stk-red);    color: var(--stk-red); }
+.sticker-outline.sticker-purple { border: 1px solid var(--stk-purple); color: var(--stk-purple); }
+.sticker-outline.sticker-pink   { border: 1px solid var(--stk-pink);   color: var(--stk-pink); }
+.sticker-outline.sticker-teal   { border: 1px solid var(--stk-teal);   color: var(--stk-teal); }
+.sticker-outline.sticker-indigo { border: 1px solid var(--stk-indigo); color: var(--stk-indigo); }
+
+/* ── Small variant ── */
+.sticker-sm {
+  --stk-height: 24px;
+  --stk-padding: 0 8px;
+  --stk-gap: 5px;
+  --stk-radius: 5px;
+  --stk-font: 11px;
+  --stk-icon: 13px;
+}

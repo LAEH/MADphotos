@@ -21,6 +21,7 @@ const experiments: NavItem[] = [
   { to: '/experiments/gemma', label: 'Gemma' },
   { to: '/experiments/mosaics', label: 'Mosaics' },
   { to: '/experiments/cartoon', label: 'Cartoon' },
+  { to: '/experiments/gemma-cartoon', label: 'Gemma Cartoon' },
   { to: '/experiments/blind-test', label: 'Blind Test' },
 ]
 
@@ -80,9 +81,6 @@ export function Sidebar() {
       </button>
 
       <div className="sb-content">
-        <a href="/" className="sb-show-link">
-          Show
-        </a>
         {navItems.map(renderLink)}
 
         <div className="sb-sep" />

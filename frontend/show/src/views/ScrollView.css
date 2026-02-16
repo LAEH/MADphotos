@@ -1,0 +1,375 @@
+/* ScrollView — Themed vertical/horizontal snap-scroll gallery */
+
+.scroll-wrap {
+  --card-w: 80vw;
+  position: fixed;
+  inset: 0;
+  background: transparent;
+  overflow: hidden;
+  z-index: 50;
+}
+
+/* ── Vertical scroll container ── */
+.scroll-rows {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-snap-type: y mandatory;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.scroll-rows::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Single row — full viewport height ── */
+.scroll-row {
+  position: relative;
+  width: 100%;
+  height: 100dvh;
+  scroll-snap-align: start;
+  overflow: hidden;
+}
+
+/* ── Alternating base colors ── */
+.scroll-row-light {
+  color: #000000;
+}
+.scroll-row-dark {
+  color: #ffffff;
+}
+
+/* ── Background layer (gradient set inline) ── */
+.scroll-row-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Color rows — rich saturated atmosphere ── */
+/* Allow shadow to paint outside the card on color rows */
+.scroll-row-color .scroll-slide {
+  overflow: visible;
+}
+
+/* ── First row — push content down from top edge ── */
+.scroll-row-first .scroll-slides {
+  padding-top: max(48px, env(safe-area-inset-top, 0px));
+}
+@media (max-width: 768px) {
+  .scroll-row-first .scroll-slides {
+    padding-top: max(32px, env(safe-area-inset-top, 0px));
+  }
+}
+
+/* ── Horizontal slides container ── */
+.scroll-slides {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  gap: 24px;
+  padding-inline: calc((100vw - var(--card-w)) / 2);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  z-index: 1;
+  scrollbar-width: none;
+}
+.scroll-slides::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Single slide card — center-snapped with dimmed neighbors ── */
+.scroll-slide {
+  flex: 0 0 var(--card-w);
+  width: var(--card-w);
+  height: 100%;
+  scroll-snap-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Dim non-active slides — only the image content, not the row background */
+.scroll-slide .scroll-slide-content {
+  opacity: 0.3;
+  transition: opacity 0.35s ease;
+}
+.scroll-slide-active .scroll-slide-content {
+  opacity: 1;
+}
+
+/* ── Slide content wrapper (image + info below) ── */
+.scroll-slide-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* ── Image wrap — ISIT-style hero sizing ── */
+.scroll-image-wrap {
+  position: relative;
+  width: calc(67dvh * 1.5);
+  max-width: 100%;
+  aspect-ratio: 3 / 2;
+  border-radius: var(--isit-radius);
+  overflow: hidden;
+  background: #1a1a1a;
+}
+.scroll-row-dark .scroll-image-wrap {
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.25),
+    0 8px 24px rgba(0, 0, 0, 0.2);
+}
+.scroll-row-light .scroll-image-wrap {
+  background: #f0f0f0;
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.06),
+    0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.scroll-image-wrap img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Portrait orientation — portrait aspect ratio */
+@media (orientation: portrait) {
+  .scroll-image-wrap {
+    width: calc(67dvh * 2 / 3);
+    max-width: 100%;
+    aspect-ratio: 2 / 3;
+  }
+}
+
+
+/* Bottom peek removed — snap scroll + chevron hint are sufficient */
+
+/* ── Chevron hint at bottom ── */
+.scroll-hint-down {
+  position: absolute;
+  bottom: max(10px, env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  pointer-events: none;
+  animation: scroll-hint-bounce 2s ease-in-out infinite;
+}
+.scroll-hint-down svg {
+  width: 20px;
+  height: 20px;
+}
+.scroll-row-light .scroll-hint-down {
+  color: rgba(0, 0, 0, 0.2);
+}
+.scroll-row-dark .scroll-hint-down {
+  color: rgba(255, 255, 255, 0.25);
+}
+@keyframes scroll-hint-bounce {
+  0%, 100% { transform: translateX(-50%) translateY(0); opacity: 0.6; }
+  50% { transform: translateX(-50%) translateY(5px); opacity: 1; }
+}
+
+/* ── Photo info: caption + label pills ── */
+.scroll-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: calc(67dvh * 1.5);
+  max-width: 100%;
+  padding: 0;
+}
+@media (orientation: portrait) {
+  .scroll-info {
+    width: calc(67dvh * 2 / 3);
+  }
+}
+
+.scroll-caption {
+  font: 400 13px/1.45 -apple-system, BlinkMacSystemFont, var(--font);
+  text-align: center;
+  -webkit-font-smoothing: antialiased;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.scroll-row-light .scroll-caption {
+  color: rgba(0, 0, 0, 0.55);
+}
+.scroll-row-dark .scroll-caption {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Old .scroll-labels moved to predicted labels section below */
+
+/* ── Camera label — same shape, warmer tint ── */
+.scroll-camera {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 11px;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  -webkit-font-smoothing: antialiased;
+  white-space: nowrap;
+}
+.scroll-row-light .scroll-camera {
+  color: rgba(120, 80, 20, 0.65);
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    linear-gradient(135deg, rgba(180,130,50,0.3), rgba(180,130,50,0.1)) border-box;
+}
+.scroll-row-dark .scroll-camera {
+  color: rgba(230, 190, 120, 0.75);
+  background:
+    linear-gradient(#000, #000) padding-box,
+    linear-gradient(135deg, rgba(230,190,120,0.35), rgba(230,190,120,0.1)) border-box;
+}
+.scroll-row-color .scroll-camera {
+  color: rgba(255, 220, 150, 0.8);
+  background:
+    linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)) padding-box,
+    linear-gradient(135deg, rgba(255,220,150,0.35), rgba(255,220,150,0.12)) border-box;
+}
+
+/* ── Predicted labels — gradient border ── */
+.scroll-labels {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: calc(67dvh * 1.5);
+}
+@media (orientation: portrait) {
+  .scroll-labels {
+    max-width: calc(67dvh * 2 / 3);
+  }
+}
+
+.scroll-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 11px;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  -webkit-font-smoothing: antialiased;
+  white-space: nowrap;
+}
+
+/* Gradient border via background-clip trick */
+.scroll-row-light .scroll-label {
+  color: rgba(0, 0, 0, 0.55);
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    linear-gradient(135deg, rgba(0,0,0,0.18), rgba(0,0,0,0.06)) border-box;
+}
+.scroll-row-dark .scroll-label {
+  color: rgba(255, 255, 255, 0.65);
+  background:
+    linear-gradient(#000, #000) padding-box,
+    linear-gradient(135deg, rgba(255,255,255,0.28), rgba(255,255,255,0.08)) border-box;
+}
+.scroll-row-color .scroll-label {
+  color: rgba(255, 255, 255, 0.7);
+  background:
+    linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)) padding-box,
+    linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.1)) border-box;
+}
+
+/* ── Vertical dot indicators (right edge) ── */
+.scroll-dots-v {
+  position: fixed;
+  right: max(12px, env(safe-area-inset-right, 0px));
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.scroll-dot-v {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  transition: opacity 0.3s ease, transform 0.3s ease, background 0.3s ease;
+}
+.scroll-dot-v.active {
+  transform: scale(1.4);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* ── Horizontal dot indicators (bottom of row) ── */
+.scroll-dots-h {
+  position: absolute;
+  bottom: max(24px, env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  gap: 6px;
+  pointer-events: none;
+}
+.scroll-dot-h {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  transition: opacity 0.3s ease, transform 0.3s ease, background 0.3s ease;
+}
+.scroll-row-dark .scroll-dot-h {
+  background: rgba(255, 255, 255, 0.3);
+}
+.scroll-row-dark .scroll-dot-h.active {
+  transform: scale(1.3);
+  background: rgba(255, 255, 255, 0.85);
+}
+.scroll-row-light .scroll-dot-h {
+  background: rgba(0, 0, 0, 0.2);
+}
+.scroll-row-light .scroll-dot-h.active {
+  transform: scale(1.3);
+  background: rgba(0, 0, 0, 0.7);
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .scroll-rows {
+    scroll-snap-type: none;
+  }
+  .scroll-slides {
+    scroll-snap-type: none;
+  }
+  .scroll-dot-v,
+  .scroll-dot-h {
+    transition: none !important;
+  }
+  .scroll-hint-down {
+    animation: none !important;
+    opacity: 0.6;
+  }
+}

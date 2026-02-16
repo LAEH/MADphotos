@@ -35,11 +35,11 @@ PICKS_JSON = PROJECT_ROOT / "frontend" / "show" / "data" / "picks.json"
 OUTPUT_JSON = PROJECT_ROOT / "frontend" / "show" / "data" / "gemma_picks.json"
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL = "gemma3:4b"
+MODEL = "madphotos-critic"
 FLUSH_SIZE = 25
 
 PROMPT = (
-    "You are an expert photography critic. Analyze this photograph in detail. "
+    "You are an expert photography critic and creative storyteller. Analyze this photograph in detail. "
     "Respond ONLY with valid JSON, no markdown, no backticks:\n"
     '{"description":"2-3 sentence vivid description of what this photograph shows",'
     '"subject":"primary subject(s) of the photograph",'
@@ -52,7 +52,26 @@ PROMPT = (
     '"technical":"assessment of exposure, focus, depth of field, sharpness",'
     '"strength":"what makes this a strong photograph",'
     '"tags":["up to 15 descriptive tags"],'
-    '"print_worthy":true or false}'
+    '"print_worthy":true or false,'
+    '"crop_square":{"x":0-100,"y":0-100,"size":0-100,"reason":"why this crop"},'
+    '"crops":{'
+    '"1:1":{"center_x":0-100,"center_y":0-100,"coverage":30-90,"reason":"best square crop"},'
+    '"2:3":{"center_x":0-100,"center_y":0-100,"coverage":30-90,"reason":"best tall portrait crop (2:3 ratio)"},'
+    '"3:2":{"center_x":0-100,"center_y":0-100,"coverage":30-90,"reason":"best wide landscape crop (3:2 ratio)"},'
+    '"16:9":{"center_x":0-100,"center_y":0-100,"coverage":30-90,"reason":"best cinematic wide crop (16:9 ratio)"}},'
+    '"stories":{'
+    '"silly":"fun, childish, playful 1-sentence story about this image",'
+    '"poetic":"lyrical, beautiful 1-sentence poetic interpretation",'
+    '"surrealist":"dreamlike, absurd 1-sentence surrealist narrative",'
+    '"noir":"mysterious, dramatic 1-sentence noir-style description",'
+    '"romantic":"tender, emotional 1-sentence romantic interpretation"},'
+    '"cartoon_style":"what cartoon/illustration transformation would work best (e.g., Studio Ghibli, Pixar, watercolor, comic book, anime, vintage cartoon) and why"}'
+    '\n\nFor crops: identify the optimal framing for each aspect ratio. '
+    'Use center_x, center_y (0-100, center of crop region) and coverage (30-90, how much of image to include). '
+    'Higher coverage = more context, lower coverage = tighter crop on main subject. '
+    'Choose the center point and coverage that best showcases the subject for that specific aspect ratio. '
+    'For stories: write SHORT, punchy 1-sentence narratives in each style. '
+    'For cartoon_style: suggest the most fitting artistic transformation for this specific image.'
 )
 
 
@@ -65,6 +84,17 @@ def init_table(conn: sqlite3.Connection) -> None:
             gemma_mood       TEXT,
             gemma_tags       TEXT,
             print_worthy     INTEGER,
+            crop_x           REAL,
+            crop_y           REAL,
+            crop_size        REAL,
+            crop_reason      TEXT,
+            crops            TEXT,
+            story_silly      TEXT,
+            story_poetic     TEXT,
+            story_surrealist TEXT,
+            story_noir       TEXT,
+            story_romantic   TEXT,
+            cartoon_style    TEXT,
             processed_at     TEXT NOT NULL
         );
     """)
@@ -110,8 +140,9 @@ def query_gemma(img_path: str) -> dict | None:
         "model": MODEL,
         "prompt": PROMPT,
         "images": [img_b64],
+        "format": "json",
         "stream": False,
-        "options": {"temperature": 0.2, "num_predict": 800},
+        "options": {"temperature": 0.3, "num_predict": 1500},
     }).encode()
 
     req = urllib.request.Request(
@@ -122,14 +153,7 @@ def query_gemma(img_path: str) -> dict | None:
     result = json.loads(resp.read())
     text = result.get("response", "")
 
-    # Strip markdown code fences if present
     text = text.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[-1]
-    if text.endswith("```"):
-        text = text.rsplit("```", 1)[0]
-    text = text.strip()
-
     try:
         return json.loads(text)
     except json.JSONDecodeError:
@@ -172,15 +196,51 @@ def flush_batch(conn: sqlite3.Connection, batch: list[dict]) -> None:
             parsed.get("description", parsed.get("raw", "")))
         mood = _to_str(parsed.get("mood", ""))
 
+        # Extract crop square information (backward compat)
+        crop = parsed.get("crop_square", {})
+        crop_x = crop.get("x") if isinstance(crop, dict) else None
+        crop_y = crop.get("y") if isinstance(crop, dict) else None
+        crop_size = crop.get("size") if isinstance(crop, dict) else None
+        crop_reason = _to_str(crop.get("reason", "")) if isinstance(crop, dict) else ""
+
+        # Extract multi-ratio crops (scalable JSON storage)
+        crops = parsed.get("crops", {})
+        crops_json = json.dumps(crops, ensure_ascii=False) if isinstance(crops, dict) else None
+
+        # Extract story variations
+        stories = parsed.get("stories", {})
+        story_silly = _to_str(stories.get("silly", "")) if isinstance(stories, dict) else ""
+        story_poetic = _to_str(stories.get("poetic", "")) if isinstance(stories, dict) else ""
+        story_surrealist = _to_str(stories.get("surrealist", "")) if isinstance(stories, dict) else ""
+        story_noir = _to_str(stories.get("noir", "")) if isinstance(stories, dict) else ""
+        story_romantic = _to_str(stories.get("romantic", "")) if isinstance(stories, dict) else ""
+
+        # Extract cartoon style suggestion
+        cartoon_style = _to_str(parsed.get("cartoon_style", ""))
+
         conn.execute("""
-            INSERT INTO gemma_picks (uuid, gemma_json, gemma_description, gemma_mood, gemma_tags, print_worthy, processed_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO gemma_picks (uuid, gemma_json, gemma_description, gemma_mood, gemma_tags, print_worthy,
+                                    crop_x, crop_y, crop_size, crop_reason, crops,
+                                    story_silly, story_poetic, story_surrealist, story_noir, story_romantic,
+                                    cartoon_style, processed_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(uuid) DO UPDATE SET
                 gemma_json = excluded.gemma_json,
                 gemma_description = excluded.gemma_description,
                 gemma_mood = excluded.gemma_mood,
                 gemma_tags = excluded.gemma_tags,
                 print_worthy = excluded.print_worthy,
+                crop_x = excluded.crop_x,
+                crop_y = excluded.crop_y,
+                crop_size = excluded.crop_size,
+                crop_reason = excluded.crop_reason,
+                crops = excluded.crops,
+                story_silly = excluded.story_silly,
+                story_poetic = excluded.story_poetic,
+                story_surrealist = excluded.story_surrealist,
+                story_noir = excluded.story_noir,
+                story_romantic = excluded.story_romantic,
+                cartoon_style = excluded.cartoon_style,
                 processed_at = excluded.processed_at
         """, (
             row["uuid"],
@@ -189,6 +249,17 @@ def flush_batch(conn: sqlite3.Connection, batch: list[dict]) -> None:
             mood,
             tags_str,
             print_worthy,
+            crop_x,
+            crop_y,
+            crop_size,
+            crop_reason,
+            crops_json,
+            story_silly,
+            story_poetic,
+            story_surrealist,
+            story_noir,
+            story_romantic,
+            cartoon_style,
             now,
         ))
     conn.commit()
@@ -226,6 +297,7 @@ def main():
     parser.add_argument("--limit", type=int, help="Max images to process")
     parser.add_argument("--rerun", action="store_true", help="Reprocess all (overwrite existing)")
     parser.add_argument("--workers", type=int, default=1, help="Parallel workers (default 1)")
+    parser.add_argument("--uuids-file", type=str, help="File with UUIDs to process (one per line)")
     args = parser.parse_args()
 
     conn = sqlite3.connect(str(DB_PATH))
@@ -233,12 +305,20 @@ def main():
     init_table(conn)
 
     # Load picks and resolve paths
-    all_uuids = load_pick_uuids()
+    if args.uuids_file:
+        # Load specific UUIDs from file
+        with open(args.uuids_file, 'r') as f:
+            all_uuids = [line.strip() for line in f if line.strip()]
+        print(f"Loaded {len(all_uuids)} UUIDs from {args.uuids_file}")
+    else:
+        all_uuids = load_pick_uuids()
+
     paths = get_mobile_paths(conn, all_uuids)
     print(f"Picks: {len(all_uuids)} UUIDs, {len(paths)} have mobile JPEGs")
 
     # Filter to pending
-    if args.rerun:
+    if args.rerun or args.uuids_file:
+        # Force reprocess when using uuids-file
         pending_uuids = [u for u in all_uuids if u in paths]
     else:
         already = get_processed(conn)

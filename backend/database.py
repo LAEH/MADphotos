@@ -673,6 +673,28 @@ def get_ungenerated_variants(conn: sqlite3.Connection,
     return [dict(r) for r in rows]
 
 
+def get_ungenerated_gemma_cartoons(conn: sqlite3.Connection,
+                                    limit: Optional[int] = None) -> List[Dict]:
+    """Return images with a Gemma cartoon_style suggestion that lack a gemma_cartoon variant."""
+    sql = """
+        SELECT i.uuid, i.category, i.subcategory, gp.cartoon_style
+        FROM images i
+        JOIN gemma_picks gp ON i.uuid = gp.uuid
+        WHERE gp.cartoon_style IS NOT NULL AND gp.cartoon_style != ''
+          AND NOT EXISTS (
+              SELECT 1 FROM ai_variants v
+              WHERE v.image_uuid = i.uuid
+                AND v.variant_type = 'gemma_cartoon'
+                AND v.generation_status IN ('success', 'filtered')
+          )
+        ORDER BY i.uuid
+    """
+    if limit:
+        sql += f" LIMIT {limit}"
+    rows = conn.execute(sql).fetchall()
+    return [dict(r) for r in rows]
+
+
 # ---------------------------------------------------------------------------
 # Helpers — Gemini analysis
 # ---------------------------------------------------------------------------

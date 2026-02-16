@@ -118,6 +118,17 @@ VARIANT_CONFIGS = {
         "edit_mode": "EDIT_MODE_STYLE",
         "guidance_scale": 70,
     },
+    "gemma_cartoon": {
+        "prompt_template": (
+            "Transform this photograph into a {cartoon_style} illustration. "
+            "Maintain the original composition and recognizable subjects. "
+            "Make the result feel like high-quality animated concept art "
+            "in the {cartoon_style} style."
+        ),
+        "negative_prompt": "photorealistic, dull colors, blurry, low quality",
+        "edit_mode": "EDIT_MODE_STYLE",
+        "guidance_scale": 75,
+    },
 }
 
 ALL_VARIANT_TYPES = list(VARIANT_CONFIGS.keys())
@@ -158,10 +169,12 @@ async def generate_single_variant(
     semaphore: asyncio.Semaphore,
     conn,
     max_retries: int = MAX_RETRIES,
+    prompt_override: Optional[str] = None,
 ) -> bool:
     """Generate one AI variant for one image. Retries with exponential backoff."""
     variant_id = generate_variant_id(image_uuid, variant_type)
     config = VARIANT_CONFIGS[variant_type]
+    prompt = prompt_override or config.get("prompt", "")
     short_id = variant_id[:8]
 
     # Check if already done
@@ -201,7 +214,7 @@ async def generate_single_variant(
                 # Call Imagen
                 response = await client.aio.models.edit_image(
                     model=IMAGEN_MODEL,
-                    prompt=config["prompt"],
+                    prompt=prompt,
                     reference_images=[raw_ref],
                     config=edit_config,
                 )
@@ -216,7 +229,7 @@ async def generate_single_variant(
                     db.upsert_variant(
                         conn, variant_id=variant_id, image_uuid=image_uuid,
                         variant_type=variant_type, model=IMAGEN_MODEL,
-                        prompt=config["prompt"], negative_prompt=config.get("negative_prompt"),
+                        prompt=prompt, negative_prompt=config.get("negative_prompt"),
                         edit_mode=config["edit_mode"],
                         guidance_scale=config.get("guidance_scale"),
                         source_tier="display", generation_status="filtered",
@@ -241,7 +254,7 @@ async def generate_single_variant(
                 db.upsert_variant(
                     conn, variant_id=variant_id, image_uuid=image_uuid,
                     variant_type=variant_type, model=IMAGEN_MODEL,
-                    prompt=config["prompt"], negative_prompt=config.get("negative_prompt"),
+                    prompt=prompt, negative_prompt=config.get("negative_prompt"),
                     edit_mode=config["edit_mode"],
                     guidance_scale=config.get("guidance_scale"),
                     source_tier="display", generation_status="success",
@@ -266,7 +279,7 @@ async def generate_single_variant(
                     db.upsert_variant(
                         conn, variant_id=variant_id, image_uuid=image_uuid,
                         variant_type=variant_type, model=IMAGEN_MODEL,
-                        prompt=config["prompt"], negative_prompt=config.get("negative_prompt"),
+                        prompt=prompt, negative_prompt=config.get("negative_prompt"),
                         edit_mode=config["edit_mode"],
                         guidance_scale=config.get("guidance_scale"),
                         source_tier="display", generation_status="failed",
@@ -302,10 +315,15 @@ async def process_batch(
             continue
 
         for vtype in variant_types:
+            prompt_override = None
+            if vtype == "gemma_cartoon" and img.get("cartoon_style"):
+                template = VARIANT_CONFIGS["gemma_cartoon"]["prompt_template"]
+                prompt_override = template.format(cartoon_style=img["cartoon_style"])
             tasks.append(generate_single_variant(
                 client, img["uuid"], source_path, vtype,
                 img["category"], img["subcategory"],
                 semaphore, conn, max_retries,
+                prompt_override=prompt_override,
             ))
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -333,15 +351,21 @@ async def run(args: argparse.Namespace) -> None:
             sys.exit(1)
         variant_types = [args.variant]
     else:
-        variant_types = ALL_VARIANT_TYPES
+        # Exclude gemma_cartoon from "all" — it requires special handling
+        variant_types = [v for v in ALL_VARIANT_TYPES if v != "gemma_cartoon"]
 
     # Collect images that need processing
     all_images = []
-    for vtype in variant_types:
-        needed = db.get_ungenerated_variants(conn, vtype, kept_only=args.kept_only)
-        for img in needed:
-            if img not in all_images:
-                all_images.append(img)
+    if "gemma_cartoon" in variant_types:
+        # gemma_cartoon uses its own candidate query (needs cartoon_style from gemma_picks)
+        variant_types = ["gemma_cartoon"]
+        all_images = db.get_ungenerated_gemma_cartoons(conn)
+    else:
+        for vtype in variant_types:
+            needed = db.get_ungenerated_variants(conn, vtype, kept_only=args.kept_only)
+            for img in needed:
+                if img not in all_images:
+                    all_images.append(img)
 
     if args.test:
         all_images = all_images[:args.test]

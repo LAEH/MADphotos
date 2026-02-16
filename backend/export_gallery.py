@@ -419,7 +419,7 @@ def load_borders(conn: Any) -> Dict[str, Dict]:
 def load_gemma(conn: Any) -> Dict[str, Dict]:
     """Gemma analysis keyed by uuid (picks only)."""
     rows = conn.execute("""
-        SELECT uuid, gemma_json, gemma_mood, print_worthy FROM gemma_picks
+        SELECT uuid, gemma_json, gemma_mood, print_worthy, crops FROM gemma_picks
     """).fetchall()
     result = {}
     for r in rows:
@@ -429,6 +429,16 @@ def load_gemma(conn: Any) -> Dict[str, Dict]:
             parsed = {}
         parsed["mood_summary"] = r["gemma_mood"] or ""
         parsed["print_worthy"] = bool(r["print_worthy"]) if r["print_worthy"] is not None else None
+
+        # Add multi-ratio crops
+        if r["crops"]:
+            try:
+                parsed["crops"] = json.loads(r["crops"])
+            except (json.JSONDecodeError, TypeError):
+                parsed["crops"] = None
+        else:
+            parsed["crops"] = None
+
         result[r["uuid"]] = parsed
     return result
 
@@ -774,6 +784,7 @@ def build_photos(
             "gemma_mood": gemma_lk.get(uuid, {}).get("mood_summary") if uuid in gemma_lk else None,
             "gemma_strength": gemma_lk.get(uuid, {}).get("strength") if uuid in gemma_lk else None,
             "print_worthy": gemma_lk.get(uuid, {}).get("print_worthy") if uuid in gemma_lk else None,
+            "gemma_crops": gemma_lk.get(uuid, {}).get("crops") if uuid in gemma_lk else None,
         }
         photos.append(photo)
 

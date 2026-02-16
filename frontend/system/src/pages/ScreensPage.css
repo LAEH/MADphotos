@@ -1,0 +1,127 @@
+.screens-controls {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.screens-controls button {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.screens-controls button:hover {
+  background: var(--surface);
+  border-color: var(--text-3);
+}
+
+.screens-controls button.active {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--text-3);
+  font-weight: 600;
+}
+
+.devices-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, max-content));
+  gap: 2.5rem;
+  padding: 0.5rem;
+  justify-content: start;
+}
+
+.device-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+/* Device bezel - minimal frame around screenshot */
+.device-bezel {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s ease;
+}
+
+.device-bezel:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  transform: translateY(-1px);
+}
+
+/* Laptop bezels - squarer corners, thinner top bezel */
+.device-bezel.laptop {
+  border-radius: 8px;
+  padding: 6px 8px 10px 8px;
+}
+
+/* Tablet bezels - medium rounded */
+.device-bezel.tablet {
+  border-radius: 16px;
+  padding: 12px;
+}
+
+/* Mobile bezels - more rounded like actual phones */
+.device-bezel.mobile {
+  border-radius: 24px;
+  padding: 10px 6px 12px 6px;
+}
+
+/* Screenshot image with rounded corners */
+.device-bezel img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
+.device-bezel.laptop img {
+  border-radius: 3px;
+}
+
+.device-bezel.tablet img {
+  border-radius: 6px;
+}
+
+.device-bezel.mobile img {
+  border-radius: 8px;
+}
+
+/* Device info - compact, aligned to bezel */
+.device-info {
+  padding-left: 2px;
+}
+
+.device-info h3 {
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin: 0 0 0.15rem 0;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.device-viewport {
+  font-size: 0.7rem;
+  color: var(--text-2);
+  font-family: var(--mono);
+  margin: 0;
+}
+
+@media (max-width: 768px) {
+  .devices-grid {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+}

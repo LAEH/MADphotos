@@ -1,0 +1,215 @@
+/* Boom -- Themed sets with diversity-sampled mosaics */
+
+.boom-wrap {
+  --boom-edge: min(10vw, 10vh);
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-rows: 13dvh 67dvh 20dvh;
+  grid-template-columns: 1fr;
+  justify-items: center;
+  padding: 0 var(--boom-edge);
+  padding-left: max(var(--boom-edge), env(safe-area-inset-left));
+  padding-right: max(var(--boom-edge), env(safe-area-inset-right));
+  background: var(--bg);
+  overflow: clip;
+  overscroll-behavior: none;
+  z-index: 50;
+}
+.boom-wrap::before { content: ''; grid-row: 1; }
+
+/* Mosaic wrapper */
+.boom-mosaic-wrap {
+  position: relative;
+}
+
+.boom-viewport {
+  grid-row: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ===== Boom Mosaic ===== */
+.boom-mosaic {
+  display: grid;
+  grid-template-columns: repeat(var(--m-cols), 1fr);
+  grid-template-rows: repeat(var(--m-rows), 1fr);
+  width: calc(67dvh * 1.5);
+  max-width: calc(100vw - 2 * var(--boom-edge));
+  height: 67dvh;
+  gap: 2px;
+  cursor: pointer;
+}
+
+/* Settle pulse after assembly */
+.boom-mosaic.assembled {
+  animation: boom-settle 2s var(--ease-out-quart) 1.4s both;
+}
+
+@keyframes boom-settle {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.008);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Cell: scattered state (default) */
+.boom-cell {
+  position: relative;
+  overflow: hidden;
+  contain: layout style paint;
+  border-radius: 3px;
+  transform: translate(var(--sx), var(--sy)) rotate(var(--sr)) scale(0);
+  opacity: 0;
+  transition:
+    transform 1.2s var(--ease-spring),
+    opacity 0.6s var(--ease-out-quart);
+  transition-delay: var(--d);
+  will-change: transform, opacity;
+}
+
+/* Cell: assembled state */
+.boom-mosaic.assembled .boom-cell {
+  transform: translate(0, 0) rotate(0deg) scale(1);
+  opacity: 1;
+}
+
+/* Cell: scattering out (fast burst) */
+.boom-mosaic.scattering .boom-cell {
+  transform: translate(var(--sx), var(--sy)) rotate(var(--sr)) scale(0);
+  opacity: 0;
+  transition:
+    transform 0.45s var(--ease-out-expo),
+    opacity 0.3s var(--ease-out-quart);
+  transition-delay: var(--d-out);
+}
+
+.boom-cell img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform var(--duration-normal) var(--ease-spring);
+}
+
+/* Soft gradient overlay -- disappears on hover to reveal */
+.boom-cell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.12) 0%,
+    rgba(0, 0, 0, 0.04) 40%,
+    rgba(0, 0, 0, 0.18) 100%
+  );
+  pointer-events: none;
+  transition: opacity var(--duration-normal) var(--ease-out-quart);
+  border-radius: 3px;
+}
+
+/* ===== Boom Glass Preview ===== */
+.boom-preview {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s var(--ease-out-quart);
+  pointer-events: none;
+}
+
+.boom-preview.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.boom-preview-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: saturate(180%) blur(30px);
+  -webkit-backdrop-filter: saturate(180%) blur(30px);
+}
+
+.boom-preview-img {
+  position: relative;
+  max-width: 85vw;
+  max-height: 85vh;
+  object-fit: contain;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  transform: scale(0.92);
+  transition: transform 0.4s var(--ease-out-expo);
+}
+
+.boom-preview.open .boom-preview-img {
+  transform: scale(1);
+}
+
+/* Hover guards */
+@media (hover: hover) and (pointer: fine) {
+  .boom-cell:hover::after {
+    opacity: 0;
+  }
+  .boom-cell:hover img {
+    transform: scale(1.3);
+  }
+}
+
+/* Tablet */
+@media (max-width: 768px) {
+  .boom-wrap {
+    --boom-edge: max(16px, env(safe-area-inset-left), env(safe-area-inset-right));
+    padding-left: var(--boom-edge);
+    padding-right: var(--boom-edge);
+  }
+}
+
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .boom-cell {
+    transition-duration: 0.01ms !important;
+  }
+  .boom-mosaic.assembled {
+    animation-duration: 0.01ms !important;
+  }
+  .boom-mosaic.scattering .boom-cell {
+    transition-duration: 0.01ms !important;
+  }
+  .boom-preview {
+    transition-duration: 0.01ms !important;
+  }
+  .boom-preview-img {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Tier B -- no backdrop-filter on heavy elements */
+:root.tier-b .boom-preview-backdrop {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgba(0, 0, 0, 0.85);
+}
+
+/* Tier C -- minimal */
+:root.tier-c .boom-preview-backdrop {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+:root.tier-c .boom-cell {
+  transition-duration: 0.01ms !important;
+  will-change: auto !important;
+}
+:root.tier-c .boom-mosaic.assembled .boom-cell {
+  transition-duration: 0.01ms !important;
+}

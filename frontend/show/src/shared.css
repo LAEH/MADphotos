@@ -1,0 +1,641 @@
+/* ===== Unified Nav Container ===== */
+.nav-container {
+  position: fixed;
+  top: 32px;
+  left: 32px;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  min-width: 240px;
+  max-width: calc(100vw - 64px);
+  box-sizing: border-box;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+/* Floating Nav - Header of the container */
+.floating-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.82);
+  border: 0.5px solid rgba(0, 0, 0, 0.08);
+  border-radius: 14px;
+  box-shadow:
+    0 2px 16px rgba(0, 0, 0, 0.08),
+    0 0 0 0.5px rgba(0, 0, 0, 0.04) inset;
+  transition: border-radius 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+}
+
+/* When menu is open, remove bottom border-radius to connect with menu */
+.floating-nav.menu-expanded {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom: none;
+}
+
+/* Menu button - contains logo + chevron */
+.menu-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: #1d1d1f;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+.menu-btn:hover {
+  opacity: 0.7;
+}
+.menu-icon {
+  display: none; /* Hide hamburger on desktop, show chevron instead */
+}
+.menu-chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: rgba(0, 0, 0, 0.5);
+  flex-shrink: 0;
+  transform: rotate(-90deg); /* Point left when collapsed (default) */
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+/* Chevron points down when menu is open */
+.menu-btn.menu-open .menu-chevron {
+  transform: rotate(0deg); /* Point down when expanded */
+}
+.menu-btn-label {
+  display: none; /* Still hidden on desktop */
+}
+
+.logo {
+  font-family:
+    -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+  font-size: 15px;
+  letter-spacing: -0.3px;
+  color: #1d1d1f;
+  text-decoration: none;
+  cursor: pointer;
+  pointer-events: none; /* Let button handle clicks */
+  transition: opacity 0.15s;
+  font-weight: 700;
+}
+
+.logo-mad {
+  font-weight: 900;
+  letter-spacing: -0.06em;
+}
+
+.logo-photos {
+  font-weight: 400;
+}
+
+.nav-exp-label {
+  display: inline-block;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: -0.06em;
+  color: rgba(0, 0, 0, 0.5);
+  margin-left: auto;
+  margin-right: 8px;
+  padding-left: 10px;
+  border-left: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+
+/* ── Mobile nav — compact, closer to edge ── */
+@media (max-width: 768px) {
+  .nav-container {
+    top: max(12px, env(safe-area-inset-top, 0px));
+    left: max(12px, env(safe-area-inset-left, 0px));
+    min-width: unset;
+  }
+  .floating-nav {
+    padding: 8px 12px;
+    gap: 0;
+  }
+  /* Hide the separated label on right, show inline label instead */
+  .nav-exp-label {
+    display: none;
+  }
+  .menu-btn-label {
+    display: inline-block;
+    order: 1;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: rgba(0, 0, 0, 0.4);
+    margin-left: 6px;
+  }
+  /* Chevron moves to end (after label) */
+  .menu-chevron {
+    order: 2;
+    width: 16px;
+    height: 16px;
+    margin-left: 2px;
+  }
+  .logo {
+    font-size: 13px;
+  }
+}
+
+/* Show sun in dark mode, moon in light mode */
+.theme-icon-sun {
+  display: none;
+}
+.theme-icon-moon {
+  display: block;
+}
+:root.dark .theme-icon-sun {
+  display: block;
+}
+:root.dark .theme-icon-moon {
+  display: none;
+}
+
+/* Show expand icon normally, collapse in fullscreen */
+.fs-icon-expand {
+  display: block;
+}
+.fs-icon-collapse {
+  display: none;
+}
+:root.is-fullscreen .fs-icon-expand {
+  display: none;
+}
+:root.is-fullscreen .fs-icon-collapse {
+  display: block;
+}
+
+/* ===== Views ===== */
+#main {
+  padding: 0;
+}
+
+.view {
+  display: none;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.view.active {
+  display: block;
+  animation: fade-up 0.4s var(--ease-out-expo) both;
+}
+
+/* ISIT uses position:fixed children — transform in fade-up creates
+   a containing block that breaks fixed positioning on iOS Safari.
+   Use opacity-only animation to avoid the containing block. */
+#view-isit.active,
+#view-couleurs.active {
+  animation: fade-opacity 0.4s var(--ease-out-expo) both;
+}
+
+/* ===== Side Menu — Floating popover ===== */
+.side-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: transparent; /* No backdrop tint for collapsible menu */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-normal) var(--ease-out-quart);
+}
+
+.side-menu-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.side-menu {
+  box-sizing: border-box;
+  max-height: 0;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.82);
+  border: 0.5px solid rgba(0, 0, 0, 0.08);
+  border-top: none; /* Remove top border to connect with floating-nav */
+  border-radius: 0 0 14px 14px; /* Only bottom corners rounded */
+  box-shadow:
+    0 2px 16px rgba(0, 0, 0, 0.08),
+    0 0 0 0.5px rgba(0, 0, 0, 0.04) inset;
+  padding: 0 10px;
+  opacity: 0;
+  pointer-events: none;
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  transition:
+    max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    padding 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.side-menu.open {
+  max-height: calc(100vh - 100px);
+  padding: 20px 18px 14px 22px;
+  opacity: 1;
+  pointer-events: auto;
+  overflow-y: auto;
+  transition:
+    max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    padding 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.side-menu-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.side-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  color: rgba(0, 0, 0, 0.55);
+  padding: 8px 14px;
+  margin: 1px 0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+.side-menu-emoji {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.side-menu-item:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: rgba(0, 0, 0, 0.85);
+  text-decoration: none;
+}
+
+.side-menu-item.active {
+  color: #0a84ff;
+  font-weight: 600;
+  background: rgba(10, 132, 255, 0.12);
+}
+
+
+.side-menu-group {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  padding-left: 12px;
+  padding-bottom: 2px;
+}
+
+.side-menu-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-top: var(--space-1);
+  padding-top: var(--space-1);
+  border-top: 1px solid var(--separator);
+}
+
+.side-menu-action {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 6px 12px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font);
+  font-size: var(--text-sm);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out-quart),
+    color var(--duration-fast) var(--ease-out-quart);
+}
+
+/* ===== Glass Tags — Monochrome Default ===== */
+.glass-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out-quart),
+    border-color var(--duration-fast) var(--ease-out-quart);
+  white-space: nowrap;
+  user-select: none;
+  text-transform: capitalize;
+}
+
+/* hover: see @media (hover: hover) guard */
+
+.glass-tag.active {
+  background: var(--fill-secondary);
+  border-color: var(--glass-border-hover);
+  color: var(--text);
+}
+
+/* Category tags — all monochrome */
+.glass-tag.tag-vibe,
+.glass-tag.tag-grading,
+.glass-tag.tag-time,
+.glass-tag.tag-setting,
+.glass-tag.tag-scene,
+.glass-tag.tag-emotion,
+.glass-tag.tag-camera,
+.glass-tag.tag-style {
+  border-color: var(--glass-border);
+  color: var(--text-dim);
+}
+
+/* category tag hover: see @media (hover: hover) guard */
+
+.glass-tag.tag-vibe.active,
+.glass-tag.tag-grading.active,
+.glass-tag.tag-time.active,
+.glass-tag.tag-setting.active,
+.glass-tag.tag-scene.active,
+.glass-tag.tag-emotion.active,
+.glass-tag.tag-camera.active,
+.glass-tag.tag-style.active {
+  background: var(--fill-secondary);
+  border-color: var(--glass-border-hover);
+  color: var(--text);
+}
+
+/* Exception: tags inside Faces keep emotion colors */
+.faces-container .glass-tag.tag-emotion {
+  border-color: color-mix(in srgb, var(--system-pink) 35%, transparent);
+  color: var(--system-pink);
+}
+/* hover: see @media (hover: hover) guard */
+
+.glass-tag .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ===== View Bottom — shared row-3 container + glass action button ===== */
+.view-bottom {
+  grid-row: 3;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  align-self: start;
+  padding-top: 16px;
+}
+
+.view-action-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  cursor: pointer;
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-md);
+  transition: transform var(--duration-normal) var(--ease-spring);
+}
+
+.view-action-btn:active {
+  transform: scale(0.92);
+}
+
+/* Tier B — no backdrop-filter on action buttons */
+:root.tier-b .view-action-btn {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgba(245, 245, 247, 0.85);
+}
+:root.tier-b.dark .view-action-btn {
+  background: rgba(28, 28, 30, 0.85);
+}
+
+/* Tier C — minimal */
+:root.tier-c .view-action-btn {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Phone — smaller action buttons */
+@media (max-width: 430px) {
+  .view-action-btn {
+    width: 46px;
+    height: 46px;
+    font-size: 20px;
+  }
+}
+
+/* ===== Lightbox — Always dark overlay ===== */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+  transition: opacity var(--duration-normal) var(--ease-out-quart);
+}
+
+.lightbox.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.lightbox-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.92);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+
+.lightbox-content {
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: scale(1) translateY(0);
+  transition:
+    transform var(--duration-slow) var(--ease-out-expo),
+    opacity var(--duration-normal) var(--ease-out-quart);
+}
+
+.lightbox.hidden .lightbox-content {
+  transform: scale(0.95) translateY(12px);
+  opacity: 0;
+}
+
+/* Lightbox navigation arrows */
+.lightbox-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 56px;
+  font-weight: 200;
+  cursor: pointer;
+  padding: var(--space-5);
+  transition: color var(--duration-fast) var(--ease-out-quart);
+  font-family: var(--font);
+  line-height: 1;
+}
+
+.lightbox-prev {
+  left: 0;
+}
+.lightbox-next {
+  right: 0;
+}
+.lightbox-nav[hidden] {
+  display: none;
+}
+
+.lightbox-close {
+  position: absolute;
+  top: -44px;
+  right: 0;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 24px;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: color var(--transition);
+}
+
+/* hover: see @media (hover: hover) guard */
+
+.lightbox-img {
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: var(--radius);
+}
+
+.lightbox-meta {
+  display: none;
+}
+
+.lightbox-alt {
+  font-size: var(--text-sm);
+  color: rgba(255, 255, 255, 0.7);
+  font-style: italic;
+  margin-bottom: var(--space-2_5);
+  line-height: 1.6;
+}
+
+.lightbox-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-1_5);
+  margin-bottom: var(--space-2);
+}
+
+/* Force light text in lightbox (always dark backdrop) */
+.lightbox-tags .glass-tag {
+  color: rgba(255, 255, 255, 0.85);
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.lightbox-palette {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-1_5);
+}
+
+.lightbox-palette .palette-dot {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* ===== Hover Guard — only apply hover effects on devices with pointer ===== */
+@media (hover: hover) and (pointer: fine) {
+  .logo:hover {
+    opacity: 0.6;
+  }
+  .side-menu-action:hover {
+    color: var(--text);
+    background: var(--glass-bg-hover);
+  }
+  .side-menu-item:hover {
+    color: rgba(0, 0, 0, 0.85);
+    background: rgba(0, 0, 0, 0.05);
+  }
+  .glass-tag:hover {
+    background: var(--glass-bg-hover);
+    border-color: var(--glass-border-hover);
+  }
+  .glass-tag.tag-vibe:hover,
+  .glass-tag.tag-grading:hover,
+  .glass-tag.tag-time:hover,
+  .glass-tag.tag-setting:hover,
+  .glass-tag.tag-scene:hover,
+  .glass-tag.tag-emotion:hover,
+  .glass-tag.tag-camera:hover,
+  .glass-tag.tag-style:hover {
+    border-color: var(--glass-border-hover);
+  }
+  .faces-container .glass-tag.tag-emotion:hover {
+    border-color: color-mix(in srgb, var(--system-pink) 60%, transparent);
+  }
+  .view-action-btn:hover {
+    transform: scale(1.08);
+    box-shadow: var(--shadow-lg);
+  }
+  .lightbox-close:hover {
+    color: rgb(255, 255, 255);
+  }
+  .lightbox-nav:hover {
+    color: rgba(255, 255, 255, 0.9);
+  }
+  .menu-btn:hover {
+    color: var(--text);
+  }
+}

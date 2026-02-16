@@ -4893,6 +4893,37 @@ def get_cartoon_data():
     return pairs
 
 
+def get_gemma_cartoon_data():
+    """Return gemma_cartoon pairs with per-image cartoon_style from Gemma."""
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.row_factory = sqlite3.Row
+    pairs = []
+    try:
+        for r in conn.execute("""
+            SELECT v.image_uuid, v.variant_id, i.category, i.subcategory,
+                   COALESCE(g.alt_text, '') as caption,
+                   COALESCE(gp.cartoon_style, '') as cartoon_style
+            FROM ai_variants v
+            JOIN images i ON v.image_uuid = i.uuid
+            LEFT JOIN gemini_analysis g ON v.image_uuid = g.image_uuid
+            LEFT JOIN gemma_picks gp ON v.image_uuid = gp.uuid
+            WHERE v.variant_type = 'gemma_cartoon' AND v.generation_status = 'success'
+            ORDER BY i.category, i.subcategory, v.image_uuid
+        """).fetchall():
+            pairs.append({
+                "uuid": r["image_uuid"],
+                "variant_uuid": r["variant_id"],
+                "category": r["category"],
+                "subcategory": r["subcategory"] or "Landscape",
+                "caption": r["caption"],
+                "cartoon_style": r["cartoon_style"],
+            })
+    except Exception:
+        pass
+    conn.close()
+    return pairs
+
+
 def get_gemma_data():
     """Return Gemma 3 analysis results for picks."""
     conn = sqlite3.connect(str(DB_PATH))
@@ -4951,6 +4982,71 @@ def get_gemma_data():
         pass
     conn.close()
     return {"total": total, "processed": len(results), "results": results}
+
+
+def get_gemma_progress():
+    """Return real-time Gemma processing progress."""
+    conn = sqlite3.connect(str(DB_PATH))
+
+    # Total picks to process
+    picks_json = PROJECT_ROOT / "frontend" / "show" / "data" / "picks.json"
+    try:
+        picks = json.loads(picks_json.read_text())
+        total = len(set(picks.get("portrait", []) + picks.get("landscape", [])))
+    except Exception:
+        total = 0
+
+    # Count processed with new fields
+    processed_count = 0
+    legacy_count = 0
+    has_crops = 0
+    has_stories = 0
+    has_cartoon = 0
+
+    try:
+        # Count total processed
+        processed_count = conn.execute("SELECT COUNT(*) FROM gemma_picks").fetchone()[0]
+
+        # Count new enhanced fields
+        has_crops = conn.execute(
+            "SELECT COUNT(*) FROM gemma_picks WHERE crop_x IS NOT NULL"
+        ).fetchone()[0]
+
+        has_stories = conn.execute(
+            "SELECT COUNT(*) FROM gemma_picks WHERE story_silly IS NOT NULL AND story_silly != ''"
+        ).fetchone()[0]
+
+        has_cartoon = conn.execute(
+            "SELECT COUNT(*) FROM gemma_picks WHERE cartoon_style IS NOT NULL AND cartoon_style != ''"
+        ).fetchone()[0]
+
+        legacy_count = processed_count - has_stories
+
+        # Get most recent processing time for rate estimation
+        recent = conn.execute(
+            "SELECT processed_at FROM gemma_picks ORDER BY processed_at DESC LIMIT 10"
+        ).fetchall()
+
+    except Exception:
+        pass
+
+    conn.close()
+
+    pending = max(0, total - processed_count)
+    progress_pct = round((processed_count / total * 100) if total > 0 else 0, 1)
+
+    return {
+        "total": total,
+        "processed": processed_count,
+        "pending": pending,
+        "progress_pct": progress_pct,
+        "enhanced": {
+            "with_crops": has_crops,
+            "with_stories": has_stories,
+            "with_cartoon": has_cartoon,
+            "legacy_format": legacy_count
+        }
+    }
 
 
 def generate_signal_inspector_data():

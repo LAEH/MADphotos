@@ -6,6 +6,7 @@ import { JournalPage } from './pages/JournalPage'
 import { InstructionsPage } from './pages/InstructionsPage'
 import { MosaicsPage } from './pages/MosaicsPage'
 import { CartoonPage } from './pages/CartoonPage'
+import { GemmaCartoonPage } from './pages/GemmaCartoonPage'
 import { BlindTestPage } from './pages/BlindTestPage'
 import { GemmaPage } from './pages/GemmaPage'
 import { DatabasePage } from './pages/DatabasePage'
@@ -25,6 +26,7 @@ export default function App() {
           <Route path="experiments/gemma" element={<GemmaPage />} />
           <Route path="experiments/mosaics" element={<MosaicsPage />} />
           <Route path="experiments/cartoon" element={<CartoonPage />} />
+          <Route path="experiments/gemma-cartoon" element={<GemmaCartoonPage />} />
           <Route path="experiments/blind-test" element={<BlindTestPage />} />
         </Route>
       </Routes>

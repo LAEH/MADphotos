@@ -1,4 +1,4 @@
-import { useState, type ImgHTMLAttributes } from 'react'
+import { useState, useEffect, type ImgHTMLAttributes } from 'react'
 import { useFetch } from '../hooks/useFetch'
 import { imageUrl } from '../config'
 import { PageShell } from '../components/layout/PageShell'
@@ -27,6 +27,20 @@ interface GemmaAnalysis {
   tags?: string[]
   print_worthy?: boolean
   raw?: string
+  crop_square?: {
+    x: number
+    y: number
+    size: number
+    reason: string
+  }
+  stories?: {
+    silly?: string
+    poetic?: string
+    surrealist?: string
+    noir?: string
+    romantic?: string
+  }
+  cartoon_style?: string
 }
 
 interface TopLabel {
@@ -133,8 +147,83 @@ function GemmaCard({ result }: { result: GemmaResult }) {
           <p className="gemma-lead">{g.description || g.raw}</p>
         )}
 
-        {g.story && g.story !== g.description && (
-          <p className="gemma-story">{g.story}</p>
+        {/* Enhanced stories */}
+        {g.stories && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', margin: '16px 0' }}>
+            {g.stories.silly && (
+              <div style={{ borderLeft: '3px solid var(--system-yellow)', paddingLeft: '12px' }}>
+                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--muted)', fontWeight: 600, marginBottom: '4px' }}>
+                  🤪 SILLY
+                </div>
+                <div style={{ fontSize: 'var(--text-sm)', fontStyle: 'italic' }}>{g.stories.silly}</div>
+              </div>
+            )}
+            {g.stories.poetic && (
+              <div style={{ borderLeft: '3px solid var(--system-purple)', paddingLeft: '12px' }}>
+                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--muted)', fontWeight: 600, marginBottom: '4px' }}>
+                  ✨ POETIC
+                </div>
+                <div style={{ fontSize: 'var(--text-sm)', fontStyle: 'italic' }}>{g.stories.poetic}</div>
+              </div>
+            )}
+            {g.stories.surrealist && (
+              <div style={{ borderLeft: '3px solid var(--system-pink)', paddingLeft: '12px' }}>
+                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--muted)', fontWeight: 600, marginBottom: '4px' }}>
+                  🌀 SURREALIST
+                </div>
+                <div style={{ fontSize: 'var(--text-sm)', fontStyle: 'italic' }}>{g.stories.surrealist}</div>
+              </div>
+            )}
+            {g.stories.noir && (
+              <div style={{ borderLeft: '3px solid var(--muted)', paddingLeft: '12px' }}>
+                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--muted)', fontWeight: 600, marginBottom: '4px' }}>
+                  🕵️ NOIR
+                </div>
+                <div style={{ fontSize: 'var(--text-sm)', fontStyle: 'italic' }}>{g.stories.noir}</div>
+              </div>
+            )}
+            {g.stories.romantic && (
+              <div style={{ borderLeft: '3px solid var(--system-red)', paddingLeft: '12px' }}>
+                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--muted)', fontWeight: 600, marginBottom: '4px' }}>
+                  💕 ROMANTIC
+                </div>
+                <div style={{ fontSize: 'var(--text-sm)', fontStyle: 'italic' }}>{g.stories.romantic}</div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Crop suggestion */}
+        {g.crop_square && (
+          <div style={{
+            background: 'var(--surface)',
+            padding: '12px',
+            borderRadius: '8px',
+            margin: '12px 0'
+          }}>
+            <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--muted)', marginBottom: '6px' }}>
+              ✂️ SUGGESTED CROP
+            </div>
+            <div style={{ fontSize: 'var(--text-sm)', marginBottom: '4px' }}>{g.crop_square.reason}</div>
+            <div style={{ fontSize: 'var(--text-xs)', fontFamily: 'var(--font-mono)', color: 'var(--muted)' }}>
+              {g.crop_square.x}%, {g.crop_square.y}% • {g.crop_square.size}%
+            </div>
+          </div>
+        )}
+
+        {/* Cartoon style */}
+        {g.cartoon_style && (
+          <div style={{
+            background: 'var(--surface)',
+            padding: '12px',
+            borderRadius: '8px',
+            margin: '12px 0'
+          }}>
+            <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--muted)', marginBottom: '6px' }}>
+              🎨 CARTOON TRANSFORMATION
+            </div>
+            <div style={{ fontSize: 'var(--text-sm)' }}>{g.cartoon_style}</div>
+          </div>
         )}
 
         <div className="gemma-fields">
@@ -150,52 +239,107 @@ function GemmaCard({ result }: { result: GemmaResult }) {
   )
 }
 
+interface GemmaProgress {
+  total: number
+  processed: number
+  pending: number
+  progress_pct: number
+  enhanced: {
+    with_crops: number
+    with_stories: number
+    with_cartoon: number
+    legacy_format: number
+  }
+}
+
 export function GemmaPage() {
   const { data, loading, error } = useFetch<GemmaData>('/api/gemma')
+  const [progress, setProgress] = useState<GemmaProgress | null>(null)
+
+  // Poll progress every 3 seconds
+  useEffect(() => {
+    const fetchProgress = async () => {
+      try {
+        const res = await fetch('/api/gemma/progress')
+        if (res.ok) {
+          const p = await res.json()
+          setProgress(p)
+        }
+      } catch (e) {
+        console.error('Failed to fetch progress:', e)
+      }
+    }
+
+    fetchProgress()
+    const interval = setInterval(fetchProgress, 3000)
+    return () => clearInterval(interval)
+  }, [])
 
   if (loading) return <div style={{ color: 'var(--muted)', padding: 'var(--space-10)' }}>Loading Gemma analysis...</div>
   if (error) return <div style={{ color: 'var(--system-red)', padding: 'var(--space-10)' }}>Error: {error}</div>
   if (!data) return null
 
-  const pct = data.total > 0 ? (data.processed / data.total * 100) : 0
-  const done = data.processed === data.total && data.total > 0
+  // Filter for enhanced results only (those with stories)
+  const enhancedResults = data.results.filter(r =>
+    r.gemma.stories?.silly || r.gemma.crop_square || r.gemma.cartoon_style
+  )
+
+  const pct = progress ? progress.progress_pct : (data.total > 0 ? (data.processed / data.total * 100) : 0)
+  const processed = progress ? progress.processed : data.processed
+  const total = progress ? progress.total : data.total
+  const done = processed === total && total > 0
 
   return (
-    <PageShell title="Gemma Analysis" subtitle="Gemma 3 4B vision analysis of curated picks">
+    <PageShell title="Gemma Enhanced Analysis" subtitle="Creative storytelling + smart crops + cartoon transformations">
       {/* Progress card */}
       <Card>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: '12px',
-        }}>
-          <div style={{
-            flex: 1, height: '4px', background: 'var(--border)',
-            borderRadius: '2px', overflow: 'hidden',
-          }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{
-              height: '100%', width: `${pct.toFixed(1)}%`,
-              background: done ? 'var(--system-green)' : 'var(--system-blue)',
-              borderRadius: '2px', transition: 'width 0.6s ease',
-            }} />
+              flex: 1, height: '6px', background: 'var(--border)',
+              borderRadius: '3px', overflow: 'hidden',
+            }}>
+              <div style={{
+                height: '100%', width: `${pct.toFixed(1)}%`,
+                background: done ? 'var(--system-green)' : 'var(--system-blue)',
+                borderRadius: '3px', transition: 'width 0.6s ease',
+              }} />
+            </div>
+            <span style={{
+              fontSize: 'var(--text-sm)', fontFamily: 'var(--font-mono)',
+              color: 'var(--muted)', whiteSpace: 'nowrap',
+            }}>
+              <strong style={{ color: 'var(--fg)' }}>{processed}</strong> / {total}
+            </span>
           </div>
-          <span style={{
-            fontSize: 'var(--text-sm)', fontFamily: 'var(--font-mono)',
-            color: 'var(--muted)', whiteSpace: 'nowrap',
-          }}>
-            <strong style={{ color: 'var(--fg)' }}>{data.processed}</strong> / {data.total}
-          </span>
+
+          {progress && (
+            <div style={{ display: 'flex', gap: '16px', fontSize: 'var(--text-xs)', color: 'var(--muted)' }}>
+              <span>✂️ Crops: <strong style={{ color: 'var(--fg)' }}>{progress.enhanced.with_crops}</strong></span>
+              <span>📖 Stories: <strong style={{ color: 'var(--fg)' }}>{progress.enhanced.with_stories}</strong></span>
+              <span>🎨 Cartoon: <strong style={{ color: 'var(--fg)' }}>{progress.enhanced.with_cartoon}</strong></span>
+              {progress.pending > 0 && (
+                <span style={{ marginLeft: 'auto', color: 'var(--system-blue)' }}>
+                  Processing {progress.pending} remaining...
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </Card>
 
       {/* Cards */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        {data.results.map(r => (
+        {enhancedResults.map(r => (
           <GemmaCard key={r.uuid} result={r} />
         ))}
       </div>
 
-      {data.results.length === 0 && (
+      {enhancedResults.length === 0 && (
         <p style={{ color: 'var(--muted)', textAlign: 'center', padding: '60px 20px' }}>
-          No Gemma analysis results yet. Run the Gemma pipeline first.
+          {progress && progress.enhanced.with_stories > 0
+            ? 'Enhanced results will appear here as they are processed...'
+            : 'No enhanced Gemma results yet. Processing in progress.'}
         </p>
       )}
     </PageShell>

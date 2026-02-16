@@ -26,6 +26,22 @@ One database. 23 tables. Every signal queryable. Every image searchable by what 
 
 ---
 
+## 2026-02-13
+
+### Gemma-Guided Cartoon Generation
+
+**Intent.** The existing cartoon variant uses one hardcoded prompt for all images. Each of the 2,250 picked images already has a `cartoon_style` suggestion from Gemma 3 (e.g. "Studio Ghibli", "Watercolor", "Pixar concept art"). The goal: create a new `gemma_cartoon` variant type that uses the per-image Gemma suggestion to tailor each Imagen 3 prompt.
+
+**Decision.** Added `gemma_cartoon` as a new variant type in `imagen.py` with a `prompt_template` that injects `{cartoon_style}`. New database helper `get_ungenerated_gemma_cartoons()` joins `images` + `gemma_picks` to find candidates. New dashboard function and `/api/gemma-cartoon` endpoint serve the results. New System experiment page at `/experiments/gemma-cartoon` shows side-by-side original vs generated with the Gemma style suggestion displayed per pair and style breakdown stats.
+
+**Outcome.** Generated 10 test images successfully (~13.8s/image, ~$0.04/image). 2,250 picks have cartoon_style suggestions ready. Full run would be ~$90, ~10 hours.
+
+---
+
+Renamed the Confetti view to Boom throughout the entire codebase. Simplified the UI: removed the radial dial with 14 orbiting emoji set-selection buttons, replaced with a single bomb button below the mosaic. Clicking the bomb scatters the current mosaic out and assembles a new random themed set. The view now uses an ISIT-style 3-row fixed grid layout (spacer / viewport / bomb). All internal references — JS, CSS classes, DOM IDs, HTML section, experience registry, service worker cache — renamed from confetti to boom. Old confetti.js deleted, new boom.js created.
+
+---
+
 ## 2026-02-05
 
 ### 19:00 — Laying the Foundation *("Build me a pipeline")*

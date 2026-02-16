@@ -80,7 +80,7 @@ class GalleryHandler(SimpleHTTPRequestHandler):
             from dashboard import (get_stats, get_journal_html,
                                    get_instructions_html, get_mosaics_data,
                                    get_cartoon_data, similarity_search, drift_search,
-                                   get_gemma_data)
+                                   get_gemma_data, get_gemma_progress)
         except ImportError:
             # Try relative import path
             import sys
@@ -88,7 +88,7 @@ class GalleryHandler(SimpleHTTPRequestHandler):
             from dashboard import (get_stats, get_journal_html,
                                    get_instructions_html, get_mosaics_data,
                                    get_cartoon_data, similarity_search, drift_search,
-                                   get_gemma_data)
+                                   get_gemma_data, get_gemma_progress)
 
         if self.path == "/api/stats":
             self._json_response(get_stats())
@@ -100,6 +100,8 @@ class GalleryHandler(SimpleHTTPRequestHandler):
             self._json_response({"mosaics": get_mosaics_data()})
         elif self.path == "/api/cartoon":
             self._json_response({"pairs": get_cartoon_data()})
+        elif self.path == "/api/gemma/progress":
+            self._json_response(get_gemma_progress())
         elif self.path == "/api/gemma":
             self._json_response(get_gemma_data())
         elif self.path.startswith("/api/similarity/"):

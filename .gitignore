@@ -24,9 +24,11 @@ frontend/see/See.iconset/
 
 # Stray DB copies
 mad_photos.db
+madphotos.db
 
 # Web gallery data (generated)
 frontend/show/data/
+frontend/show/public/data/
 
 # State app build (copied from frontend/state/dist/)
 frontend/show/state/
@@ -75,6 +77,20 @@ firebase-debug.log
 
 # Build artifacts
 tsconfig.tsbuildinfo
+frontend/show/dist/
 
 # Environment files
 .env*
+
+# Python virtual environments
+.venv-gen/
+.venv-mflux/
+
+# Style transfer experiments (large generated images)
+backend/generated_test/
+backend/style_references/
+backend/style_prompts_test.json
+
+# Old vanilla JS backup (migrated to React)
+frontend/show/_vanilla/
+frontend/show/show-design-system.html
