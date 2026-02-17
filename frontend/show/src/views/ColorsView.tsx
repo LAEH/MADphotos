@@ -264,16 +264,63 @@ function CouleursTile({ photo, cell, index, onClick }: {
   )
 }
 
+/* ===== CouleursPreview component (clean fullscreen, no labels) ===== */
+
+function CouleursPreview({ photo, onClose }: { photo: Photo | null; onClose: () => void }) {
+  const [isOpen, setIsOpen] = useState(false)
+
+  const imgRef = useCallback((el: HTMLImageElement | null) => {
+    if (el && photo) loadProgressive(el, photo, 'display')
+  }, [photo])
+
+  useEffect(() => {
+    if (photo) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => setIsOpen(true))
+      })
+    } else {
+      setIsOpen(false)
+    }
+  }, [photo])
+
+  useEffect(() => {
+    if (!photo) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [photo, onClose])
+
+  const handleClose = useCallback(() => {
+    setIsOpen(false)
+    setTimeout(onClose, 300)
+  }, [onClose])
+
+  if (!photo) return null
+
+  return (
+    <div className={`couleurs-preview${isOpen ? ' open' : ''}`}>
+      <div className="couleurs-preview-backdrop" onClick={handleClose} />
+      <img
+        ref={imgRef}
+        className="couleurs-preview-img"
+        alt={photo.caption || photo.alt || ''}
+      />
+    </div>
+  )
+}
+
 /* ===== ColorsView component ===== */
 
 export function ColorsView() {
   const data = useAppStore(s => s.data)
-  const openLightbox = useAppStore(s => s.openLightbox)
   const [buckets, setBuckets] = useState<ColorBucket[]>([])
   const [activeIdx, setActiveIdx] = useState(0)
   const [selected, setSelected] = useState<Photo[]>([])
   const [layout, setLayout] = useState<ColorsLayout | null>(null)
   const [portrait, setPortrait] = useState(isPortrait)
+  const [previewPhoto, setPreviewPhoto] = useState<Photo | null>(null)
   const layoutCycleRef = useRef(0)
   const prevPortraitRef = useRef(portrait)
 
@@ -349,7 +396,7 @@ export function ColorsView() {
                 photo={photo}
                 cell={cell}
                 index={i}
-                onClick={() => openLightbox(photo, selected)}
+                onClick={() => setPreviewPhoto(photo)}
               />
             )
           })
@@ -367,6 +414,7 @@ export function ColorsView() {
           ))}
         </div>
       </ViewBottom>
+      <CouleursPreview photo={previewPhoto} onClose={() => setPreviewPhoto(null)} />
     </div>
   )
 }
