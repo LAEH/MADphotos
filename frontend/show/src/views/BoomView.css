@@ -165,6 +165,14 @@
   }
 }
 
+/* Portrait orientation (tablet+) */
+@media (orientation: portrait) and (min-width: 769px) {
+  .boom-mosaic {
+    width: calc(67dvh * 2 / 3);
+    max-width: calc(100vw - 2 * var(--boom-edge));
+  }
+}
+
 /* Tablet */
 @media (max-width: 768px) {
   .boom-wrap {

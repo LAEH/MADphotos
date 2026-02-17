@@ -194,7 +194,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (index < 0) index = 0
       set({ lightboxOpen: true, lightboxPhotos: photoList, lightboxIndex: index })
     } else {
-      set({ lightboxOpen: true, lightboxPhotos: [], lightboxIndex: -1 })
+      set({ lightboxOpen: true, lightboxPhotos: [photo], lightboxIndex: 0 })
     }
   },
 

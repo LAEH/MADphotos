@@ -357,6 +357,37 @@
   transition: background var(--transition);
 }
 
+/* ===== Portrait orientation (tablet+) ===== */
+
+@media (orientation: portrait) and (min-width: 769px) {
+  .jeu-pair {
+    width: calc(67dvh * 2 / 3);
+    max-width: calc(100vw - 2 * var(--jeu-edge));
+    grid-template-columns: 1fr;
+  }
+
+  .jeu-img {
+    aspect-ratio: 3/2;
+  }
+
+  .jeu-pair-bento {
+    grid-template-columns: 1fr;
+  }
+
+  .jeu-pair-bento .jeu-img-portrait,
+  .jeu-pair-bento .jeu-img-landscape {
+    aspect-ratio: 3/2;
+  }
+
+  .jeu-pair-portrait {
+    grid-template-columns: 1fr;
+  }
+
+  .jeu-pair-portrait .jeu-img {
+    aspect-ratio: 3/4;
+  }
+}
+
 /* ===== Tablet / Phone ===== */
 
 @media (max-width: 768px) {

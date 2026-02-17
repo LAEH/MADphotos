@@ -143,6 +143,14 @@
   border-radius: 8px;
 }
 
+/* Portrait orientation (tablet+) */
+@media (orientation: portrait) and (min-width: 769px) {
+  .bento-wrap:not(.bento-mobile) .bento-grid {
+    width: calc(67dvh * 2 / 3);
+    max-width: calc(100vw - 2 * var(--bento-edge));
+  }
+}
+
 /* Tablet / Phone fallback */
 @media (max-width: 768px) {
   .bento-wrap:not(.bento-mobile) {

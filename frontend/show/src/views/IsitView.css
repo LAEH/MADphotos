@@ -43,6 +43,12 @@
   max-width: 100%;
   contain: layout style;
 }
+@media (orientation: portrait) and (min-width: 769px) {
+  .isit-stack {
+    width: calc(67dvh * 2 / 3);
+    max-width: calc(100vw - 2 * var(--isit-edge));
+  }
+}
 @media (max-width: 768px) {
   .isit-stack {
     width: calc(67dvh * 2 / 3);
@@ -139,6 +145,12 @@
   width: calc(67dvh * 1.5);
   max-width: 100%;
   padding-top: 20px;
+}
+@media (orientation: portrait) and (min-width: 769px) {
+  .isit-bottom {
+    width: calc(67dvh * 2 / 3);
+    max-width: calc(100vw - 2 * var(--isit-edge));
+  }
 }
 @media (max-width: 768px) {
   .isit-bottom {
