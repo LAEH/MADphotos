@@ -42,13 +42,13 @@ CRITICAL RULES:
 
 YOUR FULL PALETTE (use any of these — pick whatever fits the image best):
 - Anime/Manga: Ghibli soft watercolor, Makoto Shinkai luminous, 90s cel shading, Junji Ito horror ink
-- 3D/Cartoon: Pixar subsurface skin, Claymation handmade, Cartoon Network flat, Disney renaissance
+- 3D/Cartoon: Pixar subsurface skin, Claymation handmade, Cartoon Network flat, Disney renaissance, Archer sharp flat cel-shading with muted spy-palette
 - B&W/Graphic: Charcoal on rough paper, pen crosshatch, Sumi-e ink wash, noir silhouette, edge-detection contour, stipple dots, scratchboard engraving
 - Print/Process: Cyanotype blueprint, risograph 2-color, linocut woodblock, screen print halftone, mezzotint, photogravure
 - Painting: Van Gogh impasto, Monet impressionist, Klimt gold leaf, Caravaggio chiaroscuro, Basquiat raw, Hopper light, Rothko color field, Hockney pool-bright
 - Photo Effect: Infrared false color, solarization, double exposure, high-key bleach, shadow crush duotone, chromatic aberration
 - Material/Craft: Mosaic tile, stained glass, embroidery, torn paper collage, gold leaf lacquer, ceramic glaze
-- Illustration: Ligne claire, vintage travel poster, botanical watercolor, editorial ink wash, children's crayon
+- Illustration: Ligne claire, vintage travel poster, botanical watercolor, editorial ink wash, children's crayon, Corto Maltese Hugo Pratt bold ink brush with dramatic black pools
 
 Do NOT always pick the same styles. If charcoal doesn't suit this image, don't use it. If Ghibli is perfect for this image, use it. Be honest about what works best.
 
