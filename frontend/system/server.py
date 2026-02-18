@@ -56,7 +56,36 @@ class APIHandler(SimpleHTTPRequestHandler):
         if self.path == "/api/pick":
             self._handle_pick()
             return
+        if self.path == "/api/cartoon/review":
+            self._handle_cartoon_review()
+            return
         self.send_error(404)
+
+    def _handle_cartoon_review(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            body = json.loads(self.rfile.read(length)) if length else {}
+        except (json.JSONDecodeError, ValueError):
+            self._error_response(400, "Invalid JSON")
+            return
+
+        variant_id = body.get("variant_id")
+        status = body.get("status")
+        if not variant_id or status not in ("accepted", "rejected", ""):
+            self._error_response(400, "variant_id and status (accepted/rejected/'') required")
+            return
+        if status == "":
+            status = None
+
+        try:
+            from dashboard import review_cartoon
+        except ImportError:
+            import sys as _sys
+            _sys.path.insert(0, str(Path(__file__).resolve().parent))
+            from dashboard import review_cartoon
+
+        result = review_cartoon(variant_id, status)
+        self._json_response(result)
 
     def _handle_pick(self):
         try:
@@ -115,20 +144,28 @@ class APIHandler(SimpleHTTPRequestHandler):
             from dashboard import (get_stats, get_journal_html,
                                    get_instructions_html, get_mosaics_data,
                                    get_cartoon_data, get_gemma_cartoon_data,
+                                   get_all_cartoon_data, review_cartoon,
                                    similarity_search, drift_search,
                                    get_gemma_data, get_gemma_progress,
-                                   get_unpicked_data)
+                                   get_unpicked_data,
+                                   get_signal_inspector_picks_data)
         except ImportError:
             import sys
             sys.path.insert(0, str(Path(__file__).resolve().parent))
             from dashboard import (get_stats, get_journal_html,
                                    get_instructions_html, get_mosaics_data,
                                    get_cartoon_data, get_gemma_cartoon_data,
+                                   get_all_cartoon_data, review_cartoon,
                                    similarity_search, drift_search,
                                    get_gemma_data, get_gemma_progress,
-                                   get_unpicked_data)
+                                   get_unpicked_data,
+                                   get_signal_inspector_picks_data)
 
-        if self.path == "/api/unpicked":
+        if self.path == "/api/cartoons":
+            self._json_response(get_all_cartoon_data())
+        elif self.path == "/api/signal-inspector":
+            self._json_response(get_signal_inspector_picks_data())
+        elif self.path == "/api/unpicked":
             self._json_response(get_unpicked_data())
         elif self.path == "/api/stats":
             self._json_response(get_stats())

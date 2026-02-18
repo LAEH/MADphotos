@@ -13,19 +13,15 @@ const navItems: NavItem[] = [
   { to: '/instructions', label: 'Instructions' },
 ]
 
-const curation: NavItem[] = [
-  { to: '/review/unpicked', label: 'Unpicked' },
-]
-
-const database: NavItem[] = [
-  { to: '/db/overview', label: 'Overview' },
-]
-
-const experiments: NavItem[] = [
+const signals: NavItem[] = [
+  { to: '/experiments/signals', label: 'All' },
   { to: '/experiments/gemma', label: 'Gemma' },
   { to: '/experiments/mosaics', label: 'Mosaics' },
+]
+
+const curation: NavItem[] = [
+  { to: '/review/unpicked', label: 'Unpicked' },
   { to: '/experiments/cartoon', label: 'Cartoon' },
-  { to: '/experiments/gemma-cartoon', label: 'Gemma Cartoon' },
   { to: '/experiments/blind-test', label: 'Blind Test' },
 ]
 
@@ -88,16 +84,12 @@ export function Sidebar() {
         {navItems.map(renderLink)}
 
         <div className="sb-sep" />
+        <div className="sb-group">Signals</div>
+        {signals.map(renderLink)}
+
+        <div className="sb-sep" />
         <div className="sb-group">Curation</div>
         {curation.map(renderLink)}
-
-        <div className="sb-sep" />
-        <div className="sb-group">Database</div>
-        {database.map(renderLink)}
-
-        <div className="sb-sep" />
-        <div className="sb-group">Experiments</div>
-        {experiments.map(renderLink)}
 
         <div className="sb-bottom">
           <ThemeToggle />

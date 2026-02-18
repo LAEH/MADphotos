@@ -46,10 +46,10 @@ IMAGEN_MODEL = "imagen-3.0-capability-001"
 UUID_NAMESPACE = uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
 
 # Rate limiting: Vertex AI default ~5 req/min for image generation
-MAX_CONCURRENT = 1
+MAX_CONCURRENT = 3
 MAX_RETRIES = 5
 BASE_BACKOFF = 5.0  # seconds, doubles each retry
-DELAY_BETWEEN_CALLS = 15.0  # seconds — ~4 req/min to stay within quota
+DELAY_BETWEEN_CALLS = 5.0  # seconds — with 3 concurrent, ~12 req/min
 
 # ---------------------------------------------------------------------------
 # 5 Variant Configurations

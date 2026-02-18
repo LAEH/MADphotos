@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MADphotos ⚙️</title>
+    <link rel="apple-touch-icon" sizes="180x180" href="/system/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/system/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/system/favicon-16x16.png">
+    <!-- SPA redirect handler for GitHub Pages 404 → /?/path -->
+    <script>
+      (function(){
+        var redirect = sessionStorage.redirect;
+        delete sessionStorage.redirect;
+        if (redirect && redirect !== location.href) {
+          history.replaceState(null, null, redirect);
+        }
+      })();
+      (function(){
+        var l = window.location;
+        if (l.search[1] === '/') {
+          var decoded = l.search.slice(1).split('&').map(function(s) {
+            return s.replace(/~and~/g, '&')
+          }).join('?');
+          var path = decoded;
+          history.replaceState(null, null,
+            l.pathname.slice(0, -1) + path + l.hash
+          );
+        }
+      })();
+    </script>
+    <script type="module" crossorigin src="/system/assets/index-DHD2P_yR.js"></script>
+    <link rel="stylesheet" crossorigin href="/system/assets/index-DmIQq-mW.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

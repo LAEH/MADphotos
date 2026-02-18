@@ -16,7 +16,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "backend"))
 
-OUTPUT_DIR = PROJECT_ROOT / "frontend" / "state" / "public" / "data"
+OUTPUT_DIR = PROJECT_ROOT / "frontend" / "system" / "public" / "data"
 
 
 def main():
@@ -29,6 +29,9 @@ def main():
         get_mosaics_data,
         get_cartoon_data,
         get_gemma_data,
+        get_gemma_cartoon_data,
+        get_all_cartoon_data,
+        get_signal_inspector_picks_data,
     )
 
     # Stats
@@ -60,6 +63,21 @@ def main():
     gemma = get_gemma_data()
     (OUTPUT_DIR / "gemma.json").write_text(json.dumps(gemma, indent=None))
     print(f"  gemma.json          ({len(json.dumps(gemma)):,} bytes)")
+
+    # Gemma Cartoon
+    gemma_cartoon = {"pairs": get_gemma_cartoon_data()}
+    (OUTPUT_DIR / "gemma_cartoon.json").write_text(json.dumps(gemma_cartoon, indent=None))
+    print(f"  gemma_cartoon.json  ({len(json.dumps(gemma_cartoon)):,} bytes)")
+
+    # All Cartoons (merged)
+    cartoons = get_all_cartoon_data()
+    (OUTPUT_DIR / "cartoons.json").write_text(json.dumps(cartoons, indent=None))
+    print(f"  cartoons.json       ({len(json.dumps(cartoons)):,} bytes)")
+
+    # Signal Inspector (picks)
+    signal_inspector = get_signal_inspector_picks_data()
+    (OUTPUT_DIR / "signal_inspector_picks.json").write_text(json.dumps(signal_inspector, indent=None))
+    print(f"  signal_inspector_picks.json ({len(json.dumps(signal_inspector)):,} bytes)")
 
     print(f"\nAll files written to {OUTPUT_DIR}")
 

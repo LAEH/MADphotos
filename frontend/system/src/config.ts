@@ -27,6 +27,10 @@ export function imageUrl(path: string): string {
     const filename = path.split('/').pop()
     return `${GCS_BASE}/v/cartoon/${filename}`
   }
+  if (path.startsWith('/ai_variants/gemma_cartoon/')) {
+    const filename = path.split('/').pop()
+    return `${GCS_BASE}/v/cartoon/${filename}`
+  }
   if (path.startsWith('/ai_variants/blind_test/')) {
     const filename = path.split('/').pop()
     return `${GCS_BASE}/v/blind/${filename}`
@@ -45,8 +49,10 @@ export function dataUrl(apiPath: string): string {
     '/api/cartoon': 'data/cartoon.json',
     '/api/blind-test': 'data/blind_test.json',
     '/api/gemma': 'data/gemma.json',
-    '/api/schema': 'data/schema.json',
+    '/api/gemma-cartoon': 'data/gemma_cartoon.json',
+    '/api/cartoons': 'data/cartoons.json',
     '/api/unpicked': 'data/unpicked.json',
+    '/api/signal-inspector': 'data/signal_inspector_picks.json',
   }
   const staticPath = map[apiPath]
   if (staticPath) return `${import.meta.env.BASE_URL}${staticPath}`

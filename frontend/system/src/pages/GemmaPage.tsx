@@ -1,4 +1,4 @@
-import { useState, useEffect, type ImgHTMLAttributes } from 'react'
+import { useState, type ImgHTMLAttributes } from 'react'
 import { useFetch } from '../hooks/useFetch'
 import { imageUrl } from '../config'
 import { PageShell } from '../components/layout/PageShell'
@@ -239,41 +239,35 @@ function GemmaCard({ result }: { result: GemmaResult }) {
   )
 }
 
-interface GemmaProgress {
-  total: number
-  processed: number
-  pending: number
-  progress_pct: number
-  enhanced: {
-    with_crops: number
-    with_stories: number
-    with_cartoon: number
-    legacy_format: number
-  }
-}
+const GEMMA_PROMPT = `You are an expert photography critic and creative storyteller. Analyze this photograph in detail. Respond ONLY with valid JSON, no markdown, no backticks:
+{"description":"2-3 sentence vivid description of what this photograph shows",
+"subject":"primary subject(s) of the photograph",
+"story":"what moment, narrative, or feeling this image captures",
+"composition":"how the frame is arranged — technique, balance, eye flow",
+"lighting":"quality, direction, and character of the light",
+"colors":"dominant colors and their relationships described naturally",
+"texture":"visible textures, materials, surfaces",
+"mood":"emotional atmosphere in 2-3 words",
+"technical":"assessment of exposure, focus, depth of field, sharpness",
+"strength":"what makes this a strong photograph",
+"tags":["up to 15 descriptive tags"],
+"print_worthy":true or false,
+"crop_square":{"x":0-100,"y":0-100,"size":0-100,"reason":"why this crop"},
+"crops":{
+"1:1":{"center_x":0-100,"center_y":0-100,"coverage":30-90,"reason":"best square crop"},
+"2:3":{"center_x":0-100,"center_y":0-100,"coverage":30-90,"reason":"best tall portrait crop"},
+"3:2":{"center_x":0-100,"center_y":0-100,"coverage":30-90,"reason":"best wide landscape crop"},
+"16:9":{"center_x":0-100,"center_y":0-100,"coverage":30-90,"reason":"best cinematic wide crop"}},
+"stories":{
+"silly":"fun, childish, playful 1-sentence story",
+"poetic":"lyrical, beautiful 1-sentence poetic interpretation",
+"surrealist":"dreamlike, absurd 1-sentence surrealist narrative",
+"noir":"mysterious, dramatic 1-sentence noir-style description",
+"romantic":"tender, emotional 1-sentence romantic interpretation"},
+"cartoon_style":"what cartoon/illustration transformation would work best and why"}`
 
 export function GemmaPage() {
   const { data, loading, error } = useFetch<GemmaData>('/api/gemma')
-  const [progress, setProgress] = useState<GemmaProgress | null>(null)
-
-  // Poll progress every 3 seconds
-  useEffect(() => {
-    const fetchProgress = async () => {
-      try {
-        const res = await fetch('/api/gemma/progress')
-        if (res.ok) {
-          const p = await res.json()
-          setProgress(p)
-        }
-      } catch (e) {
-        console.error('Failed to fetch progress:', e)
-      }
-    }
-
-    fetchProgress()
-    const interval = setInterval(fetchProgress, 3000)
-    return () => clearInterval(interval)
-  }, [])
 
   if (loading) return <div style={{ color: 'var(--muted)', padding: 'var(--space-10)' }}>Loading Gemma analysis...</div>
   if (error) return <div style={{ color: 'var(--system-red)', padding: 'var(--space-10)' }}>Error: {error}</div>
@@ -284,47 +278,27 @@ export function GemmaPage() {
     r.gemma.stories?.silly || r.gemma.crop_square || r.gemma.cartoon_style
   )
 
-  const pct = progress ? progress.progress_pct : (data.total > 0 ? (data.processed / data.total * 100) : 0)
-  const processed = progress ? progress.processed : data.processed
-  const total = progress ? progress.total : data.total
-  const done = processed === total && total > 0
-
   return (
-    <PageShell title="Gemma Enhanced Analysis" subtitle="Creative storytelling + smart crops + cartoon transformations">
-      {/* Progress card */}
-      <Card>
+    <PageShell title="Gemma" subtitle="gemma3:27b via Ollama (madphotos-critic)">
+      {/* Prompt + count card */}
+      <Card title="Analysis Prompt">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{
-              flex: 1, height: '6px', background: 'var(--border)',
-              borderRadius: '3px', overflow: 'hidden',
-            }}>
-              <div style={{
-                height: '100%', width: `${pct.toFixed(1)}%`,
-                background: done ? 'var(--system-green)' : 'var(--system-blue)',
-                borderRadius: '3px', transition: 'width 0.6s ease',
-              }} />
-            </div>
-            <span style={{
-              fontSize: 'var(--text-sm)', fontFamily: 'var(--font-mono)',
-              color: 'var(--muted)', whiteSpace: 'nowrap',
-            }}>
-              <strong style={{ color: 'var(--fg)' }}>{processed}</strong> / {total}
-            </span>
+          <div style={{
+            fontSize: 'var(--text-sm)', fontFamily: 'var(--font-mono)',
+            color: 'var(--muted)', whiteSpace: 'nowrap',
+          }}>
+            <strong style={{ color: 'var(--fg)' }}>{data.processed}</strong> / {data.total} picks processed
           </div>
-
-          {progress && (
-            <div style={{ display: 'flex', gap: '16px', fontSize: 'var(--text-xs)', color: 'var(--muted)' }}>
-              <span>✂️ Crops: <strong style={{ color: 'var(--fg)' }}>{progress.enhanced.with_crops}</strong></span>
-              <span>📖 Stories: <strong style={{ color: 'var(--fg)' }}>{progress.enhanced.with_stories}</strong></span>
-              <span>🎨 Cartoon: <strong style={{ color: 'var(--fg)' }}>{progress.enhanced.with_cartoon}</strong></span>
-              {progress.pending > 0 && (
-                <span style={{ marginLeft: 'auto', color: 'var(--system-blue)' }}>
-                  Processing {progress.pending} remaining...
-                </span>
-              )}
-            </div>
-          )}
+          <pre style={{
+            fontSize: 'var(--text-xs)', fontFamily: 'var(--font-mono)',
+            color: 'var(--fg)', background: 'var(--surface)',
+            padding: '12px', borderRadius: '6px', overflow: 'auto',
+            whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+            lineHeight: 1.5, maxHeight: '300px',
+            border: '1px solid var(--border)',
+          }}>
+            {GEMMA_PROMPT}
+          </pre>
         </div>
       </Card>
 
@@ -337,9 +311,7 @@ export function GemmaPage() {
 
       {enhancedResults.length === 0 && (
         <p style={{ color: 'var(--muted)', textAlign: 'center', padding: '60px 20px' }}>
-          {progress && progress.enhanced.with_stories > 0
-            ? 'Enhanced results will appear here as they are processed...'
-            : 'No enhanced Gemma results yet. Processing in progress.'}
+          No enhanced Gemma results yet.
         </p>
       )}
     </PageShell>

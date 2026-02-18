@@ -2930,7 +2930,7 @@ def render_readme():
   .inst-pill-pink { color: var(--apple-pink); background: color-mix(in srgb, var(--apple-pink) 12%, transparent); }
   .inst-pill-blue { color: var(--apple-blue); background: color-mix(in srgb, var(--apple-blue) 12%, transparent); }
   .inst-pill-teal { color: var(--apple-teal); background: color-mix(in srgb, var(--apple-teal) 12%, transparent); }
-  .app-trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); margin: var(--space-3) 0; }
+  .app-trio { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-3); margin: var(--space-3) 0; }
   .app-box { background: var(--hover-overlay); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); }
   .app-box strong { display: block; font-size: 14px; margin-bottom: 4px; }
   .app-box p { font-size: 12px; margin: 0; color: var(--muted); line-height: 1.5; }
@@ -2993,7 +2993,7 @@ def render_instructions():
   .inst-pill-blue { color: var(--apple-blue); background: color-mix(in srgb, var(--apple-blue) 12%, transparent); }
   .inst-pill-orange { color: var(--apple-orange); background: color-mix(in srgb, var(--apple-orange) 12%, transparent); }
   .inst-pill-teal { color: var(--apple-teal); background: color-mix(in srgb, var(--apple-teal) 12%, transparent); }
-  .app-trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); margin: var(--space-3) 0; }
+  .app-trio { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-3); margin: var(--space-3) 0; }
   .app-box { background: var(--hover-overlay); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); }
   .app-box strong { display: block; font-size: 14px; margin-bottom: 4px; }
   .app-box p { font-size: 12px; margin: 0; color: var(--muted); line-height: 1.5; }
@@ -3002,7 +3002,7 @@ def render_instructions():
 
 <div class="inst-hero">
   <h1>System Instructions</h1>
-  <p>Everything needed to work on MADphotos effectively. Updated 2026-02-09.</p>
+  <p>Everything needed to work on MADphotos effectively. Updated 2026-02-18.</p>
 </div>
 
 <!-- ═══ PROJECT BRIEFING ═══ -->
@@ -3017,12 +3017,8 @@ def render_instructions():
       <p>Blow people&rsquo;s minds. Continuously release new experiences guided by signals and new ideas. Delightful, playful, elegant, smart, teasing, revealing, exciting &mdash; on every screen.</p>
     </div>
     <div class="app-box">
-      <strong>State</strong>
+      <strong>System</strong>
       <p>The dashboard. The control room. Every signal, every model, every image &mdash; tracked, measured, monitored.</p>
-    </div>
-    <div class="app-box">
-      <strong>See</strong>
-      <p>The native power image viewer and editor. MADCurator &mdash; 55 fields, 21 filters with union/intersection modes, inline label editing (9 Gemini fields + vibes), full-resolution display. The human eye decides what&rsquo;s worth showing.</p>
     </div>
   </div>
 </div>
@@ -3046,7 +3042,7 @@ def render_instructions():
   <p><strong>V1 Signals (all 9,011/9,011):</strong> Rendering (97,898 tiers). EXIF. Pixel Analysis. Dominant Colors. Image Hashes. Vectors v1 (DINOv2-base+SigLIP-base+CLIP). Aesthetic Scoring. Depth Estimation. Scene Classification. Style Classification. BLIP Captions. Facial Emotions. Enhancement Plans (v1+v2). <strong>Gemini 2.5 Pro analysis (9,011/9,011).</strong> OCR (17,914 detections).</p>
   <p><strong>V2 Signals (all complete):</strong> Aesthetic v2 (TOPIQ+MUSIQ+LAION). Quality Scores. Florence-2 Captions (9,011). CLIP Tags (9,011). Grounding DINO (108,861 detections). ArcFace Identities (2,264). rembg Foreground (9,011). SAM Segmentation (9,011). Pose Detection (3,595). Saliency Maps (9,011). GPS Locations (1,820). Border Detection (1,126). <strong>Vectors v2: DINOv2-Large (1024d) + SigLIP2-SO400M (1152d) + CLIP (512d).</strong></p>
   <p><strong>Conditional signals (complete but partial by nature):</strong> Face Detections (1,676 images). Object Detections (5,363 images). Open Detections (8,981 images). Pose Detections (1,670 images). Face Identities (1,197 images). GPS Locations (1,820 images). Border Crops (1,126 analog images).</p>
-  <p><strong>Deployed:</strong> Show on Firebase (madphotos.web.app), State on GitHub Pages, images on GCS. 14 web experiences. MADCurator native macOS app.</p>
+  <p><strong>Deployed:</strong> Show + System on Firebase (madphotos.laeh.ai), images on GCS. 6 interactive views.</p>
   <p><strong>Next:</strong> New Show experiences using V2 signals. StatsPage V2 visualizations. Interactive SimilarityPage. More Imagen variants.</p>
 </div>
 
@@ -3152,8 +3148,8 @@ def render_instructions():
   <table>
     <thead><tr><th>App</th><th>Platform</th><th>URL</th></tr></thead>
     <tbody>
-      <tr><td><strong>State</strong></td><td>GitHub Pages</td><td>laeh.github.io/MADphotos/</td></tr>
-      <tr><td><strong>Show</strong></td><td>Firebase Hosting</td><td>madphotos-efbfb.web.app</td></tr>
+      <tr><td><strong>Show</strong></td><td>Firebase Hosting</td><td>madphotos.laeh.ai</td></tr>
+      <tr><td><strong>System</strong></td><td>Firebase Hosting</td><td>madphotos.laeh.ai/system/</td></tr>
       <tr><td><strong>Images</strong></td><td>GCS public bucket</td><td>storage.googleapis.com/myproject-public-assets/...</td></tr>
     </tbody>
   </table>
@@ -3165,14 +3161,17 @@ def render_instructions():
 </div>
 
 <div class="inst-card">
-  <h2>Web Gallery (Show) &mdash; 14 Experiences</h2>
+  <h2>Show &mdash; 6 Views</h2>
   <ul>
-    <li><code>backend/export_gallery.py</code> &rarr; 6 JSON files (photos, faces, game_rounds, stream_sequence, drift_neighbors)</li>
-    <li><code>backend/serve_show.py</code> &rarr; localhost:3000</li>
-    <li>18 files: index.html, style.css, app.js + 14 experience modules + data/</li>
-    <li>La Grille, Le Bento, La Similarit&eacute;, La D&eacute;rive, Les Couleurs, Le Jeu, Chambre Noire, Le Flot, Les Visages, La Boussole, L&rsquo;Observatoire, La Carte, Machine &Agrave; &Eacute;crire, Le Pendule</li>
-    <li>Dark minimalist design system: 40+ CSS tokens (motion grammar, emotion colors, depth layers, category colors), Apple HIG curves, prefers-reduced-motion support</li>
-    <li>Vanilla JS, no framework. 60fps animations via rAF, IntersectionObserver lazy loading, timer leak prevention</li>
+    <li>React 18 + TypeScript + Vite 6 + Tailwind v4 + Zustand</li>
+    <li><strong>Colors</strong> &mdash; palette-driven photo exploration</li>
+    <li><strong>Bento</strong> &mdash; dynamic mosaic grid layout</li>
+    <li><strong>Couple</strong> &mdash; signal-matched photo pairs game</li>
+    <li><strong>Boom</strong> &mdash; curated photo sets with dramatic reveals</li>
+    <li><strong>Caption</strong> &mdash; AI-generated captions and stories</li>
+    <li><strong>ISIT</strong> &mdash; swipe-based photo discovery</li>
+    <li>Picks-only: all views show ~1,246 curated photos from picks.json</li>
+    <li>3-tier performance: tier-a (Safari/high-end), tier-b (no blur), tier-c (minimal)</li>
   </ul>
 </div>
 
@@ -3757,7 +3756,7 @@ def render_journal():
 <div class="ev-labels"><span class="ev-label" style="--label-color:var(--apple-indigo)">Genesis</span></div>
 <h3>The Vision</h3>
 <p class="intent">9,011 unedited photographs taken over a decade with five cameras. The mission: augment every single image with every possible signal — AI analysis, pixel metrics, vector embeddings, depth maps, scene classification, object detection, face emotions, captions, color palettes. Then enhance each frame with camera-aware, signal-driven corrections.</p>
-<p>Three apps, one pipeline. <strong>Show</strong> — blow people's minds with experiences that are playful, elegant, smart, teasing, revealing. Continuously release new ways to see photographs, guided by signals and new ideas. <strong>State</strong> — the dashboard, the control room. Every signal, every model, every image tracked. <strong>See</strong> (MADCurator) — the native power image viewer and editor. 55 fields, 21 filters with union/intersection modes, inline label editing, full-resolution. The human eye decides what's worth showing.</p>
+<p>Two apps, one pipeline. <strong>Show</strong> — blow people's minds with experiences that are playful, elegant, smart, teasing, revealing. Continuously release new ways to see photographs, guided by signals and new ideas. <strong>System</strong> — the dashboard, the control room. Every signal, every model, every image tracked.</p>
 <blockquote>We started with 9,011 raw images and zero metadata. We will create the best experience on photos. Game ON.</blockquote>
 </div>"""
 
@@ -4924,6 +4923,55 @@ def get_gemma_cartoon_data():
     return pairs
 
 
+def get_all_cartoon_data():
+    """Return all cartoon + gemma_cartoon pairs with review status."""
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.row_factory = sqlite3.Row
+    pairs = []
+    try:
+        for r in conn.execute("""
+            SELECT v.variant_id, v.image_uuid, v.variant_type, v.review_status,
+                   i.category, i.subcategory,
+                   COALESCE(g.alt_text, '') as caption,
+                   COALESCE(gp.cartoon_style, '') as cartoon_style
+            FROM ai_variants v
+            JOIN images i ON v.image_uuid = i.uuid
+            LEFT JOIN gemini_analysis g ON v.image_uuid = g.image_uuid
+            LEFT JOIN gemma_picks gp ON v.image_uuid = gp.uuid
+            WHERE v.variant_type IN ('cartoon', 'gemma_cartoon')
+              AND v.generation_status = 'success'
+            ORDER BY v.review_status IS NULL DESC, i.category, i.subcategory, v.image_uuid
+        """).fetchall():
+            pairs.append({
+                "uuid": r["image_uuid"],
+                "variant_uuid": r["variant_id"],
+                "type": r["variant_type"],
+                "category": r["category"],
+                "subcategory": r["subcategory"] or "Landscape",
+                "caption": r["caption"],
+                "cartoon_style": r["cartoon_style"] or "",
+                "review": r["review_status"],
+            })
+    except Exception:
+        pass
+    conn.close()
+    accepted = sum(1 for p in pairs if p["review"] == "accepted")
+    rejected = sum(1 for p in pairs if p["review"] == "rejected")
+    return {"pairs": pairs, "accepted": accepted, "rejected": rejected}
+
+
+def review_cartoon(variant_id, status):
+    """Set review_status ('accepted' or 'rejected') for a cartoon variant."""
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.execute(
+        "UPDATE ai_variants SET review_status = ? WHERE variant_id = ?",
+        (status, variant_id)
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True, "variant_id": variant_id, "status": status}
+
+
 def get_gemma_data():
     """Return Gemma 3 analysis results for picks."""
     conn = sqlite3.connect(str(DB_PATH))
@@ -5301,6 +5349,246 @@ def generate_signal_inspector_data():
     return {
         "sample_size": len(images),
         "total": total,
+        "images": images,
+    }
+
+
+def get_signal_inspector_picks_data():
+    """Return all DB signals for ~100 random picked images."""
+    import random
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.row_factory = sqlite3.Row
+
+    # Load picks UUIDs
+    picks_json = PROJECT_ROOT / "frontend" / "show" / "data" / "picks.json"
+    try:
+        picks = json.loads(picks_json.read_text())
+        all_uuids = list(set(picks.get("portrait", []) + picks.get("landscape", [])))
+    except Exception:
+        all_uuids = []
+
+    total_picks = len(all_uuids)
+    random.shuffle(all_uuids)
+    sample_uuids = all_uuids[:100]
+
+    images = []
+    for uuid in sample_uuids:
+        img = conn.execute(
+            "SELECT uuid, category, subcategory, camera_body, film_stock, width, height FROM images WHERE uuid=?",
+            (uuid,)
+        ).fetchone()
+        if not img:
+            continue
+
+        rec = {
+            "uuid": img["uuid"],
+            "thumb": f"/rendered/thumb/jpeg/{img['uuid']}.jpg",
+            "display": f"/rendered/display/jpeg/{img['uuid']}.jpg",
+            "camera": img["camera_body"] or "",
+            "film": img["film_stock"] or "",
+            "category": img["category"] or "",
+            "subcategory": img["subcategory"] or "",
+            "w": img["width"] or 0,
+            "h": img["height"] or 0,
+        }
+
+        # Gemini analysis
+        g = conn.execute("SELECT * FROM gemini_analysis WHERE image_uuid=?", (uuid,)).fetchone()
+        if g:
+            rec["gemini_alt"] = g["alt_text"] or ""
+            rec["grading"] = g["grading_style"] or ""
+            rec["time"] = g["time_of_day"] or ""
+            rec["setting"] = g["setting"] or ""
+            rec["exposure"] = g["exposure"] or ""
+            rec["composition"] = g["composition_technique"] or ""
+            rec["weather"] = g["weather"] or ""
+            rec["gemini_sharpness"] = g["sharpness"] or ""
+            try:
+                rec["vibes"] = json.loads(g["vibe"]) if g["vibe"] else []
+            except Exception:
+                rec["vibes"] = []
+
+        # Scene classification
+        sc_row = conn.execute("SELECT scene_1, environment FROM scene_classification WHERE image_uuid=?", (uuid,)).fetchone()
+        if sc_row:
+            rec["scene"] = sc_row["scene_1"] or ""
+            rec["environment"] = sc_row["environment"] or ""
+
+        # Style classification
+        sc = conn.execute("SELECT style FROM style_classification WHERE image_uuid=?", (uuid,)).fetchone()
+        if sc:
+            rec["style"] = sc["style"] or ""
+
+        # Aesthetic score v1
+        ae = conn.execute("SELECT score FROM aesthetic_scores WHERE image_uuid=?", (uuid,)).fetchone()
+        rec["aesthetic"] = round(float(ae["score"]), 1) if ae else 0
+
+        # Aesthetic scores v2
+        av2 = conn.execute("SELECT topiq_score, musiq_score, laion_score, composite_score FROM aesthetic_scores_v2 WHERE image_uuid=?", (uuid,)).fetchone()
+        if av2:
+            rec["aesthetic_v2"] = {"topiq": round(float(av2["topiq_score"] or 0), 2), "musiq": round(float(av2["musiq_score"] or 0), 2), "laion": round(float(av2["laion_score"] or 0), 2), "composite": round(float(av2["composite_score"] or 0), 2)}
+
+        # Quality scores
+        qs = conn.execute("SELECT technical_score, clip_score, combined_score FROM quality_scores WHERE image_uuid=?", (uuid,)).fetchone()
+        if qs:
+            rec["quality"] = {"technical": round(float(qs["technical_score"] or 0), 2), "clip": round(float(qs["clip_score"] or 0), 2), "combined": round(float(qs["combined_score"] or 0), 2)}
+
+        # Dominant colors (top 5)
+        colors = conn.execute(
+            "SELECT hex, percentage, color_name FROM dominant_colors WHERE image_uuid=? ORDER BY percentage DESC LIMIT 5",
+            (uuid,)
+        ).fetchall()
+        rec["colors"] = [{"hex": c["hex"] or "#000", "pct": round(float(c["percentage"] or 0), 1), "name": c["color_name"] or ""} for c in colors]
+
+        # Depth
+        de = conn.execute("SELECT near_pct, mid_pct, far_pct FROM depth_estimation WHERE image_uuid=?", (uuid,)).fetchone()
+        if de:
+            rec["depth"] = {"near": round(float(de["near_pct"] or 0), 1), "mid": round(float(de["mid_pct"] or 0), 1), "far": round(float(de["far_pct"] or 0), 1)}
+
+        # YOLO Objects
+        objs = conn.execute(
+            "SELECT label, confidence FROM object_detections WHERE image_uuid=? ORDER BY confidence DESC LIMIT 10",
+            (uuid,)
+        ).fetchall()
+        rec["objects"] = [{"label": o["label"], "conf": round(float(o["confidence"] or 0), 2)} for o in objs]
+
+        # Open detections (Grounding DINO)
+        od = conn.execute("SELECT label, confidence FROM open_detections WHERE image_uuid=? ORDER BY confidence DESC LIMIT 8", (uuid,)).fetchall()
+        rec["open_objects"] = [{"label": o["label"], "conf": round(float(o["confidence"] or 0), 2)} for o in od]
+
+        # Faces + emotions
+        faces = conn.execute(
+            "SELECT confidence, face_area_pct FROM face_detections WHERE image_uuid=?",
+            (uuid,)
+        ).fetchall()
+        face_list = []
+        for f in faces:
+            fe = conn.execute("SELECT dominant_emotion FROM facial_emotions WHERE image_uuid=?", (uuid,)).fetchone()
+            face_list.append({
+                "conf": round(float(f["confidence"] or 0), 2),
+                "area": round(float(f["face_area_pct"] or 0), 3),
+                "emotion": fe["dominant_emotion"] if fe else ""
+            })
+        rec["faces"] = face_list
+
+        # Face identities
+        fi = conn.execute("SELECT DISTINCT identity_label FROM face_identities WHERE image_uuid=? AND identity_label IS NOT NULL", (uuid,)).fetchall()
+        rec["identities"] = [f["identity_label"] for f in fi]
+
+        # OCR
+        ocr = conn.execute(
+            "SELECT text FROM ocr_detections WHERE image_uuid=? AND text != ''",
+            (uuid,)
+        ).fetchall()
+        rec["ocr"] = [o["text"] for o in ocr]
+
+        # EXIF
+        ex = conn.execute("SELECT focal_length, aperture, shutter_speed, iso, make, model, lens, date_taken FROM exif_metadata WHERE image_uuid=?", (uuid,)).fetchone()
+        if ex:
+            rec["exif"] = {
+                "focal": ex["focal_length"] or 0,
+                "aperture": ex["aperture"] or 0,
+                "shutter": ex["shutter_speed"] or "",
+                "iso": ex["iso"] or 0,
+                "make": ex["make"] or "",
+                "model": ex["model"] or "",
+                "lens": ex["lens"] or "",
+                "date": ex["date_taken"] or "",
+            }
+
+        # BLIP caption
+        cap = conn.execute("SELECT caption FROM image_captions WHERE image_uuid=?", (uuid,)).fetchone()
+        if cap and cap["caption"]:
+            rec["blip_caption"] = cap["caption"]
+
+        # Florence captions
+        fc = conn.execute("SELECT short_caption, detailed_caption FROM florence_captions WHERE image_uuid=?", (uuid,)).fetchone()
+        if fc:
+            rec["florence"] = {"short": fc["short_caption"] or "", "detailed": fc["detailed_caption"] or ""}
+
+        # Image tags (CLIP/RAM)
+        tg = conn.execute("SELECT tags, tag_count FROM image_tags WHERE image_uuid=?", (uuid,)).fetchone()
+        if tg and tg["tags"]:
+            rec["clip_tags"] = [t.strip() for t in tg["tags"].split("|")][:12]
+
+        # Foreground masks
+        fg = conn.execute("SELECT foreground_pct, background_pct FROM foreground_masks WHERE image_uuid=?", (uuid,)).fetchone()
+        if fg:
+            rec["foreground"] = {"fg_pct": round(float(fg["foreground_pct"] or 0), 1), "bg_pct": round(float(fg["background_pct"] or 0), 1)}
+
+        # Segmentation masks
+        sg = conn.execute("SELECT segment_count, largest_segment_pct FROM segmentation_masks WHERE image_uuid=?", (uuid,)).fetchone()
+        if sg:
+            rec["segments"] = {"count": sg["segment_count"] or 0, "largest_pct": round(float(sg["largest_segment_pct"] or 0), 1)}
+
+        # Pose detections
+        pd_rows = conn.execute("SELECT pose_score FROM pose_detections WHERE image_uuid=?", (uuid,)).fetchall()
+        rec["poses"] = len(pd_rows)
+
+        # Saliency maps
+        sal = conn.execute("SELECT peak_x, peak_y, spread, center_bias FROM saliency_maps WHERE image_uuid=?", (uuid,)).fetchone()
+        if sal:
+            rec["saliency"] = {"peak_x": round(float(sal["peak_x"] or 0), 2), "peak_y": round(float(sal["peak_y"] or 0), 2), "spread": round(float(sal["spread"] or 0), 2), "center_bias": round(float(sal["center_bias"] or 0), 2)}
+
+        # Image location
+        loc = conn.execute("SELECT location_name, latitude, longitude FROM image_locations WHERE image_uuid=?", (uuid,)).fetchone()
+        if loc:
+            rec["location"] = {"name": loc["location_name"] or "", "lat": loc["latitude"], "lon": loc["longitude"]}
+
+        # Image hashes (blur, sharpness, entropy)
+        ih = conn.execute("SELECT blur_score, sharpness_score, edge_density, entropy FROM image_hashes WHERE image_uuid=?", (uuid,)).fetchone()
+        if ih:
+            rec["hashes"] = {"blur": round(float(ih["blur_score"] or 0), 1), "sharpness": round(float(ih["sharpness_score"] or 0), 1), "edge_density": round(float(ih["edge_density"] or 0), 3), "entropy": round(float(ih["entropy"] or 0), 2)}
+
+        # Image analysis (brightness, dynamic range, noise, color temp)
+        ia = conn.execute("SELECT mean_brightness, dynamic_range, noise_estimate, est_color_temp FROM image_analysis WHERE image_uuid=?", (uuid,)).fetchone()
+        if ia:
+            rec["analysis"] = {"brightness": round(float(ia["mean_brightness"] or 0), 1), "dynamic_range": round(float(ia["dynamic_range"] or 0), 1), "noise": round(float(ia["noise_estimate"] or 0), 2), "color_temp": int(ia["est_color_temp"] or 0)}
+
+        # Gemma picks (stories, crops, cartoon_style, mood, tags)
+        gp = conn.execute(
+            "SELECT gemma_json, gemma_description, gemma_mood, gemma_tags, crop_x, crop_y, crop_size, crop_reason, crops, story_silly, story_poetic, story_surrealist, story_noir, story_romantic, cartoon_style FROM gemma_picks WHERE uuid=?",
+            (uuid,)
+        ).fetchone()
+        if gp:
+            gemma = {}
+            gemma["description"] = gp["gemma_description"] or ""
+            gemma["mood"] = gp["gemma_mood"] or ""
+            if gp["gemma_tags"]:
+                try:
+                    gemma["tags"] = json.loads(gp["gemma_tags"])
+                except Exception:
+                    gemma["tags"] = []
+            stories = {}
+            if gp["story_silly"]:
+                stories["silly"] = gp["story_silly"]
+            if gp["story_poetic"]:
+                stories["poetic"] = gp["story_poetic"]
+            if gp["story_surrealist"]:
+                stories["surrealist"] = gp["story_surrealist"]
+            if gp["story_noir"]:
+                stories["noir"] = gp["story_noir"]
+            if gp["story_romantic"]:
+                stories["romantic"] = gp["story_romantic"]
+            if stories:
+                gemma["stories"] = stories
+            if gp["crop_x"] is not None:
+                gemma["crop_square"] = {"x": gp["crop_x"], "y": gp["crop_y"], "size": gp["crop_size"], "reason": gp["crop_reason"] or ""}
+            if gp["crops"]:
+                try:
+                    gemma["crops"] = json.loads(gp["crops"])
+                except Exception:
+                    pass
+            if gp["cartoon_style"]:
+                gemma["cartoon_style"] = gp["cartoon_style"]
+            rec["gemma"] = gemma
+
+        images.append(rec)
+
+    conn.close()
+    return {
+        "sample_size": len(images),
+        "total_picks": total_picks,
         "images": images,
     }
 
