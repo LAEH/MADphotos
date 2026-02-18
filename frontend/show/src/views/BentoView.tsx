@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAppStore } from '../store/appStore'
 import { loadProgressive } from '../lib/imageLoading'
-import { getObjectPosition } from '../lib/cropUtils'
+import { getObjectPosition, BENTO_UNIT_RATIO } from '../lib/cropUtils'
 import { randomFrom } from '../lib/utils'
 import { ViewBottom, ActionButton } from '../components/ui/ViewBottom'
 import type { Photo } from '../types/photo'
@@ -19,173 +19,184 @@ interface BentoLayout {
   device: 'desktop' | 'mobile'
 }
 
-/** Portrait cell: rs > cs (tall) */
+/** Portrait cell (1 col × 2 rows → ratio 0.667 with 4:3 unit) */
 function P(r: number, c: number, rs: number, cs: number): BentoCell {
   return { r, c, rs, cs, orient: 'P' }
 }
 
-/** Landscape cell: cs >= rs (wide or square) */
+/** Landscape cell (1×1 → ratio 1.333, or 2×2 → ratio 1.333) */
 function L(r: number, c: number, rs: number, cs: number): BentoCell {
   return { r, c, rs, cs, orient: 'L' }
 }
 
-/* ── Desktop layouts (landscape screen, cols >= rows, 8–12 images) ── */
+/*
+ * Layout system uses 4:3 unit ratio (BENTO_UNIT_RATIO = 4/3).
+ * Cell aspect ratios:
+ *   L 1×1 = 1.333 (≈3:2 landscape, 11% off — barely crops)
+ *   P 1×2 = 0.667 (= 2:3 portrait, perfect match)
+ *   L 2×2 = 1.333 (large landscape, same ratio)
+ * Container ratio = cols × UNIT_RATIO / rows
+ */
+
+/* ── Desktop layouts (5×4 grid, ratio ≈ 1.667, 8–11 images) ── */
 
 const DESKTOP_LAYOUTS: BentoLayout[] = [
-  /* D1: Gallery — 5×3, 10 images, 1P 9L */
+  /* D1: Balanced — 5×4, 8 images, 3P 5L */
   {
-    id: 'D1', cols: 5, rows: 3, count: 10, device: 'desktop',
+    id: 'D1', cols: 5, rows: 4, count: 8, device: 'desktop',
     cells: [
-      L(1, 1, 1, 2),  // wide top-left
-      L(1, 3, 1, 1),  // square top-mid
-      L(1, 4, 1, 2),  // wide top-right
-      P(2, 1, 2, 1),  // tall bottom-left
-      L(2, 2, 1, 2),  // wide mid
-      L(2, 4, 1, 2),  // wide mid-right
-      L(3, 2, 1, 1),  // square
-      L(3, 3, 1, 1),  // square
-      L(3, 4, 1, 1),  // square
-      L(3, 5, 1, 1),  // square bottom-right
+      L(1, 1, 2, 2),  // large landscape top-left
+      P(1, 3, 2, 1),  // portrait center
+      L(1, 4, 2, 2),  // large landscape top-right
+      P(3, 1, 2, 1),  // portrait bottom-left
+      L(3, 2, 2, 2),  // large landscape center
+      P(3, 4, 2, 1),  // portrait bottom-right
+      L(3, 5, 1, 1),  // landscape
+      L(4, 5, 1, 1),  // landscape
     ],
   },
-  /* D2: Showcase — 5×3, 9 images, 1P 8L */
+  /* D2: Gallery — 5×4, 11 images, 3P 8L */
   {
-    id: 'D2', cols: 5, rows: 3, count: 9, device: 'desktop',
+    id: 'D2', cols: 5, rows: 4, count: 11, device: 'desktop',
     cells: [
-      L(1, 1, 1, 3),  // panorama top-left
-      P(1, 4, 2, 1),  // tall right
-      L(1, 5, 1, 1),  // square top-right
-      L(2, 1, 1, 1),  // square mid-left
-      L(2, 2, 2, 2),  // large center
-      L(2, 5, 1, 1),  // square mid-right
-      L(3, 1, 1, 1),  // square bottom-left
-      L(3, 4, 1, 1),  // square bottom
-      L(3, 5, 1, 1),  // square bottom-right
+      P(1, 1, 2, 1),  // portrait left
+      L(1, 2, 2, 2),  // large landscape top-center
+      L(1, 4, 1, 1),  // landscape
+      P(1, 5, 2, 1),  // portrait right
+      L(2, 4, 1, 1),  // landscape
+      L(3, 1, 2, 2),  // large landscape bottom-left
+      P(3, 3, 2, 1),  // portrait center
+      L(3, 4, 1, 1),  // landscape
+      L(3, 5, 1, 1),  // landscape
+      L(4, 4, 1, 1),  // landscape
+      L(4, 5, 1, 1),  // landscape
     ],
   },
-  /* D3: Columns — 4×4, 10 images, 3P 7L */
+  /* D3: Columns — 5×4, 11 images, 3P 8L */
   {
-    id: 'D3', cols: 4, rows: 4, count: 10, device: 'desktop',
+    id: 'D3', cols: 5, rows: 4, count: 11, device: 'desktop',
     cells: [
-      P(1, 1, 2, 1),  // tall col1
-      L(1, 2, 1, 2),  // wide top
-      P(1, 4, 2, 1),  // tall col4
-      L(2, 2, 1, 2),  // wide mid
-      P(3, 1, 2, 1),  // tall col1 bottom
-      L(3, 2, 1, 1),  // square
-      L(3, 3, 1, 2),  // wide
-      L(4, 2, 1, 1),  // square
-      L(4, 3, 1, 1),  // square
-      L(4, 4, 1, 1),  // square bottom-right
+      P(1, 1, 2, 1),  // portrait col1 top
+      L(1, 2, 2, 2),  // large landscape top-center
+      P(1, 4, 2, 1),  // portrait col4 top
+      L(1, 5, 1, 1),  // landscape top-right
+      L(2, 5, 1, 1),  // landscape mid-right
+      P(3, 1, 2, 1),  // portrait col1 bottom
+      L(3, 2, 1, 1),  // landscape
+      L(3, 3, 1, 1),  // landscape
+      L(3, 4, 2, 2),  // large landscape bottom-right
+      L(4, 2, 1, 1),  // landscape
+      L(4, 3, 1, 1),  // landscape
     ],
   },
-  /* D4: Panoramic — 6×3, 8 images, 2P 6L */
+  /* D4: Feature — 5×4, 9 images, 2P 7L */
   {
-    id: 'D4', cols: 6, rows: 3, count: 8, device: 'desktop',
+    id: 'D4', cols: 5, rows: 4, count: 9, device: 'desktop',
     cells: [
-      L(1, 1, 1, 3),  // panorama top-left
-      L(1, 4, 1, 2),  // wide top-mid
-      P(1, 6, 2, 1),  // tall right
-      P(2, 1, 2, 1),  // tall left
-      L(2, 2, 1, 3),  // panorama mid
-      L(2, 5, 1, 1),  // square mid-right
-      L(3, 2, 1, 2),  // wide bottom
-      L(3, 4, 1, 3),  // panorama bottom-right
+      L(1, 1, 2, 2),  // large landscape top-left
+      L(1, 3, 1, 1),  // landscape
+      P(1, 4, 2, 1),  // portrait
+      L(1, 5, 1, 1),  // landscape
+      P(2, 3, 2, 1),  // portrait mid
+      L(2, 5, 1, 1),  // landscape
+      L(3, 1, 2, 2),  // large landscape bottom-left
+      L(3, 4, 2, 2),  // large landscape bottom-right
+      L(4, 3, 1, 1),  // landscape bottom-center
     ],
   },
-  /* D5: Mosaic — 5×4, 12 images, 2P 10L */
+  /* D5: Mosaic — 5×4, 10 images, 4P 6L */
   {
-    id: 'D5', cols: 5, rows: 4, count: 12, device: 'desktop',
+    id: 'D5', cols: 5, rows: 4, count: 10, device: 'desktop',
     cells: [
-      L(1, 1, 1, 2),  // wide top-left
-      L(1, 3, 1, 1),  // square
-      L(1, 4, 1, 2),  // wide top-right
-      P(2, 1, 2, 1),  // tall left
-      L(2, 2, 1, 2),  // wide mid
-      L(2, 4, 1, 1),  // square mid
-      P(2, 5, 2, 1),  // tall right
-      L(3, 2, 1, 1),  // square
-      L(3, 3, 1, 2),  // wide mid
-      L(4, 1, 1, 2),  // wide bottom-left
-      L(4, 3, 1, 1),  // square bottom
-      L(4, 4, 1, 2),  // wide bottom-right
+      P(1, 1, 2, 1),  // portrait top-left
+      L(1, 2, 2, 2),  // large landscape top-center
+      P(1, 4, 2, 1),  // portrait top-right
+      L(1, 5, 1, 1),  // landscape
+      L(2, 5, 1, 1),  // landscape
+      L(3, 1, 1, 1),  // landscape bottom-left
+      P(3, 2, 2, 1),  // portrait bottom
+      L(3, 3, 2, 2),  // large landscape bottom-center
+      P(3, 5, 2, 1),  // portrait bottom-right
+      L(4, 1, 1, 1),  // landscape
     ],
   },
 ]
 
-/* ── Mobile layouts (portrait screen, rows > cols, 7–10 images) ── */
+/* ── Mobile layouts (3×6 grid, ratio ≈ 0.667, 8–9 images) ── */
 
 const MOBILE_LAYOUTS: BentoLayout[] = [
-  /* M1: Stack — 3×4, 7 images, 3P 4L */
+  /* M1: Stack — 3×6, 9 images, 3P 6L */
   {
-    id: 'M1', cols: 3, rows: 4, count: 7, device: 'mobile',
+    id: 'M1', cols: 3, rows: 6, count: 9, device: 'mobile',
     cells: [
-      L(1, 1, 1, 2),  // wide top-left
-      P(1, 3, 2, 1),  // tall top-right
-      L(2, 1, 1, 1),  // square
-      P(2, 2, 2, 1),  // tall mid
-      P(3, 1, 2, 1),  // tall left
-      L(3, 3, 1, 1),  // square
-      L(4, 2, 1, 2),  // wide bottom-right
+      L(1, 1, 2, 2),  // large landscape top-left
+      P(1, 3, 2, 1),  // portrait top-right
+      P(3, 1, 2, 1),  // portrait mid-left
+      L(3, 2, 2, 2),  // large landscape mid-right
+      L(5, 1, 1, 1),  // landscape
+      P(5, 2, 2, 1),  // portrait bottom-center
+      L(5, 3, 1, 1),  // landscape
+      L(6, 1, 1, 1),  // landscape
+      L(6, 3, 1, 1),  // landscape
     ],
   },
-  /* M2: Tower — 3×5, 9 images, 4P 5L */
+  /* M2: Tower — 3×6, 8 images, 4P 4L */
   {
-    id: 'M2', cols: 3, rows: 5, count: 9, device: 'mobile',
+    id: 'M2', cols: 3, rows: 6, count: 8, device: 'mobile',
     cells: [
-      L(1, 1, 1, 2),  // wide top-left
-      P(1, 3, 2, 1),  // tall top-right
-      P(2, 1, 2, 1),  // tall left
-      P(2, 2, 2, 1),  // tall mid
-      L(3, 3, 1, 1),  // square
-      L(4, 1, 1, 2),  // wide mid-left
-      P(4, 3, 2, 1),  // tall right
-      L(5, 1, 1, 1),  // square bottom-left
-      L(5, 2, 1, 1),  // square bottom-mid
+      P(1, 1, 2, 1),  // portrait top-left
+      L(1, 2, 2, 2),  // large landscape top-right
+      L(3, 1, 2, 2),  // large landscape mid-left
+      P(3, 3, 2, 1),  // portrait mid-right
+      P(5, 1, 2, 1),  // portrait bottom-left
+      L(5, 2, 1, 1),  // landscape
+      P(5, 3, 2, 1),  // portrait bottom-right
+      L(6, 2, 1, 1),  // landscape
     ],
   },
-  /* M3: Scroll — 3×5, 8 images, 3P 5L */
+  /* M3: Cascade — 3×6, 9 images, 3P 6L */
   {
-    id: 'M3', cols: 3, rows: 5, count: 8, device: 'mobile',
+    id: 'M3', cols: 3, rows: 6, count: 9, device: 'mobile',
     cells: [
-      L(1, 1, 1, 3),  // panorama top
-      P(2, 1, 2, 1),  // tall left
-      L(2, 2, 1, 2),  // wide mid-right
-      P(3, 2, 2, 1),  // tall mid
-      L(3, 3, 1, 1),  // square
-      L(4, 1, 1, 1),  // square
-      P(4, 3, 2, 1),  // tall right
-      L(5, 1, 1, 2),  // wide bottom-left
+      L(1, 1, 1, 1),  // landscape top-left
+      P(1, 2, 2, 1),  // portrait top-center
+      L(1, 3, 1, 1),  // landscape top-right
+      P(2, 1, 2, 1),  // portrait left
+      L(2, 3, 1, 1),  // landscape
+      L(3, 2, 2, 2),  // large landscape center
+      P(4, 1, 2, 1),  // portrait bottom-left
+      L(5, 2, 2, 2),  // large landscape bottom-right
+      L(6, 1, 1, 1),  // landscape bottom-left
     ],
   },
-  /* M4: Compact — 3×4, 8 images, 3P 5L */
+  /* M4: Scroll — 3×6, 9 images, 3P 6L */
   {
-    id: 'M4', cols: 3, rows: 4, count: 8, device: 'mobile',
+    id: 'M4', cols: 3, rows: 6, count: 9, device: 'mobile',
     cells: [
-      P(1, 1, 2, 1),  // tall top-left
-      L(1, 2, 1, 2),  // wide top-right
-      L(2, 2, 1, 1),  // square
-      P(2, 3, 2, 1),  // tall right
-      P(3, 1, 2, 1),  // tall bottom-left
-      L(3, 2, 1, 1),  // square
-      L(4, 2, 1, 1),  // square
-      L(4, 3, 1, 1),  // square bottom-right
+      L(1, 1, 2, 2),  // large landscape top-left
+      P(1, 3, 2, 1),  // portrait top-right
+      P(3, 1, 2, 1),  // portrait mid-left
+      L(3, 2, 1, 1),  // landscape
+      P(3, 3, 2, 1),  // portrait mid-right
+      L(4, 2, 1, 1),  // landscape
+      L(5, 1, 1, 1),  // landscape
+      L(5, 2, 2, 2),  // large landscape bottom-right
+      L(6, 1, 1, 1),  // landscape bottom-left
     ],
   },
-  /* M5: Tall — 3×6, 10 images, 4P 6L */
+  /* M5: Dense — 3×6, 9 images, 3P 6L */
   {
-    id: 'M5', cols: 3, rows: 6, count: 10, device: 'mobile',
+    id: 'M5', cols: 3, rows: 6, count: 9, device: 'mobile',
     cells: [
-      L(1, 1, 1, 2),  // wide top-left
-      P(1, 3, 2, 1),  // tall top-right
-      P(2, 1, 2, 1),  // tall left
-      L(2, 2, 1, 1),  // square
-      L(3, 2, 1, 2),  // wide mid-right
-      L(4, 1, 1, 2),  // wide mid-left
-      P(4, 3, 2, 1),  // tall right
-      P(5, 1, 2, 1),  // tall bottom-left
-      L(5, 2, 1, 1),  // square
-      L(6, 2, 1, 2),  // wide bottom-right
+      P(1, 1, 2, 1),  // portrait top-left
+      L(1, 2, 2, 2),  // large landscape top-right
+      L(3, 1, 1, 1),  // landscape
+      P(3, 2, 2, 1),  // portrait mid-center
+      L(3, 3, 1, 1),  // landscape
+      P(4, 1, 2, 1),  // portrait mid-left
+      L(4, 3, 1, 1),  // landscape
+      L(5, 2, 2, 2),  // large landscape bottom-right
+      L(6, 1, 1, 1),  // landscape bottom-left
     ],
   },
 ]
@@ -362,10 +373,45 @@ export function BentoView() {
   const layoutIdxRef = useRef(-1)
   const deviceLayoutsRef = useRef<BentoLayout[]>(DESKTOP_LAYOUTS)
 
+  /* Preload buffer: ready-to-swap photos per orientation, already in browser cache */
+  const preloadBufferRef = useRef<{ P: Photo[]; L: Photo[] }>({ P: [], L: [] })
+  const PRELOAD_COUNT = 6 // per orientation
+
   /* Keep refs in sync with state */
   useEffect(() => { photosRef.current = photos }, [photos])
   useEffect(() => { layoutRef.current = layout }, [layout])
   useEffect(() => { layoutIdxRef.current = layoutIdx }, [layoutIdx])
+
+  /* Fill preload buffer with candidates not currently displayed, and warm browser cache */
+  const refillPreloadBuffer = useCallback((currentIds: Set<string>) => {
+    if (!data) return
+    const buf = preloadBufferRef.current
+    // Remove any that are now displayed
+    buf.P = buf.P.filter(p => !currentIds.has(p.id))
+    buf.L = buf.L.filter(p => !currentIds.has(p.id))
+
+    const allPool = data.photos.filter(p => p.thumb && p.display && p.aesthetic && !currentIds.has(p.id))
+    const pPool = allPool.filter(p => p.orientation === 'portrait')
+    const lPool = allPool.filter(p => p.orientation === 'landscape' || p.orientation === 'square')
+
+    const bufPIds = new Set(buf.P.map(p => p.id))
+    const bufLIds = new Set(buf.L.map(p => p.id))
+
+    while (buf.P.length < PRELOAD_COUNT && pPool.length > 0) {
+      const pick = pPool.splice(Math.floor(Math.random() * pPool.length), 1)[0]
+      if (!bufPIds.has(pick.id)) { buf.P.push(pick); bufPIds.add(pick.id) }
+    }
+    while (buf.L.length < PRELOAD_COUNT && lPool.length > 0) {
+      const pick = lPool.splice(Math.floor(Math.random() * lPool.length), 1)[0]
+      if (!bufLIds.has(pick.id)) { buf.L.push(pick); bufLIds.add(pick.id) }
+    }
+
+    // Warm browser cache
+    for (const p of [...buf.P, ...buf.L]) {
+      const src = p.display || p.thumb
+      if (src) { const img = new Image(); img.decoding = 'async'; img.src = src }
+    }
+  }, [data])
 
   /* Generate a fresh bento (random layout + fill) */
   const generate = useCallback(() => {
@@ -376,7 +422,9 @@ export function BentoView() {
     setLayout(newLayout)
     setLayoutIdx(idx)
     setPhotos(selected)
-  }, [data])
+    // Refill preload buffer after render
+    requestAnimationFrame(() => refillPreloadBuffer(new Set(selected.map(p => p.id))))
+  }, [data, refillPreloadBuffer])
 
   /* Generate with a specific layout index from the current device library */
   const generateWithLayout = useCallback((idx: number) => {
@@ -388,7 +436,8 @@ export function BentoView() {
     setLayout(newLayout)
     setLayoutIdx(idx % layouts.length)
     setPhotos(selected)
-  }, [data])
+    requestAnimationFrame(() => refillPreloadBuffer(new Set(selected.map(p => p.id))))
+  }, [data, refillPreloadBuffer])
 
   /* Cycle layouts with arrow keys */
   const cycle = useCallback((dir: number) => {
@@ -397,7 +446,7 @@ export function BentoView() {
     generateWithLayout(newIdx)
   }, [generateWithLayout])
 
-  /* Swap a single tile with crossfade — orientation-aware */
+  /* Swap a single tile — instant, no fade. Image is pre-cached. */
   const swapTile = useCallback((tileEl: HTMLDivElement) => {
     if (!data) return
     const oldId = tileEl.dataset.id
@@ -405,62 +454,60 @@ export function BentoView() {
     const cellIdx = parseInt(tileEl.dataset.cellIdx || '0', 10)
 
     const currentIds = new Set(photosRef.current.map(p => p.id))
-    let pool = data.photos.filter(p => p.thumb && p.display && p.aesthetic && !currentIds.has(p.id))
+    const buf = preloadBufferRef.current
+    const bufPool = orient === 'P' ? buf.P : buf.L
 
-    /* Filter to matching orientation */
-    if (orient === 'P') {
-      pool = pool.filter(p => p.orientation === 'portrait')
+    /* Try preloaded buffer first (already in browser cache), fall back to full pool */
+    let newPhoto: Photo | undefined
+    const bufReady = bufPool.filter(p => !currentIds.has(p.id))
+    if (bufReady.length > 0) {
+      const idx = Math.floor(Math.random() * bufReady.length)
+      newPhoto = bufReady[idx]
+      const bIdx = orient === 'P'
+        ? buf.P.findIndex(p => p.id === newPhoto!.id)
+        : buf.L.findIndex(p => p.id === newPhoto!.id)
+      if (bIdx >= 0) (orient === 'P' ? buf.P : buf.L).splice(bIdx, 1)
     } else {
-      pool = pool.filter(p => p.orientation === 'landscape' || p.orientation === 'square')
-    }
-    if (pool.length === 0) return
-
-    const newPhoto = randomFrom(pool)
-    tileEl.style.opacity = '0'
-
-    const finish = () => {
-      tileEl.removeEventListener('transitionend', finish)
-      const img = tileEl.querySelector('img')
-      if (!img) return
-
-      const target = newPhoto.display || newPhoto.thumb
-      if (!target) return
-
-      const preload = new Image()
-      preload.decoding = 'async'
-      preload.onload = () => {
-        img.src = target
-        img.classList.remove('img-loading', 'img-loaded')
-        tileEl.dataset.id = newPhoto.id
-        const dominant = newPhoto.palette?.[0]
-        if (dominant) tileEl.style.backgroundColor = dominant + '99'
-
-        /* Smart crop positioning */
-        const currentLayout = layoutRef.current
-        if (currentLayout && currentLayout.cells[cellIdx]) {
-          img.style.objectPosition = getObjectPosition(newPhoto, currentLayout.cells[cellIdx])
-        }
-
-        setPhotos(prev => {
-          const next = [...prev]
-          const bIdx = next.findIndex(p => p.id === oldId)
-          if (bIdx >= 0) next[bIdx] = newPhoto
-          return next
-        })
-
-        requestAnimationFrame(() => { tileEl.style.opacity = '1' })
-      }
-      preload.onerror = () => {
-        requestAnimationFrame(() => { tileEl.style.opacity = '1' })
-      }
-      preload.src = target
+      let pool = data.photos.filter(p => p.thumb && p.display && p.aesthetic && !currentIds.has(p.id))
+      if (orient === 'P') pool = pool.filter(p => p.orientation === 'portrait')
+      else pool = pool.filter(p => p.orientation === 'landscape' || p.orientation === 'square')
+      if (pool.length === 0) return
+      newPhoto = randomFrom(pool)
     }
 
-    tileEl.addEventListener('transitionend', finish)
-    setTimeout(() => { if (tileEl.style.opacity === '0') finish() }, 1000)
-  }, [data])
+    const target = newPhoto.display || newPhoto.thumb
+    if (!target) return
 
-  /* Auto crossfade one random tile every CROSSFADE_INTERVAL — orientation-aware */
+    const img = tileEl.querySelector('img')
+    if (!img) return
+
+    /* Instant swap — image should be cached from preload buffer */
+    img.src = target
+    img.classList.remove('img-loading', 'img-loaded')
+    tileEl.dataset.id = newPhoto.id
+    const dominant = newPhoto.palette?.[0]
+    if (dominant) tileEl.style.backgroundColor = dominant + '99'
+
+    const currentLayout = layoutRef.current
+    if (currentLayout && currentLayout.cells[cellIdx]) {
+      img.style.objectPosition = getObjectPosition(newPhoto, currentLayout.cells[cellIdx])
+    }
+
+    setPhotos(prev => {
+      const next = [...prev]
+      const bIdx = next.findIndex(p => p.id === oldId)
+      if (bIdx >= 0) next[bIdx] = newPhoto!
+      return next
+    })
+
+    /* Refill buffer in background */
+    const nextIds = new Set(photosRef.current.map(p => p.id))
+    nextIds.delete(oldId!)
+    nextIds.add(newPhoto.id)
+    refillPreloadBuffer(nextIds)
+  }, [data, refillPreloadBuffer])
+
+  /* Auto crossfade one random tile every CROSSFADE_INTERVAL — uses preload buffer */
   const crossfadeOneTile = useCallback(() => {
     if (!data) return
     const tiles = document.querySelectorAll<HTMLDivElement>('.bento-tile')
@@ -473,61 +520,83 @@ export function BentoView() {
     const cellIdx = parseInt(tile.dataset.cellIdx || '0', 10)
 
     const currentIds = new Set(photosRef.current.map(p => p.id))
-    let pool = data.photos.filter(p => p.thumb && p.display && p.aesthetic && !currentIds.has(p.id))
+    const buf = preloadBufferRef.current
+    const bufPool = orient === 'P' ? buf.P : buf.L
 
-    /* Filter to matching orientation */
-    if (orient === 'P') {
-      pool = pool.filter(p => p.orientation === 'portrait')
+    let newPhoto: Photo | undefined
+    const bufReady = bufPool.filter(p => !currentIds.has(p.id))
+    if (bufReady.length > 0) {
+      const idx = Math.floor(Math.random() * bufReady.length)
+      newPhoto = bufReady[idx]
+      const bIdx = orient === 'P'
+        ? buf.P.findIndex(p => p.id === newPhoto!.id)
+        : buf.L.findIndex(p => p.id === newPhoto!.id)
+      if (bIdx >= 0) (orient === 'P' ? buf.P : buf.L).splice(bIdx, 1)
     } else {
-      pool = pool.filter(p => p.orientation === 'landscape' || p.orientation === 'square')
+      let pool = data.photos.filter(p => p.thumb && p.display && p.aesthetic && !currentIds.has(p.id))
+      if (orient === 'P') pool = pool.filter(p => p.orientation === 'portrait')
+      else pool = pool.filter(p => p.orientation === 'landscape' || p.orientation === 'square')
+      if (pool.length === 0) return
+      newPhoto = randomFrom(pool)
     }
-    if (pool.length === 0) return
 
-    const newPhoto = randomFrom(pool)
+    const target = newPhoto.display || newPhoto.thumb
+    if (!target) return
+
+    let imageReady = false
+    let fadeOutDone = false
+    const preload = new Image()
+    preload.decoding = 'async'
+
+    const applySwap = () => {
+      const img = tile.querySelector('img')
+      if (!img) return
+
+      img.src = target
+      img.classList.remove('img-loading', 'img-loaded')
+      img.alt = ''
+      tile.dataset.id = newPhoto!.id
+      const dominant = newPhoto!.palette?.[0]
+      if (dominant) tile.style.backgroundColor = dominant + '99'
+
+      const currentLayout = layoutRef.current
+      if (currentLayout && currentLayout.cells[cellIdx]) {
+        img.style.objectPosition = getObjectPosition(newPhoto!, currentLayout.cells[cellIdx])
+      }
+
+      setPhotos(prev => {
+        const next = [...prev]
+        const bIdx = next.findIndex(p => p.id === oldId)
+        if (bIdx >= 0) next[bIdx] = newPhoto!
+        return next
+      })
+
+      requestAnimationFrame(() => { tile.style.opacity = '1' })
+
+      const nextIds = new Set(photosRef.current.map(p => p.id))
+      nextIds.delete(oldId!)
+      nextIds.add(newPhoto!.id)
+      refillPreloadBuffer(nextIds)
+    }
+
+    const tryApply = () => {
+      if (imageReady && fadeOutDone) applySwap()
+    }
+
+    preload.onload = () => { imageReady = true; tryApply() }
+    preload.onerror = () => { imageReady = true; tryApply() }
+    preload.src = target
+
     tile.style.opacity = '0'
 
     const onFadeOut = () => {
       tile.removeEventListener('transitionend', onFadeOut)
-      const img = tile.querySelector('img')
-      if (!img) return
-
-      const target = newPhoto.display || newPhoto.thumb
-      if (!target) return
-
-      const preload = new Image()
-      preload.decoding = 'async'
-      preload.onload = () => {
-        img.src = target
-        img.classList.remove('img-loading', 'img-loaded')
-        img.alt = ''
-        tile.dataset.id = newPhoto.id
-        const dominant = newPhoto.palette?.[0]
-        if (dominant) tile.style.backgroundColor = dominant + '99'
-
-        /* Smart crop positioning */
-        const currentLayout = layoutRef.current
-        if (currentLayout && currentLayout.cells[cellIdx]) {
-          img.style.objectPosition = getObjectPosition(newPhoto, currentLayout.cells[cellIdx])
-        }
-
-        setPhotos(prev => {
-          const next = [...prev]
-          const bIdx = next.findIndex(p => p.id === oldId)
-          if (bIdx >= 0) next[bIdx] = newPhoto
-          return next
-        })
-
-        requestAnimationFrame(() => { tile.style.opacity = '1' })
-      }
-      preload.onerror = () => {
-        requestAnimationFrame(() => { tile.style.opacity = '1' })
-      }
-      preload.src = target
+      fadeOutDone = true
+      tryApply()
     }
-
     tile.addEventListener('transitionend', onFadeOut)
-    setTimeout(() => { if (tile.style.opacity === '0') onFadeOut() }, 1000)
-  }, [data])
+    setTimeout(() => { if (!fadeOutDone) { fadeOutDone = true; tile.removeEventListener('transitionend', onFadeOut); tryApply() } }, 900)
+  }, [data, refillPreloadBuffer])
 
   /* Init: generate on mount */
   useEffect(() => {
@@ -604,6 +673,7 @@ export function BentoView() {
   }
 
   const isMobile = layout.device === 'mobile'
+  const containerRatio = layout.cols * BENTO_UNIT_RATIO / layout.rows
 
   return (
     <div
@@ -616,7 +686,8 @@ export function BentoView() {
         style={{
           '--bento-cols': layout.cols,
           '--bento-rows': layout.rows,
-          aspectRatio: `${layout.cols} / ${layout.rows}`,
+          aspectRatio: isMobile ? containerRatio : undefined,
+          width: isMobile ? undefined : `calc(67dvh * ${containerRatio})`,
         } as React.CSSProperties}
       >
         {photos.map((photo, i) => {
@@ -624,7 +695,7 @@ export function BentoView() {
           if (!cell || !photo) return null
           return (
             <BentoTile
-              key={`${photo.id}-${i}`}
+              key={i}
               photo={photo}
               cell={cell}
               cellIndex={i}

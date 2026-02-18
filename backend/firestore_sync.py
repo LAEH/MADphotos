@@ -248,7 +248,8 @@ VOTED_JSON_PATH = PROJECT_ROOT / "frontend" / "show" / "data" / "voted.json"
 def generate_picks_json(conn: sqlite3.Connection) -> None:
     """Generate picks.json from accepted votes (tinder + isit), grouped by orientation.
 
-    Device 'mobile' → portrait picks, 'desktop' → landscape picks.
+    Orientation is determined by each image's aspect ratio from the images table,
+    not by the device used to vote. aspect_ratio <= 1 → portrait, > 1 → landscape.
     ISIT votes override tinder votes for the same photo (newer curation pass).
     Output: { "portrait": [...ids], "landscape": [...ids], "generated": "..." }
     """
@@ -281,26 +282,32 @@ def generate_picks_json(conn: sqlite3.Connection) -> None:
 
     # Build per-photo vote map: tinder first, then isit overrides
     # This ensures ISIT (the current UI) takes priority over old tinder votes
-    vote_map: dict[str, tuple[str, str]] = {}  # photo -> (vote, device)
+    vote_map: dict[str, str] = {}  # photo -> vote
     if has_tinder:
-        for photo, vote, device in conn.execute(
-            "SELECT photo, vote, device FROM firestore_tinder_votes ORDER BY ts ASC"
+        for photo, vote in conn.execute(
+            "SELECT photo, vote FROM firestore_tinder_votes ORDER BY ts ASC"
         ).fetchall():
-            vote_map[photo] = (vote, device or "desktop")
+            vote_map[photo] = vote
     if has_isit:
-        for photo, vote, device in conn.execute(
-            "SELECT photo, vote, device FROM firestore_isit_votes ORDER BY ts ASC"
+        for photo, vote in conn.execute(
+            "SELECT photo, vote FROM firestore_isit_votes ORDER BY ts ASC"
         ).fetchall():
-            vote_map[photo] = (vote, device or "desktop")
+            vote_map[photo] = vote
 
-    portrait_ids = [
-        pid for pid, (vote, device) in vote_map.items()
-        if vote == "accept" and device == "mobile" and pid not in rejected
-    ]
-    landscape_ids = [
-        pid for pid, (vote, device) in vote_map.items()
-        if vote == "accept" and device == "desktop" and pid not in rejected
-    ]
+    # Get accepted photos (not rejected in re-curation)
+    accepted = {pid for pid, vote in vote_map.items() if vote == "accept" and pid not in rejected}
+
+    # Build aspect ratio lookup from images table
+    aspect_map: dict[str, float] = {}
+    try:
+        for uuid, ar in conn.execute("SELECT uuid, aspect_ratio FROM images").fetchall():
+            aspect_map[uuid] = ar
+    except sqlite3.OperationalError:
+        pass
+
+    # Assign orientation by aspect ratio: < 1.0 → portrait, > 1.0 → landscape, == 1.0 → both
+    portrait_ids = [pid for pid in accepted if aspect_map.get(pid, 1.5) <= 1.0]
+    landscape_ids = [pid for pid in accepted if aspect_map.get(pid, 1.5) >= 1.0]
 
     picks = {
         "portrait": portrait_ids,

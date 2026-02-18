@@ -5991,6 +5991,112 @@ def generate_static():
 
 
 # ---------------------------------------------------------------------------
+# Unpicked images review
+# ---------------------------------------------------------------------------
+
+def get_unpicked_data():
+    """Return all images NOT in picks.json, with vote status metadata."""
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.row_factory = sqlite3.Row
+
+    # Load current picks
+    picks_json = PROJECT_ROOT / "frontend" / "show" / "data" / "picks.json"
+    picked_set: set[str] = set()
+    if picks_json.exists():
+        try:
+            pdata = json.loads(picks_json.read_text())
+            picked_set = set(pdata.get("portrait", []) + pdata.get("landscape", []))
+        except Exception:
+            pass
+
+    # Build vote map (same logic as firestore_sync: tinder first, isit overrides)
+    vote_map: dict[str, str] = {}  # photo -> vote
+    try:
+        for row in conn.execute(
+            "SELECT photo, vote FROM firestore_tinder_votes ORDER BY ts ASC"
+        ).fetchall():
+            vote_map[row["photo"]] = row["vote"]
+    except sqlite3.OperationalError:
+        pass
+    try:
+        for row in conn.execute(
+            "SELECT photo, vote FROM firestore_isit_votes ORDER BY ts ASC"
+        ).fetchall():
+            vote_map[row["photo"]] = row["vote"]
+    except sqlite3.OperationalError:
+        pass
+
+    # Get all images not in picks
+    rows = conn.execute(
+        "SELECT uuid, category, orientation, width, height FROM images ORDER BY category, uuid"
+    ).fetchall()
+    conn.close()
+
+    images = []
+    for r in rows:
+        uid = r["uuid"]
+        if uid in picked_set:
+            continue
+        vote = vote_map.get(uid)
+        if vote == "accept":
+            status = "accepted_not_picked"
+        elif vote == "reject":
+            status = "rejected"
+        else:
+            status = "unreviewed"
+        images.append({
+            "uuid": uid,
+            "category": r["category"],
+            "orientation": r["orientation"],
+            "width": r["width"],
+            "height": r["height"],
+            "vote_status": status,
+        })
+
+    # Sort: unreviewed first, then rejected, within each group by category
+    status_order = {"unreviewed": 0, "accepted_not_picked": 1, "rejected": 2}
+    images.sort(key=lambda x: (status_order.get(x["vote_status"], 9), x["category"]))
+
+    return {
+        "images": images,
+        "total": len(images),
+        "picked_count": len(picked_set),
+    }
+
+
+def do_pick(uuids):
+    """Insert/update votes to 'accept' and regenerate picks.json."""
+    conn = sqlite3.connect(str(DB_PATH))
+    now = datetime.now(timezone.utc).isoformat()
+
+    for uid in uuids:
+        # Use a deterministic doc_id so re-picks are idempotent
+        doc_id = f"system-pick-{uid}"
+        conn.execute("""
+            INSERT INTO firestore_tinder_votes (doc_id, photo, vote, device, ts, synced_at)
+            VALUES (?, ?, 'accept', 'system', ?, ?)
+            ON CONFLICT(doc_id) DO UPDATE SET vote='accept', ts=excluded.ts
+        """, (doc_id, uid, now, now))
+    conn.commit()
+
+    # Regenerate picks.json
+    sys.path.insert(0, str(PROJECT_ROOT / "backend"))
+    from firestore_sync import generate_picks_json
+    generate_picks_json(conn)
+    conn.close()
+
+    # Read back new total
+    picks_json = PROJECT_ROOT / "frontend" / "show" / "data" / "picks.json"
+    try:
+        pdata = json.loads(picks_json.read_text())
+        new_total = len(set(pdata.get("portrait", []) + pdata.get("landscape", [])))
+    except Exception:
+        new_total = -1
+
+    return {"success": True, "new_total": new_total}
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 

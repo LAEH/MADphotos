@@ -2,13 +2,16 @@ import type { Photo } from '../types/photo'
 
 export type CellOrient = 'P' | 'L'
 
+/** Width-to-height ratio of each grid unit cell (4:3). */
+export const BENTO_UNIT_RATIO = 4 / 3
+
 export interface BentoCell {
   r: number; c: number; rs: number; cs: number
   orient: CellOrient
 }
 
 function cellAspectRatioKey(cell: BentoCell): string {
-  const ratio = cell.cs / cell.rs
+  const ratio = (cell.cs * BENTO_UNIT_RATIO) / cell.rs
   if (ratio >= 1.6) return '16:9'
   if (ratio >= 1.2) return '3:2'
   if (ratio <= 0.85) return '2:3'

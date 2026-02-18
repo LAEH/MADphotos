@@ -13,6 +13,10 @@ const navItems: NavItem[] = [
   { to: '/instructions', label: 'Instructions' },
 ]
 
+const curation: NavItem[] = [
+  { to: '/review/unpicked', label: 'Unpicked' },
+]
+
 const database: NavItem[] = [
   { to: '/db/overview', label: 'Overview' },
 ]
@@ -82,6 +86,10 @@ export function Sidebar() {
 
       <div className="sb-content">
         {navItems.map(renderLink)}
+
+        <div className="sb-sep" />
+        <div className="sb-group">Curation</div>
+        {curation.map(renderLink)}
 
         <div className="sb-sep" />
         <div className="sb-group">Database</div>

@@ -46,6 +46,7 @@ export function dataUrl(apiPath: string): string {
     '/api/blind-test': 'data/blind_test.json',
     '/api/gemma': 'data/gemma.json',
     '/api/schema': 'data/schema.json',
+    '/api/unpicked': 'data/unpicked.json',
   }
   const staticPath = map[apiPath]
   if (staticPath) return `${import.meta.env.BASE_URL}${staticPath}`

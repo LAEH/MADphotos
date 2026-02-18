@@ -10,6 +10,7 @@ import { GemmaCartoonPage } from './pages/GemmaCartoonPage'
 import { BlindTestPage } from './pages/BlindTestPage'
 import { GemmaPage } from './pages/GemmaPage'
 import { DatabasePage } from './pages/DatabasePage'
+import { UnpickedPage } from './pages/UnpickedPage'
 
 export default function App() {
   const themeCtx = useThemeProvider()
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="status" element={<StatusPage />} />
           <Route path="journal" element={<JournalPage />} />
           <Route path="instructions" element={<InstructionsPage />} />
+          <Route path="review/unpicked" element={<UnpickedPage />} />
           <Route path="db/overview" element={<DatabasePage />} />
           <Route path="experiments/gemma" element={<GemmaPage />} />
           <Route path="experiments/mosaics" element={<MosaicsPage />} />
