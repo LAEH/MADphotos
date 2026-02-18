@@ -217,7 +217,7 @@ def main():
         for j, style in enumerate(styles):
             style_name = style.get("name", f"style_{j}")
             prompt = style.get("style_prompt", style.get("prompt", ""))
-            strength = max(0.55, min(0.7, style.get("strength", 0.65)))
+            strength = max(0.5, min(0.85, style.get("strength", 0.75)))
             safe_name = style_name.lower().replace(" ", "_").replace("/", "-")[:40]
 
             print(f"  [{j+1}/{len(styles)}] {style_name} (strength: {strength})")

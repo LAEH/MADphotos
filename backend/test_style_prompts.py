@@ -28,20 +28,20 @@ PICKS_JSON = PROJECT_ROOT / "frontend" / "show" / "data" / "picks.json"
 OLLAMA_URL = "http://localhost:11434/api/generate"
 MODEL = "gemma3:27b"
 
-PROMPT = """You are an expert art director specializing in style transfer. Your job: look at THIS specific photograph and pick the 5 styles that would produce the most stunning transformations for THIS image.
+PROMPT = """You are an expert art director specializing in style transfer. Look at THIS photograph and pick the 5 styles that would produce the most stunning transformations for THIS specific image.
 
-Analyze the image deeply — its light, shadows, geometry, mood, textures, subject. Then choose 5 styles where each one is the PERFECT match for what's in the image. A dark moody street scene might be incredible as noir charcoal. A colorful market might sing as Pixar 3D. A lone figure in fog might be breathtaking as Sumi-e ink wash. A vibrant portrait might be perfect as Ghibli watercolor. Match the style to the image — don't just pick your favorites.
+Analyze deeply — the light, shadows, geometry, mood, textures, subject, color palette. Then choose 5 styles where each one is a PERFECT match for what's in the image. Not your defaults — styles THIS image is begging to become.
 
-CRITICAL RULES:
-- STYLE descriptors only — the original composition, subjects, and layout are preserved
-- Do NOT describe the scene content — the image already has that
-- DO describe: exact medium, texture, color treatment, technique, materials, tonal quality
-- Each style prompt must be DETAILED (30-50 words) — specific enough to generate from
-- ALWAYS specify an exact color palette in the prompt — name 3-4 specific colors or tones derived from the image's own palette. Two images in the same style should look different because their color palettes differ
+RULES:
+- STYLE descriptors only — composition, subjects, and layout are preserved
+- Do NOT describe the scene — the image already has that
+- DO describe: exact medium, texture, technique, materials, tonal quality
+- Each prompt must be DETAILED (40-60 words) — specific enough to generate from
+- ALWAYS specify 3-4 exact colors derived from the image's own palette
 - NO text, typography, or lettering
 - The 5 styles must be radically different from each other
 
-YOUR FULL PALETTE (use any of these — pick whatever fits the image best):
+YOUR FULL PALETTE (pick whatever fits THIS image best):
 - Anime/Manga: Ghibli soft watercolor, Makoto Shinkai luminous, 90s cel shading, Junji Ito horror ink
 - 3D/Cartoon: Pixar subsurface skin, Claymation handmade, Cartoon Network flat, Disney renaissance, Archer sharp flat cel-shading with muted spy-palette
 - B&W/Graphic: Charcoal on rough paper, pen crosshatch, Sumi-e ink wash, noir silhouette, edge-detection contour, stipple dots, scratchboard engraving
@@ -51,16 +51,13 @@ YOUR FULL PALETTE (use any of these — pick whatever fits the image best):
 - Material/Craft: Mosaic tile, stained glass, embroidery, torn paper collage, gold leaf lacquer, ceramic glaze
 - Illustration: Ligne claire, vintage travel poster, botanical watercolor, editorial ink wash, children's crayon, Corto Maltese Hugo Pratt bold ink brush with dramatic black pools
 
-Do NOT always pick the same styles. If charcoal doesn't suit this image, don't use it. If Ghibli is perfect for this image, use it. Be honest about what works best.
-
 Respond with ONLY valid JSON:
-{"analysis":"1 sentence on what makes this photo special","styles":[{"name":"short name (2-3 words)","style_prompt":"detailed style descriptors, 30-50 words, exact technique and materials, no scene description, no text","strength":0.5 to 0.85,"why":"1 sentence — why THIS style is perfect for THIS specific image"}]}
+{"analysis":"1 sentence on what makes this photo special","styles":[{"name":"short name (2-3 words)","style_prompt":"detailed style descriptors, 40-60 words, exact technique + materials + 3-4 specific colors from the image, no scene description, no text","strength":0.5 to 0.85,"why":"1 sentence — why THIS style suits THIS image"}]}
 
-strength guide: 0.5 = subtle, 0.65 = moderate, 0.75 = strong (default), 0.85 = dramatic restyling.
+strength guide: 0.5 = subtle, 0.65 = moderate, 0.75 = strong (default), 0.85 = dramatic.
 
-Example GOOD: "High-contrast charcoal on rough cold-press paper, deep velvety blacks with aggressive crosshatch shading, bright highlights left as raw white paper, edges dissolving into dust and grain"
-Example GOOD: "Studio Ghibli soft watercolor, luminous washes of cerulean and warm ochre, delicate ink outlines, dappled light through leaves rendered as transparent color layers"
-Example GOOD: "Cyanotype sun-print on heavy cotton rag, Prussian blue shadows fading to creamy white, organic tonal gradation with soft feathered edges and paper fiber texture"
+Example GOOD: "High-contrast charcoal on rough cold-press paper, deep velvety blacks with aggressive crosshatch shading in burnt umber and raw sienna, bright highlights left as raw white paper, warm grey midtones, edges dissolving into dust and grain with deliberate smudging"
+Example GOOD: "Archer-style flat cel animation, crisp black outlines with muted teal and burgundy color blocks, minimal shading with sharp shadow cutoffs, desaturated warm skin tones, clean vector-like rendering"
 Example BAD: "A Japanese woodblock print showing a person standing in a city" (describes the scene — WRONG)"""
 
 
