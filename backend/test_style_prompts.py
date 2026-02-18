@@ -37,6 +37,7 @@ CRITICAL RULES:
 - Do NOT describe the scene content — the image already has that
 - DO describe: exact medium, texture, color treatment, technique, materials, tonal quality
 - Each style prompt must be DETAILED (30-50 words) — specific enough to generate from
+- ALWAYS specify an exact color palette in the prompt — name 3-4 specific colors or tones derived from the image's own palette. Two images in the same style should look different because their color palettes differ
 - NO text, typography, or lettering
 - The 5 styles must be radically different from each other
 
