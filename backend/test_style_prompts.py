@@ -28,30 +28,39 @@ PICKS_JSON = PROJECT_ROOT / "frontend" / "show" / "data" / "picks.json"
 OLLAMA_URL = "http://localhost:11434/api/generate"
 MODEL = "gemma3:27b"
 
-PROMPT = """You are an expert art director specializing in style transfer — transforming photographs into different artistic mediums while preserving the original composition, layout, and subject matter.
+PROMPT = """You are an expert art director specializing in style transfer. Your job: look at THIS specific photograph and pick the 5 styles that would produce the most stunning transformations for THIS image.
 
-Look at this photograph carefully. Analyze its subject, mood, composition, and what makes it special.
-
-Then suggest 5 MAXIMALLY DIFFERENT artistic styles to transform this photo into. Each style must be chosen specifically because it would enhance or reinterpret THIS image beautifully.
+Analyze the image deeply — its light, shadows, geometry, mood, textures, subject. Then choose 5 styles where each one is the PERFECT match for what's in the image. A dark moody street scene might be incredible as noir charcoal. A colorful market might sing as Pixar 3D. A lone figure in fog might be breathtaking as Sumi-e ink wash. A vibrant portrait might be perfect as Ghibli watercolor. Match the style to the image — don't just pick your favorites.
 
 CRITICAL RULES:
-- These are STYLE descriptors only — the original image structure, composition, subjects, and layout will be preserved
-- Do NOT describe the scene content (no "a person standing", "shoes on a table") — the image already has that
-- DO describe: medium, texture, color treatment, artistic technique, rendering style, brush/stroke quality, lighting treatment
-- Each style prompt must be SHORT (under 30 words) — just the style keywords
-- NO text, typography, or lettering in any style
-- The 5 styles must be radically different from each other (different eras, cultures, mediums, techniques)
-- Think beyond the obvious: not just "oil painting" but specific techniques like "impasto palette knife with cerulean and burnt sienna dominance"
-- PRIORITIZE these categories: anime/manga styles (Ghibli, Makoto Shinkai, 90s anime cel), cartoon styles (Pixar 3D, classic Disney, Cartoon Network, Tintin ligne claire), bold painting styles (Van Gogh thick impasto, Monet impressionist, Klimt gold leaf, Basquiat neo-expressionist)
-- Each style should produce a DRAMATIC visual transformation — the viewer should immediately say "wow that's a completely different medium"
+- STYLE descriptors only — the original composition, subjects, and layout are preserved
+- Do NOT describe the scene content — the image already has that
+- DO describe: exact medium, texture, color treatment, technique, materials, tonal quality
+- Each style prompt must be DETAILED (30-50 words) — specific enough to generate from
+- NO text, typography, or lettering
+- The 5 styles must be radically different from each other
+
+YOUR FULL PALETTE (use any of these — pick whatever fits the image best):
+- Anime/Manga: Ghibli soft watercolor, Makoto Shinkai luminous, 90s cel shading, Junji Ito horror ink
+- 3D/Cartoon: Pixar subsurface skin, Claymation handmade, Cartoon Network flat, Disney renaissance
+- B&W/Graphic: Charcoal on rough paper, pen crosshatch, Sumi-e ink wash, noir silhouette, edge-detection contour, stipple dots, scratchboard engraving
+- Print/Process: Cyanotype blueprint, risograph 2-color, linocut woodblock, screen print halftone, mezzotint, photogravure
+- Painting: Van Gogh impasto, Monet impressionist, Klimt gold leaf, Caravaggio chiaroscuro, Basquiat raw, Hopper light, Rothko color field, Hockney pool-bright
+- Photo Effect: Infrared false color, solarization, double exposure, high-key bleach, shadow crush duotone, chromatic aberration
+- Material/Craft: Mosaic tile, stained glass, embroidery, torn paper collage, gold leaf lacquer, ceramic glaze
+- Illustration: Ligne claire, vintage travel poster, botanical watercolor, editorial ink wash, children's crayon
+
+Do NOT always pick the same styles. If charcoal doesn't suit this image, don't use it. If Ghibli is perfect for this image, use it. Be honest about what works best.
 
 Respond with ONLY valid JSON:
-{"analysis":"1 sentence on what makes this photo special","styles":[{"name":"short name (2-3 words)","style_prompt":"pure style descriptors only, under 30 words, no scene description, no text","strength":0.3 to 0.7,"why":"why this style suits this specific image"}]}
+{"analysis":"1 sentence on what makes this photo special","styles":[{"name":"short name (2-3 words)","style_prompt":"detailed style descriptors, 30-50 words, exact technique and materials, no scene description, no text","strength":0.5 to 0.85,"why":"1 sentence — why THIS style is perfect for THIS specific image"}]}
 
-strength guide: 0.6 = moderate stylization, 0.75 = strong transformation (recommended default), 0.85 = dramatic full restyling. We want BOLD transformations — the original should be clearly recognizable but the style must be unmistakable and dramatic.
+strength guide: 0.5 = subtle, 0.65 = moderate, 0.75 = strong (default), 0.85 = dramatic restyling.
 
-Example good style_prompt: "Ukiyo-e woodblock print, indigo and vermillion ink, bold outlines, flat color planes, washi paper texture"
-Example BAD style_prompt: "A Japanese woodblock print showing a person standing in a city at night with neon lights" (this describes the scene — wrong!)"""
+Example GOOD: "High-contrast charcoal on rough cold-press paper, deep velvety blacks with aggressive crosshatch shading, bright highlights left as raw white paper, edges dissolving into dust and grain"
+Example GOOD: "Studio Ghibli soft watercolor, luminous washes of cerulean and warm ochre, delicate ink outlines, dappled light through leaves rendered as transparent color layers"
+Example GOOD: "Cyanotype sun-print on heavy cotton rag, Prussian blue shadows fading to creamy white, organic tonal gradation with soft feathered edges and paper fiber texture"
+Example BAD: "A Japanese woodblock print showing a person standing in a city" (describes the scene — WRONG)"""
 
 
 def get_sample_images(count: int = 5) -> list[tuple[str, str]]:
