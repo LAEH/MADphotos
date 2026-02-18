@@ -59,7 +59,34 @@ class APIHandler(SimpleHTTPRequestHandler):
         if self.path == "/api/cartoon/review":
             self._handle_cartoon_review()
             return
+        if self.path == "/api/location/tag":
+            self._handle_location_tag()
+            return
         self.send_error(404)
+
+    def _handle_location_tag(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            body = json.loads(self.rfile.read(length)) if length else {}
+        except (json.JSONDecodeError, ValueError):
+            self._error_response(400, "Invalid JSON")
+            return
+
+        uuid = body.get("uuid")
+        location = body.get("location")
+        if not uuid or not location:
+            self._error_response(400, "uuid and location required")
+            return
+
+        try:
+            from dashboard import tag_location
+        except ImportError:
+            import sys as _sys
+            _sys.path.insert(0, str(Path(__file__).resolve().parent))
+            from dashboard import tag_location
+
+        result = tag_location(uuid, location)
+        self._json_response(result)
 
     def _handle_cartoon_review(self):
         try:
@@ -148,7 +175,8 @@ class APIHandler(SimpleHTTPRequestHandler):
                                    similarity_search, drift_search,
                                    get_gemma_data, get_gemma_progress,
                                    get_unpicked_data,
-                                   get_signal_inspector_picks_data)
+                                   get_signal_inspector_picks_data,
+                                   get_location_tagger_data)
         except ImportError:
             import sys
             sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -159,9 +187,12 @@ class APIHandler(SimpleHTTPRequestHandler):
                                    similarity_search, drift_search,
                                    get_gemma_data, get_gemma_progress,
                                    get_unpicked_data,
-                                   get_signal_inspector_picks_data)
+                                   get_signal_inspector_picks_data,
+                                   get_location_tagger_data)
 
-        if self.path == "/api/cartoons":
+        if self.path == "/api/locations":
+            self._json_response(get_location_tagger_data())
+        elif self.path == "/api/cartoons":
             self._json_response(get_all_cartoon_data())
         elif self.path == "/api/signal-inspector":
             self._json_response(get_signal_inspector_picks_data())

@@ -10,6 +10,7 @@ import { BlindTestPage } from './pages/BlindTestPage'
 import { GemmaPage } from './pages/GemmaPage'
 import { UnpickedPage } from './pages/UnpickedPage'
 import { SignalInspectorPage } from './pages/SignalInspectorPage'
+import { LocationPage } from './pages/LocationPage'
 
 export default function App() {
   const themeCtx = useThemeProvider()
@@ -28,6 +29,7 @@ export default function App() {
           <Route path="experiments/cartoon" element={<CartoonPage />} />
           <Route path="experiments/blind-test" element={<BlindTestPage />} />
           <Route path="experiments/signals" element={<SignalInspectorPage />} />
+          <Route path="curation/location" element={<LocationPage />} />
         </Route>
       </Routes>
     </ThemeContext.Provider>

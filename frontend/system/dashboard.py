@@ -6385,6 +6385,88 @@ def do_pick(uuids):
 
 
 # ---------------------------------------------------------------------------
+# Location tagger
+# ---------------------------------------------------------------------------
+
+LOCATION_LABELS = ["NYC", "Paris", "China", "Unknown"]
+
+
+def get_location_tagger_data():
+    """Return picks that haven't been manually location-tagged yet."""
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.row_factory = sqlite3.Row
+
+    # Load current picks
+    picks_json = PROJECT_ROOT / "frontend" / "show" / "data" / "picks.json"
+    picked_uuids: list[str] = []
+    if picks_json.exists():
+        try:
+            pdata = json.loads(picks_json.read_text())
+            picked_uuids = pdata.get("portrait", []) + pdata.get("landscape", [])
+        except Exception:
+            pass
+
+    if not picked_uuids:
+        conn.close()
+        return {"photos": [], "locations": LOCATION_LABELS, "tagged_count": 0, "total_count": 0}
+
+    # Get already-tagged UUIDs (user_manual only)
+    tagged_set: set[str] = set()
+    try:
+        for row in conn.execute(
+            "SELECT image_uuid FROM image_locations WHERE source = 'user_manual'"
+        ).fetchall():
+            tagged_set.add(row["image_uuid"])
+    except sqlite3.OperationalError:
+        pass
+
+    # Build photo list for untagged picks
+    placeholders = ",".join("?" for _ in picked_uuids)
+    rows = conn.execute(
+        f"SELECT uuid, category FROM images WHERE uuid IN ({placeholders}) ORDER BY category, uuid",
+        picked_uuids,
+    ).fetchall()
+    conn.close()
+
+    photos = []
+    for r in rows:
+        uid = r["uuid"]
+        if uid in tagged_set:
+            continue
+        photos.append({
+            "uuid": uid,
+            "category": r["category"],
+            "thumb_url": f"/rendered/display/jpeg/{uid}.jpg",
+        })
+
+    return {
+        "photos": photos,
+        "locations": LOCATION_LABELS,
+        "tagged_count": len(tagged_set),
+        "total_count": len(picked_uuids),
+    }
+
+
+def tag_location(uuid, location_name):
+    """Insert/update a manual location tag for a photo."""
+    conn = sqlite3.connect(str(DB_PATH))
+    now = datetime.now(timezone.utc).isoformat()
+    conn.execute(
+        """INSERT INTO image_locations (image_uuid, location_name, source, accepted, created_at)
+           VALUES (?, ?, 'user_manual', 1, ?)
+           ON CONFLICT(image_uuid) DO UPDATE SET
+             location_name = excluded.location_name,
+             source = excluded.source,
+             accepted = excluded.accepted,
+             created_at = excluded.created_at""",
+        (uuid, location_name, now),
+    )
+    conn.commit()
+    conn.close()
+    return {"success": True, "uuid": uuid, "location": location_name}
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 
