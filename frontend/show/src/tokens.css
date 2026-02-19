@@ -118,7 +118,14 @@
   --duration-fast: 150ms;
   --duration-normal: 250ms;
   --duration-slow: 400ms;
+  --duration-reveal: 500ms;
   --transition: var(--duration-normal) var(--ease-out-quart);
+
+  /* ── Image appear — single tokenized animation for all views ── */
+  --img-appear-duration: var(--duration-reveal);
+  --img-appear-ease: var(--ease-out-quart);
+  --img-appear-scale-from: 1.04;
+  --img-appear-scale-to: 1;
 
   /* ── rem-based Sizing System (1rem = 16px) ── */
   --size-xs: 0.5rem;    /* 8px */
@@ -286,33 +293,34 @@
   to { opacity: 1; }
 }
 
-/* ── Image loading transitions ──
+/* ── Image loading transitions — compositor-only (opacity + transform) ──
    Two-phase loading: start invisible, fade in once fully loaded.
    .img-loading  = not yet loaded (opacity 0, !important to beat
                     any specificity on the element's resting state)
    .img-loaded   = fully decoded, fade to 1. Class is auto-removed
                     after the transition ends (in JS) so it does not
                     permanently override other transitions on the
-                    same element (e.g. grid-item img hover scale). */
+                    same element (e.g. grid-item img hover scale).
+   All transitions are compositor-only: opacity + transform.
+   Same animation everywhere for visual consistency. */
 .img-loading {
   opacity: 0 !important;
-  transform: scale(1.04);
+  transform: scale(var(--img-appear-scale-from));
 }
 .img-loaded {
   opacity: 1;
-  transform: scale(1);
+  transform: scale(var(--img-appear-scale-to));
   transition:
-    opacity 500ms var(--ease-out-quart),
-    transform 500ms var(--ease-out-quart) !important;
+    opacity var(--img-appear-duration) var(--img-appear-ease),
+    transform var(--img-appear-duration) var(--img-appear-ease) !important;
 }
 
-/* Blur-up placeholder: micro image blurred, crossfades to target */
+/* Blur-up placeholder: micro image scaled up, crossfades to target.
+   Uses only compositor properties (opacity + transform).
+   The blur is a static filter — no transition on filter. */
 .img-blur-up {
   filter: blur(8px);
   transform: scale(1.05);
-  transition:
-    filter 0.3s ease-out,
-    transform 0.3s ease-out;
 }
 
 /* ===== Base ===== */

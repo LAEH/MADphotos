@@ -234,10 +234,13 @@
   pointer-events: none;
   backdrop-filter: blur(40px) saturate(180%);
   -webkit-backdrop-filter: blur(40px) saturate(180%);
+  /* max-height + padding animate layout but the menu is small and infrequent.
+     opacity is compositor-only and handles the visual transition. */
   transition:
     max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
     opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
     padding 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  contain: layout style;
 }
 
 .side-menu.open {
@@ -272,9 +275,7 @@
   margin: 1px 0;
   border-radius: 8px;
   cursor: pointer;
-  transition:
-    background 0.15s,
-    color 0.15s;
+  transition: opacity var(--duration-fast);
   white-space: nowrap;
   line-height: 1.2;
 }
@@ -328,9 +329,7 @@
   font-size: var(--text-sm);
   color: var(--text-dim);
   cursor: pointer;
-  transition:
-    background var(--duration-fast) var(--ease-out-quart),
-    color var(--duration-fast) var(--ease-out-quart);
+  transition: opacity var(--duration-fast) var(--ease-out-quart);
 }
 
 /* ===== Glass Tags — Monochrome Default ===== */
@@ -345,9 +344,6 @@
   font-size: var(--text-xs);
   color: var(--text-dim);
   cursor: pointer;
-  transition:
-    background var(--duration-fast) var(--ease-out-quart),
-    border-color var(--duration-fast) var(--ease-out-quart);
   white-space: nowrap;
   user-select: none;
   text-transform: capitalize;
@@ -515,7 +511,7 @@
   font-weight: 200;
   cursor: pointer;
   padding: var(--space-5);
-  transition: color var(--duration-fast) var(--ease-out-quart);
+  transition: opacity var(--duration-fast) var(--ease-out-quart);
   font-family: var(--font);
   line-height: 1;
 }
@@ -545,7 +541,7 @@
   font-size: 24px;
   cursor: pointer;
   font-family: var(--font);
-  transition: color var(--transition);
+  transition: opacity var(--transition);
 }
 
 /* hover: see @media (hover: hover) guard */
@@ -629,12 +625,77 @@
     box-shadow: var(--shadow-lg);
   }
   .lightbox-close:hover {
-    color: rgb(255, 255, 255);
+    opacity: 1;
   }
   .lightbox-nav:hover {
-    color: rgba(255, 255, 255, 0.9);
+    opacity: 1;
   }
   .menu-btn:hover {
     color: var(--text);
+  }
+}
+
+/* ===== Tier B — no backdrop-filter on lightbox ===== */
+:root.tier-b .lightbox-backdrop {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgba(0, 0, 0, 0.95);
+}
+:root.tier-b .side-menu {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgba(255, 255, 255, 0.95);
+}
+:root.tier-b.dark .side-menu {
+  background: rgba(28, 28, 30, 0.95);
+}
+:root.tier-b .floating-nav {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgba(255, 255, 255, 0.95);
+}
+:root.tier-b.dark .floating-nav {
+  background: rgba(28, 28, 30, 0.95);
+}
+
+/* ===== Tier C — no backdrop-filter or transitions ===== */
+:root.tier-c .lightbox-backdrop,
+:root.tier-c .side-menu,
+:root.tier-c .floating-nav {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* ===== IsitView float buttons — tier overrides ===== */
+:root.tier-b .isit-float-btn,
+:root.tier-b .isit-float-disk {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgba(245, 245, 247, 0.85);
+}
+:root.tier-b.dark .isit-float-btn,
+:root.tier-b.dark .isit-float-disk {
+  background: rgba(28, 28, 30, 0.85);
+}
+:root.tier-c .isit-float-btn,
+:root.tier-c .isit-float-disk {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* ===== Reduced motion — Lightbox + Nav ===== */
+@media (prefers-reduced-motion: reduce) {
+  .lightbox,
+  .lightbox-content {
+    transition-duration: 0.01ms !important;
+  }
+  .floating-nav,
+  .side-menu,
+  .side-menu-backdrop,
+  .menu-chevron {
+    transition-duration: 0.01ms !important;
+  }
+  .view.active {
+    animation-duration: 0.01ms !important;
   }
 }

@@ -122,6 +122,15 @@ class APIHandler(SimpleHTTPRequestHandler):
 
     def _handle_generated_progress(self):
         """Check generation progress by counting files in the latest run dir."""
+        # Read expected count from file (set by generate endpoint)
+        expected = 20
+        count_path = Path("/tmp/generated-expected-count")
+        try:
+            if count_path.exists():
+                expected = int(count_path.read_text().strip())
+        except Exception:
+            pass
+
         latest = None
         if GENERATED_DIR.exists():
             dirs = sorted([d for d in GENERATED_DIR.iterdir() if d.is_dir()], reverse=True)
@@ -129,7 +138,7 @@ class APIHandler(SimpleHTTPRequestHandler):
                 latest = dirs[0]
 
         if not latest:
-            self._json_response({"completed": 0, "expected": 20, "done": True})
+            self._json_response({"completed": 0, "expected": expected, "done": True})
             return
 
         # Count photos (UUID dirs) that have at least one variant
@@ -147,20 +156,34 @@ class APIHandler(SimpleHTTPRequestHandler):
 
         self._json_response({
             "completed": completed,
-            "expected": 20,
+            "expected": expected,
             "done": not running,
             "run_dir": latest.name,
         })
 
     def _handle_generated_generate(self):
-        """Launch genimages pipeline (30 photos = 60 variants) in a Terminal window."""
+        """Launch genimages pipeline in a Terminal window with configurable count."""
         import subprocess as _sp
+
+        # Read count from POST body (default 20)
+        count = 20
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            body = json.loads(self.rfile.read(length)) if length else {}
+            count = int(body.get("count", 20))
+            count = max(1, min(count, 200))  # clamp 1-200
+        except Exception:
+            pass
+
+        # Store expected count for progress endpoint
+        count_path = Path("/tmp/generated-expected-count")
+        count_path.write_text(str(count))
 
         script = f"""#!/bin/bash
 cd {PROJECT_ROOT}
-echo "=== Style Transfer — Generate 20 ==="
+echo "=== Style Transfer — Generate {count} ==="
 echo ""
-.venv-gen/bin/python3 -u -m backend.genimages.run --count 20
+.venv-gen/bin/python3 -u -m backend.genimages.run --count {count}
 echo ""
 echo "=== Generation complete ==="
 echo "Press any key to close..."
@@ -175,7 +198,7 @@ read -n 1
             "-e", f'tell app "Terminal" to do script "bash {script_path}"',
         ])
 
-        self._json_response({"ok": True, "count": 20})
+        self._json_response({"ok": True, "count": count})
 
     def _handle_generated_export(self):
         """Launch firestore_sync.py in a Terminal window to export accepted variants."""

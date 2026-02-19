@@ -393,6 +393,23 @@ def load_identities(conn: Any) -> Dict[str, List[int]]:
     return dict(result)
 
 
+def load_gemma_composition(conn: Any) -> Dict[str, Dict]:
+    """Gemma composition signals (visual_weight, energy, archetype, color_temp)."""
+    try:
+        rows = conn.execute("""
+            SELECT image_uuid, visual_weight, energy_direction, archetype, color_temp
+            FROM gemma_composition
+        """).fetchall()
+        return {r["image_uuid"]: {
+            "weight": r["visual_weight"],
+            "energy": r["energy_direction"] or "",
+            "archetype": r["archetype"] or "",
+            "temp": r["color_temp"] or "",
+        } for r in rows}
+    except Exception:
+        return {}
+
+
 def load_borders(conn: Any) -> Dict[str, Dict]:
     """Return dict of UUID → crop percentages for bordered images."""
     cur = conn.execute("""
@@ -619,6 +636,8 @@ def build_photos(
     # Unified signal layer
     gemma_lk: Dict = None, best_caps_lk: Dict = None,
     consensus_lk: Dict = None, labels_by_cat_lk: Dict = None,
+    # Gemma composition
+    composition_lk: Dict = None,
 ) -> Tuple[List[Dict], Dict]:
     """Build all photo objects and collect unique filter values."""
 
@@ -637,6 +656,7 @@ def build_photos(
     best_caps_lk = best_caps_lk or {}
     consensus_lk = consensus_lk or {}
     labels_by_cat_lk = labels_by_cat_lk or {}
+    composition_lk = composition_lk or {}
 
     photos = []
     filters = {
@@ -798,6 +818,11 @@ def build_photos(
             "gemma_strength": gemma_lk.get(uuid, {}).get("strength") if uuid in gemma_lk else None,
             "print_worthy": gemma_lk.get(uuid, {}).get("print_worthy") if uuid in gemma_lk else None,
             "gemma_crops": gemma_lk.get(uuid, {}).get("crops") if uuid in gemma_lk else None,
+            # Gemma composition signals
+            "gc_weight": composition_lk.get(uuid, {}).get("weight") if uuid in composition_lk else None,
+            "gc_energy": composition_lk.get(uuid, {}).get("energy") if uuid in composition_lk else None,
+            "gc_archetype": composition_lk.get(uuid, {}).get("archetype") if uuid in composition_lk else None,
+            "gc_temp": composition_lk.get(uuid, {}).get("temp") if uuid in composition_lk else None,
         }
         photos.append(photo)
 
@@ -1575,6 +1600,11 @@ def build_variant_photos(
             "gemma_strength": parent.get("gemma_strength"),
             "print_worthy": parent.get("print_worthy"),
             "gemma_crops": parent.get("gemma_crops"),
+            # Gemma composition signals (inherited from parent)
+            "gc_weight": parent.get("gc_weight"),
+            "gc_energy": parent.get("gc_energy"),
+            "gc_archetype": parent.get("gc_archetype"),
+            "gc_temp": parent.get("gc_temp"),
         }
 
         variant_photos.append(photo)
@@ -1627,7 +1657,8 @@ def export(pretty: bool = False) -> None:
     identities_lk = load_identities(conn)
     locations_lk = load_locations(conn)
     borders_lk = load_borders(conn)
-    print(f"  All v2 signal tables loaded ({len(borders_lk)} bordered images)")
+    composition_lk = load_gemma_composition(conn)
+    print(f"  All v2 signal tables loaded ({len(borders_lk)} bordered images, {len(composition_lk)} compositions)")
 
     # Unified signal layer (from populate_unified.py)
     gemma_lk = {}
@@ -1658,6 +1689,7 @@ def export(pretty: bool = False) -> None:
         borders_lk=borders_lk,
         gemma_lk=gemma_lk, best_caps_lk=best_caps_lk,
         consensus_lk=consensus_lk, labels_by_cat_lk=labels_by_cat_lk,
+        composition_lk=composition_lk,
     )
 
     # Swap URLs for accepted enhanced images

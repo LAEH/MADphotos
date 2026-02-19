@@ -16,12 +16,18 @@ export function detectTier(): PerformanceTier {
   const nav = navigator as NavigatorExtended
   const mem = nav.deviceMemory || 4
   const saveData = nav.connection?.saveData
+  const slowNet = nav.connection?.effectiveType === '2g' || nav.connection?.effectiveType === 'slow-2g'
 
-  if (saveData || cores <= 2 || mem <= 2) {
+  if (saveData || slowNet || (cores <= 2 && mem <= 2)) {
     return 'tier-c'
-  } else if (isWebKit || (cores >= 4 && dpr <= 3 && mem >= 4)) {
+  } else if (isWebKit && (cores >= 4 || mem >= 4)) {
+    /* Modern WebKit: iPhone 12+, iPad Pro M1+, desktop Safari */
+    return 'tier-a'
+  } else if (!isWebKit && cores >= 4 && dpr <= 3 && mem >= 4) {
+    /* High-end Chrome/Firefox desktop */
     return 'tier-a'
   } else {
+    /* Old WebKit (iPad Air 2, iPhone SE 1), mid-range Android */
     return 'tier-b'
   }
 }

@@ -25,7 +25,7 @@ export function Lightbox() {
     if (!photo || !imgRef.current) return
     const img = imgRef.current
     img.style.transform = ''
-    loadProgressive(img, photo, 'display')
+    loadProgressive(img, photo, 'display', '100vw')
     applyBorderClip(img, photo.border_crop)
     img.alt = photo.alt || photo.caption || ''
   }, [photo])

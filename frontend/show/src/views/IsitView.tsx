@@ -243,15 +243,25 @@ export function IsitView() {
     return state
   }, [])
 
-  /* Animate cursor position */
+  /* Animate cursor position — stops when converged (epsilon < 0.5px) */
+  const cursorRafRef = useRef(0)
   const updateCursorPosition = useCallback(() => {
     const cursor = cursorRef.current
     if (!cursor) return
-    cursor.x += (cursor.targetX - cursor.x) * 0.2
-    cursor.y += (cursor.targetY - cursor.y) * 0.2
+    const dx = cursor.targetX - cursor.x
+    const dy = cursor.targetY - cursor.y
+    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) {
+      cursor.x = cursor.targetX
+      cursor.y = cursor.targetY
+      cursor.element.style.transform = `translate3d(${cursor.x}px, ${cursor.y}px, 0)`
+      cursorRafRef.current = 0
+      return
+    }
+    cursor.x += dx * 0.2
+    cursor.y += dy * 0.2
     cursor.element.style.transform = `translate3d(${cursor.x}px, ${cursor.y}px, 0)`
     if (cursor.element.style.display !== 'none') {
-      requestAnimationFrame(updateCursorPosition)
+      cursorRafRef.current = requestAnimationFrame(updateCursorPosition)
     }
   }, [])
 
@@ -284,7 +294,10 @@ export function IsitView() {
     }
 
     function hideCursor() { cursor.element.style.display = 'none' }
-    function updateCursorPos(e: PointerEvent) { cursor.targetX = e.clientX; cursor.targetY = e.clientY }
+    function updateCursorPos(e: PointerEvent) {
+      cursor.targetX = e.clientX; cursor.targetY = e.clientY
+      if (!cursorRafRef.current) cursorRafRef.current = requestAnimationFrame(updateCursorPosition)
+    }
 
     zoneReject.addEventListener('pointerenter', () => { zoneReject.classList.add('hovered'); clearBgTint(); body.classList.add('picks-bg-reject'); showCursor('reject') })
     zoneReject.addEventListener('pointermove', updateCursorPos)
@@ -556,7 +569,7 @@ export function IsitView() {
             <div className="isit-loader-spinner" />
             <div className="isit-loader-text">Loading images... {loadProgress}%</div>
             <div className="isit-loader-progress">
-              <div className="isit-loader-bar" style={{ width: `${loadProgress}%` }} />
+              <div className="isit-loader-bar" style={{ transform: `scaleX(${loadProgress / 100})` }} />
             </div>
           </div>
         </div>

@@ -521,7 +521,7 @@ function ScrollSlide({ photo, slideIdx, isActive, labelsMap, gemmaMap }: ScrollS
   const tier = useMemo(() => optimalTier('full'), [])
 
   const imgRef = useCallback((el: HTMLImageElement | null) => {
-    if (el) loadProgressive(el, photo, tier)
+    if (el) loadProgressive(el, photo, tier, '100vw')
   }, [photo, tier])
 
   return (

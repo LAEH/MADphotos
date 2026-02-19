@@ -41,7 +41,7 @@
   height: 100%;
   width: calc(67dvh * 1.5);
   max-width: 100%;
-  contain: layout style;
+  contain: layout style paint;
 }
 @media (orientation: portrait) and (min-width: 769px) {
   .isit-stack {
@@ -312,7 +312,7 @@
 .isit-gorgeous-pills .gorgeous-pill {
   cursor: pointer;
   pointer-events: auto;
-  transition: transform 0.15s ease;
+  transition: transform var(--duration-fast) var(--ease-out-quart);
 }
 
 .isit-gorgeous-pills .gorgeous-pill:hover {
@@ -339,7 +339,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s ease;
+  transition: opacity var(--duration-fast) var(--ease-out-quart);
 }
 .isit-hover-left {
   left: 0;
@@ -502,8 +502,8 @@
   justify-content: center;
   opacity: 0;
   transition:
-    opacity 0.15s ease,
-    transform 0.15s ease;
+    opacity var(--duration-fast) var(--ease-out-quart),
+    transform var(--duration-fast) var(--ease-out-quart);
   transform: scale(0.85);
   pointer-events: none;
 }
@@ -622,10 +622,7 @@
   align-items: center;
   justify-content: center;
   font-size: 28px;
-  transition:
-    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
-    box-shadow 0.3s ease,
-    background 0.3s ease;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   pointer-events: auto;
 }
 
@@ -640,19 +637,10 @@
 
 .isit-float-btn:hover {
   transform: scale(1.12);
-  background: rgba(255, 255, 255, 0.25);
-  box-shadow:
-    0 12px 40px rgba(0, 0, 0, 0.16),
-    0 4px 12px rgba(0, 0, 0, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 :root.dark .isit-float-btn:hover {
-  background: rgba(60, 60, 60, 0.4);
-  box-shadow:
-    0 12px 40px rgba(0, 0, 0, 0.4),
-    0 4px 12px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  transform: scale(1.12);
 }
 
 .isit-float-btn:active {
@@ -661,39 +649,48 @@
 }
 
 .isit-float-right {
+  top: 15%;
+  right: 8%;
   animation: float-drift-right 28s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
 }
 
 .isit-float-left {
+  top: 40%;
+  left: 10%;
   animation: float-drift-left 32s cubic-bezier(0.42, 0, 0.58, 1) infinite;
 }
 
 .isit-float-top {
+  top: 12%;
+  left: 30%;
   animation: float-drift-top 35s cubic-bezier(0.4, 0.02, 0.6, 0.98) infinite;
 }
 
+/* Float-drift uses translate instead of top/left/right for compositor-only 60fps.
+   Elements are positioned with top/right/left in their base styles,
+   then animated with translateX/translateY offsets from that anchor. */
 @keyframes float-drift-right {
-  0% { top: 15%; right: 8%; }
-  25% { top: 65%; right: 12%; }
-  50% { top: 70%; right: 6%; }
-  75% { top: 30%; right: 10%; }
-  100% { top: 15%; right: 8%; }
+  0%   { transform: translate(0, 0); }
+  25%  { transform: translate(-4vw, 50vh); }
+  50%  { transform: translate(2vw, 55vh); }
+  75%  { transform: translate(-2vw, 15vh); }
+  100% { transform: translate(0, 0); }
 }
 
 @keyframes float-drift-left {
-  0% { top: 40%; left: 10%; }
-  30% { top: 20%; left: 6%; }
-  60% { top: 75%; left: 12%; }
-  90% { top: 50%; left: 8%; }
-  100% { top: 40%; left: 10%; }
+  0%   { transform: translate(0, 0); }
+  30%  { transform: translate(-4vw, -20vh); }
+  60%  { transform: translate(2vw, 35vh); }
+  90%  { transform: translate(-2vw, 10vh); }
+  100% { transform: translate(0, 0); }
 }
 
 @keyframes float-drift-top {
-  0% { top: 12%; left: 30%; }
-  25% { top: 15%; left: 60%; }
-  50% { top: 10%; left: 70%; }
-  75% { top: 18%; left: 45%; }
-  100% { top: 12%; left: 30%; }
+  0%   { transform: translate(0, 0); }
+  25%  { transform: translate(30vw, 3vh); }
+  50%  { transform: translate(40vw, -2vh); }
+  75%  { transform: translate(15vw, 6vh); }
+  100% { transform: translate(0, 0); }
 }
 
 @media (max-width: 768px) {
@@ -705,22 +702,26 @@
   }
 
   .isit-float-left {
+    top: 30%;
+    left: 5%;
     animation: float-drift-left-mobile 25s ease-in-out infinite;
   }
 
   .isit-float-right,
   .isit-float-disk.isit-float-right {
+    top: 45%;
+    right: 5%;
     animation: float-drift-right-mobile 28s ease-in-out infinite;
   }
 
   @keyframes float-drift-left-mobile {
-    0%, 100% { top: 30%; left: 5%; }
-    50% { top: 60%; left: 5%; }
+    0%, 100% { transform: translate(0, 0); }
+    50% { transform: translate(0, 30vh); }
   }
 
   @keyframes float-drift-right-mobile {
-    0%, 100% { top: 45%; right: 5%; }
-    50% { top: 70%; right: 5%; }
+    0%, 100% { transform: translate(0, 0); }
+    50% { transform: translate(0, 25vh); }
   }
 }
 
@@ -742,12 +743,8 @@
     inset 0 -2px 4px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   overflow: hidden;
-  transition:
-    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
-    box-shadow 0.3s ease,
-    background 0.3s ease;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   pointer-events: auto;
-  will-change: transform;
 }
 
 :root.dark .isit-float-disk {
@@ -762,21 +759,10 @@
 
 .isit-float-disk:hover {
   transform: scale(1.08);
-  background: rgba(255, 255, 255, 0.15);
-  box-shadow:
-    0 12px 40px rgba(0, 0, 0, 0.16),
-    0 4px 12px rgba(0, 0, 0, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
 }
 
 :root.dark .isit-float-disk:hover {
-  background: rgba(60, 60, 60, 0.3);
-  box-shadow:
-    0 12px 40px rgba(0, 0, 0, 0.4),
-    0 4px 12px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.25);
+  transform: scale(1.08);
 }
 
 .isit-float-disk:active {
@@ -794,7 +780,6 @@
   opacity: 0;
   transform: scale(1);
   transition: opacity 2s cubic-bezier(0.4, 0, 0.2, 1);
-  will-change: opacity;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }
@@ -841,7 +826,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.3s ease;
+  transition: opacity var(--duration-normal) var(--ease-out-quart);
 }
 
 .isit-loader-content {
@@ -882,7 +867,9 @@
 .isit-loader-bar {
   height: 100%;
   background: var(--accent);
-  width: 0%;
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 100%;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: 2px;
 }

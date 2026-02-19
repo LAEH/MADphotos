@@ -46,6 +46,7 @@ export function GeneratedPage() {
   const [batchProgress, setBatchProgress] = useState<{ completed: number; expected: number } | null>(null)
   const [exporting, setExporting] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  const [generateCount, setGenerateCount] = useState(20)
   const [exportedIds, setExportedIds] = useState<Set<string>>(new Set())
   const cursorReject = useRef('')
   const cursorAccept = useRef('')
@@ -117,9 +118,13 @@ export function GeneratedPage() {
 
   const handleGenerate = useCallback(async () => {
     setGenerating(true)
-    setBatchProgress({ completed: 0, expected: 20 })
+    setBatchProgress({ completed: 0, expected: generateCount })
     try {
-      const r = await fetch('/api/generated/generate', { method: 'POST' })
+      const r = await fetch('/api/generated/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ count: generateCount }),
+      })
       if (!r.ok) {
         showToast('Failed to launch')
         setGenerating(false)
@@ -135,7 +140,7 @@ export function GeneratedPage() {
     // Start polling progress every 3s
     stopProgressPoll()
     progressTimer.current = setInterval(pollProgress, 3000)
-  }, [showToast, stopProgressPoll, pollProgress])
+  }, [showToast, stopProgressPoll, pollProgress, generateCount])
 
   const handleExport = useCallback(async () => {
     setExporting(true)
@@ -272,11 +277,27 @@ export function GeneratedPage() {
           </>
         )}
 
+        {!generating && (
+          <span style={{ display: 'inline-flex', gap: '2px' }}>
+            {[10, 20, 40, 80].map(n => (
+              <button key={n} className="filter-btn"
+                onClick={() => setGenerateCount(n)}
+                style={{
+                  minWidth: '28px', padding: '4px 6px',
+                  borderColor: generateCount === n ? '#0A84FF' : undefined,
+                  color: generateCount === n ? '#0A84FF' : undefined,
+                  fontSize: 'var(--text-xs)',
+                }}>
+                {n}
+              </button>
+            ))}
+          </span>
+        )}
         <button className="filter-btn" onClick={handleGenerate} disabled={generating}
           style={{ opacity: generating ? 0.35 : 1 }}>
           {generating && batchProgress
             ? `${batchProgress.completed}/${batchProgress.expected}`
-            : 'Generate 20'}
+            : `Generate ${generateCount}`}
         </button>
 
         <button className="filter-btn" onClick={handleExport}

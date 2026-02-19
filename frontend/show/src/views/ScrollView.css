@@ -6,6 +6,7 @@
   inset: 0;
   background: transparent;
   overflow: hidden;
+  contain: layout style;
   z-index: 50;
 }
 
@@ -31,6 +32,10 @@
   height: 100dvh;
   scroll-snap-align: start;
   overflow: hidden;
+  contain: layout style paint;
+  /* Skip rendering off-screen rows — saves paint + compositing cost */
+  content-visibility: auto;
+  contain-intrinsic-size: 100vw 100dvh;
 }
 
 /* ── Alternating base colors ── */
@@ -102,7 +107,7 @@
 /* Dim non-active slides — only the image content, not the row background */
 .scroll-slide .scroll-slide-content {
   opacity: 0.3;
-  transition: opacity 0.35s ease;
+  transition: opacity var(--duration-normal) var(--ease-out-quart);
 }
 .scroll-slide-active .scroll-slide-content {
   opacity: 1;
@@ -317,7 +322,7 @@
   height: 6px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.35);
-  transition: opacity 0.3s ease, transform 0.3s ease, background 0.3s ease;
+  transition: opacity var(--duration-normal) var(--ease-out-quart), transform var(--duration-normal) var(--ease-out-quart);
 }
 .scroll-dot-v.active {
   transform: scale(1.4);
@@ -339,7 +344,7 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  transition: opacity 0.3s ease, transform 0.3s ease, background 0.3s ease;
+  transition: opacity var(--duration-normal) var(--ease-out-quart), transform var(--duration-normal) var(--ease-out-quart);
 }
 .scroll-row-dark .scroll-dot-h {
   background: rgba(255, 255, 255, 0.3);
@@ -354,6 +359,18 @@
 .scroll-row-light .scroll-dot-h.active {
   transform: scale(1.3);
   background: rgba(0, 0, 0, 0.7);
+}
+
+/* ── Tier overrides ── */
+:root.tier-b .scroll-slide .scroll-slide-content {
+  transition: none;
+}
+:root.tier-c .scroll-slide .scroll-slide-content {
+  transition: none !important;
+}
+:root.tier-c .scroll-dot-v,
+:root.tier-c .scroll-dot-h {
+  transition: none !important;
 }
 
 /* ── Reduced motion ── */

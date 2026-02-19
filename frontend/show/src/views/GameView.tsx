@@ -659,7 +659,7 @@ function JeuCard({
 
   const imgRef = useCallback(
     (el: HTMLImageElement | null) => {
-      if (el) loadProgressive(el, photo, 'display')
+      if (el) loadProgressive(el, photo, 'display', '(max-width: 768px) 100vw, 50vw')
     },
     [photo]
   )

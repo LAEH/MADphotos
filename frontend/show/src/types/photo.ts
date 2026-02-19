@@ -39,6 +39,11 @@ export interface Photo {
   depth_complexity?: number
   composition?: string
   gemma_crops?: Record<string, GemmaCrop>
+  // Gemma composition signals (visual intelligence for layout)
+  gc_weight?: number      // visual_weight 1-10
+  gc_energy?: string      // energy_direction
+  gc_archetype?: string   // portal, horizon, texture, figure, geometry, void, cluster, reflection, silhouette, panorama
+  gc_temp?: string        // glacial, cool, neutral, warm, molten, electric, neon, muted, monochrome
 }
 
 export interface BorderCrop {

@@ -6,6 +6,27 @@
 
 ## 2026-02-19
 
+**Srcset / multi-resolution images.** All photo `<img>` elements now get `srcset` with 3 resolution tiers (thumb 480w, mobile 1280w, display 2048w) and `sizes` hints tuned per view context. Browser picks the optimal resolution based on viewport + DPR instead of relying solely on JS `optimalTier()` heuristic. Variant photos (single URL) gracefully skip srcset. Progressive blur-up loading preserved — srcset applied after the swap so micro placeholder phase is unaffected.
+
+**"MUCH better Bento sets."** Complete rewrite of the Bento curation engine. The old curators picked random photos with basic hue matching. New system uses visual intelligence:
+
+- **Smart cell assignment**: Large cells (2×2) get high-impact photos (faces, high contrast, focused saliency). Small cells get atmospheric textures. `fillCells()` now sorts cells by size and assigns best-scored photos to largest cells first.
+- **8 curators** (up from 5): Hero Story (hero + thematic court), Temperature Harmony (all warm or all cool), Depth Journey (shallow/deep contrast), Mono Accent (B&W + vivid color pop), Archetype Exhibition (composition archetypes), plus improved Color Story, Mood Board, Scene Story.
+- **`visualImpact()` scoring**: aesthetic + face_count + contrast + saliency focus + depth_complexity + gc_weight. Every photo gets ranked for "who deserves the big cell."
+- **Gemma composition signals** wired through entire data pipeline: visual_weight, energy_direction, archetype, color_temp now available on 342 photos. Used by curators for archetype grouping and impact scoring.
+- **Generate count picker**: 10/20/40/80 selector replaces fixed count-20 button. Server accepts dynamic count via POST body.
+
+**60fps performance overhaul.** Tokenized all animations, fixed every RED flag from comprehensive audit:
+
+- **Compositor-only animations**: Converted float-drift keyframes from `top`/`left`/`right` → `transform: translate()`. Progress bars from `width` → `transform: scaleX()`. All hover effects from `background`/`color`/`filter` → `opacity`/`transform`.
+- **Motion tokens**: `--duration-fast`, `--duration-normal`, `--duration-reveal`, `--img-appear-*` ensure identical image loading across all views.
+- **3-tier performance**: tier-a (full fidelity), tier-b (no backdrop-filter), tier-c (no transitions). Refined detection: slow network → tier-c, old WebKit needs cores≥4 OR mem≥4 for tier-a.
+- **CSS containment**: Added `contain: layout style paint` to heavy containers (bento-tile, scroll-row, all-wrap, jeu-card).
+- **`content-visibility: auto`** on ScrollView rows — skips rendering off-screen rows.
+- **CLS prevention**: `width`/`height` attributes + `aspect-ratio` on ProgressiveImg.
+- **Cursor rAF epsilon exit**: Stops animation frame loop when delta < 0.5px.
+- **Border crop fix**: `clip-path: inset()` instead of `transform: scale()` — no more conflict with CSS animations.
+
 **"Generated images are getting better!"** Full overhaul of the style transfer pipeline. 536 images reviewed, 36.2% overall acceptance rate, up from 0-4% on initial styles. Key changes:
 
 - **15 curated styles** with Apple Developer color palette (Red, Orange, Green, Mint, Teal, Cyan, Blue, Indigo, Purple, Pink). Each style gets specific Apple color assignments that match its mood.

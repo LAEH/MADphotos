@@ -4,6 +4,7 @@
   --jeu-edge: min(10vw, 10vh);
   position: fixed;
   inset: 0;
+  contain: layout style;
   display: grid;
   grid-template-rows: 13dvh 67dvh 20dvh;
   grid-template-columns: 1fr;
@@ -46,6 +47,7 @@
 .jeu-card {
   border-radius: var(--radius-lg);
   overflow: hidden;
+  contain: layout style paint;
   min-height: 0;
   position: relative;
 }
@@ -74,8 +76,8 @@
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   transition:
-    transform 0.15s ease,
-    opacity 0.15s ease;
+    transform var(--duration-fast) var(--ease-out-quart),
+    opacity var(--duration-fast) var(--ease-out-quart);
   opacity: 0.85;
 }
 
@@ -97,8 +99,8 @@
   opacity: 0.3;
   transform: scale(0.95);
   transition:
-    opacity 0.3s ease,
-    transform 0.3s ease;
+    opacity var(--duration-normal) var(--ease-out-quart),
+    transform var(--duration-normal) var(--ease-out-quart);
 }
 
 .jeu-card-approved {
@@ -226,7 +228,7 @@
 
 /* Pulse animation on thumbs-up when saving */
 .jeu-btn-pulse {
-  animation: jeu-pulse 0.35s ease;
+  animation: jeu-pulse 0.35s var(--ease-out-quart);
 }
 
 @keyframes jeu-pulse {
@@ -489,4 +491,20 @@
 :root.tier-c .jeu-favs-overlay {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
+}
+
+/* ===== Reduced motion ===== */
+@media (prefers-reduced-motion: reduce) {
+  .jeu-pair {
+    transition-duration: 0.01ms !important;
+  }
+  .jeu-card-rejected {
+    transition-duration: 0.01ms !important;
+  }
+  .jeu-btn-pulse {
+    animation: none !important;
+  }
+  .jeu-card-approved::after {
+    animation: none !important;
+  }
 }

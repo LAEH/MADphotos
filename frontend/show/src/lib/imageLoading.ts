@@ -3,6 +3,38 @@ import type { NavigatorExtended } from './performanceTier'
 
 type ImageTier = 'thumb' | 'mobile' | 'display'
 
+/* ===== Srcset / Multi-Resolution ===== */
+const TIER_WIDTHS: Record<ImageTier, number> = {
+  thumb: 480,
+  mobile: 1280,
+  display: 2048,
+}
+
+/** Default `sizes` per tier context */
+const DEFAULT_SIZES: Record<ImageTier, string> = {
+  thumb:   '(max-width: 640px) 50vw, 320px',
+  mobile:  '(max-width: 640px) 100vw, 50vw',
+  display: '100vw',
+}
+
+/**
+ * Build srcset string from a photo's available tiers.
+ * Returns empty string if photo has no distinct tier URLs (e.g. variants).
+ */
+function buildSrcset(photo: Photo): string {
+  const urls: string[] = []
+  const seen = new Set<string>()
+  for (const tier of ['thumb', 'mobile', 'display'] as const) {
+    const url = photo[tier]
+    if (url && !seen.has(url)) {
+      seen.add(url)
+      urls.push(`${url} ${TIER_WIDTHS[tier]}w`)
+    }
+  }
+  // Only useful if we have at least 2 distinct URLs
+  return urls.length >= 2 ? urls.join(', ') : ''
+}
+
 /* ===== Decode Queue (browser-aware concurrency) ===== */
 const DECODE_QUEUE = {
   max: /AppleWebKit.*Mobile/.test(navigator.userAgent) ? 2 :
@@ -49,14 +81,11 @@ export function cardImageTier(): ImageTier {
   return optimalTier('card')
 }
 
-/* ===== Border Crop ===== */
+/* ===== Border Crop =====
+   Uses clip-path instead of transform so it doesn't conflict
+   with CSS transform animations (.img-loading, .img-blur-up). */
 export function applyBorderCrop(img: HTMLImageElement, crop: BorderCrop): void {
-  const t = crop.top || 0, r = crop.right || 0
-  const b = crop.bottom || 0, l = crop.left || 0
-  const scaleX = 100 / (100 - l - r)
-  const scaleY = 100 / (100 - t - b)
-  const scale = Math.max(scaleX, scaleY)
-  img.style.transform = 'scale(' + scale.toFixed(4) + ')'
+  applyBorderClip(img, crop)
 }
 
 export function applyBorderClip(img: HTMLImageElement, crop?: BorderCrop): void {
@@ -97,7 +126,8 @@ const _imgGen = new WeakMap<HTMLImageElement, number>()
 export function loadProgressive(
   img: HTMLImageElement,
   photo: Photo,
-  targetTier: 'thumb' | 'mobile' | 'display'
+  targetTier: 'thumb' | 'mobile' | 'display',
+  sizes?: string,
 ): void {
   const target = photo[targetTier] || photo.thumb
   if (!target) return
@@ -105,6 +135,10 @@ export function loadProgressive(
   /* Bump generation — stale callbacks will see a mismatch and bail */
   const gen = (_imgGen.get(img) || 0) + 1
   _imgGen.set(img, gen)
+
+  /* Prepare srcset for after the swap */
+  const srcset = buildSrcset(photo)
+  const imgSizes = sizes || DEFAULT_SIZES[targetTier]
 
   if (photo.palette?.[0] && img.parentElement
       && !img.parentElement.style.backgroundColor) {
@@ -118,6 +152,10 @@ export function loadProgressive(
   if (photo.border_crop) {
     applyBorderCrop(img, photo.border_crop)
   }
+
+  /* Clear any previous srcset during blur phase */
+  img.removeAttribute('srcset')
+  img.removeAttribute('sizes')
 
   if (photo.micro) {
     img.src = photo.micro
@@ -133,10 +171,14 @@ export function loadProgressive(
   const swap = () => {
     if (_imgGen.get(img) !== gen) return /* stale — newer call superseded us */
     img.src = target
+    /* Apply srcset so browser can pick optimal resolution on resize/DPR */
+    if (srcset) {
+      img.srcset = srcset
+      img.sizes = imgSizes
+    }
     img.classList.remove('img-blur-up')
     img.style.filter = ''
     img.style.transform = ''
-    if (photo.border_crop) applyBorderCrop(img, photo.border_crop)
     revealImg(img)
   }
   const doLoad = () => {

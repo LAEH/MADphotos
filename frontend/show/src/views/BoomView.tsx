@@ -276,7 +276,7 @@ function BoomPreview({ photo, onClose }: BoomPreviewProps) {
   const [isOpen, setIsOpen] = useState(false)
 
   const imgRef = useCallback((el: HTMLImageElement | null) => {
-    if (el && photo) loadProgressive(el, photo, 'display')
+    if (el && photo) loadProgressive(el, photo, 'display', '100vw')
   }, [photo])
 
   /* Animate in after mount */
@@ -407,7 +407,7 @@ interface BoomCellProps {
 
 function BoomCell({ photo, scatter, onClick }: BoomCellProps) {
   const imgRef = useCallback((el: HTMLImageElement | null) => {
-    if (el) loadProgressive(el, photo, 'thumb')
+    if (el) loadProgressive(el, photo, 'thumb', '(max-width: 640px) 33vw, 160px')
   }, [photo])
 
   return (
