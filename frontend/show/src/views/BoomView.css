@@ -221,3 +221,13 @@
 :root.tier-c .boom-mosaic.assembled .boom-cell {
   transition-duration: 0.01ms !important;
 }
+
+/* Boom action button — larger disk, 30px below display */
+.boom-wrap .view-bottom {
+  padding-top: 30px;
+}
+.boom-wrap .view-action-btn {
+  width: 56px;
+  height: 56px;
+  font-size: 26px;
+}

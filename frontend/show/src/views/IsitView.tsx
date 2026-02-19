@@ -12,6 +12,10 @@ import './IsitView.css'
 const PRELOAD_AHEAD = 10
 const MIN_EXIT_V = 0.8
 
+/* Module-level capability flags (set once during init, read by card builders) */
+let _isitHasTouch = false
+let _isitHasHover = false
+
 interface LabelData {
   labels?: { label: string; category: string }[]
 }
@@ -157,8 +161,8 @@ export function IsitView() {
     })
 
     /* Store hasTouch/hasHover in closure for card building */
-    ;(window as any).__isitHasTouch = hasTouch
-    ;(window as any).__isitHasHover = window.matchMedia('(any-hover: hover)').matches
+    ;_isitHasTouch = hasTouch
+    ;_isitHasHover = window.matchMedia('(any-hover: hover)').matches
   }, [data, votedData])
 
   /* Preload buffer */
@@ -374,14 +378,14 @@ export function IsitView() {
       backCard.classList.add('isit-card-front')
       setTimeout(() => backCard.classList.remove('isit-card-promoting'), 320)
 
-      if ((window as any).__isitHasTouch) {
+      if (_isitHasTouch) {
         if (swipeCleanupRef.current) swipeCleanupRef.current()
         swipeCleanupRef.current = setupSwipe(backCard, {
           onVote: (v, vel) => doVote(v, vel),
           isAnimating: () => animatingRef.current,
         })
       }
-      if ((window as any).__isitHasHover) {
+      if (_isitHasHover) {
         const wrap = backCard.querySelector('.isit-image-wrap') as HTMLDivElement | null
         if (wrap) setupHoverZones(wrap, v => doVote(v))
       }
@@ -412,7 +416,7 @@ export function IsitView() {
     const img = buildCardImage(photo, isFront)
     wrap.appendChild(img)
 
-    if (isFront && (window as any).__isitHasHover) {
+    if (isFront && _isitHasHover) {
       setupHoverZones(wrap, v => doVote(v))
     }
 
@@ -444,7 +448,7 @@ export function IsitView() {
     const front = buildCard(p[idx], true)
     stack.appendChild(front)
 
-    if ((window as any).__isitHasTouch) {
+    if (_isitHasTouch) {
       if (swipeCleanupRef.current) swipeCleanupRef.current()
       swipeCleanupRef.current = setupSwipe(front, {
         onVote: (v, vel) => doVote(v, vel),
@@ -625,22 +629,22 @@ function FloatingButtons({ photos, navigate }: { photos: Photo[]; navigate: (pat
     }
   }, [photos])
 
-  /* Navigate to next experience (couleurs) */
-  const goNext = () => navigate('/couleurs')
+  /* Navigate to next experience (bento) */
+  const goNext = () => navigate('/bento')
 
   return (
     <div className="isit-floating-container">
       <button
         ref={diskRef}
         className="isit-float-disk isit-float-right"
-        aria-label="Next: Colors"
-        title="Next: Colors"
+        aria-label="Next: Bento"
+        title="Next: Bento"
         onClick={goNext}
       />
       <button
         className="isit-float-btn isit-float-left"
-        aria-label="Next: Colors"
-        title="Next: Colors"
+        aria-label="Next: Bento"
+        title="Next: Bento"
         onClick={goNext}
       >
         {'\uD83E\uDD77'}

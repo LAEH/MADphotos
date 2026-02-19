@@ -453,7 +453,9 @@ export function BoomView() {
   /* Load drift neighbors then build sets */
   useEffect(() => {
     if (!data) return
+    let cancelled = false
     loadDriftNeighbors().then(neighbors => {
+      if (cancelled) return
       const builtSets = buildBoomSets(data.photos, neighbors)
       setSets(builtSets)
       if (builtSets.length > 0) {
@@ -461,6 +463,7 @@ export function BoomView() {
         selectSet(startIdx, builtSets)
       }
     })
+    return () => { cancelled = true }
   }, [data, loadDriftNeighbors]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /* Select a set and animate assembly */

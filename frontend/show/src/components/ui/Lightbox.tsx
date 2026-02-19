@@ -114,7 +114,6 @@ export function Lightbox() {
         <img
           ref={imgRef}
           className="lightbox-img"
-          src=""
           alt=""
         />
         <div className="lightbox-meta" style={{ display: photo ? 'block' : 'none' }}>

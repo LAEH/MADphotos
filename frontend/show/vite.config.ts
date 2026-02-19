@@ -7,5 +7,9 @@ export default defineConfig({
   base: '/',
   server: {
     port: 5173,
+    proxy: {
+      '/generated': 'http://localhost:3000',
+      '/ai_variants': 'http://localhost:3000',
+    },
   },
 })

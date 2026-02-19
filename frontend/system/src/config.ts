@@ -31,10 +31,6 @@ export function imageUrl(path: string): string {
     const filename = path.split('/').pop()
     return `${GCS_BASE}/v/cartoon/${filename}`
   }
-  if (path.startsWith('/ai_variants/blind_test/')) {
-    const filename = path.split('/').pop()
-    return `${GCS_BASE}/v/blind/${filename}`
-  }
   return path
 }
 
@@ -47,7 +43,6 @@ export function dataUrl(apiPath: string): string {
     '/api/instructions': 'data/instructions.json',
     '/api/mosaics': 'data/mosaics.json',
     '/api/cartoon': 'data/cartoon.json',
-    '/api/blind-test': 'data/blind_test.json',
     '/api/gemma': 'data/gemma.json',
     '/api/gemma-cartoon': 'data/gemma_cartoon.json',
     '/api/cartoons': 'data/cartoons.json',

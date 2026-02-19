@@ -1,164 +1,149 @@
 #!/usr/bin/env python3
-"""Generate style-transferred images using mflux img2img (local) and Google Imagen (API).
+"""Generate cartoon/illustration style transfers using Imagen 3 EDIT_MODE_STYLE.
 
-Reads style_prompts_test.json and applies each style to the ORIGINAL photo.
-Output has the EXACT same dimensions and aspect ratio as the source image.
-Only the artistic style changes — composition, layout, subjects all preserved.
+Reads style_prompts_test.json (from Gemma) and applies each style via
+Google Imagen 3 edit_image API. Writes results to the ai_variants DB table.
 
-Each run creates a timestamped folder: backend/generated_test/YYYYMMDD_HHMMSS/
+POLLING MODE: Re-reads prompts file each cycle, so it can run alongside
+Gemma and process new images as prompts become available.
 
 Usage (run from MADphotos root with .venv-gen activated):
   .venv-gen/bin/python3 backend/generate_test_images.py
-  .venv-gen/bin/python3 backend/generate_test_images.py --engine mflux
-  .venv-gen/bin/python3 backend/generate_test_images.py --engine imagen
-  .venv-gen/bin/python3 backend/generate_test_images.py --engine both
+  .venv-gen/bin/python3 backend/generate_test_images.py --test 10
+  .venv-gen/bin/python3 backend/generate_test_images.py --no-poll   # single pass, no waiting
 """
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
-import subprocess
+import sqlite3
 import time
-from datetime import datetime
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
-from PIL import Image
+from google import genai
+from google.genai import types
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PROMPTS_FILE = PROJECT_ROOT / "backend" / "style_prompts_test.json"
 OUTPUT_ROOT = PROJECT_ROOT / "backend" / "generated_test"
-MFLUX_BIN = PROJECT_ROOT / ".venv-gen" / "bin" / "mflux-generate"
+DB_PATH = PROJECT_ROOT / "images" / "mad_photos.db"
+AI_VARIANTS_DIR = PROJECT_ROOT / "images" / "ai_variants"
 
-MFLUX_MODEL = "dev"
+GCP_PROJECT = os.environ.get("GCP_PROJECT", "laeh380to760")
+GCP_LOCATION = os.environ.get("GCP_LOCATION", "us-central1")
+IMAGEN_MODEL = "imagen-3.0-capability-001"
+
+UUID_NAMESPACE = uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
+
+# Rate limiting
+DELAY_BETWEEN_CALLS = 6.0
+MAX_RETRIES = 4
+BASE_BACKOFF = 10.0
+POLL_INTERVAL = 30  # seconds between checking for new prompts
 
 
-def get_image_dimensions(image_path: str) -> tuple[int, int]:
-    """Read exact width and height from source image."""
-    with Image.open(image_path) as img:
-        return img.width, img.height
+def variant_id_for(image_uuid: str, style_idx: int, style_name: str) -> str:
+    """Deterministic variant ID from image + style."""
+    return str(uuid.uuid5(UUID_NAMESPACE, f"{image_uuid}:style_{style_idx}_{style_name}"))
 
 
-def round_to_multiple(n: int, multiple: int = 64) -> int:
-    """Round to nearest multiple (mflux requires dimensions divisible by certain values)."""
-    return max(multiple, round(n / multiple) * multiple)
+def db_upsert(conn: sqlite3.Connection, variant_id: str, image_uuid: str,
+              prompt: str, status: str, elapsed_ms: int = 0,
+              rai_reason: str | None = None, error: str | None = None) -> None:
+    """Insert or update ai_variants row."""
+    conn.execute("""
+        INSERT INTO ai_variants (
+            variant_id, image_uuid, variant_type, model, prompt,
+            negative_prompt, edit_mode, guidance_scale, source_tier,
+            generation_status, rai_reason, error_message,
+            generation_time_ms, created_at
+        ) VALUES (?, ?, 'style_transfer', ?, ?, ?, 'EDIT_MODE_STYLE', 75, 'mobile',
+                  ?, ?, ?, ?, ?)
+        ON CONFLICT(variant_id) DO UPDATE SET
+            generation_status=excluded.generation_status,
+            rai_reason=excluded.rai_reason,
+            error_message=excluded.error_message,
+            generation_time_ms=excluded.generation_time_ms
+    """, (
+        variant_id, image_uuid, IMAGEN_MODEL, prompt,
+        "photorealistic, dull colors, blurry, low quality",
+        status, rai_reason, error, elapsed_ms,
+        datetime.now(timezone.utc).isoformat(),
+    ))
+    conn.commit()
 
 
-def generate_mflux(prompt: str, source_image: str, output_path: Path,
-                   strength: float = 0.5, width: int = 768, height: int = 768) -> bool:
-    """Style transfer using mflux img2img — same dimensions as source."""
+def generate_imagen(client: genai.Client, prompt: str, source_image: str,
+                    output_path: Path) -> tuple[bool, str | None]:
+    """Style transfer using Imagen 3 EDIT_MODE_STYLE. Returns (ok, error)."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # mflux needs dimensions as multiples of 64
-    w = round_to_multiple(width, 64)
-    h = round_to_multiple(height, 64)
+    full_prompt = (
+        f"Transform this photograph into the following artistic style, "
+        f"preserving the exact composition, subjects, and layout. "
+        f"No text or lettering. Style: {prompt}"
+    )
 
-    cmd = [
-        str(MFLUX_BIN),
-        "--model", MFLUX_MODEL,
-        "--quantize", "4",
-        "--prompt", prompt,
-        "--image-path", source_image,
-        "--image-strength", str(strength),
-        "--width", str(w),
-        "--height", str(h),
-        "--steps", "20",
-        "--output", str(output_path),
-    ]
-    try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
-        if result.returncode != 0:
-            print(f"    mflux error: {result.stderr[:300]}")
-            return False
-        # If mflux rounded dimensions, resize output to exact source size
-        if output_path.exists() and (w != width or h != height):
-            with Image.open(output_path) as img:
-                img.resize((width, height), Image.LANCZOS).save(output_path)
-        return output_path.exists()
-    except subprocess.TimeoutExpired:
-        print("    mflux timeout (300s)")
-        return False
+    source_bytes = Path(source_image).read_bytes()
+    raw_ref = types.RawReferenceImage(
+        reference_id=1,
+        reference_image=types.Image(
+            image_bytes=source_bytes,
+            mime_type="image/jpeg",
+        ),
+    )
 
+    edit_config = types.EditImageConfig(
+        edit_mode="EDIT_MODE_STYLE",
+        number_of_images=1,
+        output_mime_type="image/jpeg",
+        output_compression_quality=92,
+        person_generation="ALLOW_ALL",
+        safety_filter_level="BLOCK_LOW_AND_ABOVE",
+        guidance_scale=75,
+        include_rai_reason=True,
+    )
 
-# Imagen state
-_imagen_model = None
-_imagen_last_call = 0.0
-IMAGEN_MIN_INTERVAL = 6.0
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            response = client.models.edit_image(
+                model=IMAGEN_MODEL,
+                prompt=full_prompt,
+                reference_images=[raw_ref],
+                config=edit_config,
+            )
 
+            if not response.generated_images:
+                return False, "safety_filter"
 
-def generate_imagen(prompt: str, source_image: str, output_path: Path,
-                    strength: float = 0.5) -> bool:
-    """Style transfer using Google Imagen edit mode — preserves source dimensions."""
-    global _imagen_model, _imagen_last_call
+            gen_image = response.generated_images[0].image
+            if hasattr(gen_image, 'image_bytes') and gen_image.image_bytes:
+                output_path.write_bytes(gen_image.image_bytes)
+            elif hasattr(gen_image, '_pil_image') and gen_image._pil_image:
+                gen_image._pil_image.save(str(output_path), format="JPEG", quality=92)
+            else:
+                gen_image.save(str(output_path))
 
-    try:
-        if _imagen_model is None:
-            import vertexai
-            from vertexai.preview.vision_models import ImageGenerationModel
-            vertexai.init(project="laeh380to760", location="us-central1")
-            _imagen_model = ImageGenerationModel.from_pretrained("imagen-3.0-generate-002")
+            return output_path.exists(), None
 
-        elapsed_since_last = time.time() - _imagen_last_call
-        if elapsed_since_last < IMAGEN_MIN_INTERVAL:
-            time.sleep(IMAGEN_MIN_INTERVAL - elapsed_since_last)
+        except Exception as e:
+            err = str(e)
+            is_rate_limit = "429" in err or "quota" in err.lower() or "resource" in err.lower()
+            backoff = BASE_BACKOFF * (2 ** (attempt - 1))
+            if is_rate_limit:
+                backoff = max(backoff, 30)
 
-        full_prompt = (
-            f"Transform this photograph into the following artistic style, "
-            f"preserving the exact composition, subjects, and layout. "
-            f"No text or lettering. Style: {prompt}"
-        )
+            if attempt == MAX_RETRIES:
+                return False, err[:200]
 
-        _imagen_last_call = time.time()
-        from vertexai.preview.vision_models import Image as VertexImage
-        source = VertexImage.load_from_file(source_image)
+            print(f"    retry {attempt}/{MAX_RETRIES} — waiting {backoff:.0f}s")
+            time.sleep(backoff)
 
-        response = _imagen_model.edit_images(
-            base_image=source,
-            prompt=full_prompt,
-            number_of_images=1,
-            safety_filter_level="block_few",
-            person_generation="allow_adult",
-        )
-
-        if response.images:
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            response.images[0].save(str(output_path))
-            # Resize to exact source dimensions if needed
-            src_w, src_h = get_image_dimensions(source_image)
-            with Image.open(output_path) as img:
-                if img.width != src_w or img.height != src_h:
-                    img.resize((src_w, src_h), Image.LANCZOS).save(output_path)
-            return output_path.exists()
-        else:
-            print("    imagen: no images returned")
-            return False
-    except Exception as e:
-        err = str(e)
-        if "429" in err:
-            print("    imagen: rate limited, waiting 30s...")
-            time.sleep(30)
-            try:
-                _imagen_last_call = time.time()
-                response = _imagen_model.edit_images(
-                    base_image=source,
-                    prompt=full_prompt,
-                    number_of_images=1,
-                    safety_filter_level="block_few",
-                    person_generation="allow_adult",
-                )
-                if response.images:
-                    output_path.parent.mkdir(parents=True, exist_ok=True)
-                    response.images[0].save(str(output_path))
-                    src_w, src_h = get_image_dimensions(source_image)
-                    with Image.open(output_path) as img:
-                        if img.width != src_w or img.height != src_h:
-                            img.resize((src_w, src_h), Image.LANCZOS).save(output_path)
-                    return output_path.exists()
-            except Exception as e2:
-                print(f"    imagen retry failed: {e2}")
-                return False
-        print(f"    imagen error: {err[:200]}")
-        return False
+    return False, "max retries"
 
 
 def copy_original(src_path: str, dest_dir: Path) -> None:
@@ -169,90 +154,155 @@ def copy_original(src_path: str, dest_dir: Path) -> None:
         shutil.copy2(src_path, dest)
 
 
+def process_image(client: genai.Client, conn: sqlite3.Connection,
+                  img_data: dict, run_dir: Path) -> tuple[int, int]:
+    """Process one image's styles. Returns (ok_count, fail_count)."""
+    uid = img_data["uuid"]
+    src_path = img_data["path"]
+    styles = img_data["result"].get("styles", [])
+    analysis = img_data["result"].get("analysis", "")
+
+    img_dir = run_dir / uid
+    copy_original(src_path, img_dir)
+
+    print(f"\n{'='*60}")
+    print(f"Image: {uid}")
+    print(f"  {analysis}")
+    print(f"  {len(styles)} styles\n")
+
+    ok = 0
+    fail = 0
+
+    for j, style in enumerate(styles):
+        style_name = style.get("name", f"style_{j}")
+        prompt = style.get("style_prompt", style.get("prompt", ""))
+        safe_name = style_name.lower().replace(" ", "_").replace("/", "-")[:40]
+        vid = variant_id_for(uid, j, safe_name)
+
+        # Check DB — already done?
+        row = conn.execute(
+            "SELECT generation_status FROM ai_variants WHERE variant_id=?", (vid,)
+        ).fetchone()
+        if row and row[0] in ("success", "filtered"):
+            print(f"  [{j+1}/{len(styles)}] {style_name} — already in DB, skip")
+            ok += 1
+            continue
+
+        out_path = img_dir / f"imagen_{j}_{safe_name}.jpg"
+        if out_path.exists():
+            print(f"  [{j+1}/{len(styles)}] {style_name} — file exists, skip")
+            ok += 1
+            continue
+
+        print(f"  [{j+1}/{len(styles)}] {style_name}")
+        print(f"    {prompt[:90]}...")
+
+        t1 = time.time()
+        success, error = generate_imagen(client, prompt, src_path, out_path)
+        elapsed_ms = int((time.time() - t1) * 1000)
+
+        if success:
+            ok += 1
+            db_upsert(conn, vid, uid, prompt, "success", elapsed_ms)
+            print(f"    OK ({elapsed_ms/1000:.1f}s)")
+        elif error == "safety_filter":
+            fail += 1
+            db_upsert(conn, vid, uid, prompt, "filtered", elapsed_ms, rai_reason="safety")
+            print(f"    FILTERED (safety)")
+        else:
+            fail += 1
+            db_upsert(conn, vid, uid, prompt, "failed", elapsed_ms, error=error)
+            print(f"    FAILED: {error}")
+
+        # Rate limit
+        wait = max(0, DELAY_BETWEEN_CALLS - (time.time() - t1))
+        if wait > 0:
+            time.sleep(wait)
+
+    return ok, fail
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--engine", choices=["mflux", "imagen", "both"], default="both")
+    parser.add_argument("--test", type=int, default=0, help="Only process N images")
+    parser.add_argument("--no-poll", action="store_true", help="Single pass, don't wait for new prompts")
+    parser.add_argument("--run-dir", type=str, default=None, help="Reuse existing run directory")
     args = parser.parse_args()
 
-    # Timestamped output folder per experiment
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    run_dir = OUTPUT_ROOT / timestamp
+    # Timestamped output folder
+    if args.run_dir:
+        run_dir = Path(args.run_dir)
+    else:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        run_dir = OUTPUT_ROOT / timestamp
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    prompts_data = json.loads(PROMPTS_FILE.read_text())
-
-    # Save prompts into the experiment folder for reference
-    (run_dir / "prompts.json").write_text(PROMPTS_FILE.read_text())
-
-    print(f"Loaded {len(prompts_data)} images with style prompts")
+    print(f"Imagen 3 Style Transfer — EDIT_MODE_STYLE, guidance=75")
+    print(f"Model: {IMAGEN_MODEL}")
     print(f"Experiment: {run_dir}")
-    print(f"Engine: {args.engine}")
-    print(f"Mode: IMG2IMG style transfer (exact source dimensions preserved)")
-    if args.engine in ("mflux", "both"):
-        print(f"Local model: {MFLUX_MODEL}")
+    print(f"Polling: {'OFF' if args.no_poll else f'every {POLL_INTERVAL}s'}")
     print()
 
-    total = sum(len(d["result"].get("styles", [])) for d in prompts_data)
-    done = 0
+    # Init
+    print(f"Initializing Vertex AI client (project={GCP_PROJECT})")
+    client = genai.Client(vertexai=True, project=GCP_PROJECT, location=GCP_LOCATION)
+    conn = sqlite3.connect(str(DB_PATH))
+
+    processed_uuids: set[str] = set()
+    total_ok = 0
+    total_fail = 0
     t0 = time.time()
 
-    for img_data in prompts_data:
-        uuid = img_data["uuid"]
-        src_path = img_data["path"]
-        styles = img_data["result"].get("styles", [])
-        analysis = img_data["result"].get("analysis", "")
+    while True:
+        # Re-read prompts file each cycle
+        if not PROMPTS_FILE.exists():
+            if args.no_poll:
+                print("No prompts file found.")
+                break
+            print(f"Waiting for prompts file...")
+            time.sleep(POLL_INTERVAL)
+            continue
 
-        # Read source image dimensions
-        src_w, src_h = get_image_dimensions(src_path)
+        prompts_data = json.loads(PROMPTS_FILE.read_text())
+        if args.test:
+            prompts_data = prompts_data[:args.test]
 
-        img_dir = run_dir / uuid
-        copy_original(src_path, img_dir)
+        # Find new (unprocessed) images
+        new_items = [d for d in prompts_data if d["uuid"] not in processed_uuids
+                     and "styles" in d.get("result", {})]
 
-        print(f"{'='*60}")
-        print(f"Image: {uuid}")
-        print(f"  Size: {src_w}x{src_h} ({'portrait' if src_h > src_w else 'landscape'})")
-        print(f"  {analysis}")
-        print(f"  {len(styles)} styles to generate\n")
+        if new_items:
+            print(f"\n>>> {len(new_items)} new images to process "
+                  f"({len(processed_uuids)} already done, "
+                  f"{len(prompts_data)} total in file)")
 
-        for j, style in enumerate(styles):
-            style_name = style.get("name", f"style_{j}")
-            prompt = style.get("style_prompt", style.get("prompt", ""))
-            strength = max(0.5, min(0.85, style.get("strength", 0.75)))
-            safe_name = style_name.lower().replace(" ", "_").replace("/", "-")[:40]
+            # Update experiment prompts.json
+            prompts_copy = run_dir / "prompts.json"
+            prompts_copy.write_text(json.dumps(prompts_data, indent=2))
 
-            print(f"  [{j+1}/{len(styles)}] {style_name} (strength: {strength})")
-            print(f"    Style: {prompt[:80]}...")
+            for img_data in new_items:
+                ok, fail = process_image(client, conn, img_data, run_dir)
+                total_ok += ok
+                total_fail += fail
+                processed_uuids.add(img_data["uuid"])
 
-            if args.engine in ("mflux", "both"):
-                out_mflux = img_dir / f"mflux_{j}_{safe_name}.png"
-                if out_mflux.exists():
-                    print(f"    mflux: exists, skipping")
-                else:
-                    t1 = time.time()
-                    ok = generate_mflux(prompt, src_path, out_mflux, strength, src_w, src_h)
-                    print(f"    mflux: {'ok' if ok else 'FAILED'} ({time.time()-t1:.1f}s)")
+        if args.no_poll:
+            break
 
-            if args.engine in ("imagen", "both"):
-                out_imagen = img_dir / f"imagen_{j}_{safe_name}.png"
-                if out_imagen.exists():
-                    print(f"    imagen: exists, skipping")
-                else:
-                    t1 = time.time()
-                    ok = generate_imagen(prompt, src_path, out_imagen, strength)
-                    print(f"    imagen: {'ok' if ok else 'FAILED'} ({time.time()-t1:.1f}s)")
+        # Check if Gemma is still running
+        if len(processed_uuids) >= (args.test or 100):
+            print(f"\nAll {len(processed_uuids)} images processed.")
+            break
 
-            done += 1
+        if not new_items:
+            print(f"  [{len(processed_uuids)}/{args.test or 100}] Waiting for Gemma... ({POLL_INTERVAL}s)")
+        time.sleep(POLL_INTERVAL)
 
-        print()
-
+    conn.close()
     elapsed = time.time() - t0
-    print(f"\nDone! {done} style prompts processed in {elapsed:.0f}s ({elapsed/60:.1f} min)")
+    total_images = len(list(run_dir.glob("*/imagen_*.jpg")))
+    print(f"\nDone! {elapsed/60:.1f} min — {total_ok} OK, {total_fail} failed, {total_images} images on disk")
     print(f"Experiment: {run_dir}")
-
-    mflux_count = len(list(run_dir.glob("*/mflux_*.png")))
-    imagen_count = len(list(run_dir.glob("*/imagen_*.png")))
-    print(f"  mflux images:  {mflux_count}")
-    print(f"  imagen images: {imagen_count}")
 
 
 if __name__ == "__main__":

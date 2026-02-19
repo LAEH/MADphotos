@@ -1,5 +1,8 @@
 export interface Photo {
   id: string
+  w: number
+  h: number
+  aspect: number
   thumb: string
   mobile?: string
   display?: string
@@ -12,6 +15,9 @@ export interface Photo {
   camera?: string
   palette?: string[]
   hue?: number
+  parent?: string
+  variant_type?: string
+  style_name?: string
   brightness?: number
   contrast?: number
   aesthetic?: number

@@ -22,7 +22,9 @@ import colorsys
 import json
 import math
 import random
+import re
 import sys
+import uuid
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -497,6 +499,17 @@ def load_unified_labels_by_category(conn: Any) -> Dict[str, Dict[str, List[str]]
         if len(cat_list) < 8 and r["label"] not in cat_list:
             cat_list.append(r["label"])
     return {uuid: dict(cats) for uuid, cats in result.items()}
+
+
+def load_accepted_enhancements(conn: Any) -> set:
+    """Return set of UUIDs with accepted exposure enhancements."""
+    try:
+        rows = conn.execute(
+            "SELECT image_uuid FROM enhancement_plans WHERE status = 'accepted'"
+        ).fetchall()
+        return {r["image_uuid"] for r in rows}
+    except Exception:
+        return set()
 
 
 def load_locations(conn: Any) -> Dict[str, Dict]:
@@ -1274,6 +1287,307 @@ def generate_picks_enriched(
     print(f"  picks_enriched.json: {len(enriched)} picks ({size_kb:.0f} KB)")
 
 
+# ── Variant Photos (style transfers → Colors view) ─────────────────────────
+
+UUID_NAMESPACE = uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
+GENERATED_DIR = PROJECT_ROOT / "backend" / "generated_test"
+AI_VARIANTS_DIR = PROJECT_ROOT / "images" / "ai_variants"
+
+
+def _variant_id_for(image_uuid: str, style_idx: int, style_name: str) -> str:
+    """Deterministic variant ID — must match generate_test_images.py."""
+    return str(uuid.uuid5(UUID_NAMESPACE, f"{image_uuid}:style_{style_idx}_{style_name}"))
+
+
+def _smart_variant_id(image_uuid: str, style_key: str) -> str:
+    """Deterministic smart variant ID — must match generate_smart_variants.py."""
+    return str(uuid.uuid5(UUID_NAMESPACE, f"{image_uuid}:smart_{style_key}"))
+
+
+GCS_VARIANTS_PREFIX = "gs://myproject-public-assets/art/MADphotos/v/variants"
+
+
+def sync_variants_to_gcs() -> int:
+    """Upload accepted variant images to GCS if not already present.
+
+    Returns count of newly uploaded files.
+    """
+    import subprocess
+
+    conn = db.get_connection()
+    rows = conn.execute("""
+        SELECT variant_id FROM ai_variants
+        WHERE generation_status = 'success' AND review_status = 'accepted'
+          AND variant_type IN ('style_transfer', 'cartoon', 'gemma_cartoon', 'smart_style')
+    """).fetchall()
+    accepted_ids = {r["variant_id"] for r in rows}
+    conn.close()
+
+    if not accepted_ids:
+        print("  No accepted variants to sync")
+        return 0
+
+    # Scan local files
+    file_map = _scan_variant_files()
+
+    # Check what's already on GCS
+    result = subprocess.run(
+        ["gcloud", "storage", "ls", f"{GCS_VARIANTS_PREFIX}/"],
+        capture_output=True, text=True, timeout=30,
+    )
+    existing = set()
+    if result.returncode == 0:
+        for line in result.stdout.strip().split("\n"):
+            if line.strip():
+                name = line.strip().rsplit("/", 1)[-1]
+                if name.endswith(".jpg"):
+                    existing.add(name.replace(".jpg", ""))
+
+    # Upload missing
+    uploaded = 0
+    for vid in sorted(accepted_ids):
+        if vid in existing:
+            continue
+        if vid not in file_map:
+            continue
+        _rel_url, file_path = file_map[vid]
+        dst = f"{GCS_VARIANTS_PREFIX}/{vid}.jpg"
+        subprocess.run(
+            ["gcloud", "storage", "cp", str(file_path), dst, "--quiet"],
+            capture_output=True, timeout=60,
+        )
+        uploaded += 1
+
+    print(f"  GCS sync: {uploaded} new uploads, {len(existing)} already present, {len(accepted_ids)} total accepted")
+    return uploaded
+
+
+def _scan_variant_files() -> Dict[str, Tuple[str, Path]]:
+    """Scan generated_test/ to build variant_id → (relative_url, file_path).
+
+    Returns the latest run_dir's file for each variant.
+    Also scans ai_variants/ for cartoon/gemma_cartoon files.
+    """
+    mapping: Dict[str, Tuple[str, Path]] = {}
+    style_re = re.compile(r"^imagen_(\d+)_(.+)\.jpg$")
+    smart_re = re.compile(r"^imagen_smart_(.+)\.jpg$")
+
+    if GENERATED_DIR.exists():
+        run_dirs = sorted(d for d in GENERATED_DIR.iterdir() if d.is_dir())
+        for run_dir in run_dirs:
+            run_name = run_dir.name
+            for uuid_dir in run_dir.iterdir():
+                if not uuid_dir.is_dir():
+                    continue
+                image_uuid = uuid_dir.name
+                for img_file in uuid_dir.iterdir():
+                    if not img_file.name.endswith(".jpg"):
+                        continue
+                    rel_url = f"/generated/{run_name}/{image_uuid}/{img_file.name}"
+
+                    # Smart variants: imagen_smart_{style}.jpg
+                    ms = smart_re.match(img_file.name)
+                    if ms:
+                        style_key = ms.group(1)
+                        vid = _smart_variant_id(image_uuid, style_key)
+                        mapping[vid] = (rel_url, img_file)
+                        continue
+
+                    # Legacy style variants: imagen_{idx}_{style}.jpg
+                    m = style_re.match(img_file.name)
+                    if m:
+                        style_idx = int(m.group(1))
+                        safe_name = m.group(2)
+                        vid = _variant_id_for(image_uuid, style_idx, safe_name)
+                        mapping[vid] = (rel_url, img_file)
+
+    # Also scan ai_variants/ for cartoon/gemma_cartoon
+    for vtype in ("cartoon", "gemma_cartoon"):
+        vtype_dir = AI_VARIANTS_DIR / vtype
+        if not vtype_dir.exists():
+            continue
+        for jpg in vtype_dir.rglob("*.jpg"):
+            vid = jpg.stem
+            rel_path = jpg.relative_to(AI_VARIANTS_DIR)
+            rel_url = f"/ai_variants/{rel_path}"
+            mapping[vid] = (rel_url, jpg)
+
+    return mapping
+
+
+def build_variant_photos(
+    conn: Any,
+    colors_lk: Dict[str, List[str]],
+    photo_map: Dict[str, Dict],
+) -> Tuple[List[Dict], List[str], List[str]]:
+    """Build photo objects for accepted style-transfer variants.
+
+    Variants inherit all signals from their parent photo except:
+    - palette/hue: extracted from the variant image itself
+    - id: parentUUID_stylename (readable lineage)
+    - parent, variant_type, style_name: variant metadata
+
+    Returns: (variant_photos, portrait_ids, landscape_ids)
+    """
+    # Query accepted variants (style_transfer with review_status='accepted')
+    # Also include cartoon/gemma_cartoon accepted
+    rows = conn.execute("""
+        SELECT v.variant_id, v.image_uuid, v.variant_type, v.prompt
+        FROM ai_variants v
+        WHERE v.generation_status = 'success'
+          AND v.review_status = 'accepted'
+          AND v.variant_type IN ('style_transfer', 'cartoon', 'gemma_cartoon', 'smart_style')
+        ORDER BY v.image_uuid, v.variant_id
+    """).fetchall()
+
+    if not rows:
+        print("  No accepted variants found")
+        return [], [], []
+
+    # Scan filesystem for variant image files
+    file_map = _scan_variant_files()
+
+    # Parse style name from filename patterns
+    filename_re = re.compile(r"imagen_\d+_(.+)\.jpg$")
+    smart_re = re.compile(r"imagen_smart_(.+)\.jpg$")
+
+    variant_photos = []
+    portrait_ids = []
+    landscape_ids = []
+
+    for r in rows:
+        vid = r["variant_id"]
+        parent_uuid = r["image_uuid"]
+        vtype = r["variant_type"]
+
+        # Need the parent photo for inherited signals
+        parent = photo_map.get(parent_uuid)
+        if not parent:
+            continue
+
+        # Need the variant's own colors
+        palette = colors_lk.get(vid, [])[:5]
+        if not palette:
+            continue  # skip variants without color extraction
+
+        # Find the file to determine style name and URL
+        if vid not in file_map:
+            continue
+        rel_url, file_path = file_map[vid]
+
+        # Extract style name from filename
+        ms = smart_re.search(file_path.name)
+        m = filename_re.search(file_path.name)
+        if ms:
+            style_name = ms.group(1)
+        elif m:
+            style_name = m.group(1)
+        elif vtype in ("cartoon", "gemma_cartoon"):
+            style_name = vtype
+        else:
+            style_name = "variant"
+
+        # Readable variant ID: parentUUID_stylename
+        readable_id = f"{parent_uuid}_{style_name}"
+
+        hue = round(dominant_hue_from_palette(palette), 1) if palette else 0
+
+        photo = {
+            "id": readable_id,
+            "parent": parent_uuid,
+            "variant_type": vtype,
+            "style_name": style_name,
+            # Own colors
+            "palette": palette,
+            "hue": hue,
+            # Inherited from parent
+            "category": parent.get("category", ""),
+            "subcategory": parent.get("subcategory", ""),
+            "filename": file_path.name,
+            "w": parent.get("w", 0),
+            "h": parent.get("h", 0),
+            "aspect": parent.get("aspect", 1.0),
+            "orientation": parent.get("orientation", "landscape"),
+            "camera": parent.get("camera", ""),
+            "medium": parent.get("medium", ""),
+            "mono": False,  # style transfers are always color
+            # Inherited signals
+            "vibes": parent.get("vibes", []),
+            "pops": parent.get("pops", []),
+            "grading": parent.get("grading", ""),
+            "time": parent.get("time", ""),
+            "setting": parent.get("setting", ""),
+            "weather": parent.get("weather", ""),
+            "alt": parent.get("alt", ""),
+            "exposure": parent.get("exposure", ""),
+            "depth": parent.get("depth", ""),
+            "composition": parent.get("composition", ""),
+            "geometry": parent.get("geometry", []),
+            "aesthetic": parent.get("aesthetic"),
+            "caption": parent.get("caption", ""),
+            "style": parent.get("style", ""),
+            "scene": parent.get("scene", ""),
+            "environment": parent.get("environment", ""),
+            "depth_complexity": parent.get("depth_complexity"),
+            "near_pct": parent.get("near_pct"),
+            "mid_pct": parent.get("mid_pct"),
+            "far_pct": parent.get("far_pct"),
+            "brightness": parent.get("brightness"),
+            "contrast": parent.get("contrast"),
+            "face_count": parent.get("face_count", 0),
+            "object_count": parent.get("object_count", 0),
+            "has_text": parent.get("has_text", False),
+            "emotion": parent.get("emotion", ""),
+            "objects": parent.get("objects", []),
+            "date": parent.get("date", ""),
+            "gps": parent.get("gps"),
+            "focal": parent.get("focal"),
+            # GCS URLs for variant images
+            "thumb": f"{GCS_BASE}/variants/{vid}.jpg",
+            "micro": f"{GCS_BASE}/variants/{vid}.jpg",
+            "display": f"{GCS_BASE}/variants/{vid}.jpg",
+            "mobile": f"{GCS_BASE}/variants/{vid}.jpg",
+            "e_thumb": f"{GCS_BASE}/variants/{vid}.jpg",
+            "e_display": f"{GCS_BASE}/variants/{vid}.jpg",
+            "squarable": True,
+            # V2 signals inherited
+            "aesthetic_v2": parent.get("aesthetic_v2"),
+            "aesthetic_label": parent.get("aesthetic_label"),
+            "tags": parent.get("tags", []),
+            "saliency": parent.get("saliency"),
+            "foreground": parent.get("foreground"),
+            "open_labels": parent.get("open_labels", []),
+            "pose_count": parent.get("pose_count", 0),
+            "segments": parent.get("segments"),
+            "florence": parent.get("florence", ""),
+            "identities": parent.get("identities"),
+            "location": parent.get("location"),
+            "has_border": False,
+            "border_crop": None,
+            "focus": parent.get("focus", [50, 50]),
+            "best_caption": parent.get("best_caption", ""),
+            "best_short": parent.get("best_short", ""),
+            "consensus": parent.get("consensus", []),
+            "all_vibes": parent.get("all_vibes", []),
+            "all_objects": parent.get("all_objects", []),
+            "all_scenes": parent.get("all_scenes", []),
+            "gemma_mood": parent.get("gemma_mood"),
+            "gemma_strength": parent.get("gemma_strength"),
+            "print_worthy": parent.get("print_worthy"),
+            "gemma_crops": parent.get("gemma_crops"),
+        }
+
+        variant_photos.append(photo)
+
+        orientation = parent.get("orientation", "landscape")
+        if orientation == "portrait":
+            portrait_ids.append(readable_id)
+        else:
+            landscape_ids.append(readable_id)
+
+    return variant_photos, portrait_ids, landscape_ids
+
+
 # ── Main Export ──────────────────────────────────────────────────────────────
 
 def export(pretty: bool = False) -> None:
@@ -1330,8 +1644,6 @@ def export(pretty: bool = False) -> None:
     except Exception as e:
         print(f"  Unified tables not yet populated ({e}) — skipping unified fields")
 
-    conn.close()
-
     print("Building photo objects...")
     print(f"  Using GCS URLs: {GCS_BASE}/...")
     photos, filters = build_photos(
@@ -1348,9 +1660,40 @@ def export(pretty: bool = False) -> None:
         consensus_lk=consensus_lk, labels_by_cat_lk=labels_by_cat_lk,
     )
 
+    # Swap URLs for accepted enhanced images
+    accepted_uuids = load_accepted_enhancements(conn)
+    if accepted_uuids:
+        swapped = 0
+        for p in photos:
+            if p["id"] in accepted_uuids:
+                p["thumb"] = gcs_url(p["id"], "thumb", "enhanced")
+                p["mobile"] = gcs_url(p["id"], "mobile", "enhanced")
+                p["display"] = gcs_url(p["id"], "display", "enhanced")
+                p["micro"] = gcs_url(p["id"], "micro", "enhanced")
+                p["enhanced"] = True
+                swapped += 1
+        print(f"  Swapped URLs for {swapped} accepted enhanced images")
+
     print(f"Exported {len(photos)} photos")
     for key in sorted(filters.keys()):
         print(f"  {key}: {len(filters[key])} unique")
+
+    # Sync variant images to GCS before building URLs
+    print("Syncing variant images to GCS...")
+    sync_variants_to_gcs()
+
+    # Build variant photo objects (accepted style transfers)
+    photo_map = {p["id"]: p for p in photos}
+    print("Loading accepted variants...")
+    variant_photos, variant_portrait, variant_landscape = build_variant_photos(
+        conn, colors_lk, photo_map,
+    )
+    if variant_photos:
+        photos.extend(variant_photos)
+        print(f"  Added {len(variant_photos)} variant photos "
+              f"({len(variant_portrait)} portrait, {len(variant_landscape)} landscape)")
+
+    conn.close()
 
     print("Computing similarity connections...")
     similarity = compute_similarity(photos)
@@ -1377,6 +1720,17 @@ def export(pretty: bool = False) -> None:
 
     size_mb = OUTPUT_PATH.stat().st_size / (1024 * 1024)
     print(f"Written to {OUTPUT_PATH} ({size_mb:.1f} MB)")
+
+    # Update picks.json with variant IDs
+    if variant_photos:
+        picks_path = DATA_DIR / "picks.json"
+        if picks_path.exists():
+            picks = json.loads(picks_path.read_text())
+            picks["portrait"].extend(variant_portrait)
+            picks["landscape"].extend(variant_landscape)
+            picks_path.write_text(json.dumps(picks, separators=(",", ":")))
+            print(f"  Updated picks.json: +{len(variant_portrait)} portrait, "
+                  f"+{len(variant_landscape)} landscape variants")
 
     # Generate auxiliary files
     print("Generating auxiliary data files...")

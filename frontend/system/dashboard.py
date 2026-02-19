@@ -3002,23 +3002,23 @@ def render_instructions():
 
 <div class="inst-hero">
   <h1>System Instructions</h1>
-  <p>Everything needed to work on MADphotos effectively. Updated 2026-02-18.</p>
+  <p>Everything needed to work on MADphotos. Updated 2026-02-19.</p>
 </div>
 
 <!-- ═══ PROJECT BRIEFING ═══ -->
 <div class="inst-card inst-accent">
   <span class="inst-pill inst-pill-indigo">Briefing</span>
   <h2>MADphotos</h2>
-  <p>A solo art project by <strong>LAEH</strong>. 9,011 unedited photographs shot over a decade with five cameras, turned into the most richly-understood image collection ever built. Every image gets every possible signal. Then camera-aware enhancement.</p>
+  <p>A solo art project by <strong>LAEH</strong>. 9,011 photographs shot over a decade with five cameras &mdash; the most signal-rich image collection ever built. Every image analyzed by 24 models across 33 tables. Now generating AI style variants via Imagen 3.</p>
 
   <div class="app-trio">
     <div class="app-box">
       <strong>Show</strong>
-      <p>Blow people&rsquo;s minds. Continuously release new experiences guided by signals and new ideas. Delightful, playful, elegant, smart, teasing, revealing, exciting &mdash; on every screen.</p>
+      <p>The art experience. 6 interactive views mixing originals and AI variants. Signal-aware curation, smart layouts, visual storytelling. Blow minds on every screen.</p>
     </div>
     <div class="app-box">
       <strong>System</strong>
-      <p>The dashboard. The control room. Every signal, every model, every image &mdash; tracked, measured, monitored.</p>
+      <p>The control room. Signals, models, variants, curation &mdash; tracked and measured. Style transfer review. Location tagging. Experiment monitoring.</p>
     </div>
   </div>
 </div>
@@ -3027,23 +3027,23 @@ def render_instructions():
 <div class="inst-card inst-creative">
   <span class="inst-pill inst-pill-pink">Creative Direction</span>
   <h2>Show Is an Art Experience</h2>
-  <p>Not just a gallery. Not a tech demo. Every experience must be designed by someone who is simultaneously the best developer, architect, ML engineer, exigent Apple-level minimalist designer, and deeply creative, emotionally intelligent curator.</p>
+  <p>Not a gallery. Not a tech demo. Designed by someone who is developer, architect, ML engineer, Apple-level minimalist designer, and emotionally intelligent curator &mdash; all at once.</p>
   <ul>
-    <li><strong>Signal-aware storytelling.</strong> Two laughing faces side by side IS funny. A rose-themed image next to rose-accent colors IS pretty. Two grumpy people together IS a statement. Signals create emotional moments &mdash; surprise, beauty, humor, mystery, melancholy.</li>
-    <li><strong>Minimalist UI, maximally expressive content.</strong> Dark, sparse, no chrome. Let the images talk. Fewer images shown beautifully beats more images shown generically.</li>
-    <li><strong>Every experience should feel designed by someone who LOVES photography.</strong> An experience that makes you want to look at every single image.</li>
+    <li><strong>Signal-aware storytelling.</strong> Two laughing faces side by side IS funny. A rose image next to rose accents IS pretty. Signals create emotional moments &mdash; surprise, beauty, humor, mystery.</li>
+    <li><strong>Minimal UI, maximal content.</strong> Dark, sparse, no chrome. Images talk. Fewer images shown beautifully beats more shown generically.</li>
+    <li><strong>Originals and variants coexist.</strong> AI-generated style variants live alongside originals &mdash; same colors view, same bento grid, same curation. Smart curators build visual stories by style, color, mood.</li>
   </ul>
 </div>
 
 <!-- ═══ STATUS ═══ -->
 <div class="inst-card inst-status">
   <span class="inst-pill inst-pill-green">Status</span>
-  <h2>What&rsquo;s Done vs. What&rsquo;s Next</h2>
-  <p><strong>V1 Signals (all 9,011/9,011):</strong> Rendering (97,898 tiers). EXIF. Pixel Analysis. Dominant Colors. Image Hashes. Vectors v1 (DINOv2-base+SigLIP-base+CLIP). Aesthetic Scoring. Depth Estimation. Scene Classification. Style Classification. BLIP Captions. Facial Emotions. Enhancement Plans (v1+v2). <strong>Gemini 2.5 Pro analysis (9,011/9,011).</strong> OCR (17,914 detections).</p>
-  <p><strong>V2 Signals (all complete):</strong> Aesthetic v2 (TOPIQ+MUSIQ+LAION). Quality Scores. Florence-2 Captions (9,011). CLIP Tags (9,011). Grounding DINO (108,861 detections). ArcFace Identities (2,264). rembg Foreground (9,011). SAM Segmentation (9,011). Pose Detection (3,595). Saliency Maps (9,011). GPS Locations (1,820). Border Detection (1,126). <strong>Vectors v2: DINOv2-Large (1024d) + SigLIP2-SO400M (1152d) + CLIP (512d).</strong></p>
-  <p><strong>Conditional signals (complete but partial by nature):</strong> Face Detections (1,676 images). Object Detections (5,363 images). Open Detections (8,981 images). Pose Detections (1,670 images). Face Identities (1,197 images). GPS Locations (1,820 images). Border Crops (1,126 analog images).</p>
-  <p><strong>Deployed:</strong> Show + System on Firebase (madphotos.laeh.ai), images on GCS. 6 interactive views.</p>
-  <p><strong>Next:</strong> New Show experiences using V2 signals. StatsPage V2 visualizations. Interactive SimilarityPage. More Imagen variants.</p>
+  <h2>Current State</h2>
+  <p><strong>Signals:</strong> All 9,011 images fully analyzed. V1 (15 signals) + V2 (12 signals) + Gemini 2.5 Pro deep analysis + dual vector embeddings (DINOv2-Large + SigLIP2-SO400M + CLIP). 33 tables, 24 models, 97,898 rendered tiers.</p>
+  <p><strong>Curation:</strong> ~2,760 curated picks (1,342 portrait + 3,374 landscape). Picks drive all Show views.</p>
+  <p><strong>AI Variants:</strong> 1,255 Imagen 3 style transfers generated across 390 images. 346 accepted, 1,033 reviewed. Styles: smart_style, style_transfer, gemma_cartoon, cartoon. Accepted variants exported to Show with GCS hosting.</p>
+  <p><strong>Deployed:</strong> Show + System on Firebase (madphotos.laeh.ai). Images + variants on GCS.</p>
+  <p><strong>Active:</strong> New style experiments (B&amp;W comic variants). Smart curators in Bento. Variant reveal on tile click. Color extraction for variants.</p>
 </div>
 
 <!-- ═══ CAMERAS + ARCHITECTURE ═══ -->
@@ -3066,7 +3066,7 @@ def render_instructions():
 
 <div class="inst-card">
   <span class="inst-pill inst-pill-blue">Architecture</span>
-  <h2>28 Python Scripts (backend/)</h2>
+  <h2>41 Python Scripts (backend/)</h2>
   <table>
     <thead><tr><th>Script</th><th>Purpose</th></tr></thead>
     <tbody>
@@ -3096,6 +3096,12 @@ def render_instructions():
       <tr><td><code>pipeline_lock.py</code></td><td>Pipeline lock management</td></tr>
       <tr><td><code>_florence_worker.py</code></td><td>Parallel Florence-2 captioning worker</td></tr>
       <tr><td><code>_rembg_standalone.py</code></td><td>Standalone rembg foreground extraction</td></tr>
+      <tr><td><code>generate_smart_variants.py</code></td><td>Signal-matched Imagen 3 style transfer (v1: 8 styles)</td></tr>
+      <tr><td><code>generate_variants_v2.py</code></td><td>Learned-preference variant generation (v2: acceptance-weighted)</td></tr>
+      <tr><td><code>extract_variant_colors.py</code></td><td>K-means color extraction for accepted variants</td></tr>
+      <tr><td><code>neural_style_transfer.py</code></td><td>VGG19 neural style transfer (5 art references)</td></tr>
+      <tr><td><code>run_gemma_picks.py</code></td><td>Gemma 27b batch analysis of all picks</td></tr>
+      <tr><td><code>run_gemma_deep.py</code></td><td>Gemma deep analysis with cartoon style recommendations</td></tr>
     </tbody>
   </table>
 </div>
@@ -3117,7 +3123,7 @@ def render_instructions():
     <ul>
       <li><strong>Tiers</strong>: full (3840), display (2048), mobile (1280), thumb (480), micro (64), gemini (2048)</li>
       <li><strong>GCS</strong> &mdash; <code>v/{version}/{tier}/{format}/{uuid}.ext</code></li>
-      <li><strong>google-genai 1.47</strong> &mdash; <code>edit_image()</code> needs <code>vertexai=True</code></li>
+      <li><strong>google-genai 1.63+</strong> &mdash; <code>edit_image()</code> needs <code>vertexai=True</code></li>
       <li><strong>JPEGmini Pro</strong> &mdash; GUI app, serving tiers only (display/mobile/thumb/micro)</li>
       <li><strong>Monochrome</strong> &mdash; zero saturation, zero color correction, ever</li>
     </ul>
@@ -3132,7 +3138,7 @@ def render_instructions():
   <h2>GCS Image Hosting Strategy</h2>
   <ul>
     <li><strong>GCP Project:</strong> laeh380to760 &mdash; account: laeh@madbits.ai</li>
-    <li><strong>Bucket:</strong> <code>gs://myproject-public-assets/art/MADphotos/</code></li>
+    <li><strong>Bucket:</strong> <a href="https://console.cloud.google.com/storage/browser/myproject-public-assets/art/MADphotos/?project=laeh380to760" target="_blank"><code>gs://myproject-public-assets/art/MADphotos/</code></a></li>
     <li><strong>URL pattern:</strong> <code>https://storage.googleapis.com/myproject-public-assets/art/MADphotos/v/{version}/{tier}/{format}/{uuid}.ext</code></li>
   </ul>
   <h3>Versioned Directory Structure</h3>
@@ -3142,6 +3148,7 @@ def render_instructions():
       <tr><td><code>original</code></td><td>Unmodified rendered tiers</td><td>display, mobile, thumb, micro &times; jpeg + webp</td></tr>
       <tr><td><code>enhanced</code></td><td>Camera-aware enhanced</td><td>display, mobile, thumb, micro &times; jpeg + webp</td></tr>
       <tr><td><code>blind</code></td><td>Blind test comparison images</td><td>display/jpeg only</td></tr>
+      <tr><td><code>variants</code></td><td>Accepted AI style transfers</td><td>jpeg (flat: {variant_id}.jpg)</td></tr>
     </tbody>
   </table>
   <h3>Deployment Map</h3>
@@ -3164,14 +3171,14 @@ def render_instructions():
   <h2>Show &mdash; 6 Views</h2>
   <ul>
     <li>React 18 + TypeScript + Vite 6 + Tailwind v4 + Zustand</li>
-    <li><strong>Colors</strong> &mdash; palette-driven photo exploration</li>
-    <li><strong>Bento</strong> &mdash; dynamic mosaic grid layout</li>
-    <li><strong>Couple</strong> &mdash; signal-matched photo pairs game</li>
-    <li><strong>Boom</strong> &mdash; curated photo sets with dramatic reveals</li>
+    <li><strong>Colors</strong> &mdash; palette-driven exploration with hero bento layouts, originals + variants mixed</li>
+    <li><strong>Bento</strong> &mdash; smart-curated mosaic grids (6 curators: style showcase, transform pairs, color story, mood board, variants gallery, scene story). Variant reveal on tile click.</li>
+    <li><strong>Couple</strong> &mdash; signal-matched photo pairs game (13 strategies)</li>
+    <li><strong>Boom</strong> &mdash; curated photo sets with dramatic reveals (24 sets)</li>
     <li><strong>Caption</strong> &mdash; AI-generated captions and stories</li>
     <li><strong>ISIT</strong> &mdash; swipe-based photo discovery</li>
-    <li>Picks-only: all views show ~1,246 curated photos from picks.json</li>
-    <li>3-tier performance: tier-a (Safari/high-end), tier-b (no blur), tier-c (minimal)</li>
+    <li>Picks-only: all views show ~2,760 curated photos + accepted AI variants from picks.json</li>
+    <li>3-tier perf: tier-a (Safari/high-end), tier-b (no blur), tier-c (minimal)</li>
   </ul>
 </div>
 
@@ -3229,7 +3236,7 @@ def render_instructions():
     <tbody>
       <tr><td>Vectors v1</td><td>DINOv2-base + SigLIP-base + CLIP</td><td class="done">9,011 &check;</td><td>768d + 768d + 512d (LanceDB)</td></tr>
       <tr><td>Vectors v2</td><td>DINOv2-Large + SigLIP2-SO400M + CLIP</td><td class="done">9,011 &check;</td><td>1024d + 1152d + 512d (LanceDB)</td></tr>
-      <tr><td>AI Variants</td><td>Imagen 3</td><td>290 / 173 images</td><td>Cartoon cel-shaded illustrations</td></tr>
+      <tr><td>AI Variants</td><td>Imagen 3</td><td class="done">1,255 generated &check;</td><td>346 accepted across 7 types. GCS-hosted. In Show via picks.json.</td></tr>
     </tbody>
   </table>
 </div>
@@ -6388,11 +6395,308 @@ def do_pick(uuids):
 # Location tagger
 # ---------------------------------------------------------------------------
 
-LOCATION_LABELS = ["NYC", "Paris", "China", "Unknown"]
+LOCATION_LABELS = ["NYC", "Paris", "China", "Unknown"]  # defaults, extended by DB
+
+# ---------------------------------------------------------------------------
+# Style transfer review
+# ---------------------------------------------------------------------------
+
+GENERATED_TEST_DIR = PROJECT_ROOT / "backend" / "generated_test"
 
 
-def get_location_tagger_data():
-    """Return picks that haven't been manually location-tagged yet."""
+def _latest_experiment_dir():
+    """Find the most recent experiment directory."""
+    if not GENERATED_TEST_DIR.exists():
+        return None
+    dirs = sorted([d for d in GENERATED_TEST_DIR.iterdir() if d.is_dir()], reverse=True)
+    return dirs[0] if dirs else None
+
+
+def get_generated_data():
+    """Scan all experiment dirs + ai_variants DB for generated style-transfer pairs."""
+    import random as _random
+    import sqlite3 as _sqlite3
+
+    if not GENERATED_TEST_DIR.exists():
+        return {"pairs": [], "run_dir": None}
+
+    # Load variant info + reviews from DB
+    db_path = PROJECT_ROOT / "images" / "mad_photos.db"
+    db_variants = {}  # variant_id -> {prompt, review_status, variant_type}
+    original_paths = {}  # uuid -> mobile tier path
+    try:
+        conn = _sqlite3.connect(str(db_path), timeout=10)
+        conn.row_factory = _sqlite3.Row
+        for r in conn.execute("""
+            SELECT variant_id, image_uuid, variant_type, prompt, review_status
+            FROM ai_variants WHERE generation_status = 'success'
+              AND variant_type = 'smart_style'
+        """).fetchall():
+            db_variants[r["variant_id"]] = {
+                "prompt": r["prompt"] or "",
+                "review": r["review_status"],
+                "variant_type": r["variant_type"] or "",
+            }
+        for r in conn.execute("""
+            SELECT image_uuid, MIN(local_path) as path FROM tiers
+            WHERE tier_name='mobile' AND format='jpeg' AND variant_id IS NULL
+            GROUP BY image_uuid
+        """).fetchall():
+            original_paths[r["image_uuid"]] = r["path"]
+        conn.close()
+    except Exception:
+        pass
+
+    # Scan ALL experiment dirs (newest first)
+    all_dirs = sorted(
+        [d for d in GENERATED_TEST_DIR.iterdir() if d.is_dir()], reverse=True
+    )
+
+    # Track seen variant files (latest dir wins)
+    seen_variants = set()
+    pairs = []
+
+    for run_dir in all_dirs:
+        # Load file-based reviews if they exist
+        reviews_file = run_dir / "reviews.json"
+        file_reviews = {}
+        if reviews_file.exists():
+            try:
+                file_reviews = json.loads(reviews_file.read_text())
+            except Exception:
+                pass
+
+        # Load prompts for legacy style info
+        prompts_file = run_dir / "prompts.json"
+        prompts_map = {}
+        rotation_map = {}
+        if prompts_file.exists():
+            try:
+                prompts_data = json.loads(prompts_file.read_text())
+                for entry in prompts_data:
+                    uid = entry["uuid"]
+                    rotation_map[uid] = entry.get("result", {}).get("rotation", 0)
+                    styles = entry.get("result", {}).get("styles", [])
+                    for i, s in enumerate(styles):
+                        prompts_map[f"{uid}_{i}"] = s
+            except Exception:
+                pass
+
+        for uuid_dir in sorted(run_dir.iterdir()):
+            if not uuid_dir.is_dir() or uuid_dir.name.startswith("."):
+                continue
+            uuid = uuid_dir.name
+
+            # Find original: prefer original.jpg in dir, fall back to DB mobile tier
+            original = uuid_dir / "original.jpg"
+            if original.exists():
+                orig_url = f"/generated/{run_dir.name}/{uuid}/original.jpg"
+            elif uuid in original_paths:
+                orig_url = f"/rendered/mobile/jpeg/{uuid}.jpg"
+            else:
+                continue
+
+            for img in sorted(
+                list(uuid_dir.glob("imagen_*.jpg"))
+                + list(uuid_dir.glob("mflux_*.png"))
+            ):
+                file_variant_id = f"{uuid}_{img.stem}"
+                if file_variant_id in seen_variants:
+                    continue
+                seen_variants.add(file_variant_id)
+
+                # Parse style name from filename
+                stem = img.stem  # e.g. imagen_smart_archer or imagen_0_van_gogh
+                parts = stem.split("_", 2)
+                style_name_raw = parts[2] if len(parts) >= 3 else stem
+
+                # Try to get info from DB (check multiple ID formats)
+                db_info = None
+                # Smart variant DB ID uses uuid5
+                import uuid as _uuid
+                _ns = _uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
+                for id_candidate in [
+                    str(_uuid.uuid5(_ns, f"{uuid}:smart_{style_name_raw}")),
+                    str(_uuid.uuid5(_ns, f"{uuid}:v2_{style_name_raw}")),
+                    str(_uuid.uuid5(_ns, f"{uuid}:style_{parts[1]}_{style_name_raw}" if len(parts) >= 3 else "")),
+                    file_variant_id,
+                ]:
+                    if id_candidate in db_variants:
+                        db_info = db_variants[id_candidate]
+                        break
+
+                # Legacy prompts.json lookup
+                style_idx = parts[1] if len(parts) >= 2 else "0"
+                style_key = f"{uuid}_{style_idx}"
+                legacy_info = prompts_map.get(style_key, {})
+
+                # Determine review status: DB > file reviews
+                review = None
+                if db_info and db_info.get("review"):
+                    review = db_info["review"]
+                elif file_variant_id in file_reviews:
+                    review = file_reviews[file_variant_id]
+
+                variant_type = db_info["variant_type"] if db_info else ""
+
+                # Only show smart_style variants (current pipeline)
+                if variant_type != "smart_style":
+                    continue
+
+                pairs.append({
+                    "variant_id": file_variant_id,
+                    "uuid": uuid,
+                    "original_path": orig_url,
+                    "variant_path": f"/generated/{run_dir.name}/{uuid}/{img.name}",
+                    "style_name": legacy_info.get("name", style_name_raw.replace("_", " ").title()),
+                    "style_prompt": db_info["prompt"][:200] if db_info else legacy_info.get("style_prompt", ""),
+                    "strength": legacy_info.get("strength", 0.75),
+                    "why": legacy_info.get("why", ""),
+                    "rotation": rotation_map.get(uuid, 0),
+                    "review": review,
+                    "variant_type": variant_type,
+                })
+
+    _random.Random(42).shuffle(pairs)
+    accepted = sum(1 for p in pairs if p.get("review") == "accepted")
+    rejected = sum(1 for p in pairs if p.get("review") == "rejected")
+    latest = all_dirs[0].name if all_dirs else None
+    return {
+        "pairs": pairs,
+        "run_dir": latest,
+        "accepted": accepted,
+        "rejected": rejected,
+    }
+
+
+def review_generated(variant_id, status):
+    """Store review for a style-transfer variant (file + DB)."""
+    import sqlite3 as _sqlite3
+
+    # File-based reviews (legacy)
+    run_dir = _latest_experiment_dir()
+    if run_dir:
+        reviews_file = run_dir / "reviews.json"
+        reviews = {}
+        if reviews_file.exists():
+            try:
+                reviews = json.loads(reviews_file.read_text())
+            except Exception:
+                pass
+        if status:
+            reviews[variant_id] = status
+        else:
+            reviews.pop(variant_id, None)
+        reviews_file.write_text(json.dumps(reviews, indent=2))
+
+    # DB-based reviews — update ai_variants.review_status
+    db_path = PROJECT_ROOT / "images" / "mad_photos.db"
+    try:
+        conn = _sqlite3.connect(str(db_path), timeout=10)
+        # Try direct variant_id match first
+        cur = conn.execute(
+            "UPDATE ai_variants SET review_status = ? WHERE variant_id = ?",
+            (status or None, variant_id),
+        )
+        if cur.rowcount == 0:
+            # Try uuid5 lookups for file-based variant IDs (uuid_filename format)
+            import uuid as _uuid
+            _ns = _uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
+            parts = variant_id.split("_", 1)
+            if len(parts) == 2:
+                uid = parts[0]
+                stem = parts[1]
+                # Extract style key from stem (e.g. "imagen_smart_gonzo" -> "gonzo")
+                stem_parts = stem.split("_", 2)
+                style_raw = stem_parts[2] if len(stem_parts) >= 3 else stem_parts[-1]
+                for prefix in ["smart_", "v2_", "style_"]:
+                    db_vid = str(_uuid.uuid5(_ns, f"{uid}:{prefix}{style_raw}"))
+                    cur2 = conn.execute(
+                        "UPDATE ai_variants SET review_status = ? WHERE variant_id = ?",
+                        (status or None, db_vid),
+                    )
+                    if cur2.rowcount > 0:
+                        break
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
+    return {"ok": True, "variant_id": variant_id, "status": status}
+
+
+def _predict_location(conn, uuid: str, tagged_map: dict[str, str], path_order: list[str]) -> str | None:
+    """Predict location using Gemini alt_text keywords + conservative neighbor propagation."""
+    from collections import Counter
+
+    # --- 1) Keyword matching on Gemini alt_text ---
+    # Specific locations checked FIRST (before generic ones like NYC)
+    # Keywords must be location-specific, not generic urban terms
+    KEYWORDS: list[tuple[str, list[str]]] = [
+        ("Singapore", ["singapore", "singaporean", "marina bay"]),
+        ("Seoul", ["seoul", "korean", "korea"]),
+        ("London", ["london", "british", "england", "dr. martens"]),
+        ("Montauk", ["montauk"]),
+        ("Marseille", ["marseille", "marseilles", "european harbor", "white masts"]),
+        ("Miami", ["miami", "god's-eye view", "sprawling metropolis meets"]),
+        ("Iceland", ["iceland", "icelandic", "reykjavik", "volcanic earth",
+                     "lava field", "basalt", "cotton grass", "mineral-streaked",
+                     "braided river", "tundra"]),
+        ("Hawaii", ["hawaii", "hawaiian", "jungle-bound", "pockmarked stone"]),
+        ("Mexico", ["mexico", "mexican", "oaxaca", "latin american",
+                    "wrought iron grille", "barnacle-encrusted"]),
+        ("Beijing", ["beijing", "hutong"]),
+        ("China", ["hong kong", "chinese", "china", "shanghai", "cantonese", "minibus"]),
+        ("France", ["french countryside", "french country"]),
+        ("Paris", ["paris", "parisian", "eiffel", "montmartre", "seine"]),
+        ("NYC", ["new york", "coney island", "empire state", "statue of liberty",
+                 "yellow cab", "east river", "times square", "manhattan", "brooklyn"]),
+    ]
+    alt_match = None
+    try:
+        row = conn.execute(
+            "SELECT alt_text FROM gemini_analysis WHERE image_uuid = ?", (uuid,)
+        ).fetchone()
+        if row and row["alt_text"]:
+            alt_lower = row["alt_text"].lower()
+            for loc, kws in KEYWORDS:
+                if any(kw in alt_lower for kw in kws):
+                    alt_match = loc
+                    break
+    except Exception:
+        pass
+
+    if alt_match:
+        return alt_match
+
+    # --- 2) Neighbor propagation — require strong consensus ---
+    try:
+        idx = path_order.index(uuid)
+    except ValueError:
+        return None
+
+    neighbors: list[str] = []
+    for delta in range(-5, 6):
+        if delta == 0:
+            continue
+        ni = idx + delta
+        if 0 <= ni < len(path_order):
+            nloc = tagged_map.get(path_order[ni])
+            if nloc:
+                neighbors.append(nloc)
+
+    if len(neighbors) >= 3:
+        counts = Counter(neighbors)
+        top_loc, top_count = counts.most_common(1)[0]
+        # All neighbors must agree (100% consensus) — relaxes as more photos get tagged
+        if top_count == len(neighbors):
+            return top_loc
+
+    return None
+
+
+def get_location_tagger_data(camera: str | None = None, obj: str | None = None):
+    """Return picks that haven't been manually location-tagged yet, with predictions."""
     conn = sqlite3.connect(str(DB_PATH))
     conn.row_factory = sqlite3.Row
 
@@ -6408,43 +6712,147 @@ def get_location_tagger_data():
 
     if not picked_uuids:
         conn.close()
-        return {"photos": [], "locations": LOCATION_LABELS, "tagged_count": 0, "total_count": 0}
+        return {"photos": [], "locations": LOCATION_LABELS, "tagged_count": 0, "total_count": 0, "cameras": [], "objects": []}
 
-    # Get already-tagged UUIDs (user_manual only)
-    tagged_set: set[str] = set()
+    # Get already-tagged UUIDs with their location
+    tagged_map: dict[str, str] = {}
     try:
         for row in conn.execute(
-            "SELECT image_uuid FROM image_locations WHERE source = 'user_manual'"
+            "SELECT image_uuid, location_name FROM image_locations WHERE source = 'user_manual'"
         ).fetchall():
-            tagged_set.add(row["image_uuid"])
+            tagged_map[row["image_uuid"]] = row["location_name"]
     except sqlite3.OperationalError:
         pass
 
-    # Build photo list for untagged picks
+    # Build ordered path list for neighbor propagation
     placeholders = ",".join("?" for _ in picked_uuids)
     rows = conn.execute(
-        f"SELECT uuid, category FROM images WHERE uuid IN ({placeholders}) ORDER BY category, uuid",
+        f"SELECT uuid, category, original_path FROM images WHERE uuid IN ({placeholders}) ORDER BY original_path",
         picked_uuids,
     ).fetchall()
-    conn.close()
+    path_order = [r["uuid"] for r in rows]
 
-    photos = []
+    # Discover available camera folders for filter dropdown
+    # Use up to 2 path segments so Osmo/OsmoPro and Osmo/OsmoMemo are separate
+    def _camera_key(path: str) -> str:
+        parts = path.split("/")
+        if len(parts) >= 2 and parts[0] == "Osmo":
+            return f"{parts[0]}/{parts[1]}"
+        return parts[0]
+
+    camera_counts: dict[str, int] = {}
+    untagged_uuids = set()
+    for r in rows:
+        if r["uuid"] in tagged_map:
+            continue
+        untagged_uuids.add(r["uuid"])
+        folder = _camera_key(r["original_path"] or "")
+        if folder:
+            camera_counts[folder] = camera_counts.get(folder, 0) + 1
+    cameras = sorted(camera_counts.keys())
+
+    # Discover detected objects for filter dropdown (high-confidence, 5+ untagged photos)
+    obj_counts: dict[str, int] = {}
+    obj_uuids: dict[str, set[str]] = {}
+    if untagged_uuids:
+        uu_placeholders = ",".join("?" for _ in untagged_uuids)
+        for row in conn.execute(
+            f"SELECT image_uuid, label FROM object_detections "
+            f"WHERE confidence >= 0.7 AND image_uuid IN ({uu_placeholders})",
+            list(untagged_uuids),
+        ).fetchall():
+            lbl = row["label"]
+            uid = row["image_uuid"]
+            if lbl not in obj_uuids:
+                obj_uuids[lbl] = set()
+            obj_uuids[lbl].add(uid)
+        for lbl, uids in obj_uuids.items():
+            if len(uids) >= 5:
+                obj_counts[lbl] = len(uids)
+    objects = sorted(obj_counts.keys(), key=lambda k: -obj_counts[k])
+    objects_with_counts = [{"label": lbl, "count": obj_counts[lbl]} for lbl in objects]
+
+    # Build set of UUIDs matching the object filter
+    obj_filter_uuids: set[str] | None = None
+    if obj:
+        obj_filter_uuids = obj_uuids.get(obj, set())
+
+    # Build photo list for untagged picks (keep path order for better neighbor prediction)
+    photos_predicted = []
+    photos_unpredicted = []
     for r in rows:
         uid = r["uuid"]
-        if uid in tagged_set:
+        if uid in tagged_map:
             continue
-        photos.append({
+        # Camera filter: only include photos from the selected camera folder
+        if camera:
+            folder = _camera_key(r["original_path"] or "")
+            if folder != camera:
+                continue
+        # Object filter: only include photos with the selected detected object
+        if obj_filter_uuids is not None and uid not in obj_filter_uuids:
+            continue
+        predicted = _predict_location(conn, uid, tagged_map, path_order)
+        entry = {
             "uuid": uid,
             "category": r["category"],
             "thumb_url": f"/rendered/display/jpeg/{uid}.jpg",
-        })
+            "predicted": predicted,
+        }
+        if predicted:
+            photos_predicted.append(entry)
+        else:
+            photos_unpredicted.append(entry)
+
+    # Predicted photos first, sorted by location for batch tagging
+    photos_predicted.sort(key=lambda p: (p["predicted"] or ""))
+    photos = photos_predicted + photos_unpredicted
+
+    conn.close()
+
+    # Merge hardcoded defaults with any user-created locations from DB
+    all_locations = list(LOCATION_LABELS)
+    try:
+        conn2 = sqlite3.connect(str(DB_PATH))
+        for row in conn2.execute(
+            "SELECT DISTINCT location_name FROM image_locations "
+            "WHERE location_name IS NOT NULL AND length(location_name) > 0 "
+            "ORDER BY location_name"
+        ).fetchall():
+            if row[0] not in all_locations:
+                all_locations.append(row[0])
+        conn2.close()
+    except Exception:
+        pass
 
     return {
         "photos": photos,
-        "locations": LOCATION_LABELS,
-        "tagged_count": len(tagged_set),
+        "locations": all_locations,
+        "tagged_count": len(tagged_map),
         "total_count": len(picked_uuids),
+        "cameras": cameras,
+        "objects": objects_with_counts,
     }
+
+
+def register_location(name: str) -> dict:
+    """Register a new location name so it appears in the tagger even before any photo is tagged."""
+    conn = sqlite3.connect(str(DB_PATH))
+    # Check if already exists
+    existing = conn.execute(
+        "SELECT COUNT(*) FROM image_locations WHERE location_name = ?", (name,)
+    ).fetchone()[0]
+    if not existing:
+        # Insert a placeholder row (no photo) — use a sentinel UUID
+        now = datetime.now(timezone.utc).isoformat()
+        conn.execute(
+            """INSERT OR IGNORE INTO image_locations (image_uuid, location_name, source, accepted, created_at)
+               VALUES (?, ?, 'location_registry', 0, ?)""",
+            (f"__location__{name}", name, now),
+        )
+        conn.commit()
+    conn.close()
+    return {"ok": True, "name": name, "new": not existing}
 
 
 def tag_location(uuid, location_name):
@@ -6464,6 +6872,18 @@ def tag_location(uuid, location_name):
     conn.commit()
     conn.close()
     return {"success": True, "uuid": uuid, "location": location_name}
+
+
+def untag_location(uuid):
+    """Remove a manual location tag for a photo (undo)."""
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.execute(
+        "DELETE FROM image_locations WHERE image_uuid = ? AND source = 'user_manual'",
+        (uuid,),
+    )
+    conn.commit()
+    conn.close()
+    return {"success": True, "uuid": uuid}
 
 
 # ---------------------------------------------------------------------------

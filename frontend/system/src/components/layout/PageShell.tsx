@@ -4,9 +4,10 @@ interface PageShellProps {
   title: string
   subtitle?: React.ReactNode
   children: React.ReactNode
+  hideFooter?: boolean
 }
 
-export function PageShell({ title, subtitle, children }: PageShellProps) {
+export function PageShell({ title, subtitle, children, hideFooter }: PageShellProps) {
   return (
     <>
       <div className="page-header">
@@ -16,7 +17,7 @@ export function PageShell({ title, subtitle, children }: PageShellProps) {
       <div className="page-body">
         {children}
       </div>
-      <Footer />
+      {!hideFooter && <Footer />}
     </>
   )
 }

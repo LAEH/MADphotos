@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { App } from './App'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { detectTier, applyTier } from './lib/performanceTier'
 import './index.css'
 
@@ -14,10 +15,15 @@ if (localStorage.getItem('theme') === 'dark') {
   document.documentElement.classList.add('dark')
 }
 
-createRoot(document.getElementById('root')!).render(
+const root = document.getElementById('root')
+if (!root) throw new Error('Missing #root element in HTML')
+
+createRoot(root).render(
   <StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </ErrorBoundary>
   </StrictMode>,
 )

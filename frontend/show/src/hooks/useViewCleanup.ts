@@ -1,12 +1,12 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 
 export function useViewCleanup() {
   const timers = useRef<number[]>([])
 
-  const registerTimer = (id: number) => {
+  const registerTimer = useCallback((id: number) => {
     timers.current.push(id)
     return id
-  }
+  }, [])
 
   useEffect(() => {
     return () => {

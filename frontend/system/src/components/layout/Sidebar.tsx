@@ -22,8 +22,9 @@ const signals: NavItem[] = [
 const curation: NavItem[] = [
   { to: '/review/unpicked', label: 'Unpicked' },
   { to: '/curation/location', label: 'Location' },
-  { to: '/experiments/cartoon', label: 'Cartoon' },
-  { to: '/experiments/blind-test', label: 'Blind Test' },
+  { to: '/experiments/generated', label: 'Generated' },
+
+  { to: '/experiments/enhanced', label: 'Enhanced' },
 ]
 
 export function Sidebar() {

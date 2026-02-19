@@ -1,6 +1,6 @@
 export type PerformanceTier = 'tier-a' | 'tier-b' | 'tier-c'
 
-interface NavigatorExtended extends Navigator {
+export interface NavigatorExtended extends Navigator {
   deviceMemory?: number
   connection?: {
     saveData?: boolean

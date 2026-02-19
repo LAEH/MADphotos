@@ -28,37 +28,54 @@ PICKS_JSON = PROJECT_ROOT / "frontend" / "show" / "data" / "picks.json"
 OLLAMA_URL = "http://localhost:11434/api/generate"
 MODEL = "gemma3:27b"
 
-PROMPT = """You are an expert art director specializing in style transfer. Look at THIS photograph and pick the 5 styles that would produce the most stunning transformations for THIS specific image.
+PROMPT = """You are an expert animation art director. Look at THIS photograph and choose the 5 BEST cartoon/illustration/animation styles to transform it into.
 
-Analyze deeply — the light, shadows, geometry, mood, textures, subject, color palette. Then choose 5 styles where each one is a PERFECT match for what's in the image. Not your defaults — styles THIS image is begging to become.
+Analyze the photo — light, mood, subjects, colors, energy. Then pick 5 cartoon styles that would look STUNNING for THIS specific image. Match the style to the image's character.
 
 RULES:
 - STYLE descriptors only — composition, subjects, and layout are preserved
 - Do NOT describe the scene — the image already has that
-- DO describe: exact medium, texture, technique, materials, tonal quality
+- DO describe: exact animation technique, line quality, shading method, color rendering
 - Each prompt must be DETAILED (40-60 words) — specific enough to generate from
-- ALWAYS specify 3-4 exact colors derived from the image's own palette
+- ALWAYS specify a color palette (3-4 specific colors) derived from the image
 - NO text, typography, or lettering
-- The 5 styles must be radically different from each other
+- All 5 must be RADICALLY different cartoon/illustration styles
 
-YOUR FULL PALETTE (pick whatever fits THIS image best):
-- Anime/Manga: Ghibli soft watercolor, Makoto Shinkai luminous, 90s cel shading, Junji Ito horror ink
-- 3D/Cartoon: Pixar subsurface skin, Claymation handmade, Cartoon Network flat, Disney renaissance, Archer sharp flat cel-shading with muted spy-palette
-- B&W/Graphic: Charcoal on rough paper, pen crosshatch, Sumi-e ink wash, noir silhouette, edge-detection contour, stipple dots, scratchboard engraving
-- Print/Process: Cyanotype blueprint, risograph 2-color, linocut woodblock, screen print halftone, mezzotint, photogravure
-- Painting: Van Gogh impasto, Monet impressionist, Klimt gold leaf, Caravaggio chiaroscuro, Basquiat raw, Hopper light, Rothko color field, Hockney pool-bright
-- Photo Effect: Infrared false color, solarization, double exposure, high-key bleach, shadow crush duotone, chromatic aberration
-- Material/Craft: Mosaic tile, stained glass, embroidery, torn paper collage, gold leaf lacquer, ceramic glaze
-- Illustration: Ligne claire, vintage travel poster, botanical watercolor, editorial ink wash, children's crayon, Corto Maltese Hugo Pratt bold ink brush with dramatic black pools
+CARTOON STYLE PALETTE — pick the 5 best for THIS image:
+- Ghibli: Soft watercolor washes, delicate ink lines, dreamy atmospheric depth
+- Makoto Shinkai: Hyper-detailed backgrounds, luminous sky gradients, photorealistic lighting in anime form
+- 90s Anime Cel: Hard outlines, flat color fills, dramatic speed lines, saturated palette
+- Adult Anime: Detailed realistic anatomy, moody lighting, cinematic framing, mature palette
+- Anime Aquarelle: Wet-on-wet watercolor bleeds, soft anime features, translucent color layering
+- Archer: Sharp flat cel-shading, muted spy-palette, crisp vector outlines, minimal gradients, dry wit aesthetic
+- Pixar 3D: Subsurface scattering skin, soft ambient occlusion, hyper-clean rendering, warm bounce light
+- Disney Renaissance: Rich painted backgrounds, expressive character design, lush color, visible brushwork
+- Cartoon Network: Bold graphic shapes, thick outlines, pop-bright flat colors, playful exaggeration
+- Corto Maltese: Hugo Pratt bold ink brush, dramatic black pools, sparse detail, raw pen strokes, high contrast
+- Ligne Claire: Tintin-style uniform line weight, flat colors, no hatching, clean precise outlines
+- Manga B&W: Screentone shading, dynamic inking, stark black/white contrast, expressive linework
+- Vintage Cartoon: Rubber hose limbs, halftone dots, faded newsprint palette, 1930s charm
+- Comic Book: Ben-Day dots, bold primary colors, dynamic inking, superhero drama
+- Marvel: Dynamic heroic poses, rich detailed inking, dramatic lighting, vibrant saturated colors, muscular rendering, cinematic action-panel energy
+- Moebius/Giraud: Intricate fine-line crosshatch, surreal color, otherworldly detail, sci-fi elegance
+- Children's Book: Soft crayon/gouache texture, warm rounded shapes, gentle palette, storybook warmth
+- Ukiyo-e: Woodblock flat color planes, bold outlines, wave patterns, traditional Japanese palette
+- Pop Art: Warhol screen-print bold, flat saturated colors, halftone dots, graphic punch
+- Concept Art: Loose painterly strokes, cinematic atmosphere, muted palette with focal color accent
+- Graphic Novel: Heavy shadows, noir-influenced inking, limited palette, gritty realism
+
+ALSO: Check if the image appears to be in the WRONG ORIENTATION (rotated 90° clockwise, 90° counter-clockwise, or upside down). Many photos have incorrect EXIF rotation. Look at the actual content — are subjects sideways? Is the horizon vertical? Is text sideways?
 
 Respond with ONLY valid JSON:
-{"analysis":"1 sentence on what makes this photo special","styles":[{"name":"short name (2-3 words)","style_prompt":"detailed style descriptors, 40-60 words, exact technique + materials + 3-4 specific colors from the image, no scene description, no text","strength":0.5 to 0.85,"why":"1 sentence — why THIS style suits THIS image"}]}
+{"analysis":"1 sentence on what makes this photo special","rotation":0,"styles":[{"name":"short name (2-3 words)","style_prompt":"detailed cartoon/illustration style descriptors, 40-60 words, exact technique + line quality + shading + 3-4 specific colors from the image","strength":0.75,"why":"1 sentence — why THIS cartoon style suits THIS image"}]}
 
-strength guide: 0.5 = subtle, 0.65 = moderate, 0.75 = strong (default), 0.85 = dramatic.
+rotation: 0 = correct orientation, 90 = needs 90° clockwise rotation, 180 = upside down, 270 = needs 90° counter-clockwise rotation.
+Use strength 0.75 for all (Imagen 3 handles this well for cartoon transforms).
 
-Example GOOD: "High-contrast charcoal on rough cold-press paper, deep velvety blacks with aggressive crosshatch shading in burnt umber and raw sienna, bright highlights left as raw white paper, warm grey midtones, edges dissolving into dust and grain with deliberate smudging"
-Example GOOD: "Archer-style flat cel animation, crisp black outlines with muted teal and burgundy color blocks, minimal shading with sharp shadow cutoffs, desaturated warm skin tones, clean vector-like rendering"
-Example BAD: "A Japanese woodblock print showing a person standing in a city" (describes the scene — WRONG)"""
+Example GOOD: "Archer-style flat cel animation, crisp black outlines with muted teal and burgundy color blocks, minimal shading with sharp shadow cutoffs, desaturated warm skin tones, clean vector-like rendering with subtle grain texture"
+Example GOOD: "Studio Ghibli soft watercolor, delicate washes of muted sage green and dusty rose, fine ink linework with breathing white space, soft atmospheric haze, warm golden hour light rendered in translucent paint layers"
+Example GOOD: "Hugo Pratt Corto Maltese ink brush, bold confident strokes in pure black, dramatic pools of shadow, minimal hatching, raw white paper as negative space, occasional warm sepia wash accent"
+Example BAD: "A cartoon version of the person in the photo standing on a street" (describes the scene — WRONG)"""
 
 
 def get_sample_images(count: int = 5) -> list[tuple[str, str]]:
@@ -138,6 +155,9 @@ def main():
             print(f"  Raw: {result['raw'][:200]}")
             continue
 
+        rotation = result.get("rotation", 0)
+        if rotation:
+            print(f"  *** ROTATION NEEDED: {rotation}° ***")
         print(f"  Analysis: {result.get('analysis', 'N/A')}")
         styles = result.get("styles", [])
         print(f"  Styles ({len(styles)}):")
@@ -153,9 +173,14 @@ def main():
             "elapsed": round(elapsed, 1),
             "result": result,
         })
+
+        # Save incrementally so Imagen can pick up new prompts in real time
+        out_path = PROJECT_ROOT / "backend" / "style_prompts_test.json"
+        out_path.write_text(json.dumps(all_results, indent=2, ensure_ascii=False))
+        print(f"  Saved ({len(all_results)} images in prompts file)")
         print()
 
-    # Save full results
+    # Final save
     out_path = PROJECT_ROOT / "backend" / "style_prompts_test.json"
     out_path.write_text(json.dumps(all_results, indent=2, ensure_ascii=False))
     print(f"\nFull results saved to {out_path}")

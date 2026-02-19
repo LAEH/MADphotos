@@ -5,12 +5,13 @@ import { StatusPage } from './pages/StatusPage'
 import { JournalPage } from './pages/JournalPage'
 import { InstructionsPage } from './pages/InstructionsPage'
 import { MosaicsPage } from './pages/MosaicsPage'
-import { CartoonPage } from './pages/CartoonPage'
-import { BlindTestPage } from './pages/BlindTestPage'
+
+import { EnhancedPage } from './pages/EnhancedPage'
 import { GemmaPage } from './pages/GemmaPage'
 import { UnpickedPage } from './pages/UnpickedPage'
 import { SignalInspectorPage } from './pages/SignalInspectorPage'
 import { LocationPage } from './pages/LocationPage'
+import { GeneratedPage } from './pages/GeneratedPage'
 
 export default function App() {
   const themeCtx = useThemeProvider()
@@ -26,10 +27,11 @@ export default function App() {
           <Route path="review/unpicked" element={<UnpickedPage />} />
           <Route path="experiments/gemma" element={<GemmaPage />} />
           <Route path="experiments/mosaics" element={<MosaicsPage />} />
-          <Route path="experiments/cartoon" element={<CartoonPage />} />
-          <Route path="experiments/blind-test" element={<BlindTestPage />} />
+
+          <Route path="experiments/enhanced" element={<EnhancedPage />} />
           <Route path="experiments/signals" element={<SignalInspectorPage />} />
           <Route path="curation/location" element={<LocationPage />} />
+          <Route path="experiments/generated" element={<GeneratedPage />} />
         </Route>
       </Routes>
     </ThemeContext.Provider>

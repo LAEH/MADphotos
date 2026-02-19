@@ -1,21 +1,26 @@
 export function shuffleArray<T>(arr: T[]): T[] {
-  for (let i = arr.length - 1; i > 0; i--) {
+  const copy = arr.slice()
+  for (let i = copy.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
-    ;[arr[i], arr[j]] = [arr[j], arr[i]]
+    ;[copy[i], copy[j]] = [copy[j], copy[i]]
   }
-  return arr
+  return copy
 }
 
-export function randomFrom<T>(arr: T[]): T {
+/** Pick a random element. Callers must ensure arr is non-empty. */
+export function randomFrom<T>(arr: readonly T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]
 }
 
-export function debounce<T extends (...args: unknown[]) => void>(fn: T, ms: number): T {
+export function debounce<T extends (...args: never[]) => void>(
+  fn: T,
+  ms: number,
+): (...args: Parameters<T>) => void {
   let timer: ReturnType<typeof setTimeout>
-  return ((...args: unknown[]) => {
+  return (...args: Parameters<T>) => {
     clearTimeout(timer)
     timer = setTimeout(() => fn(...args), ms)
-  }) as T
+  }
 }
 
 export function titleCase(str: string): string {

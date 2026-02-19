@@ -21,6 +21,12 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 RENDERED_DIR = PROJECT_ROOT / "images" / "rendered"
 AI_VARIANTS_DIR = PROJECT_ROOT / "images" / "ai_variants"
+GENERATED_DIR = PROJECT_ROOT / "backend" / "generated_test"
+PREVIEW_DIR = RENDERED_DIR / "enhance_previews"
+
+# Ensure backend is importable
+import sys as _sys
+_sys.path.insert(0, str(PROJECT_ROOT))
 
 
 class APIHandler(SimpleHTTPRequestHandler):
@@ -62,7 +68,231 @@ class APIHandler(SimpleHTTPRequestHandler):
         if self.path == "/api/location/tag":
             self._handle_location_tag()
             return
+        if self.path == "/api/location/untag":
+            self._handle_location_untag()
+            return
+        if self.path == "/api/location/create":
+            self._handle_location_create()
+            return
+        if self.path == "/api/generated/review":
+            self._handle_generated_review()
+            return
+        if self.path == "/api/generated/generate":
+            self._handle_generated_generate()
+            return
+        if self.path == "/api/generated/export":
+            self._handle_generated_export()
+            return
+        if self.path == "/api/enhance/deploy":
+            self._handle_enhance_deploy()
+            return
+        if self.path == "/api/enhance/vote":
+            self._handle_enhance_vote()
+            return
+        if self.path == "/api/enhance/generate":
+            self._handle_enhance_generate()
+            return
         self.send_error(404)
+
+    def _handle_generated_review(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            body = json.loads(self.rfile.read(length)) if length else {}
+        except (json.JSONDecodeError, ValueError):
+            self._error_response(400, "Invalid JSON")
+            return
+
+        variant_id = body.get("variant_id")
+        status = body.get("status")
+        if not variant_id or status not in ("accepted", "rejected", ""):
+            self._error_response(400, "variant_id and status required")
+            return
+        if status == "":
+            status = None
+
+        try:
+            from dashboard import review_generated
+        except ImportError:
+            import sys as _sys
+            _sys.path.insert(0, str(Path(__file__).resolve().parent))
+            from dashboard import review_generated
+
+        result = review_generated(variant_id, status)
+        self._json_response(result)
+
+    def _handle_generated_progress(self):
+        """Check generation progress by counting files in the latest run dir."""
+        latest = None
+        if GENERATED_DIR.exists():
+            dirs = sorted([d for d in GENERATED_DIR.iterdir() if d.is_dir()], reverse=True)
+            if dirs:
+                latest = dirs[0]
+
+        if not latest:
+            self._json_response({"completed": 0, "expected": 20, "done": True})
+            return
+
+        # Count photos (UUID dirs) that have at least one variant
+        completed = 0
+        for uuid_dir in latest.iterdir():
+            if not uuid_dir.is_dir() or uuid_dir.name.startswith("."):
+                continue
+            if any(uuid_dir.glob("imagen_smart_*.jpg")):
+                completed += 1
+
+        # Check if the generation script is still running
+        import subprocess as _sp
+        result = _sp.run(["pgrep", "-f", "genimages.run"], capture_output=True)
+        running = result.returncode == 0
+
+        self._json_response({
+            "completed": completed,
+            "expected": 20,
+            "done": not running,
+            "run_dir": latest.name,
+        })
+
+    def _handle_generated_generate(self):
+        """Launch genimages pipeline (30 photos = 60 variants) in a Terminal window."""
+        import subprocess as _sp
+
+        script = f"""#!/bin/bash
+cd {PROJECT_ROOT}
+echo "=== Style Transfer — Generate 20 ==="
+echo ""
+.venv-gen/bin/python3 -u -m backend.genimages.run --count 20
+echo ""
+echo "=== Generation complete ==="
+echo "Press any key to close..."
+read -n 1
+"""
+        script_path = Path("/tmp/generated-generate.sh")
+        script_path.write_text(script)
+        script_path.chmod(0o755)
+
+        _sp.Popen([
+            "osascript", "-e", 'tell app "Terminal" to activate',
+            "-e", f'tell app "Terminal" to do script "bash {script_path}"',
+        ])
+
+        self._json_response({"ok": True, "count": 20})
+
+    def _handle_generated_export(self):
+        """Launch firestore_sync.py in a Terminal window to export accepted variants."""
+        import subprocess as _sp
+        import sqlite3
+
+        db_path = PROJECT_ROOT / "images" / "mad_photos.db"
+        try:
+            conn = sqlite3.connect(str(db_path))
+            count = conn.execute(
+                "SELECT COUNT(*) FROM ai_variants WHERE variant_type = 'smart_style' AND review_status = 'accepted'"
+            ).fetchone()[0]
+            conn.close()
+        except Exception:
+            count = 0
+
+        if count == 0:
+            self._error_response(400, "No accepted smart_style variants to export")
+            return
+
+        script = f"""#!/bin/bash
+cd {PROJECT_ROOT}
+echo "=== Style Transfer — Export {count} accepted variants ==="
+echo ""
+python3 -u backend/firestore_sync.py
+echo ""
+echo "=== Export complete ==="
+echo "Press any key to close..."
+read -n 1
+"""
+        script_path = Path("/tmp/generated-export.sh")
+        script_path.write_text(script)
+        script_path.chmod(0o755)
+
+        _sp.Popen([
+            "osascript", "-e", 'tell app "Terminal" to activate',
+            "-e", f'tell app "Terminal" to do script "bash {script_path}"',
+        ])
+
+        self._json_response({"ok": True, "count": count})
+
+    def _handle_enhance_deploy(self):
+        """Launch the full enhancement pipeline in a background Terminal window."""
+        import subprocess as _sp
+
+        from backend.enhance.db import get_connection, ensure_tables, get_accepted_undeployed
+        conn = get_connection()
+        ensure_tables(conn)
+        pending = get_accepted_undeployed(conn)
+        conn.close()
+
+        if not pending:
+            self._error_response(400, "No accepted proposals to deploy")
+            return
+
+        count = len(pending)
+
+        # Write a temp script that runs the full pipeline
+        script = f"""#!/bin/bash
+cd {PROJECT_ROOT}
+echo "=== Enhancement Deploy Pipeline ==="
+echo ""
+echo "Step 1/2 — Deploy {count} accepted proposals (render tiers + GCS upload)"
+python3 -u -m backend.enhance.deploy
+echo ""
+echo "Step 2/2 — Regenerate photos.json"
+python3 -u backend/export_gallery.py
+echo ""
+echo "=== Pipeline complete ==="
+echo "Press any key to close..."
+read -n 1
+"""
+        script_path = Path("/tmp/enhance-pipeline.sh")
+        script_path.write_text(script)
+        script_path.chmod(0o755)
+
+        _sp.Popen([
+            "osascript", "-e", 'tell app "Terminal" to activate',
+            "-e", f'tell app "Terminal" to do script "bash {script_path}"',
+        ])
+
+        self._json_response({"ok": True, "count": count})
+
+    def _handle_enhance_vote(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            body = json.loads(self.rfile.read(length)) if length else {}
+        except (json.JSONDecodeError, ValueError):
+            self._error_response(400, "Invalid JSON")
+            return
+
+        proposal_id = body.get("proposal_id")
+        status = body.get("status")
+        feedback = body.get("feedback")
+        if not proposal_id or status not in ("accepted", "rejected", "feedback"):
+            self._error_response(400, "proposal_id and status required")
+            return
+
+        from backend.enhance.db import get_connection, ensure_tables, update_proposal, complete_batch
+        conn = get_connection()
+        ensure_tables(conn)
+        ok = update_proposal(conn, int(proposal_id), status, feedback=feedback)
+
+        # Check if batch should be completed
+        batch_id = body.get("batch_id")
+        if batch_id:
+            complete_batch(conn, int(batch_id))
+
+        conn.close()
+        self._json_response({"ok": ok})
+
+    def _handle_enhance_generate(self):
+        """Generate a fresh batch of ~30 proposals using iterative learning."""
+        from backend.enhance.propose import generate_batch
+
+        result = generate_batch()
+        self._json_response({"ok": True, **result})
 
     def _handle_location_tag(self):
         try:
@@ -86,6 +316,52 @@ class APIHandler(SimpleHTTPRequestHandler):
             from dashboard import tag_location
 
         result = tag_location(uuid, location)
+        self._json_response(result)
+
+    def _handle_location_untag(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            body = json.loads(self.rfile.read(length)) if length else {}
+        except (json.JSONDecodeError, ValueError):
+            self._error_response(400, "Invalid JSON")
+            return
+
+        uuid = body.get("uuid")
+        if not uuid:
+            self._error_response(400, "uuid required")
+            return
+
+        try:
+            from dashboard import untag_location
+        except ImportError:
+            import sys as _sys
+            _sys.path.insert(0, str(Path(__file__).resolve().parent))
+            from dashboard import untag_location
+
+        result = untag_location(uuid)
+        self._json_response(result)
+
+    def _handle_location_create(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            body = json.loads(self.rfile.read(length)) if length else {}
+        except (json.JSONDecodeError, ValueError):
+            self._error_response(400, "Invalid JSON")
+            return
+
+        name = (body.get("name") or "").strip()
+        if not name:
+            self._error_response(400, "name required")
+            return
+
+        try:
+            from dashboard import register_location
+        except ImportError:
+            import sys as _sys
+            _sys.path.insert(0, str(Path(__file__).resolve().parent))
+            from dashboard import register_location
+
+        result = register_location(name)
         self._json_response(result)
 
     def _handle_cartoon_review(self):
@@ -137,6 +413,82 @@ class APIHandler(SimpleHTTPRequestHandler):
         result = do_pick(uuids)
         self._json_response(result)
 
+    def _handle_enhance_batch_get(self):
+        """Return current active batch (if any). Never auto-generates."""
+        from backend.enhance.db import (get_connection, ensure_tables,
+                                         get_or_create_batch, get_batch_proposals,
+                                         get_stats as enhance_stats,
+                                         get_learning_stats)
+        conn = get_connection()
+        ensure_tables(conn)
+
+        # Find active batch — don't create one if none exists
+        row = conn.execute(
+            "SELECT id FROM enhance_batches WHERE status = 'active' ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        batch_id = row["id"] if row else None
+
+        proposals = []
+        if batch_id:
+            proposals = get_batch_proposals(conn, batch_id)
+
+        learning = {t: {"rate": s["rate"], "accepted": s["accepted"], "rejected": s["rejected"]}
+                    for t, s in get_learning_stats(conn).items()}
+        stats = enhance_stats(conn)
+        conn.close()
+
+        items = []
+        for p in proposals:
+            preview_rel = p.get("preview_path", "")
+            items.append({
+                "id": p["id"],
+                "uuid": p["image_uuid"],
+                "type": p["type"],
+                "params": json.loads(p["params_json"]),
+                "original_url": f"/rendered/display/jpeg/{p['image_uuid']}.jpg",
+                "preview_url": f"/{preview_rel}" if preview_rel else None,
+                "feedback": p.get("feedback"),
+            })
+
+        self._json_response({
+            "batch_id": batch_id,
+            "proposals": items,
+            "stats": stats["totals"],
+            "learning": learning,
+        })
+
+    def _handle_enhance_stats_get(self):
+        from backend.enhance.db import get_connection, ensure_tables, get_stats as enhance_stats
+        conn = get_connection()
+        ensure_tables(conn)
+        stats = enhance_stats(conn)
+        conn.close()
+        self._json_response(stats)
+
+    def _handle_enhance_accepted_get(self):
+        from backend.enhance.db import get_connection, ensure_tables
+        conn = get_connection()
+        ensure_tables(conn)
+        rows = conn.execute("""
+            SELECT image_uuid, type, params_json, preview_path, deployed_at
+            FROM enhance_proposals
+            WHERE status = 'accepted'
+            ORDER BY reviewed_at DESC
+        """).fetchall()
+        conn.close()
+        items = []
+        for r in rows:
+            preview_rel = r["preview_path"] or ""
+            items.append({
+                "uuid": r["image_uuid"],
+                "type": r["type"],
+                "params": json.loads(r["params_json"]),
+                "preview_url": f"/{preview_rel}" if preview_rel else None,
+                "original_url": f"/rendered/display/jpeg/{r['image_uuid']}.jpg",
+                "deployed": r["deployed_at"] is not None,
+            })
+        self._json_response({"accepted": items})
+
     def do_GET(self):
         # ── API routes ──
         if self.path.startswith("/api/"):
@@ -147,6 +499,16 @@ class APIHandler(SimpleHTTPRequestHandler):
         if self.path.startswith("/rendered/"):
             rel = self.path[len("/rendered/"):]
             file_path = RENDERED_DIR / rel
+            if file_path.is_file():
+                self._serve_file(file_path)
+                return
+            self.send_error(404)
+            return
+
+        # Serve generated images
+        if self.path.startswith("/generated/"):
+            rel = self.path[len("/generated/"):]
+            file_path = GENERATED_DIR / rel
             if file_path.is_file():
                 self._serve_file(file_path)
                 return
@@ -176,7 +538,8 @@ class APIHandler(SimpleHTTPRequestHandler):
                                    get_gemma_data, get_gemma_progress,
                                    get_unpicked_data,
                                    get_signal_inspector_picks_data,
-                                   get_location_tagger_data)
+                                   get_location_tagger_data,
+                                   get_generated_data)
         except ImportError:
             import sys
             sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -188,10 +551,30 @@ class APIHandler(SimpleHTTPRequestHandler):
                                    get_gemma_data, get_gemma_progress,
                                    get_unpicked_data,
                                    get_signal_inspector_picks_data,
-                                   get_location_tagger_data)
+                                   get_location_tagger_data,
+                                   get_generated_data)
 
-        if self.path == "/api/locations":
-            self._json_response(get_location_tagger_data())
+        if self.path == "/api/enhance/batch":
+            self._handle_enhance_batch_get()
+            return
+        if self.path == "/api/enhance/stats":
+            self._handle_enhance_stats_get()
+            return
+        if self.path == "/api/enhance/accepted":
+            self._handle_enhance_accepted_get()
+            return
+
+        if self.path.startswith("/api/locations"):
+            from urllib.parse import urlparse, parse_qs
+            qs = parse_qs(urlparse(self.path).query)
+            camera = qs.get("camera", [None])[0]
+            obj = qs.get("obj", [None])[0]
+            self._json_response(get_location_tagger_data(camera=camera, obj=obj))
+        elif self.path == "/api/generated/progress":
+            self._handle_generated_progress()
+            return
+        elif self.path == "/api/generated":
+            self._json_response(get_generated_data())
         elif self.path == "/api/cartoons":
             self._json_response(get_all_cartoon_data())
         elif self.path == "/api/signal-inspector":
@@ -258,7 +641,10 @@ class APIHandler(SimpleHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", mime)
             self.send_header("Content-Length", str(len(data)))
-            self.send_header("Cache-Control", "public, max-age=3600")
+            if "enhance_previews" in str(file_path):
+                self.send_header("Cache-Control", "no-cache")
+            else:
+                self.send_header("Cache-Control", "public, max-age=3600")
             self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(data)

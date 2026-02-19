@@ -782,11 +782,23 @@ def get_stats():
     picks_by_device = []
 
     picks_json = PROJECT_ROOT / "frontend" / "show" / "data" / "picks.json"
+    picks_generated_uuids: set = set()
+    if _table_exists('ai_variants'):
+        picks_generated_uuids = {
+            r[0] for r in conn.execute(
+                "SELECT DISTINCT image_uuid FROM ai_variants WHERE review_status='accepted'"
+            ).fetchall()
+        }
+    picks_photography = 0
+    picks_generated = 0
     if picks_json.exists():
         try:
             pdata = json.loads(picks_json.read_text())
+            all_pick_uuids = set(pdata.get("portrait", [])) | set(pdata.get("landscape", []))
             picks_portrait = len(pdata.get("portrait", []))
             picks_landscape = len(pdata.get("landscape", []))
+            picks_generated = len(all_pick_uuids & picks_generated_uuids)
+            picks_photography = len(all_pick_uuids) - picks_generated
         except Exception:
             pass
 
@@ -914,6 +926,8 @@ def get_stats():
             "portrait": picks_portrait,
             "landscape": picks_landscape,
             "total": picks_portrait + picks_landscape,
+            "photography": picks_photography,
+            "generated": picks_generated,
             "votes_total": picks_votes_total,
             "votes_accept": picks_votes_accept,
             "votes_reject": picks_votes_reject,

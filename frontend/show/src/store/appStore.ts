@@ -8,7 +8,6 @@ interface AppState {
   allPhotos: Photo[]
   allPhotoMap: Record<string, Photo>
   driftNeighbors: Record<string, DriftNeighbor[]> | null
-  gameRounds: unknown[] | null
   picksData: PicksData | null
   votedData: Record<string, string> | null
   gemmaData: Record<string, GemmaData> | null
@@ -18,21 +17,13 @@ interface AppState {
   lightboxPhotos: Photo[]
   lightboxIndex: number
 
-  /* Timers (for cleanup on view switch) */
-  _activeTimers: number[]
-
   /* Actions */
   loadData: () => Promise<PhotosData>
   loadDriftNeighbors: () => Promise<Record<string, DriftNeighbor[]>>
-  loadGameRounds: () => Promise<unknown[]>
-  loadPicks: () => Promise<PicksData>
-  loadVoted: () => Promise<Record<string, string>>
   loadGemma: () => Promise<Record<string, GemmaData>>
   openLightbox: (photo: Photo, photoList?: Photo[]) => void
   closeLightbox: () => void
   navigateLightbox: (dir: number) => void
-  registerTimer: (id: number) => number
-  clearAllTimers: () => void
 }
 
 async function fetchJSON<T>(url: string): Promise<T> {
@@ -41,13 +32,20 @@ async function fetchJSON<T>(url: string): Promise<T> {
   return resp.json()
 }
 
+/*
+ * Promise dedup: if loadData is called concurrently (e.g. React StrictMode
+ * double-mount), only one fetch runs. All callers share the same promise.
+ */
+let _loadDataPromise: Promise<PhotosData> | null = null
+let _loadDriftPromise: Promise<Record<string, DriftNeighbor[]>> | null = null
+let _loadGemmaPromise: Promise<Record<string, GemmaData>> | null = null
+
 export const useAppStore = create<AppState>((set, get) => ({
   data: null,
   photoMap: {},
   allPhotos: [],
   allPhotoMap: {},
   driftNeighbors: null,
-  gameRounds: null,
   picksData: null,
   votedData: null,
   gemmaData: null,
@@ -56,136 +54,124 @@ export const useAppStore = create<AppState>((set, get) => ({
   lightboxPhotos: [],
   lightboxIndex: -1,
 
-  _activeTimers: [],
-
   async loadData() {
     const existing = get().data
     if (existing) return existing
+    if (_loadDataPromise) return _loadDataPromise
 
-    const data = await fetchJSON<PhotosData>('/data/photos.json')
-    const photoMap: Record<string, Photo> = {}
-    for (const photo of data.photos) {
-      photoMap[photo.id] = photo
-    }
-
-    /* Load picks to filter */
-    let picksData: PicksData
-    try {
-      picksData = await fetchJSON<PicksData>('/data/picks.json')
-    } catch {
-      picksData = { portrait: [], landscape: [] }
-    }
-
-    /* Load server-side vote history */
-    let votedData: Record<string, string>
-    try {
-      votedData = await fetchJSON<Record<string, string>>('/data/voted.json')
-    } catch {
-      votedData = {}
-    }
-
-    /* Stash full collection, then filter to picks */
-    const allPhotos = data.photos
-    const allPhotoMap = { ...photoMap }
-
-    const picksSet = new Set([
-      ...(picksData.portrait || []),
-      ...(picksData.landscape || [])
-    ])
-    const filteredPhotos = allPhotos.filter(p => picksSet.has(p.id))
-    const filteredPhotoMap: Record<string, Photo> = {}
-    for (const photo of filteredPhotos) {
-      filteredPhotoMap[photo.id] = photo
-    }
-
-    const filteredData = { ...data, photos: filteredPhotos }
-
-    set({
-      data: filteredData,
-      photoMap: filteredPhotoMap,
-      allPhotos,
-      allPhotoMap,
-      picksData,
-      votedData,
-    })
-
-    /* Precache micro images via service worker */
-    if (navigator.serviceWorker?.controller) {
-      const micros = filteredPhotos.filter(p => p.micro).map(p => p.micro!)
-      if (micros.length) {
-        navigator.serviceWorker.controller.postMessage({
-          type: 'precache-micros',
-          urls: micros,
-        })
+    _loadDataPromise = (async () => {
+      const data = await fetchJSON<PhotosData>('/data/photos.json')
+      const photoMap: Record<string, Photo> = {}
+      for (const photo of data.photos) {
+        photoMap[photo.id] = photo
       }
-    }
 
-    return filteredData
+      /* Load picks to filter */
+      let picksData: PicksData
+      try {
+        picksData = await fetchJSON<PicksData>('/data/picks.json')
+      } catch {
+        picksData = { portrait: [], landscape: [] }
+      }
+
+      /* Load server-side vote history */
+      let votedData: Record<string, string>
+      try {
+        votedData = await fetchJSON<Record<string, string>>('/data/voted.json')
+      } catch {
+        votedData = {}
+      }
+
+      /* Stash full collection, then filter to picks */
+      const allPhotos = data.photos
+      const allPhotoMap = photoMap
+
+      const picksSet = new Set([
+        ...(picksData.portrait || []),
+        ...(picksData.landscape || [])
+      ])
+      const filteredPhotos = allPhotos.filter(p => picksSet.has(p.id))
+      const filteredPhotoMap: Record<string, Photo> = {}
+      for (const photo of filteredPhotos) {
+        filteredPhotoMap[photo.id] = photo
+      }
+
+      const filteredData = { ...data, photos: filteredPhotos }
+
+      set({
+        data: filteredData,
+        photoMap: filteredPhotoMap,
+        allPhotos,
+        allPhotoMap,
+        picksData,
+        votedData,
+      })
+
+      /* Precache micro images via service worker */
+      if (navigator.serviceWorker?.controller) {
+        const micros = filteredPhotos.filter(p => p.micro).map(p => p.micro!)
+        if (micros.length) {
+          navigator.serviceWorker.controller.postMessage({
+            type: 'precache-micros',
+            urls: micros,
+          })
+        }
+      }
+
+      return filteredData
+    })()
+
+    try {
+      return await _loadDataPromise
+    } finally {
+      _loadDataPromise = null
+    }
   },
 
   async loadDriftNeighbors() {
     const existing = get().driftNeighbors
     if (existing) return existing
-    let data: Record<string, DriftNeighbor[]>
-    try {
-      data = await fetchJSON('/data/drift_neighbors.json')
-    } catch {
-      data = {}
-    }
-    set({ driftNeighbors: data })
-    return data
-  },
+    if (_loadDriftPromise) return _loadDriftPromise
 
-  async loadGameRounds() {
-    const existing = get().gameRounds
-    if (existing) return existing
-    let data: unknown[]
-    try {
-      data = await fetchJSON('/data/game_rounds.json')
-    } catch {
-      data = []
-    }
-    set({ gameRounds: data })
-    return data
-  },
+    _loadDriftPromise = (async () => {
+      let data: Record<string, DriftNeighbor[]>
+      try {
+        data = await fetchJSON('/data/drift_neighbors.json')
+      } catch {
+        data = {}
+      }
+      set({ driftNeighbors: data })
+      return data
+    })()
 
-  async loadPicks() {
-    const existing = get().picksData
-    if (existing) return existing
-    let data: PicksData
     try {
-      data = await fetchJSON('/data/picks.json')
-    } catch {
-      data = { portrait: [], landscape: [] }
+      return await _loadDriftPromise
+    } finally {
+      _loadDriftPromise = null
     }
-    set({ picksData: data })
-    return data
-  },
-
-  async loadVoted() {
-    const existing = get().votedData
-    if (existing) return existing
-    let data: Record<string, string>
-    try {
-      data = await fetchJSON('/data/voted.json')
-    } catch {
-      data = {}
-    }
-    set({ votedData: data })
-    return data
   },
 
   async loadGemma() {
     const existing = get().gemmaData
     if (existing) return existing
-    let data: Record<string, GemmaData>
+    if (_loadGemmaPromise) return _loadGemmaPromise
+
+    _loadGemmaPromise = (async () => {
+      let data: Record<string, GemmaData>
+      try {
+        data = await fetchJSON('/data/gemma_picks.json?v=' + Date.now())
+      } catch {
+        data = {}
+      }
+      set({ gemmaData: data })
+      return data
+    })()
+
     try {
-      data = await fetchJSON('/data/gemma_picks.json?v=' + Date.now())
-    } catch {
-      data = {}
+      return await _loadGemmaPromise
+    } finally {
+      _loadGemmaPromise = null
     }
-    set({ gemmaData: data })
-    return data
   },
 
   openLightbox(photo, photoList) {
@@ -208,19 +194,5 @@ export const useAppStore = create<AppState>((set, get) => ({
     const newIdx = lightboxIndex + dir
     if (newIdx < 0 || newIdx >= lightboxPhotos.length) return
     set({ lightboxIndex: newIdx })
-  },
-
-  registerTimer(id) {
-    set(state => ({ _activeTimers: [...state._activeTimers, id] }))
-    return id
-  },
-
-  clearAllTimers() {
-    const { _activeTimers } = get()
-    for (const id of _activeTimers) {
-      clearInterval(id)
-      cancelAnimationFrame(id)
-    }
-    set({ _activeTimers: [] })
   },
 }))

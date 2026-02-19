@@ -35,7 +35,7 @@ PICKS_JSON = PROJECT_ROOT / "frontend" / "show" / "data" / "picks.json"
 OUTPUT_JSON = PROJECT_ROOT / "frontend" / "show" / "data" / "gemma_picks.json"
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL = "madphotos-critic"
+MODEL_DEFAULT = "madphotos-critic-4b"
 FLUSH_SIZE = 25
 
 PROMPT = (
@@ -131,18 +131,18 @@ def get_processed(conn: sqlite3.Connection) -> set[str]:
         return set()
 
 
-def query_gemma(img_path: str) -> dict | None:
+def query_gemma(img_path: str, model: str = MODEL_DEFAULT) -> dict | None:
     """Send image to Gemma 3 via Ollama and parse JSON response."""
     with open(img_path, "rb") as f:
         img_b64 = base64.b64encode(f.read()).decode()
 
     payload = json.dumps({
-        "model": MODEL,
+        "model": model,
         "prompt": PROMPT,
         "images": [img_b64],
         "format": "json",
         "stream": False,
-        "options": {"temperature": 0.3, "num_predict": 1500},
+        "options": {"temperature": 0.3, "num_predict": 1200},
     }).encode()
 
     req = urllib.request.Request(
@@ -279,12 +279,12 @@ def export_json(conn: sqlite3.Connection) -> int:
     return len(result)
 
 
-def process_one(uuid: str, img_path: str) -> dict | None:
+def process_one(uuid: str, img_path: str, model: str = MODEL_DEFAULT) -> dict | None:
     """Process a single image. Returns result dict or None on error."""
     if not Path(img_path).exists():
         return {"uuid": uuid, "error": f"file not found — {img_path}"}
     try:
-        parsed = query_gemma(img_path)
+        parsed = query_gemma(img_path, model)
         if parsed is None:
             raise ValueError("Empty response")
         return {"uuid": uuid, "parsed": parsed}
@@ -293,10 +293,12 @@ def process_one(uuid: str, img_path: str) -> dict | None:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run Gemma 3 4B on picked photos")
+    parser = argparse.ArgumentParser(description="Run Gemma 3 on picked photos")
     parser.add_argument("--limit", type=int, help="Max images to process")
     parser.add_argument("--rerun", action="store_true", help="Reprocess all (overwrite existing)")
-    parser.add_argument("--workers", type=int, default=1, help="Parallel workers (default 1)")
+    parser.add_argument("--workers", type=int, default=4, help="Parallel workers (default 4)")
+    parser.add_argument("--model", type=str, default=MODEL_DEFAULT,
+                        help=f"Ollama model (default: {MODEL_DEFAULT})")
     parser.add_argument("--uuids-file", type=str, help="File with UUIDs to process (one per line)")
     args = parser.parse_args()
 
@@ -335,8 +337,9 @@ def main():
         conn.close()
         return
 
+    model = args.model
     workers = max(1, args.workers)
-    print(f"Processing {len(pending_uuids)} images with {MODEL} ({workers} workers)...")
+    print(f"Processing {len(pending_uuids)} images with {model} ({workers} workers)...")
     t0 = time.time()
     errors = 0
     error_msgs = []
@@ -351,7 +354,7 @@ def main():
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
         futures = {
-            pool.submit(process_one, uuid, paths[uuid]): uuid
+            pool.submit(process_one, uuid, paths[uuid], model): uuid
             for uuid in pending_uuids
         }
         for future in as_completed(futures):

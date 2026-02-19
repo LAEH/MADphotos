@@ -1,13 +1,7 @@
 import type { Photo, BorderCrop } from '../types/photo'
+import type { NavigatorExtended } from './performanceTier'
 
 type ImageTier = 'thumb' | 'mobile' | 'display'
-
-interface NavigatorExtended extends Navigator {
-  connection?: {
-    saveData?: boolean
-    effectiveType?: string
-  }
-}
 
 /* ===== Decode Queue (browser-aware concurrency) ===== */
 const DECODE_QUEUE = {
@@ -92,6 +86,14 @@ function revealImg(img: HTMLImageElement): void {
 }
 
 /* ===== Progressive Image Loading ===== */
+
+/*
+ * Generation counter per <img> element.
+ * Prevents stale callbacks when loadProgressive is called rapidly
+ * (e.g. fast lightbox navigation) — only the latest call's callbacks execute.
+ */
+const _imgGen = new WeakMap<HTMLImageElement, number>()
+
 export function loadProgressive(
   img: HTMLImageElement,
   photo: Photo,
@@ -99,6 +101,10 @@ export function loadProgressive(
 ): void {
   const target = photo[targetTier] || photo.thumb
   if (!target) return
+
+  /* Bump generation — stale callbacks will see a mismatch and bail */
+  const gen = (_imgGen.get(img) || 0) + 1
+  _imgGen.set(img, gen)
 
   if (photo.palette?.[0] && img.parentElement
       && !img.parentElement.style.backgroundColor) {
@@ -124,8 +130,8 @@ export function loadProgressive(
 
   const pre = new Image()
   pre.decoding = 'async'
-  pre.src = target
   const swap = () => {
+    if (_imgGen.get(img) !== gen) return /* stale — newer call superseded us */
     img.src = target
     img.classList.remove('img-blur-up')
     img.style.filter = ''
@@ -134,15 +140,18 @@ export function loadProgressive(
     revealImg(img)
   }
   const doLoad = () => {
+    if (_imgGen.get(img) !== gen) return
     DECODE_QUEUE.enqueue(pre).then(swap).catch(swap)
   }
   pre.onload = doLoad
   pre.onerror = () => {
+    if (_imgGen.get(img) !== gen) return
     if (photo.micro && target !== photo.micro) {
       img.src = photo.micro
     }
     img.classList.remove('img-blur-up')
     revealImg(img)
   }
+  pre.src = target
   if (pre.complete && pre.naturalWidth) doLoad()
 }

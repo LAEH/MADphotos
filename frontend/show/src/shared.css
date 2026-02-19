@@ -198,8 +198,7 @@
 /* ISIT uses position:fixed children — transform in fade-up creates
    a containing block that breaks fixed positioning on iOS Safari.
    Use opacity-only animation to avoid the containing block. */
-#view-isit.active,
-#view-couleurs.active {
+#view-isit.active {
   animation: fade-opacity 0.4s var(--ease-out-expo) both;
 }
 

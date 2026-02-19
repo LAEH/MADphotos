@@ -13,6 +13,7 @@ export default defineConfig(({ mode }) => ({
       '/api': `http://localhost:${apiPort}`,
       '/rendered': `http://localhost:${apiPort}`,
       '/ai_variants': `http://localhost:${apiPort}`,
+      '/generated': `http://localhost:${apiPort}`,
     },
   },
 }))
