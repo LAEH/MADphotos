@@ -1,0 +1,468 @@
+/* All — Every picked photo on one screen, no scroll */
+
+.all-wrap {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 50;
+  overflow: hidden;
+  contain: layout style paint;
+}
+
+.all-canvas {
+  position: relative;
+  contain: layout style size;
+}
+
+/* ── Tiles ──────────────────────────────────────────────────────────── */
+
+.all-tile {
+  overflow: hidden;
+  cursor: pointer;
+  box-sizing: border-box;
+  border: 0.5px solid #000;
+  /* palette color set as inline backgroundColor — visible immediately */
+}
+
+.all-tile-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Hidden until image is cached + decoded */
+  opacity: 0;
+  /* Apple-spring: fast attack, long soft deceleration — tiles "breathe in" */
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Added by JS after image is preloaded + cached */
+.all-tile-img.all-tile-reveal {
+  opacity: 1;
+}
+
+/* ── Reveal canvas overlay (replaces per-tile ::after) ─────────────── */
+
+.all-reveal-canvas {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  /* No CSS background — erase works via canvas context + destination-out.
+     .all-wrap background:#000 prevents any white flash. */
+  transition: opacity 1s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Glow spotlight — follows cursor, replaces it during reveal */
+.all-reveal-glow {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 90;
+  opacity: 0;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.18) 0%,
+    rgba(255, 255, 255, 0.08) 25%,
+    rgba(255, 255, 255, 0.02) 50%,
+    transparent 70%
+  );
+  transition: opacity 0.3s ease-out;
+  will-change: transform;
+}
+
+.all-reveal-glow.visible {
+  opacity: 1;
+}
+
+/* ── Desktop: reveal mode (hidden cursor) → preview mode (pointer) ─── */
+@media (hover: hover) and (pointer: fine) {
+  /* Reveal mode — cursor hidden, glow spotlight is the visual indicator */
+  .all-tile {
+    cursor: none;
+  }
+  .all-canvas {
+    cursor: none;
+  }
+  .all-tile:hover {
+    z-index: 2;
+  }
+
+  /* Preview mode — standard pointer + brightness on hover */
+  .preview-mode .all-tile {
+    cursor: pointer;
+  }
+  .preview-mode .all-canvas {
+    cursor: auto;
+  }
+  .preview-mode .all-tile:hover {
+    opacity: 0.85;
+  }
+}
+
+/* Hover preview card — positioned via JS transform3d, zero layout cost.
+ * Uses individual `scale` property (compositor-only, separate from transform).
+ * Split enter/exit: spring arrival, fast decisive dismissal.
+ * transform-origin set by JS to nearest cursor corner. */
+.all-hover-preview {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0;
+  scale: 0.96;
+  will-change: transform, opacity, scale;
+  /* Exit transition — fast, no lingering */
+  transition:
+    opacity 0.2s cubic-bezier(0.4, 0, 1, 1),
+    scale 0.2s cubic-bezier(0.4, 0, 1, 1);
+  /* Card chrome — white frame like a printed photo */
+  padding: 12px;
+  background: white;
+  border-radius: 10px;
+  box-shadow:
+    0 12px 48px rgba(0, 0, 0, 0.5),
+    0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.all-hover-preview.visible {
+  opacity: 1;
+  scale: 1;
+  /* Entrance transition — Apple spring, card "grows" from cursor corner */
+  transition:
+    opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    scale 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.all-hover-preview-img {
+  display: block;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+/* Hide hover preview on touch devices */
+@media (hover: none) {
+  .all-hover-preview {
+    display: none;
+  }
+}
+
+/* ── Bouncing circus emoji ──────────────────────────────────────────── */
+/*
+ * Three nested elements, each with its own transform animation:
+ *   .all-circus-x  → translateX (13s)
+ *   .all-circus-y  → translateY (9s)
+ *   .all-circus    → rotate + scale wobble (3s)
+ * Different durations = non-repeating Lissajous-like path.
+ * All compositor-only (transform), guaranteed 60fps.
+ */
+
+.all-circus-x {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 90;
+  pointer-events: none;
+  animation: circus-x 55s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+}
+
+.all-circus-y {
+  pointer-events: none;
+  animation: circus-y 40s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+}
+
+.all-circus {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: white;
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.35),
+    0 12px 48px rgba(0, 0, 0, 0.2);
+  font-size: 44px;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+  user-select: none;
+  animation: circus-float 8s ease-in-out infinite;
+  transition: transform 0.2s ease-out;
+}
+
+.all-circus:hover {
+  transform: scale(1.1);
+}
+
+.all-circus:active {
+  transform: scale(0.9) !important;
+}
+
+/* Circus: drifts in upper-right area */
+@keyframes circus-x {
+  0%   { transform: translateX(50vw); }
+  100% { transform: translateX(calc(95vw - 90px)); }
+}
+
+@keyframes circus-y {
+  0%   { transform: translateY(5vh); }
+  100% { transform: translateY(42vh); }
+}
+
+@keyframes circus-float {
+  0%, 100% { transform: rotate(-2deg) translateY(0); }
+  50%      { transform: rotate(2deg) translateY(-3px); }
+}
+
+/* ── Genie floating disk (bouncing like circus, different path) ─────── */
+
+.all-genie-x {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 90;
+  pointer-events: none;
+  animation: genie-x 50s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+}
+
+.all-genie-y {
+  pointer-events: none;
+  animation: genie-y 35s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+}
+
+.all-genie {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: white;
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.35),
+    0 12px 48px rgba(0, 0, 0, 0.2);
+  font-size: 44px;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+  user-select: none;
+  animation: genie-float 7s ease-in-out infinite;
+  transition: transform 0.2s ease-out;
+}
+
+.all-genie:hover {
+  transform: scale(1.1);
+}
+
+.all-genie:active {
+  transform: scale(0.9) !important;
+}
+
+.all-genie.active {
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.35),
+    0 12px 48px rgba(0, 0, 0, 0.2),
+    0 0 0 3px rgba(25, 118, 210, 0.5);
+}
+
+/* Genie: drifts in lower-left area */
+@keyframes genie-x {
+  0%   { transform: translateX(3vw); }
+  100% { transform: translateX(42vw); }
+}
+
+@keyframes genie-y {
+  0%   { transform: translateY(52vh); }
+  100% { transform: translateY(calc(92vh - 90px)); }
+}
+
+@keyframes genie-float {
+  0%, 100% { transform: rotate(2deg) translateY(0); }
+  50%      { transform: rotate(-2deg) translateY(-3px); }
+}
+
+/* ── Elevated nav (dense grid behind it) ────────────────────────────── */
+
+:has(.all-wrap) .floating-nav {
+  background: rgba(0, 0, 0, 0.72);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 8px 40px rgba(0, 0, 0, 0.5),
+    0 0 0 0.5px rgba(255, 255, 255, 0.08) inset;
+  backdrop-filter: blur(60px) saturate(180%);
+  -webkit-backdrop-filter: blur(60px) saturate(180%);
+}
+
+:has(.all-wrap) .floating-nav .logo {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+:has(.all-wrap) .floating-nav .menu-btn {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+:has(.all-wrap) .floating-nav .menu-chevron {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+:has(.all-wrap) .floating-nav .nav-exp-label {
+  color: rgba(255, 255, 255, 0.45);
+  border-left-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Side menu dark treatment */
+:has(.all-wrap) .side-menu {
+  background: rgba(0, 0, 0, 0.72);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 8px 40px rgba(0, 0, 0, 0.5),
+    0 0 0 0.5px rgba(255, 255, 255, 0.08) inset;
+  backdrop-filter: blur(60px) saturate(180%);
+  -webkit-backdrop-filter: blur(60px) saturate(180%);
+}
+
+:has(.all-wrap) .side-menu-item {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+:has(.all-wrap) .side-menu-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+:has(.all-wrap) .side-menu-item.active {
+  color: #64d2ff;
+  background: rgba(100, 210, 255, 0.12);
+}
+
+/* Mobile label */
+:has(.all-wrap) .menu-btn-label {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* ── Count badge ────────────────────────────────────────────────────── */
+
+.all-count {
+  position: fixed;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  right: max(12px, env(safe-area-inset-right));
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  color: rgba(255, 255, 255, 0.45);
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 999px;
+  z-index: 60;
+  pointer-events: none;
+}
+
+/* ── Fullscreen preview (clean, no labels) ──────────────────────────── */
+
+/*
+ * Apple-spring: fast attack, long soft deceleration, feels alive.
+ * Same curve family as every other transition in this view.
+ */
+.all-preview {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+
+.all-preview.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.all-preview-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: saturate(180%) blur(30px);
+  -webkit-backdrop-filter: saturate(180%) blur(30px);
+}
+
+.all-preview-img {
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+  /* Tighter scale = more refined entrance, image "lands" into place */
+  transform: scale(0.92);
+  opacity: 0;
+  transition:
+    transform 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.all-preview.open .all-preview-img {
+  transform: scale(1);
+  opacity: 1;
+}
+
+/* ── Perf tiers ─────────────────────────────────────────────────────── */
+
+/* Tier B: no backdrop-filter, no per-tile transition (instant reveal) */
+:root.tier-b .all-tile-img {
+  transition: none;
+}
+
+:root.tier-b .all-preview-backdrop {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* hover preview is opaque white — no tier override needed */
+
+:root.tier-b .all-count {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgba(0, 0, 0, 0.7);
+}
+
+/* Tier C: no transitions at all */
+:root.tier-c .all-tile-img {
+  transition: none !important;
+  will-change: auto !important;
+}
+
+:root.tier-c .all-tile {
+  transition: none !important;
+}
+
+:root.tier-c .all-count {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+:root.tier-c .all-preview-backdrop {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Reduced motion: instant everything */
+@media (prefers-reduced-motion: reduce) {
+  .all-tile-img,
+  .all-preview,
+  .all-preview-img,
+  .all-hover-preview,
+  .all-count {
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+}

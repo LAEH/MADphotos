@@ -23,6 +23,7 @@ import json
 import math
 import random
 import re
+import sqlite3
 import sys
 import uuid
 from collections import defaultdict
@@ -393,23 +394,6 @@ def load_identities(conn: Any) -> Dict[str, List[int]]:
     return dict(result)
 
 
-def load_gemma_composition(conn: Any) -> Dict[str, Dict]:
-    """Gemma composition signals (visual_weight, energy, archetype, color_temp)."""
-    try:
-        rows = conn.execute("""
-            SELECT image_uuid, visual_weight, energy_direction, archetype, color_temp
-            FROM gemma_composition
-        """).fetchall()
-        return {r["image_uuid"]: {
-            "weight": r["visual_weight"],
-            "energy": r["energy_direction"] or "",
-            "archetype": r["archetype"] or "",
-            "temp": r["color_temp"] or "",
-        } for r in rows}
-    except Exception:
-        return {}
-
-
 def load_borders(conn: Any) -> Dict[str, Dict]:
     """Return dict of UUID → crop percentages for bordered images."""
     cur = conn.execute("""
@@ -435,21 +419,27 @@ def load_borders(conn: Any) -> Dict[str, Dict]:
     return result
 
 
-def load_gemma(conn: Any) -> Dict[str, Dict]:
-    """Gemma analysis keyed by uuid (picks only)."""
-    rows = conn.execute("""
-        SELECT uuid, gemma_json, gemma_mood, print_worthy, crops FROM gemma_picks
-    """).fetchall()
+def load_gemma_analysis(conn: Any) -> Dict[str, Dict]:
+    """All Gemma signals from unified gemma_analysis table."""
+    try:
+        rows = conn.execute("""
+            SELECT uuid, raw_json, mood, print_worthy, crops,
+                   visual_weight, energy_direction, archetype, color_temp
+            FROM gemma_analysis
+        """).fetchall()
+    except sqlite3.OperationalError:
+        # Fallback: read from legacy tables if gemma_analysis doesn't exist yet
+        return _load_gemma_legacy(conn)
+
     result = {}
     for r in rows:
         try:
-            parsed = json.loads(r["gemma_json"])
+            parsed = json.loads(r["raw_json"])
         except (json.JSONDecodeError, TypeError):
             parsed = {}
-        parsed["mood_summary"] = r["gemma_mood"] or ""
+        parsed["mood_summary"] = r["mood"] or ""
         parsed["print_worthy"] = bool(r["print_worthy"]) if r["print_worthy"] is not None else None
 
-        # Add multi-ratio crops
         if r["crops"]:
             try:
                 parsed["crops"] = json.loads(r["crops"])
@@ -458,7 +448,72 @@ def load_gemma(conn: Any) -> Dict[str, Dict]:
         else:
             parsed["crops"] = None
 
+        parsed["weight"] = r["visual_weight"]
+        parsed["energy"] = r["energy_direction"] or ""
+        parsed["archetype"] = r["archetype"] or ""
+        parsed["temp"] = r["color_temp"] or ""
+
         result[r["uuid"]] = parsed
+    return result
+
+
+def _load_gemma_legacy(conn: Any) -> Dict[str, Dict]:
+    """Fallback: read from legacy gemma_picks + gemma_composition tables."""
+    result = {}  # type: Dict[str, Dict]
+
+    # Load gemma_picks
+    try:
+        rows = conn.execute("""
+            SELECT uuid, gemma_json, gemma_mood, print_worthy, crops FROM gemma_picks
+        """).fetchall()
+        for r in rows:
+            try:
+                parsed = json.loads(r["gemma_json"])
+            except (json.JSONDecodeError, TypeError):
+                parsed = {}
+            parsed["mood_summary"] = r["gemma_mood"] or ""
+            parsed["print_worthy"] = bool(r["print_worthy"]) if r["print_worthy"] is not None else None
+            if r["crops"]:
+                try:
+                    parsed["crops"] = json.loads(r["crops"])
+                except (json.JSONDecodeError, TypeError):
+                    parsed["crops"] = None
+            else:
+                parsed["crops"] = None
+            parsed["weight"] = None
+            parsed["energy"] = ""
+            parsed["archetype"] = ""
+            parsed["temp"] = ""
+            result[r["uuid"]] = parsed
+    except Exception:
+        pass
+
+    # Overlay gemma_composition
+    try:
+        rows = conn.execute("""
+            SELECT image_uuid, visual_weight, energy_direction, archetype, color_temp
+            FROM gemma_composition
+        """).fetchall()
+        for r in rows:
+            uid = r["image_uuid"]
+            if uid in result:
+                result[uid]["weight"] = r["visual_weight"]
+                result[uid]["energy"] = r["energy_direction"] or ""
+                result[uid]["archetype"] = r["archetype"] or ""
+                result[uid]["temp"] = r["color_temp"] or ""
+            else:
+                result[uid] = {
+                    "weight": r["visual_weight"],
+                    "energy": r["energy_direction"] or "",
+                    "archetype": r["archetype"] or "",
+                    "temp": r["color_temp"] or "",
+                    "mood_summary": "",
+                    "print_worthy": None,
+                    "crops": None,
+                }
+    except Exception:
+        pass
+
     return result
 
 
@@ -634,10 +689,8 @@ def build_photos(
     identities_lk: Dict = None, locations_lk: Dict = None,
     borders_lk: Dict = None,
     # Unified signal layer
-    gemma_lk: Dict = None, best_caps_lk: Dict = None,
+    gemma_analysis_lk: Dict = None, best_caps_lk: Dict = None,
     consensus_lk: Dict = None, labels_by_cat_lk: Dict = None,
-    # Gemma composition
-    composition_lk: Dict = None,
 ) -> Tuple[List[Dict], Dict]:
     """Build all photo objects and collect unique filter values."""
 
@@ -652,11 +705,10 @@ def build_photos(
     identities_lk = identities_lk or {}
     locations_lk = locations_lk or {}
     borders_lk = borders_lk or {}
-    gemma_lk = gemma_lk or {}
+    gemma_analysis_lk = gemma_analysis_lk or {}
     best_caps_lk = best_caps_lk or {}
     consensus_lk = consensus_lk or {}
     labels_by_cat_lk = labels_by_cat_lk or {}
-    composition_lk = composition_lk or {}
 
     photos = []
     filters = {
@@ -814,15 +866,15 @@ def build_photos(
             "all_vibes": labels_by_cat_lk.get(uuid, {}).get("vibe", [])[:8],
             "all_objects": labels_by_cat_lk.get(uuid, {}).get("object", [])[:10],
             "all_scenes": labels_by_cat_lk.get(uuid, {}).get("scene", [])[:4],
-            "gemma_mood": gemma_lk.get(uuid, {}).get("mood_summary") if uuid in gemma_lk else None,
-            "gemma_strength": gemma_lk.get(uuid, {}).get("strength") if uuid in gemma_lk else None,
-            "print_worthy": gemma_lk.get(uuid, {}).get("print_worthy") if uuid in gemma_lk else None,
-            "gemma_crops": gemma_lk.get(uuid, {}).get("crops") if uuid in gemma_lk else None,
+            "gemma_mood": gemma_analysis_lk.get(uuid, {}).get("mood_summary") if uuid in gemma_analysis_lk else None,
+            "gemma_strength": gemma_analysis_lk.get(uuid, {}).get("strength") if uuid in gemma_analysis_lk else None,
+            "print_worthy": gemma_analysis_lk.get(uuid, {}).get("print_worthy") if uuid in gemma_analysis_lk else None,
+            "gemma_crops": gemma_analysis_lk.get(uuid, {}).get("crops") if uuid in gemma_analysis_lk else None,
             # Gemma composition signals
-            "gc_weight": composition_lk.get(uuid, {}).get("weight") if uuid in composition_lk else None,
-            "gc_energy": composition_lk.get(uuid, {}).get("energy") if uuid in composition_lk else None,
-            "gc_archetype": composition_lk.get(uuid, {}).get("archetype") if uuid in composition_lk else None,
-            "gc_temp": composition_lk.get(uuid, {}).get("temp") if uuid in composition_lk else None,
+            "gc_weight": gemma_analysis_lk.get(uuid, {}).get("weight") if uuid in gemma_analysis_lk else None,
+            "gc_energy": gemma_analysis_lk.get(uuid, {}).get("energy") if uuid in gemma_analysis_lk else None,
+            "gc_archetype": gemma_analysis_lk.get(uuid, {}).get("archetype") if uuid in gemma_analysis_lk else None,
+            "gc_temp": gemma_analysis_lk.get(uuid, {}).get("temp") if uuid in gemma_analysis_lk else None,
         }
         photos.append(photo)
 
@@ -1232,7 +1284,7 @@ def generate_drift_neighbors(pretty: bool = False) -> None:
 
 def generate_picks_enriched(
     photos: List[Dict],
-    gemma_lk: Dict,
+    gemma_analysis_lk: Dict,
     best_caps_lk: Dict,
     consensus_lk: Dict,
     labels_by_cat_lk: Dict,
@@ -1254,7 +1306,7 @@ def generate_picks_enriched(
         if not p:
             continue
 
-        gemma = gemma_lk.get(uuid)
+        gemma = gemma_analysis_lk.get(uuid)
         caps = best_caps_lk.get(uuid, {})
         cons = consensus_lk.get(uuid, [])
         cats = labels_by_cat_lk.get(uuid, {})
@@ -1657,20 +1709,18 @@ def export(pretty: bool = False) -> None:
     identities_lk = load_identities(conn)
     locations_lk = load_locations(conn)
     borders_lk = load_borders(conn)
-    composition_lk = load_gemma_composition(conn)
-    print(f"  All v2 signal tables loaded ({len(borders_lk)} bordered images, {len(composition_lk)} compositions)")
+    gemma_analysis_lk = load_gemma_analysis(conn)
+    print(f"  All v2 signal tables loaded ({len(borders_lk)} bordered images, {len(gemma_analysis_lk)} gemma analysis)")
 
     # Unified signal layer (from populate_unified.py)
-    gemma_lk = {}
     best_caps_lk = {}
     consensus_lk = {}
     labels_by_cat_lk = {}
     try:
-        gemma_lk = load_gemma(conn)
         best_caps_lk = load_best_captions(conn)
         consensus_lk = load_consensus_labels(conn)
         labels_by_cat_lk = load_unified_labels_by_category(conn)
-        print(f"  Unified: {len(gemma_lk)} gemma, {len(best_caps_lk)} captions, "
+        print(f"  Unified: {len(best_caps_lk)} captions, "
               f"{len(consensus_lk)} consensus, {len(labels_by_cat_lk)} label profiles")
     except Exception as e:
         print(f"  Unified tables not yet populated ({e}) — skipping unified fields")
@@ -1687,9 +1737,8 @@ def export(pretty: bool = False) -> None:
         segments_lk=segments_lk, florence_lk=florence_lk,
         identities_lk=identities_lk, locations_lk=locations_lk,
         borders_lk=borders_lk,
-        gemma_lk=gemma_lk, best_caps_lk=best_caps_lk,
+        gemma_analysis_lk=gemma_analysis_lk, best_caps_lk=best_caps_lk,
         consensus_lk=consensus_lk, labels_by_cat_lk=labels_by_cat_lk,
-        composition_lk=composition_lk,
     )
 
     # Swap URLs for accepted enhanced images
@@ -1770,7 +1819,7 @@ def export(pretty: bool = False) -> None:
     generate_game_rounds(photos, pretty)
     generate_stream_sequence(photos, pretty)
     generate_drift_neighbors(pretty)
-    generate_picks_enriched(photos, gemma_lk, best_caps_lk,
+    generate_picks_enriched(photos, gemma_analysis_lk, best_caps_lk,
                             consensus_lk, labels_by_cat_lk, pretty)
 
     print("Done.")

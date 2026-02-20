@@ -33,6 +33,14 @@ function vibeHas(photo: Photo, ...vibes: string[]): boolean {
   })
 }
 
+function sceneIn(photo: Photo, ...scenes: string[]): boolean {
+  return !!photo.scene && scenes.includes(photo.scene)
+}
+
+function consensusHas(photo: Photo, ...tags: string[]): boolean {
+  return (photo.consensus || []).some(c => tags.includes(c))
+}
+
 /* ===== Set definitions ===== */
 
 interface BoomDef {
@@ -72,6 +80,36 @@ const BOOM_DEFS: BoomDef[] = [
   { emoji: '\uD83D\uDDA4', label: 'Sombre',    pool: p => vibeHas(p, 'dark', 'moody', 'somber', 'melancholic') },
   { emoji: '\uD83C\uDF89', label: 'Vivace',    pool: p => vibeHas(p, 'vibrant', 'lively', 'energetic', 'joyful') },
   { emoji: '\uD83C\uDF3B', label: 'Nostalgique', pool: p => vibeHas(p, 'nostalgic', 'vintage', 'retro', 'timeless') },
+
+  /* Camera sets */
+  { emoji: '\uD83D\uDCF8', label: 'Leica M8',     pool: p => p.camera === 'Leica M8' },
+  { emoji: '\uD83C\uDF9E\uFE0F', label: 'Film',        pool: p => p.camera === 'Leica MP' },
+  { emoji: '\u26AA',       label: 'Monochrom',  pool: p => p.camera === 'Leica Monochrom' },
+  { emoji: '\uD83C\uDFA5', label: 'Osmo',       pool: p => !!p.camera && p.camera.startsWith('DJI') },
+  { emoji: '\uD83D\uDCF7', label: 'Canon',      pool: p => p.camera === 'Canon G12' },
+
+  /* Style / grading sets */
+  { emoji: '\uD83C\uDFAC', label: 'Cin\u00E9ma',      pool: p => p.grading === 'Cinematic' },
+  { emoji: '\uD83C\uDF31', label: 'Naturel',     pool: p => p.grading === 'Natural' },
+  { emoji: '\uD83C\uDFAD', label: 'Analogique',  pool: p => p.style === 'analog' },
+  { emoji: '\uD83C\uDFDB\uFE0F', label: 'Architecture', pool: p => p.style === 'architecture' },
+  { emoji: '\uD83D\uDDBC\uFE0F', label: 'Documentaire', pool: p => p.style === 'documentary' },
+
+  /* Scene clusters */
+  { emoji: '\uD83C\uDF03', label: 'Skyline',     pool: p => sceneIn(p, 'skyscraper', 'downtown', 'highway', 'bridge') },
+  { emoji: '\uD83C\uDFE0', label: 'Dedans',      pool: p => sceneIn(p, 'indoor', 'pet shop', 'music studio', 'car interior', 'discotheque') },
+  { emoji: '\uD83C\uDF19', label: 'Souterrain',  pool: p => sceneIn(p, 'catacomb', 'elevator shaft', 'jail cell', 'loading dock') },
+  { emoji: '\uD83C\uDF3F', label: 'Dehors',      pool: p => sceneIn(p, 'outdoor', 'sky', 'zen garden', 'ice floe', 'construction site') },
+
+  /* Brightness / mood */
+  { emoji: '\uD83D\uDD6F\uFE0F', label: 'Clair-obscur', pool: p => (p.brightness || 128) < 40 },
+  { emoji: '\u2600\uFE0F',       label: 'Lumi\u00E8re',    pool: p => (p.brightness || 128) > 140 },
+  { emoji: '\u2B1B',       label: 'Monochrome', pool: p => p.mono === true },
+
+  /* Consensus / semantic */
+  { emoji: '\uD83E\uDE9E', label: 'Reflets',     pool: p => consensusHas(p, 'reflection') },
+  { emoji: '\uD83D\uDC64', label: 'Silhouettes', pool: p => consensusHas(p, 'silhouette') },
+  { emoji: '\uD83C\uDFA8', label: 'Mural',       pool: p => consensusHas(p, 'mural', 'graffiti') },
 ]
 
 const BOOM_MIN = 25
@@ -204,8 +242,9 @@ function buildBoomSets(
 ): BoomSet[] {
   const pool = photos.filter(p => p.thumb)
   const sets: BoomSet[] = []
+  const shuffledDefs = shuffleArray([...BOOM_DEFS])
 
-  for (const def of BOOM_DEFS) {
+  for (const def of shuffledDefs) {
     const matches = pool.filter(def.pool)
     if (matches.length < BOOM_MIN) continue
 
@@ -223,7 +262,7 @@ function buildBoomSets(
       photos: diverseSample(matches, n, neighbors),
     })
 
-    if (sets.length >= 14) break
+    if (sets.length >= 24) break
   }
 
   return sets

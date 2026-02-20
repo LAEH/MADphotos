@@ -779,6 +779,165 @@ function curateArchetypeExhibition(allPhotos: Photo[], cells: BentoCell[]): Phot
   })
 }
 
+/*
+ * CURATOR: Camera Story — character of a camera body
+ * Groups photos by camera model, scores by visual impact + hue diversity
+ */
+function curateCameraStory(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
+  const photos = allPhotos.filter(p => p.thumb && p.display && !p.parent && p.camera && (p.aesthetic || 0) > 4)
+  if (photos.length === 0) return []
+
+  const camCounts = new Map<string, number>()
+  for (const p of photos) {
+    camCounts.set(p.camera!, (camCounts.get(p.camera!) || 0) + 1)
+  }
+
+  const minCount = Math.ceil(cells.length * 1.5)
+  const goodCams = [...camCounts.entries()]
+    .filter(([, count]) => count >= minCount)
+    .map(([cam]) => cam)
+  if (goodCams.length === 0) return []
+
+  const targetCam = randomFrom(goodCams)
+  const matching = photos.filter(p => p.camera === targetCam)
+
+  const hues = matching.filter(p => p.hue != null).map(p => p.hue!)
+  const avgHue = hues.length > 0 ? hues.reduce((s, h) => s + h, 0) / hues.length : 180
+
+  const pools = orientPools(matching)
+  const usedIds = new Set<string>()
+  return fillCells(cells, pools, usedIds, (p) => {
+    let s = visualImpact(p)
+    // Reward hue diversity — photos far from average hue add visual interest
+    s += hueDist(p.hue || 0, avgHue) / 20
+    return s + Math.random() * 2
+  })
+}
+
+/*
+ * CURATOR: Night Vision — dark & dramatic shots
+ * Filters by night time or low brightness, scores by visual impact + contrast
+ */
+function curateNightVision(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
+  const photos = allPhotos.filter(p =>
+    p.thumb && p.display && !p.parent && (p.aesthetic || 0) > 4 &&
+    (p.time === 'night' || (p.brightness != null && p.brightness < 50))
+  )
+  if (photos.length < cells.length) return []
+
+  const pools = orientPools(photos)
+  const usedIds = new Set<string>()
+  return fillCells(cells, pools, usedIds, (p) => {
+    let s = visualImpact(p)
+    // High contrast photos get bonus for large cells
+    if ((p.contrast || 50) > 60) s += 3
+    return s + Math.random() * 2
+  })
+}
+
+/*
+ * CURATOR: Golden Hour — warm light photography
+ * Filters by golden hour time, scores by visual impact + warm hue bonus
+ */
+function curateGoldenHour(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
+  const photos = allPhotos.filter(p =>
+    p.thumb && p.display && !p.parent && (p.aesthetic || 0) > 4 &&
+    p.time === 'golden hour'
+  )
+  if (photos.length < cells.length) return []
+
+  const pools = orientPools(photos)
+  const usedIds = new Set<string>()
+  return fillCells(cells, pools, usedIds, (p) => {
+    let s = visualImpact(p)
+    // Warm hues (orange/yellow range) get bonus
+    const h = p.hue || 0
+    if (h > 15 && h < 60) s += 4
+    return s + Math.random() * 2
+  })
+}
+
+/*
+ * CURATOR: Face Gallery — people-focused layouts
+ * Filters by face_count > 0, scores by visual impact + face count (groups → large cells)
+ */
+function curateFaceGallery(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
+  const photos = allPhotos.filter(p =>
+    p.thumb && p.display && !p.parent && (p.aesthetic || 0) > 4 &&
+    (p.face_count || 0) > 0
+  )
+  if (photos.length < cells.length) return []
+
+  const pools = orientPools(photos)
+  const usedIds = new Set<string>()
+  return fillCells(cells, pools, usedIds, (p) => {
+    let s = visualImpact(p)
+    // More faces → bigger cells
+    s += (p.face_count || 0) * 2
+    return s + Math.random() * 2
+  })
+}
+
+/*
+ * CURATOR: Style Contrast — film vs digital mix
+ * Pools analog photos with digital (street/documentary), analog gets large-cell boost
+ */
+function curateStyleContrast(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
+  const analog = allPhotos.filter(p =>
+    p.thumb && p.display && !p.parent && (p.aesthetic || 0) > 4 && p.style === 'analog'
+  )
+  const digital = allPhotos.filter(p =>
+    p.thumb && p.display && !p.parent && (p.aesthetic || 0) > 4 &&
+    (p.style === 'street' || p.style === 'documentary')
+  )
+
+  if (analog.length < 2 || digital.length < 2) return []
+  if (analog.length + digital.length < cells.length) return []
+
+  const mixed = [...analog, ...digital]
+  const pools = orientPools(mixed)
+  const usedIds = new Set<string>()
+  return fillCells(cells, pools, usedIds, (p) => {
+    let s = visualImpact(p)
+    // Analog photos get boost to land in large cells
+    if (p.style === 'analog') s += 5
+    return s + Math.random() * 2
+  })
+}
+
+/*
+ * CURATOR: Brightness Gradient — dark to light sweep
+ * Sorts by brightness, maps brightness to cell position scoring
+ */
+function curateBrightnessGradient(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
+  const photos = allPhotos.filter(p =>
+    p.thumb && p.display && !p.parent && (p.aesthetic || 0) > 4 && p.brightness != null
+  )
+  if (photos.length < cells.length) return []
+
+  // Sort by brightness, take a spread from dark to light
+  const sorted = [...photos].sort((a, b) => (a.brightness || 0) - (b.brightness || 0))
+  const step = Math.max(1, Math.floor(sorted.length / (cells.length * 2)))
+  const sampled = sorted.filter((_, i) => i % step === 0).slice(0, cells.length * 3)
+
+  if (sampled.length < cells.length) return []
+
+  const pools = orientPools(sampled)
+  const usedIds = new Set<string>()
+
+  // Score: dark photos get high scores (land in first/large cells), light photos lower
+  const maxBright = Math.max(...sampled.map(p => p.brightness || 0))
+  const minBright = Math.min(...sampled.map(p => p.brightness || 0))
+  const range = maxBright - minBright || 1
+
+  return fillCells(cells, pools, usedIds, (p) => {
+    let s = visualImpact(p)
+    // Dark photos → large cells (higher score), light → small cells
+    s += ((maxBright - (p.brightness || 0)) / range) * 6
+    return s + Math.random() * 1.5
+  })
+}
+
 /* Default fill (fallback) — improved with visual impact scoring */
 function fillBentoDefault(photos: Photo[], cells: BentoCell[]): Photo[] {
   const filtered = photos.filter(p => p.thumb && p.display)
@@ -815,6 +974,12 @@ const CURATORS = [
   curateDepthJourney,           // depth contrast
   curateMonoAccent,             // B&W + color pop
   curateArchetypeExhibition,    // composition archetype (when data available)
+  curateCameraStory,            // camera body character
+  curateNightVision,            // dark & dramatic
+  curateGoldenHour,             // warm golden hour light
+  curateFaceGallery,            // people-focused
+  curateStyleContrast,          // film vs digital
+  curateBrightnessGradient,     // dark to light sweep
 ]
 
 function fillBento(allPhotos: Photo[], layout: BentoLayout, colorFiltered: boolean = false): Photo[] {

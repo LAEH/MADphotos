@@ -230,13 +230,37 @@ Learnings from testing:
 
 | Script | Model | Purpose |
 |--------|-------|---------|
-| `backend/run_gemma_picks.py` | madphotos-critic (Ollama) | Batch analysis of all picks — description, crops, stories, tags |
+| `backend/run_gemma_analysis.py` | madphotos-critic (Ollama 27B) | **Unified** Gemma analysis — all signals in one prompt per image |
+| `backend/run_gemma_picks.py` | madphotos-critic-4b (Ollama) | Legacy: description, crops, stories, tags (superseded by run_gemma_analysis) |
+| `backend/run_gemma_composition.py` | gemma3:27b (Ollama) | Legacy: visual_weight, archetype, energy, color_temp (superseded by run_gemma_analysis) |
 | `backend/gemini.py` | Gemini 2.5 Pro | Deep technical + compositional analysis per photo |
 | `backend/imagen.py` | Imagen 3 | Generate 6 types of AI image variants |
+| `backend/generate_smart_variants.py` | Imagen 3 | Smart style variants with per-image prompts |
+| `backend/generate_variants_v2.py` | Imagen 3 | V2 variant generation pipeline |
+| `backend/enhance_exposure.py` | — | Exposure adjustment for underexposed photos |
 | `backend/test_style_prompts.py` | gemma3:27b (Ollama) | Generate 5 diverse style-transfer descriptors per photo |
 | `backend/generate_test_images.py` | mflux (local) + Imagen | Apply style prompts via img2img |
 | `backend/neural_style_transfer.py` | VGG19 (PyTorch) | Classic neural style transfer with 5 art references |
-| `backend/gemma_viewer.py` | — | Live web viewer for Gemma processing progress (port 8787) |
+| `backend/export_gallery.py` | — | Export all signals to photos.json + auxiliary data files |
+
+### Gemma Analysis (Unified)
+
+**Script:** `backend/run_gemma_analysis.py` — one prompt, one table, all signals per image.
+
+**Table:** `gemma_analysis` — replaces `gemma_picks` + `gemma_composition`.
+
+**Signals per image:** description, subject, story, mood, composition, lighting, colors, texture, technical, strength, tags, print_worthy, crops (1:1, 2:3, 3:2, 16:9), 5 story variations (silly, poetic, surrealist, noir, romantic), cartoon_style, visual_weight (1-10), energy_direction, archetype, color_temp.
+
+**CLI:**
+```bash
+python3 backend/run_gemma_analysis.py              # process pending picks
+python3 backend/run_gemma_analysis.py --workers 8   # parallel (overnight)
+python3 backend/run_gemma_analysis.py --migrate     # seed from legacy tables (no Ollama)
+python3 backend/run_gemma_analysis.py --rerun       # reprocess all
+python3 backend/run_gemma_analysis.py --limit 10    # test run
+```
+
+**Resume logic:** skips completed rows; reprocesses migrated rows missing composition signals.
 
 ### Signal Pipeline
 
@@ -253,7 +277,10 @@ Learnings from testing:
 - VGG19 weights (~548 MB) — cached at `~/.cache/torch/hub/checkpoints/`
 
 ### Database Tables (AI-related)
-- `gemma_picks` — Gemma 3 analysis results per pick
+- `gemma_analysis` — **Unified** Gemma signals per pick (description, crops, composition, stories, all fields)
+- `gemma_picks` — Legacy Gemma analysis (superseded by gemma_analysis)
+- `gemma_composition` — Legacy composition signals (superseded by gemma_analysis)
 - `gemini_analysis` — Gemini 2.5 Pro structured analysis
 - `ai_variants` — Imagen 3 generated variants (status, paths, generation time)
-- Signal tables: `aesthetic`, `depth`, `scene`, `style`, `faces`, `objects`, `ocr`, `captions`, `emotions`
+- `enhancement_plans` — Exposure enhancement proposals and review status
+- Signal tables: `aesthetic_scores`, `aesthetic_scores_v2`, `depth_estimation`, `scene_classification`, `style_classification`, `face_detections`, `facial_emotions`, `face_identities`, `object_detections`, `open_detections`, `ocr_detections`, `image_captions`, `florence_captions`, `image_tags`, `saliency_maps`, `foreground_masks`, `segmentation_masks`, `pose_detections`, `image_analysis`, `dominant_colors`, `unified_texts`, `unified_labels`, `image_locations`, `border_crops`, `exif_metadata`

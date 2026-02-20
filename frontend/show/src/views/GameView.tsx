@@ -64,7 +64,7 @@ function setFavs(favs: { a: string; b: string }[]): void {
   localStorage.setItem(FAV_KEY, JSON.stringify(favs.slice(-FAV_MAX)))
 }
 
-/* ===== 13 Strategies ===== */
+/* ===== 18 Strategies ===== */
 
 const STRATEGIES: Strategy[] = [
   /* --- Harmony --- */
@@ -587,6 +587,199 @@ const STRATEGIES: Strategy[] = [
             pairs.push({ a, b, reason: `focal match \u2014 ${a.depth}` })
             break
           }
+        }
+      }
+      return pairs
+    },
+  },
+  {
+    id: 'camera',
+    name: 'Camera',
+    subtitle: 'Same eye, different soul',
+    icon: '\uD83D\uDCF7',
+    type: 'harmony',
+    needsDrift: false,
+    build(photos) {
+      const buckets: Record<string, Photo[]> = {}
+      for (const p of photos) {
+        if (!p.camera || !p.scene || (p.aesthetic || 0) < 9.5) continue
+        ;(buckets[p.camera] = buckets[p.camera] || []).push(p)
+      }
+      const pairs: GamePair[] = []
+      const seen = new Set<string>()
+      for (const [cam, group] of Object.entries(buckets)) {
+        if (group.length < 2) continue
+        const shuffled = shuffleArray([...group])
+        for (let i = 0; i < shuffled.length - 1 && pairs.length < 500; i++) {
+          const a = shuffled[i]
+          for (let j = i + 1; j < shuffled.length && pairs.length < 500; j++) {
+            const b = shuffled[j]
+            if (a.scene === b.scene) continue
+            if (a.time === b.time && a.grading === b.grading) continue
+            const key = canonKey(a.id, b.id)
+            if (seen.has(key)) continue
+            seen.add(key)
+            pairs.push({ a, b, reason: `${cam} \u2014 ${a.scene} vs ${b.scene}` })
+            break
+          }
+        }
+      }
+      return pairs
+    },
+  },
+  {
+    id: 'grading',
+    name: 'Grading',
+    subtitle: 'Same scene, different grade',
+    icon: '\uD83C\uDFAC',
+    type: 'tension',
+    needsDrift: false,
+    build(photos) {
+      const buckets: Record<string, Photo[]> = {}
+      for (const p of photos) {
+        if (!p.scene || !p.grading || (p.aesthetic || 0) < 9.5) continue
+        ;(buckets[p.scene] = buckets[p.scene] || []).push(p)
+      }
+      const pairs: GamePair[] = []
+      const seen = new Set<string>()
+      for (const [scene, group] of Object.entries(buckets)) {
+        if (group.length < 2) continue
+        const shuffled = shuffleArray([...group])
+        for (let i = 0; i < shuffled.length - 1 && pairs.length < 500; i++) {
+          const a = shuffled[i]
+          for (let j = i + 1; j < shuffled.length && pairs.length < 500; j++) {
+            const b = shuffled[j]
+            if (a.grading === b.grading) continue
+            // Prefer strong contrasts: Cinematic vs Natural, or Monochrome vs any color
+            const cinNat = (a.grading === 'Cinematic' && b.grading === 'Natural') ||
+                           (a.grading === 'Natural' && b.grading === 'Cinematic')
+            const monoAny = (a.grading === 'Monochrome') !== (b.grading === 'Monochrome')
+            if (!cinNat && !monoAny) continue
+            const key = canonKey(a.id, b.id)
+            if (seen.has(key)) continue
+            seen.add(key)
+            pairs.push({ a, b, reason: `${scene} \u2014 ${a.grading} vs ${b.grading}` })
+            break
+          }
+        }
+      }
+      return pairs
+    },
+  },
+  {
+    id: 'nightday',
+    name: 'Night & Day',
+    subtitle: 'Same place, opposite light',
+    icon: '\uD83C\uDF13',
+    type: 'tension',
+    needsDrift: false,
+    build(photos) {
+      const buckets: Record<string, Photo[]> = {}
+      for (const p of photos) {
+        if (!p.scene || !p.time || (p.aesthetic || 0) < 9.5) continue
+        ;(buckets[p.scene] = buckets[p.scene] || []).push(p)
+      }
+      const pairs: GamePair[] = []
+      const seen = new Set<string>()
+      const nightTimes = new Set(['night'])
+      const dayTimes = new Set(['midday', 'golden hour'])
+      for (const [scene, group] of Object.entries(buckets)) {
+        const nights = group.filter(p => nightTimes.has(p.time!))
+        const days = group.filter(p => dayTimes.has(p.time!))
+        if (nights.length === 0 || days.length === 0) continue
+        const shuffledN = shuffleArray([...nights])
+        const shuffledD = shuffleArray([...days])
+        for (let i = 0; i < shuffledN.length && pairs.length < 500; i++) {
+          const a = shuffledN[i]
+          for (let j = 0; j < shuffledD.length && pairs.length < 500; j++) {
+            const b = shuffledD[j]
+            const key = canonKey(a.id, b.id)
+            if (seen.has(key)) continue
+            seen.add(key)
+            pairs.push({ a, b, reason: `${scene} \u2014 ${a.time} vs ${b.time}` })
+            break
+          }
+        }
+      }
+      return pairs
+    },
+  },
+  {
+    id: 'consensus',
+    name: 'Consensus',
+    subtitle: 'Tagged together',
+    icon: '\uD83C\uDFF7\uFE0F',
+    type: 'harmony',
+    needsDrift: false,
+    build(photos) {
+      const skip = new Set(['car', 'person', 'night', 'interior', 'monochrome'])
+      const tagged = photos.filter(
+        (p) => (p.aesthetic || 0) >= 9.5 && p.consensus && p.consensus.length >= 2 && p.scene
+      )
+      // Build index: tag → photos
+      const tagIndex: Record<string, Photo[]> = {}
+      for (const p of tagged) {
+        for (const tag of p.consensus!) {
+          if (skip.has(tag)) continue
+          ;(tagIndex[tag] = tagIndex[tag] || []).push(p)
+        }
+      }
+      const pairs: GamePair[] = []
+      const seen = new Set<string>()
+      const shuffled = shuffleArray([...tagged])
+      for (let i = 0; i < shuffled.length && pairs.length < 500; i++) {
+        const a = shuffled[i]
+        const aTags = (a.consensus || []).filter(t => !skip.has(t))
+        for (let j = i + 1; j < shuffled.length && pairs.length < 500; j++) {
+          const b = shuffled[j]
+          if (a.scene === b.scene) continue
+          const bTags = new Set((b.consensus || []).filter(t => !skip.has(t)))
+          const shared = aTags.filter(t => bTags.has(t))
+          if (shared.length < 2) continue
+          const key = canonKey(a.id, b.id)
+          if (seen.has(key)) continue
+          seen.add(key)
+          pairs.push({ a, b, reason: shared.slice(0, 3).join(' + ') })
+          break
+        }
+      }
+      return pairs
+    },
+  },
+  {
+    id: 'silhouette',
+    name: 'Silhouette',
+    subtitle: 'Shadow meets face',
+    icon: '\uD83D\uDC64',
+    type: 'special',
+    needsDrift: false,
+    build(photos) {
+      const silhouettes = photos.filter(
+        (p) => (p.aesthetic || 0) >= 9.5 && (p.consensus || []).includes('silhouette') && p.scene
+      )
+      const faces = photos.filter(
+        (p) => (p.aesthetic || 0) >= 9.5 && (p.face_count || 0) > 0 && p.scene
+      )
+      if (silhouettes.length === 0 || faces.length === 0) return []
+
+      const pairs: GamePair[] = []
+      const seen = new Set<string>()
+      const shuffledS = shuffleArray([...silhouettes])
+      const shuffledF = shuffleArray([...faces])
+      for (let i = 0; i < shuffledS.length && pairs.length < 500; i++) {
+        const a = shuffledS[i]
+        for (let j = 0; j < shuffledF.length && pairs.length < 500; j++) {
+          const b = shuffledF[j]
+          // Same scene or shared vibe for coherence
+          const sameScene = a.scene === b.scene
+          const sharedVibe = (a.vibes || []).some(v => (b.vibes || []).includes(v))
+          if (!sameScene && !sharedVibe) continue
+          const key = canonKey(a.id, b.id)
+          if (seen.has(key)) continue
+          seen.add(key)
+          const link = sameScene ? a.scene : 'shared vibe'
+          pairs.push({ a, b, reason: `silhouette \u00D7 portrait \u2014 ${link}` })
+          break
         }
       }
       return pairs

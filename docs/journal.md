@@ -4,6 +4,21 @@
 
 ---
 
+## 2026-02-20
+
+**Consolidated Gemma: one table, one prompt, all signals.** Replaced the two fragmented scripts (`run_gemma_picks.py` + `run_gemma_composition.py`) with a single unified `run_gemma_analysis.py`. One prompt, one table (`gemma_analysis`), one complete signal set per image: description, subject, story, mood, composition, lighting, colors, texture, technical, strength, tags, print_worthy, crops (1:1, 2:3, 3:2, 16:9), five story variations, cartoon_style, visual_weight, energy_direction, archetype, and color_temp. Migrated 2,702 existing rows from legacy tables; 1,495 images queued for full reprocessing overnight with 8 workers on the 27B model. `export_gallery.py` updated to read from the unified table with legacy fallback.
+
+**Why complete coverage matters.** The Gemma signals aren't about individual images — they're the connective tissue for navigation. With a consistent semantic vocabulary across all picks:
+- **Bento** can pair photos by archetype contrast (portal next to void, geometry next to texture)
+- **Energy direction** builds visual flow — left_to_right followed by right_to_left creates rhythm across a grid
+- **Color temp** groupings (glacial to cool to warm to molten) enable smooth navigation gradients
+- **Visual weight** balances layout — heavy next to airy, dense next to minimal
+- **Mood and stories** enable discovery paths that feel curated, not random
+
+One missing field on one image breaks a pairing. The consolidated table guarantees every pick speaks the same language. The 27B model is worth the compute: a small CNN can tell you where the subject is, but only the 27B can say "this is a portal with inward energy, glacial temperature, void archetype" and that it pairs beautifully with "a geometry with center_out energy, warm temperature."
+
+---
+
 ## 2026-02-19
 
 **Srcset / multi-resolution images.** All photo `<img>` elements now get `srcset` with 3 resolution tiers (thumb 480w, mobile 1280w, display 2048w) and `sizes` hints tuned per view context. Browser picks the optimal resolution based on viewport + DPR instead of relying solely on JS `optimalTier()` heuristic. Variant photos (single URL) gracefully skip srcset. Progressive blur-up loading preserved — srcset applied after the swap so micro placeholder phase is unaffected.
