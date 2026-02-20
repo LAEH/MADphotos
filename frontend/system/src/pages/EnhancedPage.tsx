@@ -124,6 +124,7 @@ export function EnhancedPage() {
   const [deploying, setDeploying] = useState(false)
   const [deployMsg, setDeployMsg] = useState('')
   const [generating, setGenerating] = useState(false)
+  const [autoDeployed, setAutoDeployed] = useState(0)
   const [showAccepted, setShowAccepted] = useState(false)
   const [acceptedList, setAcceptedList] = useState<AcceptedItem[]>([])
 
@@ -151,6 +152,7 @@ export function EnhancedPage() {
           setBatchRejected(0)
           setBatchFeedback(0)
           setBatchDone(false)
+          setAutoDeployed(0)
         }
       })
       .catch(e => setError(e.message))
@@ -184,9 +186,10 @@ export function EnhancedPage() {
       body: JSON.stringify({ proposal_id: proposal.id, status, batch_id: batch.batch_id }),
     })
       .then(r => r.json())
-      .then(() => {
+      .then((data: { ok: boolean; batch_completed?: boolean; auto_deploy?: number }) => {
         if (status === 'accepted') setBatchAccepted(n => n + 1)
         else setBatchRejected(n => n + 1)
+        if (data.auto_deploy) setAutoDeployed(data.auto_deploy)
         setTimeout(advance, 350)
       })
       .catch(() => { setPicked(null); setVoting(false) })
@@ -329,9 +332,20 @@ export function EnhancedPage() {
               {generating ? 'Generating...' : 'Generate 30'}
             </button>
 
+            {/* Auto-deploy notice */}
+            {autoDeployed > 0 && (
+              <div style={{
+                marginTop: 'var(--space-4)', padding: 'var(--space-3) var(--space-6)',
+                borderRadius: 'var(--radius-md)', background: 'rgba(34,197,94,0.12)',
+                color: '#22c55e', fontSize: 'var(--text-sm)', fontWeight: 600,
+              }}>
+                Auto-deploying {autoDeployed} accepted enhancements...
+              </div>
+            )}
+
             {/* Secondary actions */}
             <div style={{ display: 'flex', gap: 'var(--space-3)', justifyContent: 'center', marginTop: 'var(--space-6)', flexWrap: 'wrap' }}>
-              {totalUndeployed > 0 && (
+              {totalUndeployed > 0 && !autoDeployed && (
                 <button onClick={handleDeploy} disabled={deploying} style={btnGhost}>
                   {deploying ? 'Deploying...' : `Deploy ${totalUndeployed}`}
                 </button>

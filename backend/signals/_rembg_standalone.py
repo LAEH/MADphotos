@@ -31,7 +31,7 @@ from scipy import ndimage
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 DB_PATH = PROJECT_ROOT / "images" / "mad_photos.db"
 DISPLAY_DIR = PROJECT_ROOT / "images" / "rendered" / "display" / "jpeg"
 

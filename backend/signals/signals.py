@@ -31,8 +31,8 @@ import cv2
 import numpy as np
 from PIL import Image, ExifTags
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-BACKEND_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+BACKEND_DIR = Path(__file__).resolve().parent.parent
 DB_PATH = PROJECT_ROOT / "images" / "mad_photos.db"
 YUNET_MODEL = BACKEND_DIR / "models" / "face_detection_yunet_2023mar.onnx"
 

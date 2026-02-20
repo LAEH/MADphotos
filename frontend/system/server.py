@@ -183,6 +183,14 @@ class APIHandler(SimpleHTTPRequestHandler):
 cd {PROJECT_ROOT}
 echo "=== Style Transfer — Generate {count} ==="
 echo ""
+
+# Ensure GCP auth is valid
+if ! gcloud auth application-default print-access-token &>/dev/null; then
+    echo "Re-authenticating with Google Cloud..."
+    gcloud auth application-default login 2>&1
+    echo ""
+fi
+
 .venv-gen/bin/python3 -u -m backend.genimages.run --count {count}
 echo ""
 echo "=== Generation complete ==="
@@ -297,18 +305,69 @@ read -n 1
             self._error_response(400, "proposal_id and status required")
             return
 
-        from backend.enhance.db import get_connection, ensure_tables, update_proposal, complete_batch
+        from backend.enhance.db import (
+            get_connection, ensure_tables, update_proposal,
+            complete_batch, get_accepted_undeployed,
+        )
         conn = get_connection()
         ensure_tables(conn)
         ok = update_proposal(conn, int(proposal_id), status, feedback=feedback)
 
         # Check if batch should be completed
+        batch_completed = False
         batch_id = body.get("batch_id")
         if batch_id:
             complete_batch(conn, int(batch_id))
+            # Check if batch just completed (no pending left)
+            pending = conn.execute(
+                "SELECT count(*) FROM enhance_proposals WHERE batch_id = ? AND status IN ('pending', 'feedback')",
+                (int(batch_id),),
+            ).fetchone()[0]
+            batch_completed = pending == 0
+
+        # Auto-deploy when batch completes
+        deploy_count = 0
+        if batch_completed:
+            undeployed = get_accepted_undeployed(conn)
+            if undeployed:
+                deploy_count = len(undeployed)
+                conn.close()
+                self._auto_deploy(deploy_count)
+                self._json_response({"ok": ok, "batch_completed": True, "auto_deploy": deploy_count})
+                return
 
         conn.close()
-        self._json_response({"ok": ok})
+        self._json_response({"ok": ok, "batch_completed": batch_completed})
+
+    def _auto_deploy(self, count: int):
+        """Launch deploy pipeline in background when batch review completes."""
+        import subprocess as _sp
+
+        script = f"""#!/bin/bash
+cd {PROJECT_ROOT}
+echo "=== Auto-Deploy ({count} accepted) ==="
+echo ""
+echo "Step 1/3 — Deploy proposals (render tiers + GCS upload)"
+python3 -u -m backend.enhance.deploy
+echo ""
+echo "Step 2/3 — Regenerate photos.json"
+python3 -u backend/export_gallery.py
+echo ""
+echo "Step 3/3 — Regenerate System data"
+python3 -u backend/dashboard.py
+echo ""
+echo "=== Auto-deploy complete ==="
+echo "Press any key to close..."
+read -n 1
+"""
+        script_path = Path("/tmp/enhance-auto-deploy.sh")
+        script_path.write_text(script)
+        script_path.chmod(0o755)
+
+        _sp.Popen([
+            "osascript", "-e", 'tell app "Terminal" to activate',
+            "-e", f'tell app "Terminal" to do script "bash {script_path}"',
+        ])
 
     def _handle_enhance_generate(self):
         """Generate a fresh batch of ~30 proposals using iterative learning."""

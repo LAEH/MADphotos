@@ -3085,31 +3085,31 @@ def render_instructions():
     <thead><tr><th>Script</th><th>Purpose</th></tr></thead>
     <tbody>
       <tr><td><code>pipeline.py</code></td><td>Phase orchestrator</td></tr>
-      <tr><td><code>completions.py</code></td><td>Master orchestrator &mdash; checks all stages, fixes gaps, updates State</td></tr>
+      <tr><td><code>signals/completions.py</code></td><td>Master orchestrator &mdash; checks all stages, fixes gaps, updates State</td></tr>
       <tr><td><code>render.py</code></td><td>6-tier resolution pyramid</td></tr>
-      <tr><td><code>gemini.py</code></td><td>Gemini 2.5 Pro structured analysis</td></tr>
+      <tr><td><code>signals/gemini.py</code></td><td>Gemini 2.5 Pro structured analysis</td></tr>
       <tr><td><code>imagen.py</code></td><td>AI variants via Imagen 3</td></tr>
       <tr><td><code>upload.py</code></td><td>Upload to GCS</td></tr>
       <tr><td><code>database.py</code></td><td>SQLite schema (33 tables)</td></tr>
       <tr><td><code>enhance.py</code></td><td>Camera-aware 6-step enhancement</td></tr>
       <tr><td><code>enhance_v2.py</code></td><td>Signal-aware enhancement v2</td></tr>
-      <tr><td><code>signals.py</code></td><td>EXIF, colors, faces, objects, hashes</td></tr>
-      <tr><td><code>signals_advanced.py</code></td><td>Aesthetics, depth, scenes, styles, OCR, captions, emotions</td></tr>
-      <tr><td><code>signals_v2.py</code></td><td>12-phase V2: Florence-2, DINO, SAM, rembg, TOPIQ, MUSIQ, saliency, poses, tags, identities</td></tr>
-      <tr><td><code>vectors.py</code></td><td>V1 embeddings: DINOv2-base/SigLIP-base/CLIP</td></tr>
-      <tr><td><code>vectors_v2.py</code></td><td>V2 embeddings: DINOv2-Large/SigLIP2-SO400M/CLIP</td></tr>
+      <tr><td><code>signals/signals.py</code></td><td>EXIF, colors, faces, objects, hashes</td></tr>
+      <tr><td><code>signals/signals_advanced.py</code></td><td>Aesthetics, depth, scenes, styles, OCR, captions, emotions</td></tr>
+      <tr><td><code>signals/signals_v2.py</code></td><td>12-phase V2: Florence-2, DINO, SAM, rembg, TOPIQ, MUSIQ, saliency, poses, tags, identities</td></tr>
+      <tr><td><code>signals/vectors.py</code></td><td>V1 embeddings: DINOv2-base/SigLIP-base/CLIP</td></tr>
+      <tr><td><code>signals/vectors_v2.py</code></td><td>V2 embeddings: DINOv2-Large/SigLIP2-SO400M/CLIP</td></tr>
       <tr><td><code>dashboard.py</code></td><td>Dashboard + Journal + Instructions</td></tr>
       <tr><td><code>export_gallery.py</code></td><td>Gallery data export to 6 JSON files</td></tr>
       <tr><td><code>serve_show.py</code></td><td>Local dev server</td></tr>
-      <tr><td><code>pixel_analysis.py</code></td><td>Pixel-level analysis for enhancement</td></tr>
-      <tr><td><code>quality_scores.py</code></td><td>Technical + CLIP quality scoring</td></tr>
-      <tr><td><code>border_crop.py</code></td><td>Analog border detection</td></tr>
+      <tr><td><code>signals/pixel_analysis.py</code></td><td>Pixel-level analysis for enhancement</td></tr>
+      <tr><td><code>signals/quality_scores.py</code></td><td>Technical + CLIP quality scoring</td></tr>
+      <tr><td><code>signals/border_crop.py</code></td><td>Analog border detection</td></tr>
       <tr><td><code>mosaics.py</code></td><td>4096px mosaic generator</td></tr>
       <tr><td><code>render_enhanced.py</code></td><td>Enhanced image tier rendering</td></tr>
       <tr><td><code>prep_blind_test.py</code></td><td>A/B blind test preparation</td></tr>
       <tr><td><code>pipeline_lock.py</code></td><td>Pipeline lock management</td></tr>
-      <tr><td><code>_florence_worker.py</code></td><td>Parallel Florence-2 captioning worker</td></tr>
-      <tr><td><code>_rembg_standalone.py</code></td><td>Standalone rembg foreground extraction</td></tr>
+      <tr><td><code>signals/_florence_worker.py</code></td><td>Parallel Florence-2 captioning worker</td></tr>
+      <tr><td><code>signals/_rembg_standalone.py</code></td><td>Standalone rembg foreground extraction</td></tr>
     </tbody>
   </table>
 </div>

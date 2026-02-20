@@ -25,10 +25,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+SIGNALS_DIR = Path(__file__).resolve().parent
+BACKEND = SIGNALS_DIR.parent
+PROJECT_ROOT = BACKEND.parent
+
+sys.path.insert(0, str(BACKEND))
 from pipeline_lock import acquire_lock, release_lock
 
-BACKEND = Path(__file__).resolve().parent
-PROJECT_ROOT = BACKEND.parent
 DB_PATH = PROJECT_ROOT / "images" / "mad_photos.db"
 LANCE_DIR = PROJECT_ROOT / "images" / "vectors.lance"
 
@@ -55,8 +58,8 @@ class Stage:
 
 
 PY = sys.executable
-ADV = str(BACKEND / "signals_advanced.py")
-V2 = str(BACKEND / "signals_v2.py")
+ADV = str(SIGNALS_DIR / "signals_advanced.py")
+V2 = str(SIGNALS_DIR / "signals_v2.py")
 
 STAGES = [
     # --- Infrastructure ---
@@ -73,8 +76,8 @@ STAGES = [
     Stage("Style Classification","check_table_all",    [PY, ADV, "--phase", "style"],      group="model"),
     Stage("OCR / Text Detection","check_ocr",          [PY, ADV, "--phase", "ocr"],        group="model", heavy=True),
     Stage("Image Captions",     "check_table_all",     [PY, ADV, "--phase", "captions"],   group="model", heavy=True),
-    Stage("Face Detections",    "check_table_all",     None,                                group="model"),
-    Stage("Object Detections",  "check_objects",       None,                                group="model"),
+    Stage("Face Detections",    "check_sparse",        None,                                group="model"),
+    Stage("Object Detections",  "check_sparse",        None,                                group="model"),
     Stage("Facial Emotions",    "check_table_faces",   [PY, ADV, "--phase", "emotions"],   group="model", heavy=True),
 
     # --- Local CV models (v2) ---
@@ -84,24 +87,17 @@ STAGES = [
     Stage("Open Detections",    "check_table_all",     [PY, V2, "--phase", "grounding-dino"],    group="model", heavy=True),
     Stage("Image Tags",         "check_table_all",     [PY, V2, "--phase", "ram-tags"],          group="model", heavy=True),
     Stage("Foreground Masks",   "check_table_all",     [PY, V2, "--phase", "rembg-foreground"],  group="model", heavy=True),
-    Stage("Pose Detection",     "check_table_all",     [PY, V2, "--phase", "pose-detection"],    group="model", heavy=True),
+    Stage("Pose Detection",     "check_sparse",        None,                                    group="model"),
     Stage("Saliency",           "check_table_all",     [PY, V2, "--phase", "saliency"],          group="model"),
 
     # --- Vector embeddings ---
     Stage("Vector Embeddings",  "check_vectors",       None,                                group="model"),
 
+    # --- Ollama models ---
+    Stage("Gemma Analysis",     "check_gemma_ollama",  [PY, str(SIGNALS_DIR / "run_gemma_analysis.py"), "--workers", "8"], group="model"),
+
     # --- API models ---
-    Stage("Gemini Analysis",    "check_gemini",        [PY, str(BACKEND / "gemini.py"), "--concurrent", "5"], group="model", is_api=True),
-
-    # --- Enhancement ---
-    Stage("Enhancement Plans",  "check_table_all",     [PY, str(BACKEND / "enhance.py")],  group="signal"),
-    Stage("Enhancement v2",     "check_table_all",     None,                                group="signal"),
-
-    # --- AI Variants ---
-    Stage("AI Variants",        "check_variants",      [PY, str(BACKEND / "imagen.py")],   group="infra", is_api=True),
-
-    # --- GCS ---
-    Stage("GCS Uploads",        "check_gcs",           [PY, str(BACKEND / "upload.py")],   group="infra"),
+    Stage("Gemini Analysis",    "check_gemini",        [PY, str(SIGNALS_DIR / "gemini.py"), "--concurrent", "5"], group="model", is_api=True),
 ]
 
 # Map stage names to DB tables for the generic check_table_all
@@ -116,8 +112,7 @@ TABLE_MAP = {
     "Style Classification": ("style_classification", "image_uuid"),
     "Image Captions":       ("image_captions",       "image_uuid"),
     "Face Detections":      ("face_detections",      "image_uuid"),
-    "Enhancement Plans":    ("enhancement_plans",    "image_uuid"),
-    "Enhancement v2":       ("enhancement_plans_v2", "image_uuid"),
+    "Object Detections":    ("object_detections",    "image_uuid"),
     # V2 signals
     "Aesthetic v2":         ("aesthetic_scores_v2",   "image_uuid"),
     "Florence Captions":    ("florence_captions",     "image_uuid"),
@@ -171,6 +166,17 @@ class Checker:
             done = 0
         return self._result(done, self.total)
 
+    def check_sparse(self, stage: Stage) -> Dict[str, Any]:
+        """Sparse signal — not every image yields results (faces, objects, poses).
+        Always complete; just report how many images have detections."""
+        tbl, col = TABLE_MAP[stage.name]
+        try:
+            detected = self.conn.execute(f"SELECT COUNT(DISTINCT {col}) FROM {tbl}").fetchone()[0]
+        except sqlite3.OperationalError:
+            detected = 0
+        return {"done": detected, "total": detected, "missing": 0, "pct": 100,
+                "complete": True, "note": f"{detected:,} images (sparse)"}
+
     def check_table_faces(self, stage: Stage) -> Dict[str, Any]:
         """Check a table where only face-having images need rows."""
         done = 0
@@ -215,13 +221,40 @@ class Checker:
         return self._result(done, self.total,
                             f"{with_text} images with text, {done - with_text} without")
 
-    def check_objects(self, stage: Stage) -> Dict[str, Any]:
-        """Object detections — not every image will have objects."""
-        detected = self.conn.execute(
-            "SELECT COUNT(DISTINCT image_uuid) FROM object_detections"
-        ).fetchone()[0]
-        return self._result(detected, self.total,
-                            f"{detected} images with objects (sparse)")
+    def check_gemma_ollama(self, stage: Stage) -> Dict[str, Any]:
+        """Gemma analysis — only picks need processing.
+        Matches _REQUIRED_FIELDS in run_gemma_analysis.py: all 11 fields must be
+        non-NULL and non-empty for a row to count as complete.
+        """
+        picks_json = PROJECT_ROOT / "frontend" / "show" / "public" / "data" / "picks.json"
+        try:
+            import json as _json
+            data = _json.loads(picks_json.read_text())
+            pick_uuids = list(dict.fromkeys(data["portrait"] + data["landscape"]))
+            pick_uuids = [u for u in pick_uuids if "_" not in u]
+            total_picks = len(pick_uuids)
+        except Exception:
+            total_picks = 0
+        # All 11 required fields must be populated (int fields: NOT NULL; text: NOT NULL and != '')
+        try:
+            done = self.conn.execute(
+                "SELECT COUNT(*) FROM gemma_analysis "
+                "WHERE visual_weight IS NOT NULL "
+                "AND print_worthy IS NOT NULL "
+                "AND energy_direction IS NOT NULL AND energy_direction != '' "
+                "AND archetype IS NOT NULL AND archetype != '' "
+                "AND color_temp IS NOT NULL AND color_temp != '' "
+                "AND cartoon_style IS NOT NULL AND cartoon_style != '' "
+                "AND story_silly IS NOT NULL AND story_silly != '' "
+                "AND story_poetic IS NOT NULL AND story_poetic != '' "
+                "AND story_surrealist IS NOT NULL AND story_surrealist != '' "
+                "AND story_noir IS NOT NULL AND story_noir != '' "
+                "AND story_romantic IS NOT NULL AND story_romantic != ''"
+            ).fetchone()[0]
+        except sqlite3.OperationalError:
+            done = 0
+        pending = total_picks - done
+        return self._result(done, total_picks, f"{pending} picks pending")
 
     def check_gemini(self, stage: Stage) -> Dict[str, Any]:
         done = self.conn.execute(
@@ -253,21 +286,6 @@ class Checker:
         except Exception as e:
             return self._result(0, self.total, f"Error: {e}")
 
-    def check_variants(self, stage: Stage) -> Dict[str, Any]:
-        """AI variants — 4 types per image ideally, but this is in progress."""
-        count = self.conn.execute("SELECT COUNT(*) FROM ai_variants").fetchone()[0]
-        # 4 variant types × total images
-        target = self.total * 4
-        return self._result(count, target, f"{count} variants of {target} target")
-
-    def check_gcs(self, stage: Stage) -> Dict[str, Any]:
-        """GCS uploads — check tiers with gcs_url populated."""
-        uploaded = self.conn.execute(
-            "SELECT COUNT(*) FROM tiers WHERE gcs_url IS NOT NULL AND gcs_url != ''"
-        ).fetchone()[0]
-        total_tiers = self.conn.execute("SELECT COUNT(*) FROM tiers").fetchone()[0]
-        return self._result(uploaded, total_tiers,
-                            f"{uploaded:,}/{total_tiers:,} tier files uploaded")
 
 
 # ---------------------------------------------------------------------------
@@ -428,60 +446,6 @@ def regenerate_state() -> bool:
         return False
 
 
-def regenerate_exports() -> bool:
-    """Regenerate gallery data exports and State dashboard JSON files."""
-    success = True
-
-    # 1. Gallery export (photos.json + auxiliary files)
-    export_script = str(BACKEND / "export_gallery.py")
-    try:
-        result = subprocess.run(
-            [sys.executable, export_script],
-            capture_output=True, text=True, cwd=str(BACKEND), timeout=600
-        )
-        if result.returncode == 0:
-            print("  Gallery export regenerated (photos.json + aux files).")
-        else:
-            print(f"  Gallery export failed: {result.stderr[:200]}")
-            success = False
-    except Exception as e:
-        print(f"  Gallery export error: {e}")
-        success = False
-
-    # 2. State dashboard data files
-    try:
-        sys.path.insert(0, str(BACKEND))
-        from dashboard import get_stats, get_journal_html, get_instructions_html
-        from dashboard import get_mosaics_data, get_cartoon_data
-        from dashboard import generate_signal_inspector_data
-        from dashboard import generate_embedding_audit_data
-        from dashboard import generate_collection_coverage_data
-        import json as _json
-
-        state_data_dir = PROJECT_ROOT / "frontend" / "system" / "public" / "data"
-        state_data_dir.mkdir(parents=True, exist_ok=True)
-
-        for name, fn in [
-            ("stats.json", lambda: get_stats()),
-            ("journal.json", lambda: {"html": get_journal_html()}),
-            ("instructions.json", lambda: {"html": get_instructions_html()}),
-            ("mosaics.json", lambda: {"mosaics": get_mosaics_data()}),
-            ("cartoon.json", lambda: {"pairs": get_cartoon_data()}),
-            ("signal_inspector.json", lambda: generate_signal_inspector_data()),
-            ("embedding_audit.json", lambda: generate_embedding_audit_data()),
-            ("collection_coverage.json", lambda: generate_collection_coverage_data()),
-        ]:
-            data = fn()
-            (state_data_dir / name).write_text(_json.dumps(data))
-
-        print("  State data files regenerated (8 JSON files).")
-    except Exception as e:
-        print(f"  State data files error: {e}")
-        success = False
-
-    return success
-
-
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -537,13 +501,7 @@ def main() -> None:
                 while True:
                     done = run_cycle()
                     if done:
-                        print("  All stages complete!")
-                        if not args.status and not args.no_state:
-                            print("\n  Running deploy pipeline (--full)...")
-                            subprocess.run(
-                                [sys.executable, str(PROJECT_ROOT / "scripts" / "deploy.py"), "--full"],
-                                cwd=str(PROJECT_ROOT),
-                            )
+                        print("  All signal stages complete!")
                         break
                     time.sleep(args.watch)
             except KeyboardInterrupt:
@@ -551,13 +509,7 @@ def main() -> None:
         else:
             done = run_cycle()
             if done and not args.status:
-                print("  Everything is complete!")
-                if not args.no_state:
-                    print("\n  Running deploy pipeline (--full)...")
-                    subprocess.run(
-                        [sys.executable, str(PROJECT_ROOT / "scripts" / "deploy.py"), "--full"],
-                        cwd=str(PROJECT_ROOT),
-                    )
+                print("  All signal stages complete!")
             elif not args.status:
                 print("\n  Run with --watch to monitor ongoing processes.")
     finally:

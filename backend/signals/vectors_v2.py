@@ -34,7 +34,7 @@ import numpy as np
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 DB_PATH = PROJECT_ROOT / "images" / "mad_photos.db"
 LANCE_PATH = str(PROJECT_ROOT / "images" / "vectors.lance")
 SOURCE_TIER = "display"
@@ -443,7 +443,7 @@ def main():
         return
 
     # Acquire pipeline lock
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     from pipeline_lock import acquire_lock, release_lock
     try:
         acquire_lock("vectors_v2.py")

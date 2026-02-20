@@ -43,6 +43,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 from PIL import Image
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import database as db
 
 # ---------------------------------------------------------------------------
@@ -50,7 +51,7 @@ import database as db
 # ---------------------------------------------------------------------------
 
 PROJECT_ROOT = db.PROJECT_ROOT
-BACKEND_DIR = Path(__file__).resolve().parent
+BACKEND_DIR = Path(__file__).resolve().parent.parent
 RENDERED_DIR = PROJECT_ROOT / "images" / "rendered"
 DB_PATH = PROJECT_ROOT / "images" / "mad_photos.db"
 

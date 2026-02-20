@@ -26,6 +26,7 @@ from typing import Optional
 from google import genai
 from google.genai import types
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import database as db
 
 # ---------------------------------------------------------------------------

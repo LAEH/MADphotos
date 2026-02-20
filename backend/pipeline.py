@@ -265,7 +265,7 @@ def phase_gemini(test: int, concurrent: int, max_retries: int) -> bool:
     args = ["--concurrent", str(concurrent), "--max-retries", str(max_retries)]
     if test:
         args.extend(["--test", str(test)])
-    return run_script("gemini.py", args,
+    return run_script("signals/gemini.py", args,
                       "Phase 3: Gemini Photography Analysis")
 
 

@@ -25,7 +25,7 @@ os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 import torch
 from PIL import Image
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 DB_PATH = PROJECT_ROOT / "images" / "mad_photos.db"
 DISPLAY_DIR = PROJECT_ROOT / "images" / "rendered" / "display" / "jpeg"
 

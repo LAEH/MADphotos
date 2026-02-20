@@ -151,7 +151,7 @@ All models served via Ollama at `http://localhost:11434/api/generate`.
 
 | Model | API | Script | Purpose |
 |-------|-----|--------|---------|
-| Gemini 2.5 Pro | google-genai | `backend/gemini.py` | Deep photo analysis (semantic pops, color palette, grading, vibes) |
+| Gemini 2.5 Pro | google-genai | `backend/signals/gemini.py` | Deep photo analysis (semantic pops, color palette, grading, vibes) |
 | Imagen 3 | Vertex AI | `backend/imagen.py` | 6 AI variant types (enhance, film, cartoon, cinematic, dreamscape, gemma_cartoon) |
 
 - Project: `laeh380to760`, Location: `us-central1`
@@ -230,10 +230,10 @@ Learnings from testing:
 
 | Script | Model | Purpose |
 |--------|-------|---------|
-| `backend/run_gemma_analysis.py` | madphotos-critic (Ollama 27B) | **Unified** Gemma analysis — all signals in one prompt per image |
-| `backend/run_gemma_picks.py` | madphotos-critic-4b (Ollama) | Legacy: description, crops, stories, tags (superseded by run_gemma_analysis) |
-| `backend/run_gemma_composition.py` | gemma3:27b (Ollama) | Legacy: visual_weight, archetype, energy, color_temp (superseded by run_gemma_analysis) |
-| `backend/gemini.py` | Gemini 2.5 Pro | Deep technical + compositional analysis per photo |
+| `backend/signals/run_gemma_analysis.py` | madphotos-critic (Ollama 27B) | **Unified** Gemma analysis — all signals in one prompt per image |
+| `backend/signals/legacy/run_gemma_picks.py` | madphotos-critic-4b (Ollama) | Legacy: description, crops, stories, tags (superseded by run_gemma_analysis) |
+| `backend/signals/legacy/run_gemma_composition.py` | gemma3:27b (Ollama) | Legacy: visual_weight, archetype, energy, color_temp (superseded by run_gemma_analysis) |
+| `backend/signals/gemini.py` | Gemini 2.5 Pro | Deep technical + compositional analysis per photo |
 | `backend/imagen.py` | Imagen 3 | Generate 6 types of AI image variants |
 | `backend/generate_smart_variants.py` | Imagen 3 | Smart style variants with per-image prompts |
 | `backend/generate_variants_v2.py` | Imagen 3 | V2 variant generation pipeline |
@@ -245,7 +245,7 @@ Learnings from testing:
 
 ### Gemma Analysis (Unified)
 
-**Script:** `backend/run_gemma_analysis.py` — one prompt, one table, all signals per image.
+**Script:** `backend/signals/run_gemma_analysis.py` — one prompt, one table, all signals per image.
 
 **Table:** `gemma_analysis` — replaces `gemma_picks` + `gemma_composition`.
 
@@ -253,21 +253,21 @@ Learnings from testing:
 
 **CLI:**
 ```bash
-python3 backend/run_gemma_analysis.py              # process pending picks
-python3 backend/run_gemma_analysis.py --workers 8   # parallel (overnight)
-python3 backend/run_gemma_analysis.py --migrate     # seed from legacy tables (no Ollama)
-python3 backend/run_gemma_analysis.py --rerun       # reprocess all
-python3 backend/run_gemma_analysis.py --limit 10    # test run
+python3 backend/signals/run_gemma_analysis.py              # process pending picks
+python3 backend/signals/run_gemma_analysis.py --workers 8   # parallel (overnight)
+python3 backend/signals/run_gemma_analysis.py --migrate     # seed from legacy tables (no Ollama)
+python3 backend/signals/run_gemma_analysis.py --rerun       # reprocess all
+python3 backend/signals/run_gemma_analysis.py --limit 10    # test run
 ```
 
 **Resume logic:** skips completed rows; reprocesses migrated rows missing composition signals.
 
 ### Signal Pipeline
 
-**v1** (`backend/signals_advanced.py`): aesthetic, depth, scene, style, ocr, captions, emotions
-**v2** (`backend/signals_v2.py`): aesthetic-v2, florence-captions, sam-segments, grounding-dino, ram-tags, rembg, pose, saliency
+**v1** (`backend/signals/signals_advanced.py`): aesthetic, depth, scene, style, ocr, captions, emotions
+**v2** (`backend/signals/signals_v2.py`): aesthetic-v2, florence-captions, sam-segments, grounding-dino, ram-tags, rembg, pose, saliency
 
-**Orchestrator:** `backend/completions.py` — checks all 24 pipeline stages, auto-starts missing
+**Orchestrator:** `backend/signals/completions.py` — checks all 24 pipeline stages, auto-starts missing
 
 ### Pre-trained Model Files
 - `yolov8n.pt` (232 MB) — YOLOv8 Nano object detection

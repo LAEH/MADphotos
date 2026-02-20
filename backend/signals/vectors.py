@@ -31,7 +31,7 @@ import numpy as np
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 DB_PATH = PROJECT_ROOT / "images" / "mad_photos.db"
 LANCE_PATH = str(PROJECT_ROOT / "images" / "vectors.lance")
 SOURCE_TIER = "display"  # 2048px — models resize to 224px anyway

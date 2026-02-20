@@ -85,9 +85,23 @@ def cmd_dry(candidates: List[Dict], assignments: List[Tuple[Dict, List[str]]]) -
         print(f"  ... and {len(assignments) - 40} more")
 
 
+def _check_auth() -> None:
+    """Verify GCP credentials are valid before starting. Fail fast on auth issues."""
+    import subprocess
+    result = subprocess.run(
+        ["gcloud", "auth", "application-default", "print-access-token"],
+        capture_output=True, text=True, timeout=10,
+    )
+    if result.returncode != 0:
+        print("\n  ERROR: GCP auth expired. Run: gcloud auth application-default login")
+        raise SystemExit(1)
+
+
 def cmd_generate(candidates: List[Dict], assignments: List[Tuple[Dict, List[str]]],
                  budget: float) -> None:
     """Run Imagen 3 generation with budget tracking."""
+    _check_auth()
+
     run_dir = GENERATED_DIR / datetime.now().strftime("%Y%m%d_%H%M%S")
     run_dir.mkdir(parents=True, exist_ok=True)
     print(f"\nOutput: {run_dir}")

@@ -6,6 +6,16 @@
 
 ## 2026-02-20
 
+**Gemma absorbs Gemini's structured labels.** Compared Gemini Flash and Gemma 27B outputs side by side. Gemini provides structured categorical labels (setting, time_of_day, weather, grading_style, exposure_label, sharpness_label, vibes, faces_count, semantic_pops). Gemma provides richer creative text (stories, composition analysis, crop recommendations). Decision: add all Gemini's structured labels to Gemma's prompt so Gemma produces both — creative text AND structured labels in one pass. "Gemma is free, I would prefer to use that." Updated `Modelfile.madphotos` with 9 new fields, rebuilt `madphotos-critic` model, migrated schema with ALTER TABLE, updated parser and INSERT SQL. Increased `num_predict` from 1500 to 2000 for the longer response. Test on 1 image confirmed all new fields populate correctly. 2,454 picks queued for reprocessing with 3 workers (~34 hours).
+
+**Backend signals reorganization.** Moved all signal extraction scripts into `backend/signals/` subdirectory. Legacy Gemma scripts (`run_gemma_picks.py`, `run_gemma_composition.py`, `run_gemma_deep.py`) moved to `backend/signals/legacy/`. Completions, vectors, quality scores, pixel analysis all relocated. Cleaner separation between signal extraction and other backend concerns.
+
+**Gemma monitor and forever wrapper.** `gemma_monitor.py` — 16-line terminal dashboard showing progress, rate, ETA. `run_gemma_forever.sh` — auto-restarting bash wrapper that restarts on crash with 5s cooldown, runs via nohup for unattended overnight processing. Monitor required fields updated to include v2 labels so progress accurately reflects new schema.
+
+**Auto-deploy on enhancement batch completion.** When all images in an enhance review batch are voted on, the system now auto-triggers the deploy pipeline (render tiers, upload GCS, regenerate photos.json, rebuild System data) instead of requiring a manual Deploy button click.
+
+**GCP auth pre-flight check.** Generate pipeline now checks `gcloud auth application-default` before attempting Imagen 3 API calls. Fails immediately with a clear message instead of retrying auth errors.
+
 **Consolidated Gemma: one table, one prompt, all signals.** Replaced the two fragmented scripts (`run_gemma_picks.py` + `run_gemma_composition.py`) with a single unified `run_gemma_analysis.py`. One prompt, one table (`gemma_analysis`), one complete signal set per image: description, subject, story, mood, composition, lighting, colors, texture, technical, strength, tags, print_worthy, crops (1:1, 2:3, 3:2, 16:9), five story variations, cartoon_style, visual_weight, energy_direction, archetype, and color_temp. Migrated 2,702 existing rows from legacy tables; 1,495 images queued for full reprocessing overnight with 8 workers on the 27B model. `export_gallery.py` updated to read from the unified table with legacy fallback.
 
 **Why complete coverage matters.** The Gemma signals aren't about individual images — they're the connective tissue for navigation. With a consistent semantic vocabulary across all picks:

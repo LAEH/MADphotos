@@ -14,12 +14,13 @@ import os
 import time
 import sqlite3
 import argparse
+from pathlib import Path
 import numpy as np
 
 # Paths
-BASE_PATH = "/Users/laeh/Github/MADphotos"
-DB_PATH = os.path.join(BASE_PATH, "images/mad_photos.db")
-DISPLAY_DIR = os.path.join(BASE_PATH, "images/rendered/display/jpeg")
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+DB_PATH = str(PROJECT_ROOT / "images" / "mad_photos.db")
+DISPLAY_DIR = str(PROJECT_ROOT / "images" / "rendered" / "display" / "jpeg")
 
 
 def create_table(conn):
