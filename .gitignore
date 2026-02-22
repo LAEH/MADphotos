@@ -17,10 +17,12 @@ backend/.faces_processed.json
 backend/.objects_processed.json
 
 # Swift build artifacts
+.build/
 frontend/see/.build/
 frontend/see/*.app
 See.app/
 frontend/see/See.iconset/
+frontend/MADphotos_local_monitoring/.build/
 
 # Stray DB copies
 mad_photos.db
@@ -30,8 +32,8 @@ madphotos.db
 frontend/show/data/
 frontend/show/public/data/
 
-# State app build (copied from frontend/state/dist/)
-frontend/show/state/
+# System app build (copied from frontend/system/dist/)
+frontend/show/system/
 
 # Python
 __pycache__/
@@ -87,9 +89,12 @@ frontend/show/dist/
 .venv-mflux/
 
 # Style transfer experiments (large generated images)
-backend/generated_test/
-backend/style_references/
-backend/style_prompts_test.json
+backend/genimages/output/
+backend/genimages/style_references/
+backend/genimages/style_prompts_test.json
+backend/suggest_image_variant/output/
+backend/suggest_image_variant/style_references/
+backend/suggest_image_variant/style_prompts_test.json
 
 # Old vanilla JS backup (migrated to React)
 frontend/show/_vanilla/

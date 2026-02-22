@@ -21,12 +21,12 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 RENDERED_DIR = PROJECT_ROOT / "images" / "rendered"
 AI_VARIANTS_DIR = PROJECT_ROOT / "images" / "ai_variants"
-GENERATED_DIR = PROJECT_ROOT / "backend" / "generated_test"
+GENERATED_DIR = PROJECT_ROOT / "backend" / "genimages" / "output"
 PREVIEW_DIR = RENDERED_DIR / "enhance_previews"
 
 # Ensure backend is importable
 import sys as _sys
-_sys.path.insert(0, str(PROJECT_ROOT))
+_sys.path.insert(0, str(PROJECT_ROOT / "backend"))
 
 
 class APIHandler(SimpleHTTPRequestHandler):
@@ -114,7 +114,7 @@ class APIHandler(SimpleHTTPRequestHandler):
             from dashboard import review_generated
         except ImportError:
             import sys as _sys
-            _sys.path.insert(0, str(Path(__file__).resolve().parent))
+            _sys.path.insert(0, str(PROJECT_ROOT / "backend"))
             from dashboard import review_generated
 
         result = review_generated(variant_id, status)
@@ -209,7 +209,7 @@ read -n 1
         self._json_response({"ok": True, "count": count})
 
     def _handle_generated_export(self):
-        """Launch firestore_sync.py in a Terminal window to export accepted variants."""
+        """Launch full variant deploy pipeline in a Terminal window."""
         import subprocess as _sp
         import sqlite3
 
@@ -217,21 +217,33 @@ read -n 1
         try:
             conn = sqlite3.connect(str(db_path))
             count = conn.execute(
-                "SELECT COUNT(*) FROM ai_variants WHERE variant_type = 'smart_style' AND review_status = 'accepted'"
+                "SELECT COUNT(*) FROM ai_variants WHERE variant_type = 'smart_style'"
+                " AND review_status = 'accepted' AND exported_at IS NULL"
+                " AND generation_status = 'success'"
             ).fetchone()[0]
             conn.close()
         except Exception:
             count = 0
 
         if count == 0:
-            self._error_response(400, "No accepted smart_style variants to export")
+            self._error_response(400, "No new accepted variants to export")
             return
 
         script = f"""#!/bin/bash
 cd {PROJECT_ROOT}
 echo "=== Style Transfer — Export {count} accepted variants ==="
 echo ""
-python3 -u backend/firestore_sync.py
+echo "Step 1/4 — Extract colors"
+.venv-gen/bin/python3 -u backend/extract_variant_colors.py
+echo ""
+echo "Step 2/4 — Deploy variants (render tiers + GCS upload)"
+.venv-gen/bin/python3 -u -m backend.genimages.deploy
+echo ""
+echo "Step 3/4 — Regenerate photos.json"
+python3 -u backend/export_gallery.py
+echo ""
+echo "Step 4/4 — Regenerate System data"
+python3 -u backend/dashboard.py
 echo ""
 echo "=== Export complete ==="
 echo "Press any key to close..."
@@ -252,7 +264,7 @@ read -n 1
         """Launch the full enhancement pipeline in a background Terminal window."""
         import subprocess as _sp
 
-        from backend.enhance.db import get_connection, ensure_tables, get_accepted_undeployed
+        from backend.suggest_image_enhancement.db import get_connection, ensure_tables, get_accepted_undeployed
         conn = get_connection()
         ensure_tables(conn)
         pending = get_accepted_undeployed(conn)
@@ -270,7 +282,7 @@ cd {PROJECT_ROOT}
 echo "=== Enhancement Deploy Pipeline ==="
 echo ""
 echo "Step 1/2 — Deploy {count} accepted proposals (render tiers + GCS upload)"
-python3 -u -m backend.enhance.deploy
+python3 -u -m backend.suggest_image_enhancement.deploy
 echo ""
 echo "Step 2/2 — Regenerate photos.json"
 python3 -u backend/export_gallery.py
@@ -305,7 +317,7 @@ read -n 1
             self._error_response(400, "proposal_id and status required")
             return
 
-        from backend.enhance.db import (
+        from backend.suggest_image_enhancement.db import (
             get_connection, ensure_tables, update_proposal,
             complete_batch, get_accepted_undeployed,
         )
@@ -348,7 +360,7 @@ cd {PROJECT_ROOT}
 echo "=== Auto-Deploy ({count} accepted) ==="
 echo ""
 echo "Step 1/3 — Deploy proposals (render tiers + GCS upload)"
-python3 -u -m backend.enhance.deploy
+python3 -u -m backend.suggest_image_enhancement.deploy
 echo ""
 echo "Step 2/3 — Regenerate photos.json"
 python3 -u backend/export_gallery.py
@@ -371,7 +383,7 @@ read -n 1
 
     def _handle_enhance_generate(self):
         """Generate a fresh batch of ~30 proposals using iterative learning."""
-        from backend.enhance.propose import generate_batch
+        from backend.suggest_image_enhancement.propose import generate_batch
 
         result = generate_batch()
         self._json_response({"ok": True, **result})
@@ -394,7 +406,7 @@ read -n 1
             from dashboard import tag_location
         except ImportError:
             import sys as _sys
-            _sys.path.insert(0, str(Path(__file__).resolve().parent))
+            _sys.path.insert(0, str(PROJECT_ROOT / "backend"))
             from dashboard import tag_location
 
         result = tag_location(uuid, location)
@@ -417,7 +429,7 @@ read -n 1
             from dashboard import untag_location
         except ImportError:
             import sys as _sys
-            _sys.path.insert(0, str(Path(__file__).resolve().parent))
+            _sys.path.insert(0, str(PROJECT_ROOT / "backend"))
             from dashboard import untag_location
 
         result = untag_location(uuid)
@@ -440,7 +452,7 @@ read -n 1
             from dashboard import register_location
         except ImportError:
             import sys as _sys
-            _sys.path.insert(0, str(Path(__file__).resolve().parent))
+            _sys.path.insert(0, str(PROJECT_ROOT / "backend"))
             from dashboard import register_location
 
         result = register_location(name)
@@ -466,7 +478,7 @@ read -n 1
             from dashboard import review_cartoon
         except ImportError:
             import sys as _sys
-            _sys.path.insert(0, str(Path(__file__).resolve().parent))
+            _sys.path.insert(0, str(PROJECT_ROOT / "backend"))
             from dashboard import review_cartoon
 
         result = review_cartoon(variant_id, status)
@@ -489,7 +501,7 @@ read -n 1
             from dashboard import do_pick
         except ImportError:
             import sys as _sys
-            _sys.path.insert(0, str(Path(__file__).resolve().parent))
+            _sys.path.insert(0, str(PROJECT_ROOT / "backend"))
             from dashboard import do_pick
 
         result = do_pick(uuids)
@@ -497,7 +509,7 @@ read -n 1
 
     def _handle_enhance_batch_get(self):
         """Return current active batch (if any). Never auto-generates."""
-        from backend.enhance.db import (get_connection, ensure_tables,
+        from backend.suggest_image_enhancement.db import (get_connection, ensure_tables,
                                          get_or_create_batch, get_batch_proposals,
                                          get_stats as enhance_stats,
                                          get_learning_stats)
@@ -540,7 +552,7 @@ read -n 1
         })
 
     def _handle_enhance_stats_get(self):
-        from backend.enhance.db import get_connection, ensure_tables, get_stats as enhance_stats
+        from backend.suggest_image_enhancement.db import get_connection, ensure_tables, get_stats as enhance_stats
         conn = get_connection()
         ensure_tables(conn)
         stats = enhance_stats(conn)
@@ -548,7 +560,7 @@ read -n 1
         self._json_response(stats)
 
     def _handle_enhance_accepted_get(self):
-        from backend.enhance.db import get_connection, ensure_tables
+        from backend.suggest_image_enhancement.db import get_connection, ensure_tables
         conn = get_connection()
         ensure_tables(conn)
         rows = conn.execute("""
@@ -624,7 +636,7 @@ read -n 1
                                    get_generated_data)
         except ImportError:
             import sys
-            sys.path.insert(0, str(Path(__file__).resolve().parent))
+            sys.path.insert(0, str(PROJECT_ROOT / "backend"))
             from dashboard import (get_stats, get_journal_html,
                                    get_instructions_html, get_mosaics_data,
                                    get_cartoon_data, get_gemma_cartoon_data,

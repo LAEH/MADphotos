@@ -21,7 +21,7 @@ from PIL import Image
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DB_PATH = PROJECT_ROOT / "images" / "mad_photos.db"
 AI_VARIANTS_DIR = PROJECT_ROOT / "images" / "ai_variants"
-GENERATED_DIR = PROJECT_ROOT / "backend" / "generated_test"
+GENERATED_DIR = PROJECT_ROOT / "backend" / "suggest_image_variant" / "output"
 
 
 def detect_border(img_array: np.ndarray, threshold: float = 15.0) -> tuple[int, int, int, int]:
@@ -98,7 +98,7 @@ def detect_border(img_array: np.ndarray, threshold: float = 15.0) -> tuple[int, 
 
 
 def find_variant_files() -> dict[str, Path]:
-    """Map variant_id to file path by scanning ai_variants and generated_test dirs."""
+    """Map variant_id to file path by scanning ai_variants and suggest_image_variant/output dirs."""
     files: dict[str, Path] = {}
 
     # Scan ai_variants/{type}/{variant_id}.jpg
@@ -111,7 +111,7 @@ def find_variant_files() -> dict[str, Path]:
             for f in type_dir.glob("*.png"):
                 files[f.stem] = f
 
-    # Scan generated_test/{run}/{uuid}/imagen_*.jpg and neural_*.jpg
+    # Scan suggest_image_variant/output/{run}/{uuid}/imagen_*.jpg and neural_*.jpg
     if GENERATED_DIR.exists():
         for run_dir in sorted(GENERATED_DIR.iterdir()):
             if not run_dir.is_dir():

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAppStore } from '../store/appStore'
 import { loadProgressive } from '../lib/imageLoading'
-import { getObjectPosition, BENTO_UNIT_RATIO } from '../lib/cropUtils'
+import { getObjectPosition } from '../lib/cropUtils'
 import { randomFrom } from '../lib/utils'
 import { ViewBottom } from '../components/ui/ViewBottom'
 import type { Photo } from '../types/photo'
@@ -419,12 +419,6 @@ function colorWarmth(p: Photo): 'warm' | 'cool' | 'neutral' | 'mono' {
   if (h < 50 || h > 310) return 'warm'
   if (h > 160 && h < 260) return 'cool'
   return 'neutral'
-}
-
-/** Orientation match helper */
-function orientMatch(p: Photo, orient: 'P' | 'L'): boolean {
-  if (orient === 'P') return p.orientation === 'portrait'
-  return p.orientation === 'landscape' || p.orientation === 'square'
 }
 
 /** Split photos into orientation pools */

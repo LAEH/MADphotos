@@ -37,10 +37,9 @@ export function GeneratedPage() {
   const [data, setData] = useState<StyleData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [filter, setFilter] = useState('unreviewed')
+  const filter = 'unreviewed'
   const [reviews, setReviews] = useState<Record<string, string>>({})
   const [currentIdx, setCurrentIdx] = useState(0)
-  const [transitioning, setTransitioning] = useState(false)
   const [aspectRatio, setAspectRatio] = useState<number>(1.5)
   const [generating, setGenerating] = useState(false)
   const [batchProgress, setBatchProgress] = useState<{ completed: number; expected: number } | null>(null)
@@ -98,7 +97,6 @@ export function GeneratedPage() {
     fetchData()
     setBatchProgress(null)
     setGenerating(false)
-    setFilter('unreviewed')
     setCurrentIdx(0)
   }, [stopProgressPoll, fetchData])
 
@@ -175,43 +173,18 @@ export function GeneratedPage() {
     }
   }, [])
 
-  const categories = useMemo(() => {
-    if (!data) return []
-    return [
-      { key: 'unreviewed', label: 'Unreviewed', count: data.pairs.filter(p => !getReview(p)).length },
-      { key: 'accepted', label: 'Accepted', count: data.pairs.filter(p => getReview(p) === 'accepted').length },
-      { key: 'rejected', label: 'Rejected', count: data.pairs.filter(p => getReview(p) === 'rejected').length },
-      { key: 'all', label: 'All', count: data.pairs.length },
-    ]
-  }, [data, getReview])
-
   const filtered = useMemo(() => {
     if (!data) return []
-    if (filter === 'all') return data.pairs
-    if (filter === 'unreviewed') return data.pairs.filter(p => !getReview(p))
-    if (filter === 'accepted') return data.pairs.filter(p => getReview(p) === 'accepted')
-    if (filter === 'rejected') return data.pairs.filter(p => getReview(p) === 'rejected')
-    return data.pairs
-  }, [data, filter, getReview])
-
-  useEffect(() => { setCurrentIdx(0) }, [filter])
+    return data.pairs.filter(p => !getReview(p))
+  }, [data, getReview])
 
   const safeIdx = Math.min(currentIdx, Math.max(0, filtered.length - 1))
   const current = filtered[safeIdx] ?? null
 
-  const advance = useCallback((dir: 1 | -1) => {
-    setTransitioning(true)
-    setTimeout(() => {
-      setCurrentIdx(prev => Math.max(0, Math.min(prev + dir, filtered.length - 1)))
-      setTransitioning(false)
-    }, 120)
-  }, [filtered.length])
-
   const reviewAndAdvance = useCallback((status: string) => {
     if (!current) return
     handleReview(current.variant_id, status)
-    if (filter !== 'unreviewed') advance(1)
-  }, [current, handleReview, filter, advance])
+  }, [current, handleReview])
 
   // Keyboard: A = accept, R = reject (disabled while generating)
   useEffect(() => {
@@ -248,13 +221,9 @@ export function GeneratedPage() {
         borderBottom: '1px solid var(--border)',
         alignItems: 'center',
       }}>
-        {categories.map(c => (
-          <button key={c.key} className={`filter-btn${filter === c.key ? ' active' : ''}`}
-            onClick={() => setFilter(c.key)}
-            disabled={generating} style={{ opacity: generating ? 0.35 : undefined }}>
-            {c.label} ({c.count})
-          </button>
-        ))}
+        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)' }}>
+          {filtered.length} to review {data.accepted > 0 && `· ${data.accepted} accepted · ${data.rejected} rejected`}
+        </span>
 
         <div style={{ flex: 1 }} />
 
@@ -316,7 +285,6 @@ export function GeneratedPage() {
         flex: 1, minHeight: 0,
         display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
         gap: '4px', padding: '8px',
-        opacity: transitioning ? 0 : 1,
         transition: 'opacity 0.12s',
         background: '#0a0a0a',
       }}>

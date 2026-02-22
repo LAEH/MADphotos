@@ -1,6 +1,26 @@
 # MADphotos
 
-Photo curation and exploration project with two main components:
+Photo archive of 9,011 photographs. The backend is organized as **five agent folders** that form a pipeline: extract signals from every image, curate the best material with human input, and ship it to screens. See `backend/README.md` for the full agent architecture.
+
+| Agent | Mission | Entry Point |
+|-------|---------|-------------|
+| `image_signals/` | Run 24+ models against every image — the intelligence layer | `python3 -m backend.image_signals.completions` |
+| `suggest_image_enhancement/` | Propose non-destructive improvements, user votes accept/reject | `python3 -m backend.suggest_image_enhancement.propose` |
+| `suggest_image_variant/` | Generate AI art variants with learned style selection | `python3 -m backend.suggest_image_variant.run` |
+| `update_and_deploy/` | 10-phase verified deployment to Firebase production | `python3 -m backend.update_and_deploy.run` |
+| `MADphotos_ignition/` | Dev environment startup — servers, health, companions | `python3 -m backend.MADphotos_ignition.run` |
+
+## MADphotos ignition
+
+When the user says "MADphotos ignition", run the ignition agent:
+
+```bash
+python3 -m backend.MADphotos_ignition.run
+```
+
+This automates the full startup: pre-checks (git, ports, deps, DB, Ollama) → server launch (serve_show :3000, Show vite :5173, System vite :5174) → health verification → ready URLs.
+
+Flags: `--prechecks`, `--health`, `--status`, `--shutdown`, `--monitor`, `--see`, `--dry`, `--force`, `--tags`. See `backend/MADphotos_ignition/CLAUDE.md` for full docs.
 
 ## Architecture
 
@@ -85,28 +105,27 @@ Lazy-loaded views produce per-view JS + CSS chunks. Firebase SDK is split into i
 
 ## Deploy
 
-**Full sync + deploy:**
+**Unified deploy pipeline** (`backend/update_and_deploy/`):
 ```bash
-python3 backend/firestore_sync.py
+python3 -m backend.update_and_deploy.run            # full 10-phase pipeline
+python3 -m backend.update_and_deploy.run --dry       # dry run
+python3 -m backend.update_and_deploy.run --preflight # safety check only
+python3 -m backend.update_and_deploy.run --data      # regen System JSON only
+python3 -m backend.update_and_deploy.run --build     # Vite builds only
+python3 -m backend.update_and_deploy.run --deploy    # Firebase deploy only
+python3 -m backend.update_and_deploy.run --tags      # set Finder labels only
 ```
 
-What it does:
-1. Pulls 5 Firestore collections → local SQLite (tinder-votes, couple-likes, couple-approves, couple-rejects, picks-votes)
-2. Regenerates `picks.json` (tinder accepts minus picks rejects)
-3. Regenerates static data for System dashboard
-4. Builds System app (React) → `frontend/show/dist/system/`
-5. Deploys both Show + System to Firebase
+10 phases: Preflight → Inspect → Docs → Sync → Export → Data → Build → Deploy → Verify → Postflight
 
-**Manual deploy (if no data changes):**
+Modifiers: `--wait` (poll until blockers clear), `--force` (ignore blockers), `--no-git` (skip commit), `--full` (force gallery re-export)
+
+**Legacy shim:** `scripts/deploy.py` forwards to the agent.
+
+**Firestore sync only:**
 ```bash
-cd frontend/show && npx vite build
-cp -r frontend/show/system/ frontend/show/dist/system/
-firebase deploy --only hosting:laeh-madphotos
-```
-
-Dry run (no writes, just show counts):
-```
-python3 backend/firestore_sync.py --dry
+python3 backend/firestore_sync.py          # sync + regenerate picks.json
+python3 backend/firestore_sync.py --dry    # show counts without writing
 ```
 
 ## Quick stats
@@ -151,7 +170,7 @@ All models served via Ollama at `http://localhost:11434/api/generate`.
 
 | Model | API | Script | Purpose |
 |-------|-----|--------|---------|
-| Gemini 2.5 Pro | google-genai | `backend/signals/gemini.py` | Deep photo analysis (semantic pops, color palette, grading, vibes) |
+| Gemini 2.5 Pro | google-genai | `backend/image_signals/gemini.py` | Deep photo analysis (semantic pops, color palette, grading, vibes) |
 | Imagen 3 | Vertex AI | `backend/imagen.py` | 6 AI variant types (enhance, film, cartoon, cinematic, dreamscape, gemma_cartoon) |
 
 - Project: `laeh380to760`, Location: `us-central1`
@@ -221,8 +240,8 @@ Learnings from testing:
   3. Seurat — Sunday Afternoon (pointillism)
   4. Monet — Impression Sunrise (soft impressionism)
   5. Munch — The Scream (dramatic expressionism)
-- Style references cached in: `backend/style_references/`
-- Output: `backend/generated_test/YYYYMMDD_HHMMSS/`
+- Style references cached in: `backend/suggest_image_variant/style_references/`
+- Output: `backend/suggest_image_variant/output/YYYYMMDD_HHMMSS/`
 - Usage: `.venv-gen/bin/python3 backend/neural_style_transfer.py --count 5 --steps 300 --size 512`
 - Key params: `--style-ratio` (1e4=moderate, 5e4=strong), `--detail` (0-1, edge/luminance preservation)
 
@@ -230,22 +249,22 @@ Learnings from testing:
 
 | Script | Model | Purpose |
 |--------|-------|---------|
-| `backend/signals/run_gemma_analysis.py` | madphotos-critic (Ollama 27B) | **Unified** Gemma analysis — all signals in one prompt per image |
-| `backend/signals/legacy/run_gemma_picks.py` | madphotos-critic-4b (Ollama) | Legacy: description, crops, stories, tags (superseded by run_gemma_analysis) |
-| `backend/signals/legacy/run_gemma_composition.py` | gemma3:27b (Ollama) | Legacy: visual_weight, archetype, energy, color_temp (superseded by run_gemma_analysis) |
-| `backend/signals/gemini.py` | Gemini 2.5 Pro | Deep technical + compositional analysis per photo |
+| `backend/image_signals/run_gemma_analysis.py` | madphotos-critic (Ollama 27B) | **Unified** Gemma analysis — all signals in one prompt per image |
+| `backend/image_signals/legacy/run_gemma_picks.py` | madphotos-critic-4b (Ollama) | Legacy: description, crops, stories, tags (superseded by run_gemma_analysis) |
+| `backend/image_signals/legacy/run_gemma_composition.py` | gemma3:27b (Ollama) | Legacy: visual_weight, archetype, energy, color_temp (superseded by run_gemma_analysis) |
+| `backend/image_signals/gemini.py` | Gemini 2.5 Pro | Deep technical + compositional analysis per photo |
 | `backend/imagen.py` | Imagen 3 | Generate 6 types of AI image variants |
-| `backend/generate_smart_variants.py` | Imagen 3 | Smart style variants with per-image prompts |
-| `backend/generate_variants_v2.py` | Imagen 3 | V2 variant generation pipeline |
-| `backend/enhance_exposure.py` | — | Exposure adjustment for underexposed photos |
-| `backend/test_style_prompts.py` | gemma3:27b (Ollama) | Generate 5 diverse style-transfer descriptors per photo |
-| `backend/generate_test_images.py` | mflux (local) + Imagen | Apply style prompts via img2img |
-| `backend/neural_style_transfer.py` | VGG19 (PyTorch) | Classic neural style transfer with 5 art references |
+| `backend/suggest_image_variant/smart_variants_v1.py` | Imagen 3 | Smart style variants with per-image prompts (legacy) |
+| `backend/suggest_image_variant/smart_variants_v2.py` | Imagen 3 | V2 variant generation pipeline (legacy) |
+| `backend/suggest_image_enhancement/enhance_exposure.py` | — | Exposure adjustment for underexposed photos |
+| `backend/suggest_image_variant/style_prompts.py` | gemma3:27b (Ollama) | Generate 5 diverse style-transfer descriptors per photo (legacy) |
+| `backend/suggest_image_variant/test_images.py` | mflux (local) + Imagen | Apply style prompts via img2img (legacy) |
+| `backend/suggest_image_variant/neural_style.py` | VGG19 (PyTorch) | Classic neural style transfer with 5 art references |
 | `backend/export_gallery.py` | — | Export all signals to photos.json + auxiliary data files |
 
 ### Gemma Analysis (Unified)
 
-**Script:** `backend/signals/run_gemma_analysis.py` — one prompt, one table, all signals per image.
+**Script:** `backend/image_signals/run_gemma_analysis.py` — one prompt, one table, all signals per image.
 
 **Table:** `gemma_analysis` — replaces `gemma_picks` + `gemma_composition`.
 
@@ -253,21 +272,21 @@ Learnings from testing:
 
 **CLI:**
 ```bash
-python3 backend/signals/run_gemma_analysis.py              # process pending picks
-python3 backend/signals/run_gemma_analysis.py --workers 8   # parallel (overnight)
-python3 backend/signals/run_gemma_analysis.py --migrate     # seed from legacy tables (no Ollama)
-python3 backend/signals/run_gemma_analysis.py --rerun       # reprocess all
-python3 backend/signals/run_gemma_analysis.py --limit 10    # test run
+python3 backend/image_signals/run_gemma_analysis.py              # process pending picks
+python3 backend/image_signals/run_gemma_analysis.py --workers 8   # parallel (overnight)
+python3 backend/image_signals/run_gemma_analysis.py --migrate     # seed from legacy tables (no Ollama)
+python3 backend/image_signals/run_gemma_analysis.py --rerun       # reprocess all
+python3 backend/image_signals/run_gemma_analysis.py --limit 10    # test run
 ```
 
 **Resume logic:** skips completed rows; reprocesses migrated rows missing composition signals.
 
 ### Signal Pipeline
 
-**v1** (`backend/signals/signals_advanced.py`): aesthetic, depth, scene, style, ocr, captions, emotions
-**v2** (`backend/signals/signals_v2.py`): aesthetic-v2, florence-captions, sam-segments, grounding-dino, ram-tags, rembg, pose, saliency
+**v1** (`backend/image_signals/signals_advanced.py`): aesthetic, depth, scene, style, ocr, captions, emotions
+**v2** (`backend/image_signals/signals_v2.py`): aesthetic-v2, florence-captions, sam-segments, grounding-dino, ram-tags, rembg, pose, saliency
 
-**Orchestrator:** `backend/signals/completions.py` — checks all 24 pipeline stages, auto-starts missing
+**Orchestrator:** `backend/image_signals/completions.py` — checks all 24 pipeline stages, auto-starts missing
 
 ### Pre-trained Model Files
 - `yolov8n.pt` (232 MB) — YOLOv8 Nano object detection

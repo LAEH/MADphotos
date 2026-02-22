@@ -44,6 +44,22 @@ export interface Photo {
   gc_energy?: string      // energy_direction
   gc_archetype?: string   // portal, horizon, texture, figure, geometry, void, cluster, reflection, silhouette, panorama
   gc_temp?: string        // glacial, cool, neutral, warm, molten, electric, neon, muted, monochrome
+  // Gemma creative signals
+  gemma_description?: string
+  gemma_subject?: string
+  gemma_story?: string
+  gemma_vibes?: string[]
+  gemma_pops?: SemanticPop[]
+  gemma_stories?: Record<string, string>
+  gemma_tags?: string
+  gemma_exposure?: string
+  gemma_sharpness?: string
+}
+
+export interface SemanticPop {
+  color: string
+  object: string
+  impact: string
 }
 
 export interface BorderCrop {

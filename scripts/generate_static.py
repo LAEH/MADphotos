@@ -2,9 +2,11 @@
 """
 Generate static JSON data files for GitHub Pages deployment.
 
-Runs the dashboard.py API functions and saves their output as static JSON
-files into frontend/state/public/data/ so the System app can load them
-without a backend.
+DEPRECATED: Superseded by backend.update_and_deploy.data — use:
+    python3 -m backend.update_and_deploy.run --data
+
+This script is kept for backward compatibility. It still works but the
+deploy agent's data.py is the canonical version going forward.
 
 Usage:
     python scripts/generate_static.py

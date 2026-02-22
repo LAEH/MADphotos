@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemma Prompts &amp; Metadata Inspector</title>
+    <style>
+        :root {
+            --black: #000;
+            --dark: #1a1a1a;
+            --gray: #666;
+            --gray-light: #999;
+            --gray-lighter: #ccc;
+            --gray-lightest: #e5e5e5;
+            --white: #fff;
+            --off-white: #f5f5f5;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif; background: var(--white); color: var(--black); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+
+        header { background: var(--black); color: var(--white); padding: 48px 20px 40px; text-align: center; }
+        header h1 { font-size: 2.2rem; font-weight: 300; letter-spacing: 3px; text-transform: uppercase; }
+        header p { opacity: 0.6; font-size: 0.95rem; margin-top: 8px; font-weight: 300; }
+        header .stats { margin-top: 20px; display: flex; justify-content: center; gap: 40px; }
+        header .stat { text-align: center; }
+        header .stat-value { font-size: 1.8rem; font-weight: 200; font-family: 'SF Mono', 'Menlo', monospace; }
+        header .stat-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1.5px; opacity: 0.5; }
+
+        nav { background: var(--dark); padding: 12px; position: sticky; top: 0; z-index: 100; }
+        nav ul { list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
+        nav a { color: var(--white); text-decoration: none; padding: 6px 14px; border: 1px solid var(--gray); font-size: 0.8rem; letter-spacing: 0.5px; transition: all 0.2s; }
+        nav a:hover { background: var(--white); color: var(--black); }
+
+        section { margin: 24px 0; border: 1px solid var(--black); }
+        .section-header { background: var(--black); color: var(--white); padding: 16px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none; }
+        .section-header h2 { font-size: 0.95rem; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; }
+        .section-header .badge { font-family: 'SF Mono', monospace; font-size: 0.7rem; background: var(--white); color: var(--black); padding: 2px 8px; }
+        .section-header .toggle { font-size: 0.9rem; transition: transform 0.2s; }
+        .section-header.collapsed .toggle { transform: rotate(-90deg); }
+        .section-content { padding: 24px; }
+        .section-content.hidden { display: none; }
+
+        h3 { font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin: 24px 0 12px; padding-bottom: 6px; border-bottom: 2px solid var(--black); }
+        h3:first-child { margin-top: 0; }
+
+        .prompt-block { background: var(--off-white); border: 1px solid var(--gray-lighter); padding: 20px; font-family: 'SF Mono', 'Menlo', monospace; font-size: 12px; line-height: 1.7; white-space: pre-wrap; word-wrap: break-word; overflow-x: auto; margin: 12px 0; }
+
+        .note { background: var(--off-white); border-left: 3px solid var(--black); padding: 12px 16px; margin: 12px 0; font-size: 0.9rem; }
+        .note strong { font-weight: 600; }
+
+        table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.85rem; }
+        th, td { padding: 10px 12px; text-align: left; border: 1px solid var(--black); }
+        th { background: var(--black); color: var(--white); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        tr:nth-child(even) { background: var(--off-white); }
+        td code { background: var(--off-white); border: 1px solid var(--gray-lighter); padding: 1px 5px; font-family: 'SF Mono', monospace; font-size: 0.8em; }
+
+        .schema-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin: 16px 0; }
+        .schema-card { border: 2px solid var(--black); }
+        .schema-card-header { background: var(--black); color: var(--white); padding: 10px 14px; font-weight: 600; font-size: 0.85rem; display: flex; justify-content: space-between; }
+        .schema-card-header .type-badge { font-family: 'SF Mono', monospace; font-size: 0.7rem; opacity: 0.7; }
+        .schema-card-body { padding: 12px 14px; }
+        .schema-card-body ul { list-style: none; }
+        .schema-card-body li { padding: 4px 0; border-bottom: 1px solid var(--gray-lightest); display: flex; justify-content: space-between; font-size: 0.85rem; }
+        .schema-card-body li:last-child { border-bottom: none; }
+        .attr-name { font-weight: 500; }
+        .attr-type { color: var(--gray); font-family: 'SF Mono', monospace; font-size: 0.8rem; }
+
+        .json-sample { background: var(--black); color: #d4d4d4; padding: 20px; font-family: 'SF Mono', monospace; font-size: 11.5px; line-height: 1.6; overflow-x: auto; white-space: pre; margin: 12px 0; border-radius: 0; }
+        .json-sample .key { color: #9cdcfe; }
+        .json-sample .str { color: #ce9178; }
+        .json-sample .num { color: #b5cea8; }
+        .json-sample .bool { color: #569cd6; }
+
+        footer { background: var(--black); color: var(--white); text-align: center; padding: 24px; margin-top: 32px; }
+        footer p { font-size: 0.8rem; opacity: 0.5; letter-spacing: 1px; }
+
+        .evolution-line { display: flex; align-items: center; gap: 12px; margin: 16px 0; font-size: 0.85rem; }
+        .evo-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--black); flex-shrink: 0; }
+        .evo-dot.active { background: var(--black); }
+        .evo-dot.legacy { background: var(--gray-lighter); }
+        .evo-line { flex: 1; height: 1px; background: var(--gray-lighter); }
+        .evo-label { font-weight: 500; white-space: nowrap; }
+        .evo-meta { color: var(--gray); font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Gemma Prompts</h1>
+        <p>Every prompt, every schema, every signal</p>
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-value">4</div>
+                <div class="stat-label">Prompt Versions</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">4</div>
+                <div class="stat-label">DB Tables</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">27</div>
+                <div class="stat-label">Signal Fields</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">8,153</div>
+                <div class="stat-label">Total Rows</div>
+            </div>
+        </div>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="#evolution">Evolution</a></li>
+            <li><a href="#current">Current Prompt</a></li>
+            <li><a href="#modelfile">Modelfile</a></li>
+            <li><a href="#legacy-picks">Legacy: Picks</a></li>
+            <li><a href="#legacy-composition">Legacy: Composition</a></li>
+            <li><a href="#legacy-deep">Legacy: Deep</a></li>
+            <li><a href="#metadata">All Metadata</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+
+        <!-- EVOLUTION -->
+        <section id="evolution">
+            <div class="section-header" onclick="toggleSection(this)">
+                <h2>Prompt Evolution</h2>
+                <span class="toggle">&#9660;</span>
+            </div>
+            <div class="section-content">
+                <div class="note">
+                    Four generations of Gemma prompts. Each iteration unified more signals into a single pass, upgraded the model, and tightened the JSON contract.
+                </div>
+
+                <div style="margin: 24px 0;">
+                    <div class="evolution-line">
+                        <span class="evo-dot legacy"></span>
+                        <span class="evo-label">gemma_picks</span>
+                        <span class="evo-line"></span>
+                        <span class="evo-meta">gemma3:4b &middot; 1200 tokens &middot; 2,702 rows &middot; description + crops + stories</span>
+                    </div>
+                    <div class="evolution-line">
+                        <span class="evo-dot legacy"></span>
+                        <span class="evo-label">gemma_composition</span>
+                        <span class="evo-line"></span>
+                        <span class="evo-meta">gemma3:27b &middot; 500 tokens &middot; 960 rows &middot; visual_weight + archetype + energy</span>
+                    </div>
+                    <div class="evolution-line">
+                        <span class="evo-dot legacy"></span>
+                        <span class="evo-label">gemma_deep</span>
+                        <span class="evo-line"></span>
+                        <span class="evo-meta">gemma3:4b &middot; 1500 tokens &middot; 2,455 rows &middot; 32 fields (style transfer, objects, materials)</span>
+                    </div>
+                    <div class="evolution-line">
+                        <span class="evo-dot active"></span>
+                        <span class="evo-label" style="font-weight:700;">gemma_analysis</span>
+                        <span class="evo-line" style="background:var(--black);height:2px;"></span>
+                        <span class="evo-meta"><strong>ACTIVE</strong> &middot; madphotos-critic (27b) &middot; 1500 tokens &middot; 2,702 rows (1,036 complete)</span>
+                    </div>
+                </div>
+
+                <table>
+                    <tr>
+                        <th>Table</th>
+                        <th>Model</th>
+                        <th>Tokens</th>
+                        <th>Fields</th>
+                        <th>Rows</th>
+                        <th>Status</th>
+                    </tr>
+                    <tr>
+                        <td><code>gemma_picks</code></td>
+                        <td>gemma3:4b</td>
+                        <td>1,200</td>
+                        <td>17</td>
+                        <td>2,702</td>
+                        <td>Superseded</td>
+                    </tr>
+                    <tr>
+                        <td><code>gemma_composition</code></td>
+                        <td>gemma3:27b</td>
+                        <td>500</td>
+                        <td>8</td>
+                        <td>960</td>
+                        <td>Superseded</td>
+                    </tr>
+                    <tr>
+                        <td><code>gemma_deep</code></td>
+                        <td>gemma3:4b</td>
+                        <td>1,500</td>
+                        <td>32</td>
+                        <td>2,455</td>
+                        <td>Experimental</td>
+                    </tr>
+                    <tr>
+                        <td><code>gemma_analysis</code></td>
+                        <td>madphotos-critic (27b)</td>
+                        <td>1,500</td>
+                        <td>27</td>
+                        <td>2,702</td>
+                        <td><strong>Active</strong></td>
+                    </tr>
+                </table>
+            </div>
+        </section>
+
+        <!-- CURRENT PROMPT -->
+        <section id="current">
+            <div class="section-header" onclick="toggleSection(this)">
+                <h2>Current &mdash; gemma_analysis</h2>
+                <span class="badge">ACTIVE</span>
+                <span class="toggle">&#9660;</span>
+            </div>
+            <div class="section-content">
+                <div class="note">
+                    <strong>Script:</strong> <code>backend/image_signals/run_gemma_analysis.py</code><br>
+                    <strong>Model:</strong> madphotos-critic (gemma3:27b via Ollama)<br>
+                    <strong>Temperature:</strong> 0.3 &middot; <strong>Max tokens:</strong> 1,500<br>
+                    <strong>Table:</strong> gemma_analysis &middot; <strong>Rows:</strong> 2,702 (1,036 fully complete)
+                </div>
+
+                <h3>Prompt</h3>
+<div class="prompt-block">You are an expert photography critic. Analyze this photograph. Respond ONLY with valid JSON, no markdown, no backticks:
+
+{
+  "description": "2-3 sentence vivid description",
+  "subject": "primary subject(s)",
+  "story": "moment, narrative, or feeling captured",
+  "composition": "frame arrangement, technique, balance, eye flow",
+  "lighting": "quality, direction, character of light",
+  "colors": "dominant colors and relationships",
+  "texture": "visible textures, materials, surfaces",
+  "mood": "emotional atmosphere in 2-3 words",
+  "technical": "exposure, focus, depth of field, sharpness",
+  "strength": "what makes this strong",
+  "tags": ["up to 15 descriptive tags"],
+  "print_worthy": true or false,
+  "crops": {
+    <em>// Portrait images:</em>
+    "1:1":  {"center_x": 0-100, "center_y": 0-100, "coverage": 30-90},
+    "1:2":  {"center_x": 0-100, "center_y": 0-100, "coverage": 30-90},
+    "2:3":  {"center_x": 0-100, "center_y": 0-100, "coverage": 30-90},
+    "3:4":  {"center_x": 0-100, "center_y": 0-100, "coverage": 30-90}
+
+    <em>// Landscape images:</em>
+    "1:1":  {"center_x": 0-100, "center_y": 0-100, "coverage": 30-90},
+    "2:1":  {"center_x": 0-100, "center_y": 0-100, "coverage": 30-90},
+    "3:2":  {"center_x": 0-100, "center_y": 0-100, "coverage": 30-90},
+    "4:3":  {"center_x": 0-100, "center_y": 0-100, "coverage": 30-90}
+  },
+  "stories": {
+    "silly": "1-sentence playful story",
+    "poetic": "1-sentence lyrical interpretation",
+    "surrealist": "1-sentence dreamlike narrative",
+    "noir": "1-sentence noir description",
+    "romantic": "1-sentence romantic interpretation"
+  },
+  "cartoon_style": "best cartoon/illustration transformation and why",
+  "visual_weight": 1-10,
+  "energy_direction": "left_to_right|right_to_left|up|down|center_out|inward|diagonal_down|diagonal_up|static",
+  "archetype": "portal|horizon|texture|figure|geometry|void|cluster|reflection|silhouette|panorama",
+  "color_temp": "glacial|cool|neutral|warm|molten|electric|neon|muted|monochrome"
+}
+
+For crops: center_x/center_y = center of crop region (0-100),
+coverage = percentage of image to include (30-90).
+Higher coverage = more context, lower = tighter on subject.
+For stories: SHORT punchy 1-sentence each.
+visual_weight: 1=airy/minimal, 10=dense/heavy.
+energy_direction: dominant visual flow.
+archetype: single best compositional archetype.
+color_temp: overall temperature feeling.</div>
+
+                <h3>Schema</h3>
+                <div class="schema-grid">
+                    <div class="schema-card">
+                        <div class="schema-card-header">Narrative <span class="type-badge">TEXT</span></div>
+                        <div class="schema-card-body">
+                            <ul>
+                                <li><span class="attr-name">description</span><span class="attr-type">text</span></li>
+                                <li><span class="attr-name">subject</span><span class="attr-type">text</span></li>
+                                <li><span class="attr-name">story</span><span class="attr-type">text</span></li>
+                                <li><span class="attr-name">mood</span><span class="attr-type">text</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="schema-card">
+                        <div class="schema-card-header">Technical <span class="type-badge">TEXT</span></div>
+                        <div class="schema-card-body">
+                            <ul>
+                                <li><span class="attr-name">composition</span><span class="attr-type">text</span></li>
+                                <li><span class="attr-name">lighting</span><span class="attr-type">text</span></li>
+                                <li><span class="attr-name">colors</span><span class="attr-type">text</span></li>
+                                <li><span class="attr-name">texture</span><span class="attr-type">text</span></li>
+                                <li><span class="attr-name">technical</span><span class="attr-type">text</span></li>
+                                <li><span class="attr-name">strength</span><span class="attr-type">text</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="schema-card">
+                        <div class="schema-card-header">Tags &amp; Flags <span class="type-badge">MIXED</span></div>
+                        <div class="schema-card-body">
+                            <ul>
+                                <li><span class="attr-name">tags</span><span class="attr-type">text (comma-sep)</span></li>
+                                <li><span class="attr-name">print_worthy</span><span class="attr-type">integer (0/1)</span></li>
+                                <li><span class="attr-name">cartoon_style</span><span class="attr-type">text</span></li>
+                                <li><span class="attr-name">crops</span><span class="attr-type">text (JSON)</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="schema-card">
+                        <div class="schema-card-header">Stories <span class="type-badge">TEXT</span></div>
+                        <div class="schema-card-body">
+                            <ul>
+                                <li><span class="attr-name">story_silly</span><span class="attr-type">text</span></li>
+                                <li><span class="attr-name">story_poetic</span><span class="attr-type">text</span></li>
+                                <li><span class="attr-name">story_surrealist</span><span class="attr-type">text</span></li>
+                                <li><span class="attr-name">story_noir</span><span class="attr-type">text</span></li>
+                                <li><span class="attr-name">story_romantic</span><span class="attr-type">text</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="schema-card">
+                        <div class="schema-card-header">Composition Intelligence <span class="type-badge">ENUM</span></div>
+                        <div class="schema-card-body">
+                            <ul>
+                                <li><span class="attr-name">visual_weight</span><span class="attr-type">integer 1-10</span></li>
+                                <li><span class="attr-name">energy_direction</span><span class="attr-type">enum (9 values)</span></li>
+                                <li><span class="attr-name">archetype</span><span class="attr-type">enum (10 values)</span></li>
+                                <li><span class="attr-name">color_temp</span><span class="attr-type">enum (9 values)</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="schema-card">
+                        <div class="schema-card-header">Meta <span class="type-badge">SYSTEM</span></div>
+                        <div class="schema-card-body">
+                            <ul>
+                                <li><span class="attr-name">uuid</span><span class="attr-type">text PK</span></li>
+                                <li><span class="attr-name">raw_json</span><span class="attr-type">text</span></li>
+                                <li><span class="attr-name">model</span><span class="attr-type">text</span></li>
+                                <li><span class="attr-name">processed_at</span><span class="attr-type">text ISO-8601</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <h3>Sample Output</h3>
+<div class="json-sample">{
+  <span class="key">"description"</span>: <span class="str">"This photograph focuses on a detail of a dark-colored vehicle, emphasizing its sleek lines and a badge reading 'Speed'."</span>,
+  <span class="key">"subject"</span>: <span class="str">"car detail, tire"</span>,
+  <span class="key">"story"</span>: <span class="str">"A fleeting glimpse of speed and power, hinting at the thrill of the open road."</span>,
+  <span class="key">"mood"</span>: <span class="str">"powerful, mysterious, sleek"</span>,
+  <span class="key">"composition"</span>: <span class="str">"Shallow depth of field isolates the badge, with the blurred tire as dynamic element."</span>,
+  <span class="key">"lighting"</span>: <span class="str">"Low-key and dramatic, light from above-left creating strong highlights and shadows."</span>,
+  <span class="key">"colors"</span>: <span class="str">"Shades of dark grey and black, with subtle highlights of silver and chrome."</span>,
+  <span class="key">"texture"</span>: <span class="str">"Smooth glossy paint, rubber tire, metallic badge finish."</span>,
+  <span class="key">"technical"</span>: <span class="str">"Well-balanced exposure, sharp focus on badge, intentional motion blur on tire."</span>,
+  <span class="key">"strength"</span>: <span class="str">"Minimalist approach conveying speed and luxury through a single composed detail."</span>,
+  <span class="key">"tags"</span>: [<span class="str">"car"</span>, <span class="str">"speed"</span>, <span class="str">"automotive"</span>, <span class="str">"detail"</span>, <span class="str">"badge"</span>, <span class="str">"tire"</span>, <span class="str">"dark"</span>, <span class="str">"glossy"</span>, <span class="str">"sleek"</span>, <span class="str">"motion"</span>, <span class="str">"luxury"</span>, <span class="str">"sports car"</span>, <span class="str">"night"</span>, <span class="str">"blurred"</span>],
+  <span class="key">"print_worthy"</span>: <span class="bool">true</span>,
+  <span class="key">"crops"</span>: {
+    <span class="key">"1:1"</span>: {<span class="key">"center_x"</span>: <span class="num">50</span>, <span class="key">"center_y"</span>: <span class="num">50</span>, <span class="key">"coverage"</span>: <span class="num">60</span>},
+    <span class="key">"1:2"</span>: {<span class="key">"center_x"</span>: <span class="num">50</span>, <span class="key">"center_y"</span>: <span class="num">50</span>, <span class="key">"coverage"</span>: <span class="num">75</span>},
+    <span class="key">"2:3"</span>: {<span class="key">"center_x"</span>: <span class="num">50</span>, <span class="key">"center_y"</span>: <span class="num">60</span>, <span class="key">"coverage"</span>: <span class="num">70</span>},
+    <span class="key">"3:4"</span>: {<span class="key">"center_x"</span>: <span class="num">50</span>, <span class="key">"center_y"</span>: <span class="num">55</span>, <span class="key">"coverage"</span>: <span class="num">65</span>}
+  },
+  <span class="key">"stories"</span>: {
+    <span class="key">"silly"</span>: <span class="str">"This car is so fast, it left its tire in the dust!"</span>,
+    <span class="key">"poetic"</span>: <span class="str">"A whisper of velocity, etched in metal and shadow."</span>,
+    <span class="key">"surrealist"</span>: <span class="str">"The tire dreamt of flight, detaching from reality as the car vanished."</span>,
+    <span class="key">"noir"</span>: <span class="str">"A shadowy figure and a promise of escape, hidden in the city's underbelly."</span>,
+    <span class="key">"romantic"</span>: <span class="str">"The car and the road, a timeless love affair fueled by speed."</span>
+  },
+  <span class="key">"cartoon_style"</span>: <span class="str">"A stylized vector illustration emphasizing curves and dynamic blur."</span>,
+  <span class="key">"visual_weight"</span>: <span class="num">6</span>,
+  <span class="key">"energy_direction"</span>: <span class="str">"right_to_left"</span>,
+  <span class="key">"archetype"</span>: <span class="str">"geometry"</span>,
+  <span class="key">"color_temp"</span>: <span class="str">"cool"</span>
+}</div>
+            </div>
+        </section>
+
+        <!-- MODELFILE -->
+        <section id="modelfile">
+            <div class="section-header" onclick="toggleSection(this)">
+                <h2>Ollama Modelfile</h2>
+                <span class="badge">madphotos-critic</span>
+                <span class="toggle">&#9660;</span>
+            </div>
+            <div class="section-content">
+                <div class="note">
+                    <strong>File:</strong> <code>backend/Modelfile.madphotos</code><br>
+                    <strong>Base:</strong> gemma3:27b &middot; <strong>Name:</strong> madphotos-critic<br>
+                    <strong>Create:</strong> <code>ollama create madphotos-critic -f backend/Modelfile.madphotos</code>
+                </div>
+
+                <h3>Baked System Prompt</h3>
+<div class="prompt-block">FROM gemma3:27b
+
+SYSTEM """You are an expert photography critic and creative storyteller.
+Analyze photographs in detail and respond with ONLY valid JSON.
+
+Required fields:
+{
+  "description": "2-3 sentence vivid description",
+  "subject": "primary subject(s)",
+  "story": "moment, narrative, or feeling",
+  "composition": "technique, balance, eye flow",
+  "lighting": "quality, direction, character",
+  "colors": "dominant colors described naturally",
+  "texture": "visible textures, materials, surfaces",
+  "mood": "emotional atmosphere in 2-3 words",
+  "technical": "exposure, focus, depth of field, sharpness",
+  "strength": "what makes this strong",
+  "tags": ["up to 15 descriptive tags"],
+  "print_worthy": true or false,
+  "crop_square": {"x":0-100, "y":0-100, "size":0-100, "reason":"..."},
+  "crops": {
+    "1:1": {"center_x":0-100, "center_y":0-100, "coverage":30-90, "reason":"..."},
+    "2:3": {"center_x":0-100, "center_y":0-100, "coverage":30-90, "reason":"..."},
+    "3:2": {"center_x":0-100, "center_y":0-100, "coverage":30-90, "reason":"..."},
+    "16:9":{"center_x":0-100, "center_y":0-100, "coverage":30-90, "reason":"..."}
+  },
+  "stories": {
+    "silly": "fun playful 1-sentence",
+    "poetic": "lyrical 1-sentence",
+    "surrealist": "dreamlike 1-sentence",
+    "noir": "mysterious 1-sentence",
+    "romantic": "tender 1-sentence"
+  },
+  "cartoon_style": "best transformation and why"
+}
+
+Rules:
+- Output ONLY valid JSON, nothing else
+- tags must be lowercase
+- For crops: use center_x, center_y (0-100) and coverage (30-90)
+- For stories: write SHORT punchy 1-sentence narratives
+- print_worthy must be boolean true or false"""
+
+PARAMETER temperature 0.3
+PARAMETER num_predict 1500</div>
+            </div>
+        </section>
+
+        <!-- LEGACY: PICKS -->
+        <section id="legacy-picks">
+            <div class="section-header collapsed" onclick="toggleSection(this)">
+                <h2>Legacy &mdash; gemma_picks</h2>
+                <span class="badge">SUPERSEDED</span>
+                <span class="toggle">&#9660;</span>
+            </div>
+            <div class="section-content hidden">
+                <div class="note">
+                    <strong>Script:</strong> <code>backend/image_signals/legacy/run_gemma_picks.py</code><br>
+                    <strong>Model:</strong> madphotos-critic-4b (gemma3:4b) &middot; <strong>Temp:</strong> 0.3 &middot; <strong>Tokens:</strong> 1,200<br>
+                    <strong>Table:</strong> gemma_picks &middot; <strong>Rows:</strong> 2,702<br>
+                    <strong>Superseded by:</strong> gemma_analysis (27b model, unified prompt, added composition fields)
+                </div>
+
+                <h3>Prompt</h3>
+<div class="prompt-block">You are an expert photography critic and creative storyteller. Analyze this photograph in detail. Respond ONLY with valid JSON, no markdown, no backticks:
+
+{
+  "description": "2-3 sentence vivid description",
+  "subject": "primary subject(s)",
+  "story": "moment, narrative, or feeling",
+  "composition": "technique, balance, eye flow",
+  "lighting": "quality, direction, character",
+  "colors": "dominant colors described naturally",
+  "texture": "visible textures, materials, surfaces",
+  "mood": "emotional atmosphere in 2-3 words",
+  "technical": "exposure, focus, depth of field, sharpness",
+  "strength": "what makes this strong",
+  "tags": ["up to 15 descriptive tags"],
+  "print_worthy": true or false,
+  "crop_square": {"x":0-100, "y":0-100, "size":0-100, "reason":"..."},
+  "crops": {
+    "1:1":  {"center_x":0-100, "center_y":0-100, "coverage":30-90, "reason":"best square crop"},
+    "2:3":  {"center_x":0-100, "center_y":0-100, "coverage":30-90, "reason":"best tall portrait (2:3)"},
+    "3:2":  {"center_x":0-100, "center_y":0-100, "coverage":30-90, "reason":"best wide landscape (3:2)"},
+    "16:9": {"center_x":0-100, "center_y":0-100, "coverage":30-90, "reason":"best cinematic wide (16:9)"}
+  },
+  "stories": {
+    "silly": "fun, childish, playful 1-sentence story",
+    "poetic": "lyrical, beautiful 1-sentence interpretation",
+    "surrealist": "dreamlike, absurd 1-sentence narrative",
+    "noir": "mysterious, dramatic 1-sentence description",
+    "romantic": "tender, emotional 1-sentence interpretation"
+  },
+  "cartoon_style": "what cartoon/illustration transformation would work best
+    (e.g., Studio Ghibli, Pixar, watercolor, comic book, anime) and why"
+}</div>
+
+                <h3>Schema &mdash; gemma_picks</h3>
+                <table>
+                    <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+                    <tr><td><code>uuid</code></td><td>TEXT PK</td><td></td></tr>
+                    <tr><td><code>gemma_json</code></td><td>TEXT</td><td>Full raw JSON response</td></tr>
+                    <tr><td><code>gemma_description</code></td><td>TEXT</td><td></td></tr>
+                    <tr><td><code>gemma_mood</code></td><td>TEXT</td><td></td></tr>
+                    <tr><td><code>gemma_tags</code></td><td>TEXT</td><td>Comma-separated</td></tr>
+                    <tr><td><code>print_worthy</code></td><td>INTEGER</td><td>0 or 1</td></tr>
+                    <tr><td><code>crop_x, crop_y, crop_size</code></td><td>REAL</td><td>Legacy square crop</td></tr>
+                    <tr><td><code>crop_reason</code></td><td>TEXT</td><td></td></tr>
+                    <tr><td><code>crops</code></td><td>TEXT</td><td>JSON multi-ratio crops</td></tr>
+                    <tr><td><code>story_silly..romantic</code></td><td>TEXT</td><td>5 story variants</td></tr>
+                    <tr><td><code>cartoon_style</code></td><td>TEXT</td><td></td></tr>
+                    <tr><td><code>processed_at</code></td><td>TEXT</td><td>ISO-8601</td></tr>
+                </table>
+            </div>
+        </section>
+
+        <!-- LEGACY: COMPOSITION -->
+        <section id="legacy-composition">
+            <div class="section-header collapsed" onclick="toggleSection(this)">
+                <h2>Legacy &mdash; gemma_composition</h2>
+                <span class="badge">SUPERSEDED</span>
+                <span class="toggle">&#9660;</span>
+            </div>
+            <div class="section-content hidden">
+                <div class="note">
+                    <strong>Script:</strong> <code>backend/image_signals/legacy/run_gemma_composition.py</code><br>
+                    <strong>Model:</strong> gemma3:27b (raw, no system prompt) &middot; <strong>Temp:</strong> 0.3 &middot; <strong>Tokens:</strong> 500<br>
+                    <strong>Table:</strong> gemma_composition &middot; <strong>Rows:</strong> 960<br>
+                    <strong>Superseded by:</strong> gemma_analysis (composition fields merged into unified prompt)
+                </div>
+
+                <h3>Prompt</h3>
+<div class="prompt-block">Analyze this photograph for grid layout composition. Respond ONLY with valid JSON, no markdown, no backticks.
+
+{
+  "visual_weight": 1-10,
+  "energy_direction": "left_to_right|right_to_left|up|down|center_out|inward|diagonal_down|diagonal_up|static",
+  "archetype": "portal|horizon|texture|figure|geometry|void|cluster|reflection|silhouette|panorama",
+  "ideal_ratio": "RATIO",
+  "color_temp": "glacial|cool|neutral|warm|molten|electric|neon|muted|monochrome"
+}
+
+RULES:
+- visual_weight: 1=very airy/light/spacious, 10=very heavy/dark/dense/dominant
+- energy_direction: where does the eye travel? dominant flow of lines, gaze, or movement
+- archetype:
+    portal     = looking through something (door, window, arch)
+    horizon    = wide landscape with horizon line
+    texture    = close-up surface or pattern
+    figure     = human form or animal as subject
+    geometry   = architectural lines, built structures
+    void       = negative space dominant, minimal
+    cluster    = group of objects or people
+    reflection = mirror, water reflection, glass
+    silhouette = backlit form against light
+    panorama   = sweeping wide vista
+- ideal_ratio: best crop ratio for this orientation
+    Landscape: "2:1" | "3:2" | "4:3" | "1:1"
+    Portrait:  "1:2" | "2:3" | "3:4" | "1:1"
+- color_temp: one word for overall color feel</div>
+
+                <h3>Schema &mdash; gemma_composition</h3>
+                <table>
+                    <tr><th>Column</th><th>Type</th><th>Values</th></tr>
+                    <tr><td><code>image_uuid</code></td><td>TEXT PK</td><td></td></tr>
+                    <tr><td><code>raw_json</code></td><td>TEXT</td><td></td></tr>
+                    <tr><td><code>visual_weight</code></td><td>INTEGER</td><td>1&ndash;10</td></tr>
+                    <tr><td><code>energy_direction</code></td><td>TEXT</td><td>9 values</td></tr>
+                    <tr><td><code>archetype</code></td><td>TEXT</td><td>10 values</td></tr>
+                    <tr><td><code>ideal_ratio</code></td><td>TEXT</td><td>Orientation-dependent</td></tr>
+                    <tr><td><code>color_temp</code></td><td>TEXT</td><td>9 values</td></tr>
+                    <tr><td><code>orientation</code></td><td>TEXT</td><td>landscape | portrait</td></tr>
+                    <tr><td><code>processed_at</code></td><td>TEXT</td><td>ISO-8601</td></tr>
+                </table>
+            </div>
+        </section>
+
+        <!-- LEGACY: DEEP -->
+        <section id="legacy-deep">
+            <div class="section-header collapsed" onclick="toggleSection(this)">
+                <h2>Legacy &mdash; gemma_deep</h2>
+                <span class="badge">EXPERIMENTAL</span>
+                <span class="toggle">&#9660;</span>
+            </div>
+            <div class="section-content hidden">
+                <div class="note">
+                    <strong>Script:</strong> <code>backend/image_signals/legacy/run_gemma_deep.py</code><br>
+                    <strong>Model:</strong> gemma3:4b &middot; <strong>Temp:</strong> 0.3 &middot; <strong>Tokens:</strong> 1,500<br>
+                    <strong>Table:</strong> gemma_deep &middot; <strong>Rows:</strong> 2,455<br>
+                    <strong>Status:</strong> Experimental. Heaviest prompt &mdash; 32 fields per image for style transfer, material classification, and grid layout roles.
+                </div>
+
+                <h3>Prompt</h3>
+<div class="prompt-block">Analyze this photograph for a visual art application. Respond ONLY with valid JSON, no markdown, no backticks.
+
+{
+  "should_rotate": "none|cw90|ccw90|180",
+  "salient_objects": [
+    {"object":"name", "color":"color name", "hex":"#rrggbb",
+     "position":"center|top|bottom|left|right|top-left|...",
+     "salience":"high|medium"}
+  ],
+  "color_regions": [
+    {"object":"what this area is", "color_name":"simple name",
+     "hex":"#rrggbb", "area":"large|medium|small"}
+  ],
+  "color_harmony": "complementary|analogous|triadic|monochromatic|split-complementary|neutral",
+  "color_mood": "2-4 word color feeling",
+  "color_contrast": "high|medium|low",
+  "dominant_material": "metal|wood|fabric|stone|glass|water|foliage|skin|concrete|mixed",
+  "texture_richness": "smooth|subtle|moderate|rich|extreme",
+  "visual_complexity": 1-5,
+  "focal_strength": "strong|moderate|weak|none",
+  "negative_space": "none|minimal|moderate|generous|dominant",
+  "depth_layers": "flat|shallow|medium|deep",
+  "line_quality": "geometric|organic|diagonal|curved|mixed|minimal",
+  "symmetry": "symmetric|near-symmetric|asymmetric-balanced|asymmetric|radial",
+  "best_crop_subject": "what the ideal tight crop centers on",
+  "grid_role": "hero|supporting|versatile",
+  "edge_colors": {"top":"#hex", "bottom":"#hex", "left":"#hex", "right":"#hex"},
+  "pair_words": ["6-8 abstract words for matching similar photos"],
+  "emotional_intensity": 1-10,
+  "scene_mood": "1-3 word mood essence",
+  "time_feel": "dawn|morning|golden-hour|midday|afternoon|blue-hour|night|overcast|timeless",
+  "season_feel": "spring|summer|autumn|winter|tropical|arid|timeless",
+  "isolation_level": "crowded|populated|sparse|solitary|empty",
+  "best_styles": ["2-3 from: archer, gonzo, ukiyoe, batman, pixar, moebius, sumie, marvel"],
+  "style_reasoning": "1 sentence why",
+  "avoid_styles": ["1-2 styles to avoid"],
+  "avoid_reasoning": "1 sentence why",
+  "transform_ease": "easy|medium|hard",
+  "preserve_elements": ["2-3 key elements that must survive style transfer"],
+  "abstract_essence": "1 sentence: what this IS as pure visual pattern",
+  "reminds_of": "famous artist, film, or visual style (1 phrase)"
+}</div>
+
+                <h3>Schema &mdash; gemma_deep (32 fields)</h3>
+                <div class="schema-grid">
+                    <div class="schema-card">
+                        <div class="schema-card-header">Rotation &amp; Objects</div>
+                        <div class="schema-card-body">
+                            <ul>
+                                <li><span class="attr-name">should_rotate</span><span class="attr-type">enum</span></li>
+                                <li><span class="attr-name">salient_objects</span><span class="attr-type">JSON array</span></li>
+                                <li><span class="attr-name">color_regions</span><span class="attr-type">JSON array</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="schema-card">
+                        <div class="schema-card-header">Color Analysis</div>
+                        <div class="schema-card-body">
+                            <ul>
+                                <li><span class="attr-name">color_harmony</span><span class="attr-type">enum (6)</span></li>
+                                <li><span class="attr-name">color_mood</span><span class="attr-type">text</span></li>
+                                <li><span class="attr-name">color_contrast</span><span class="attr-type">enum (3)</span></li>
+                                <li><span class="attr-name">edge_colors</span><span class="attr-type">JSON</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="schema-card">
+                        <div class="schema-card-header">Spatial</div>
+                        <div class="schema-card-body">
+                            <ul>
+                                <li><span class="attr-name">visual_complexity</span><span class="attr-type">int 1-5</span></li>
+                                <li><span class="attr-name">focal_strength</span><span class="attr-type">enum (4)</span></li>
+                                <li><span class="attr-name">negative_space</span><span class="attr-type">enum (5)</span></li>
+                                <li><span class="attr-name">depth_layers</span><span class="attr-type">enum (4)</span></li>
+                                <li><span class="attr-name">line_quality</span><span class="attr-type">enum (6)</span></li>
+                                <li><span class="attr-name">symmetry</span><span class="attr-type">enum (5)</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="schema-card">
+                        <div class="schema-card-header">Material &amp; Texture</div>
+                        <div class="schema-card-body">
+                            <ul>
+                                <li><span class="attr-name">dominant_material</span><span class="attr-type">enum (10)</span></li>
+                                <li><span class="attr-name">texture_richness</span><span class="attr-type">enum (5)</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="schema-card">
+                        <div class="schema-card-header">Mood &amp; Scene</div>
+                        <div class="schema-card-body">
+                            <ul>
+                                <li><span class="attr-name">emotional_intensity</span><span class="attr-type">int 1-10</span></li>
+                                <li><span class="attr-name">scene_mood</span><span class="attr-type">text</span></li>
+                                <li><span class="attr-name">time_feel</span><span class="attr-type">enum (9)</span></li>
+                                <li><span class="attr-name">season_feel</span><span class="attr-type">enum (7)</span></li>
+                                <li><span class="attr-name">isolation_level</span><span class="attr-type">enum (5)</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="schema-card">
+                        <div class="schema-card-header">Style Transfer</div>
+                        <div class="schema-card-body">
+                            <ul>
+                                <li><span class="attr-name">best_styles</span><span class="attr-type">JSON array</span></li>
+                                <li><span class="attr-name">style_reasoning</span><span class="attr-type">text</span></li>
+                                <li><span class="attr-name">avoid_styles</span><span class="attr-type">JSON array</span></li>
+                                <li><span class="attr-name">avoid_reasoning</span><span class="attr-type">text</span></li>
+                                <li><span class="attr-name">transform_ease</span><span class="attr-type">enum (3)</span></li>
+                                <li><span class="attr-name">preserve_elements</span><span class="attr-type">JSON array</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="schema-card">
+                        <div class="schema-card-header">Grid &amp; Pairing</div>
+                        <div class="schema-card-body">
+                            <ul>
+                                <li><span class="attr-name">grid_role</span><span class="attr-type">enum (3)</span></li>
+                                <li><span class="attr-name">best_crop_subject</span><span class="attr-type">text</span></li>
+                                <li><span class="attr-name">pair_words</span><span class="attr-type">JSON array</span></li>
+                                <li><span class="attr-name">abstract_essence</span><span class="attr-type">text</span></li>
+                                <li><span class="attr-name">reminds_of</span><span class="attr-type">text</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ALL METADATA -->
+        <section id="metadata">
+            <div class="section-header" onclick="toggleSection(this)">
+                <h2>All Gemma Metadata</h2>
+                <span class="badge">4 TABLES</span>
+                <span class="toggle">&#9660;</span>
+            </div>
+            <div class="section-content">
+                <h3>Complete Field Inventory</h3>
+                <table>
+                    <tr>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Table</th>
+                        <th>Description</th>
+                    </tr>
+                    <tr><td><code>description</code></td><td>text</td><td>analysis, picks</td><td>2-3 sentence vivid description of the photograph</td></tr>
+                    <tr><td><code>subject</code></td><td>text</td><td>analysis</td><td>Primary subject(s) in short form</td></tr>
+                    <tr><td><code>story</code></td><td>text</td><td>analysis</td><td>Narrative or feeling captured</td></tr>
+                    <tr><td><code>mood</code></td><td>text</td><td>analysis, picks</td><td>Emotional atmosphere, 2-3 comma-separated words</td></tr>
+                    <tr><td><code>composition</code></td><td>text</td><td>analysis</td><td>Frame arrangement, technique, balance</td></tr>
+                    <tr><td><code>lighting</code></td><td>text</td><td>analysis</td><td>Quality, direction, character of light</td></tr>
+                    <tr><td><code>colors</code></td><td>text</td><td>analysis</td><td>Dominant colors and relationships</td></tr>
+                    <tr><td><code>texture</code></td><td>text</td><td>analysis</td><td>Visible textures, materials, surfaces</td></tr>
+                    <tr><td><code>technical</code></td><td>text</td><td>analysis</td><td>Exposure, focus, depth of field assessment</td></tr>
+                    <tr><td><code>strength</code></td><td>text</td><td>analysis</td><td>What makes this photograph strong</td></tr>
+                    <tr><td><code>tags</code></td><td>text</td><td>analysis, picks</td><td>Up to 15 comma-separated descriptive tags</td></tr>
+                    <tr><td><code>print_worthy</code></td><td>int</td><td>analysis, picks</td><td>Boolean 0/1</td></tr>
+                    <tr><td><code>cartoon_style</code></td><td>text</td><td>analysis, picks</td><td>Best cartoon/illustration transformation</td></tr>
+                    <tr><td><code>crops</code></td><td>JSON</td><td>analysis, picks</td><td>Multi-ratio crop coordinates</td></tr>
+                    <tr><td><code>story_silly</code></td><td>text</td><td>analysis, picks</td><td>Playful 1-sentence story</td></tr>
+                    <tr><td><code>story_poetic</code></td><td>text</td><td>analysis, picks</td><td>Lyrical 1-sentence interpretation</td></tr>
+                    <tr><td><code>story_surrealist</code></td><td>text</td><td>analysis, picks</td><td>Dreamlike 1-sentence narrative</td></tr>
+                    <tr><td><code>story_noir</code></td><td>text</td><td>analysis, picks</td><td>Noir 1-sentence description</td></tr>
+                    <tr><td><code>story_romantic</code></td><td>text</td><td>analysis, picks</td><td>Romantic 1-sentence interpretation</td></tr>
+                    <tr><td><code>visual_weight</code></td><td>int</td><td>analysis, composition</td><td>1 (airy) to 10 (dense)</td></tr>
+                    <tr><td><code>energy_direction</code></td><td>enum</td><td>analysis, composition</td><td>Dominant visual flow direction</td></tr>
+                    <tr><td><code>archetype</code></td><td>enum</td><td>analysis, composition</td><td>Compositional category (10 values)</td></tr>
+                    <tr><td><code>color_temp</code></td><td>enum</td><td>analysis, composition</td><td>Overall temperature feeling (9 values)</td></tr>
+                    <tr><td><code>ideal_ratio</code></td><td>text</td><td>composition</td><td>Best crop ratio for orientation</td></tr>
+                    <tr><td><code>should_rotate</code></td><td>enum</td><td>deep</td><td>Rotation correction needed</td></tr>
+                    <tr><td><code>salient_objects</code></td><td>JSON</td><td>deep</td><td>Eye-grabbing objects with color + position</td></tr>
+                    <tr><td><code>color_regions</code></td><td>JSON</td><td>deep</td><td>All distinct colored areas with hex</td></tr>
+                    <tr><td><code>color_harmony</code></td><td>enum</td><td>deep</td><td>Color theory classification</td></tr>
+                    <tr><td><code>color_mood</code></td><td>text</td><td>deep</td><td>2-4 word color feeling</td></tr>
+                    <tr><td><code>color_contrast</code></td><td>enum</td><td>deep</td><td>Overall tonal contrast level</td></tr>
+                    <tr><td><code>dominant_material</code></td><td>enum</td><td>deep</td><td>Primary material in scene</td></tr>
+                    <tr><td><code>texture_richness</code></td><td>enum</td><td>deep</td><td>Surface detail level</td></tr>
+                    <tr><td><code>visual_complexity</code></td><td>int</td><td>deep</td><td>1 (minimal) to 5 (busy)</td></tr>
+                    <tr><td><code>focal_strength</code></td><td>enum</td><td>deep</td><td>How strong the focal point is</td></tr>
+                    <tr><td><code>negative_space</code></td><td>enum</td><td>deep</td><td>Amount of empty space</td></tr>
+                    <tr><td><code>depth_layers</code></td><td>enum</td><td>deep</td><td>Number of depth planes visible</td></tr>
+                    <tr><td><code>line_quality</code></td><td>enum</td><td>deep</td><td>Dominant line character</td></tr>
+                    <tr><td><code>symmetry</code></td><td>enum</td><td>deep</td><td>Symmetry classification</td></tr>
+                    <tr><td><code>grid_role</code></td><td>enum</td><td>deep</td><td>hero, supporting, or versatile</td></tr>
+                    <tr><td><code>edge_colors</code></td><td>JSON</td><td>deep</td><td>Hex colors at 4 edges</td></tr>
+                    <tr><td><code>pair_words</code></td><td>JSON</td><td>deep</td><td>Abstract matching words</td></tr>
+                    <tr><td><code>emotional_intensity</code></td><td>int</td><td>deep</td><td>1-10 emotional impact</td></tr>
+                    <tr><td><code>scene_mood</code></td><td>text</td><td>deep</td><td>1-3 word mood essence</td></tr>
+                    <tr><td><code>time_feel</code></td><td>enum</td><td>deep</td><td>Time of day feeling</td></tr>
+                    <tr><td><code>season_feel</code></td><td>enum</td><td>deep</td><td>Season feeling</td></tr>
+                    <tr><td><code>isolation_level</code></td><td>enum</td><td>deep</td><td>How populated the scene feels</td></tr>
+                    <tr><td><code>best_styles</code></td><td>JSON</td><td>deep</td><td>Recommended art styles for transfer</td></tr>
+                    <tr><td><code>avoid_styles</code></td><td>JSON</td><td>deep</td><td>Styles to avoid</td></tr>
+                    <tr><td><code>transform_ease</code></td><td>enum</td><td>deep</td><td>How easy to style-transfer</td></tr>
+                    <tr><td><code>preserve_elements</code></td><td>JSON</td><td>deep</td><td>Elements that must survive transfer</td></tr>
+                    <tr><td><code>abstract_essence</code></td><td>text</td><td>deep</td><td>Pure visual pattern description</td></tr>
+                    <tr><td><code>reminds_of</code></td><td>text</td><td>deep</td><td>Famous artist/film/style evoked</td></tr>
+                </table>
+
+                <h3>Enum Value Reference</h3>
+                <table>
+                    <tr><th>Field</th><th>Allowed Values</th></tr>
+                    <tr><td><code>archetype</code></td><td>portal, horizon, texture, figure, geometry, void, cluster, reflection, silhouette, panorama</td></tr>
+                    <tr><td><code>energy_direction</code></td><td>left_to_right, right_to_left, up, down, center_out, inward, diagonal_down, diagonal_up, static</td></tr>
+                    <tr><td><code>color_temp</code></td><td>glacial, cool, neutral, warm, molten, electric, neon, muted, monochrome</td></tr>
+                    <tr><td><code>color_harmony</code></td><td>complementary, analogous, triadic, monochromatic, split-complementary, neutral</td></tr>
+                    <tr><td><code>dominant_material</code></td><td>metal, wood, fabric, stone, glass, water, foliage, skin, concrete, mixed</td></tr>
+                    <tr><td><code>time_feel</code></td><td>dawn, morning, golden-hour, midday, afternoon, blue-hour, night, overcast, timeless</td></tr>
+                    <tr><td><code>season_feel</code></td><td>spring, summer, autumn, winter, tropical, arid, timeless</td></tr>
+                    <tr><td><code>best_styles</code></td><td>archer, gonzo, ukiyoe, batman, pixar, moebius, sumie, marvel</td></tr>
+                </table>
+            </div>
+        </section>
+
+    </div>
+
+    <footer>
+        <p>MADphotos &middot; Gemma Signal Inspector &middot; Updated 2026-02-20</p>
+    </footer>
+
+    <script>
+        function toggleSection(header) {
+            header.classList.toggle('collapsed');
+            header.nextElementSibling.classList.toggle('hidden');
+        }
+    </script>
+</body>
+</html>

@@ -2,7 +2,7 @@
 """
 extract_variant_colors.py — Extract dominant colors from style_transfer variants.
 
-Scans generated_test/ directories for Imagen style-transfer outputs,
+Scans suggest_image_variant/output/ directories for Imagen style-transfer outputs,
 matches them to ai_variants DB rows via deterministic variant_id,
 and runs K-means LAB clustering (same algorithm as signals.py).
 
@@ -29,7 +29,7 @@ import numpy as np
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DB_PATH = PROJECT_ROOT / "images" / "mad_photos.db"
-GENERATED_DIR = Path(__file__).resolve().parent / "generated_test"
+GENERATED_DIR = Path(__file__).resolve().parent / "suggest_image_variant" / "output"
 
 UUID_NAMESPACE = uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
 
@@ -74,7 +74,7 @@ def smart_variant_id_for(image_uuid: str, style_key: str) -> str:
 
 
 def scan_variant_files() -> Dict[str, Path]:
-    """Scan generated_test/ to build variant_id → file_path mapping.
+    """Scan suggest_image_variant/output/ to build variant_id → file_path mapping.
 
     Uses the latest run_dir for each variant (sorted by timestamp dirname).
     """
@@ -202,7 +202,7 @@ def main() -> None:
         )
 
     # Scan filesystem for variant files
-    print("[Colors] Scanning generated_test/ for variant files...")
+    print("[Colors] Scanning suggest_image_variant/output/ for variant files...")
     file_map = scan_variant_files()
     print(f"[Colors] Found {len(file_map)} variant files on disk")
 

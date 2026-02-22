@@ -421,15 +421,15 @@ def load_borders(conn: Any) -> Dict[str, Dict]:
 
 def load_gemma_analysis(conn: Any) -> Dict[str, Dict]:
     """All Gemma signals from unified gemma_analysis table."""
-    try:
-        rows = conn.execute("""
-            SELECT uuid, raw_json, mood, print_worthy, crops,
-                   visual_weight, energy_direction, archetype, color_temp
-            FROM gemma_analysis
-        """).fetchall()
-    except sqlite3.OperationalError:
-        # Fallback: read from legacy tables if gemma_analysis doesn't exist yet
-        return _load_gemma_legacy(conn)
+    rows = conn.execute("""
+        SELECT uuid, raw_json, mood, print_worthy, crops,
+               visual_weight, energy_direction, archetype, color_temp,
+               tags, cartoon_style,
+               story_silly, story_poetic, story_surrealist, story_noir, story_romantic,
+               vibes, semantic_pops, exposure_label, sharpness_label,
+               description, subject, story
+        FROM gemma_analysis
+    """).fetchall()
 
     result = {}
     for r in rows:
@@ -453,68 +453,33 @@ def load_gemma_analysis(conn: Any) -> Dict[str, Dict]:
         parsed["archetype"] = r["archetype"] or ""
         parsed["temp"] = r["color_temp"] or ""
 
+        # New Gemma-unique signals
+        parsed["tags"] = r["tags"] or ""
+        parsed["cartoon_style"] = r["cartoon_style"] or ""
+        parsed["stories"] = {
+            "silly": r["story_silly"] or "",
+            "poetic": r["story_poetic"] or "",
+            "surrealist": r["story_surrealist"] or "",
+            "noir": r["story_noir"] or "",
+            "romantic": r["story_romantic"] or "",
+        }
+        try:
+            parsed["vibes"] = json.loads(r["vibes"]) if r["vibes"] else []
+        except (json.JSONDecodeError, TypeError):
+            parsed["vibes"] = []
+        try:
+            parsed["semantic_pops"] = json.loads(r["semantic_pops"]) if r["semantic_pops"] else []
+        except (json.JSONDecodeError, TypeError):
+            parsed["semantic_pops"] = []
+        parsed["exposure_label"] = r["exposure_label"] or ""
+        parsed["sharpness_label"] = r["sharpness_label"] or ""
+        parsed["description"] = r["description"] or ""
+        parsed["subject"] = r["subject"] or ""
+        parsed["story"] = r["story"] or ""
+
         result[r["uuid"]] = parsed
     return result
 
-
-def _load_gemma_legacy(conn: Any) -> Dict[str, Dict]:
-    """Fallback: read from legacy gemma_picks + gemma_composition tables."""
-    result = {}  # type: Dict[str, Dict]
-
-    # Load gemma_picks
-    try:
-        rows = conn.execute("""
-            SELECT uuid, gemma_json, gemma_mood, print_worthy, crops FROM gemma_picks
-        """).fetchall()
-        for r in rows:
-            try:
-                parsed = json.loads(r["gemma_json"])
-            except (json.JSONDecodeError, TypeError):
-                parsed = {}
-            parsed["mood_summary"] = r["gemma_mood"] or ""
-            parsed["print_worthy"] = bool(r["print_worthy"]) if r["print_worthy"] is not None else None
-            if r["crops"]:
-                try:
-                    parsed["crops"] = json.loads(r["crops"])
-                except (json.JSONDecodeError, TypeError):
-                    parsed["crops"] = None
-            else:
-                parsed["crops"] = None
-            parsed["weight"] = None
-            parsed["energy"] = ""
-            parsed["archetype"] = ""
-            parsed["temp"] = ""
-            result[r["uuid"]] = parsed
-    except Exception:
-        pass
-
-    # Overlay gemma_composition
-    try:
-        rows = conn.execute("""
-            SELECT image_uuid, visual_weight, energy_direction, archetype, color_temp
-            FROM gemma_composition
-        """).fetchall()
-        for r in rows:
-            uid = r["image_uuid"]
-            if uid in result:
-                result[uid]["weight"] = r["visual_weight"]
-                result[uid]["energy"] = r["energy_direction"] or ""
-                result[uid]["archetype"] = r["archetype"] or ""
-                result[uid]["temp"] = r["color_temp"] or ""
-            else:
-                result[uid] = {
-                    "weight": r["visual_weight"],
-                    "energy": r["energy_direction"] or "",
-                    "archetype": r["archetype"] or "",
-                    "temp": r["color_temp"] or "",
-                    "mood_summary": "",
-                    "print_worthy": None,
-                    "crops": None,
-                }
-    except Exception:
-        pass
-
-    return result
 
 
 def load_best_captions(conn: Any) -> Dict[str, Dict[str, str]]:
@@ -875,6 +840,16 @@ def build_photos(
             "gc_energy": gemma_analysis_lk.get(uuid, {}).get("energy") if uuid in gemma_analysis_lk else None,
             "gc_archetype": gemma_analysis_lk.get(uuid, {}).get("archetype") if uuid in gemma_analysis_lk else None,
             "gc_temp": gemma_analysis_lk.get(uuid, {}).get("temp") if uuid in gemma_analysis_lk else None,
+            # Gemma creative signals
+            "gemma_description": gemma_analysis_lk.get(uuid, {}).get("description") if uuid in gemma_analysis_lk else None,
+            "gemma_subject": gemma_analysis_lk.get(uuid, {}).get("subject") if uuid in gemma_analysis_lk else None,
+            "gemma_story": gemma_analysis_lk.get(uuid, {}).get("story") if uuid in gemma_analysis_lk else None,
+            "gemma_vibes": gemma_analysis_lk.get(uuid, {}).get("vibes") if uuid in gemma_analysis_lk else None,
+            "gemma_pops": gemma_analysis_lk.get(uuid, {}).get("semantic_pops") if uuid in gemma_analysis_lk else None,
+            "gemma_stories": gemma_analysis_lk.get(uuid, {}).get("stories") if uuid in gemma_analysis_lk else None,
+            "gemma_tags": gemma_analysis_lk.get(uuid, {}).get("tags") if uuid in gemma_analysis_lk else None,
+            "gemma_exposure": gemma_analysis_lk.get(uuid, {}).get("exposure_label") if uuid in gemma_analysis_lk else None,
+            "gemma_sharpness": gemma_analysis_lk.get(uuid, {}).get("sharpness_label") if uuid in gemma_analysis_lk else None,
         }
         photos.append(photo)
 
@@ -1367,7 +1342,7 @@ def generate_picks_enriched(
 # ── Variant Photos (style transfers → Colors view) ─────────────────────────
 
 UUID_NAMESPACE = uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
-GENERATED_DIR = PROJECT_ROOT / "backend" / "generated_test"
+GENERATED_DIR = PROJECT_ROOT / "backend" / "suggest_image_variant" / "output"
 AI_VARIANTS_DIR = PROJECT_ROOT / "images" / "ai_variants"
 
 
@@ -1440,7 +1415,7 @@ def sync_variants_to_gcs() -> int:
 
 
 def _scan_variant_files() -> Dict[str, Tuple[str, Path]]:
-    """Scan generated_test/ to build variant_id → (relative_url, file_path).
+    """Scan suggest_image_variant/output/ to build variant_id → (relative_url, file_path).
 
     Returns the latest run_dir's file for each variant.
     Also scans ai_variants/ for cartoon/gemma_cartoon files.
@@ -1657,6 +1632,16 @@ def build_variant_photos(
             "gc_energy": parent.get("gc_energy"),
             "gc_archetype": parent.get("gc_archetype"),
             "gc_temp": parent.get("gc_temp"),
+            # Gemma creative signals (inherited from parent)
+            "gemma_description": parent.get("gemma_description"),
+            "gemma_subject": parent.get("gemma_subject"),
+            "gemma_story": parent.get("gemma_story"),
+            "gemma_vibes": parent.get("gemma_vibes"),
+            "gemma_pops": parent.get("gemma_pops"),
+            "gemma_stories": parent.get("gemma_stories"),
+            "gemma_tags": parent.get("gemma_tags"),
+            "gemma_exposure": parent.get("gemma_exposure"),
+            "gemma_sharpness": parent.get("gemma_sharpness"),
         }
 
         variant_photos.append(photo)
