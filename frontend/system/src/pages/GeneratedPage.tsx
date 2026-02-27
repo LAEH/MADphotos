@@ -69,6 +69,22 @@ export function GeneratedPage() {
       .catch(e => { setError(e.message); setLoading(false) })
   }, [])
 
+  // On mount: detect if generate/export is already running (survives refresh)
+  useEffect(() => {
+    fetch('/api/generated/progress')
+      .then(r => r.json())
+      .then((p: { completed: number; expected: number; done: boolean }) => {
+        if (!p.done) {
+          setGenerating(true)
+          setBatchProgress({ completed: p.completed, expected: p.expected })
+          stopProgressPoll()
+          progressTimer.current = setInterval(pollProgress, 3000)
+        }
+      })
+      .catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // Auto-poll only when NOT generating a batch
   useEffect(() => {
     fetchData()
@@ -145,12 +161,18 @@ export function GeneratedPage() {
     try {
       const r = await fetch('/api/generated/export', { method: 'POST' })
       if (r.ok) {
-        showToast('Export launched in Terminal')
+        const d = await r.json()
+        showToast(`Exporting ${d.count} variants in Terminal...`)
         setExportedIds(new Set(Object.keys(reviews)))
-      } else showToast('No accepted variants')
-    } catch { showToast('Failed to launch') }
-    setTimeout(() => setExporting(false), 5000)
-  }, [showToast])
+      } else {
+        showToast('No accepted variants')
+        setExporting(false)
+      }
+    } catch {
+      showToast('Failed to launch')
+      setExporting(false)
+    }
+  }, [showToast, reviews])
 
   const getReview = useCallback((pair: StylePair) => {
     return reviews[pair.variant_id] ?? pair.review
@@ -262,21 +284,25 @@ export function GeneratedPage() {
             ))}
           </span>
         )}
-        <button className="filter-btn" onClick={handleGenerate} disabled={generating}
-          style={{ opacity: generating ? 0.35 : 1 }}>
+        <button className="filter-btn" onClick={handleGenerate} disabled={generating || exporting}
+          style={{
+            borderColor: generating ? '#FF9F0A' : undefined,
+            color: generating ? '#FF9F0A' : undefined,
+            opacity: generating || exporting ? 0.8 : 1,
+          }}>
           {generating && batchProgress
-            ? `${batchProgress.completed}/${batchProgress.expected}`
+            ? `⏳ ${batchProgress.completed}/${batchProgress.expected}`
             : `Generate ${generateCount}`}
         </button>
 
         <button className="filter-btn" onClick={handleExport}
-          disabled={exporting || !exportReady || generating}
+          disabled={exporting || (!exportReady && !exporting) || generating}
           style={{
-            borderColor: exportReady && !generating ? '#30D158' : undefined,
-            color: exportReady && !generating ? '#30D158' : undefined,
-            opacity: exportReady && !generating ? 1 : 0.3,
+            borderColor: exporting ? '#FF9F0A' : exportReady && !generating ? '#30D158' : undefined,
+            color: exporting ? '#FF9F0A' : exportReady && !generating ? '#30D158' : undefined,
+            opacity: exportReady || exporting ? 1 : 0.3,
           }}>
-          {exporting ? 'Launching...' : `Export ${newAccepts}`}
+          {exporting ? '⏳ Exporting...' : `Export ${newAccepts}`}
         </button>
       </div>
 
@@ -288,7 +314,7 @@ export function GeneratedPage() {
         transition: 'opacity 0.12s',
         background: '#0a0a0a',
       }}>
-        {generating && batchProgress ? (
+        {(generating && batchProgress) || exporting ? (
           <div style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center',
             justifyContent: 'center', gap: '20px', paddingTop: '20vh',
@@ -296,12 +322,16 @@ export function GeneratedPage() {
             <div style={{
               width: '32px', height: '32px',
               border: '2.5px solid #333',
-              borderTopColor: '#30D158',
+              borderTopColor: exporting ? '#FF9F0A' : '#30D158',
               borderRadius: '50%',
               animation: 'spin 0.8s linear infinite',
             }} />
             <span style={{ color: '#888', fontSize: '13px', fontVariantNumeric: 'tabular-nums' }}>
-              {batchProgress.completed}/{batchProgress.expected}
+              {exporting
+                ? 'Exporting variants in Terminal...'
+                : batchProgress && batchProgress.completed > 0
+                  ? `Generating ${batchProgress.completed}/${batchProgress.expected}`
+                  : 'Starting generation...'}
             </span>
             <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
           </div>

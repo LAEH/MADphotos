@@ -1,4 +1,5 @@
 import type { Photo, BorderCrop } from '../types/photo'
+import { smartObjectPosition } from './cropUtils'
 import type { NavigatorExtended } from './performanceTier'
 
 type ImageTier = 'thumb' | 'mobile' | 'display'
@@ -145,8 +146,15 @@ export function loadProgressive(
     img.parentElement.style.backgroundColor = photo.palette[0] + '55'
   }
 
-  if (photo.focus) {
-    img.style.objectPosition = photo.focus[0] + '% ' + photo.focus[1] + '%'
+  {
+    const parent = img.parentElement
+    const pw = parent?.clientWidth
+    const ph = parent?.clientHeight
+    if (pw && ph) {
+      img.style.objectPosition = smartObjectPosition(photo, pw / ph)
+    } else if (photo.focus) {
+      img.style.objectPosition = photo.focus[0] + '% ' + photo.focus[1] + '%'
+    }
   }
 
   if (photo.border_crop) {

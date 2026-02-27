@@ -41,6 +41,19 @@ function consensusHas(photo: Photo, ...tags: string[]): boolean {
   return (photo.consensus || []).some(c => tags.includes(c))
 }
 
+function archetypeIs(photo: Photo, ...archetypes: string[]): boolean {
+  return !!photo.gc_archetype && archetypes.includes(photo.gc_archetype)
+}
+
+function energyIs(photo: Photo, ...energies: string[]): boolean {
+  return !!photo.gc_energy && energies.includes(photo.gc_energy)
+}
+
+function gemmaVibeHas(photo: Photo, ...vibes: string[]): boolean {
+  if (!photo.gemma_vibes) return false
+  return photo.gemma_vibes.some(v => vibes.some(t => v.toLowerCase().includes(t)))
+}
+
 /* ===== Set definitions ===== */
 
 interface BoomDef {
@@ -110,6 +123,37 @@ const BOOM_DEFS: BoomDef[] = [
   { emoji: '\uD83E\uDE9E', label: 'Reflets',     pool: p => consensusHas(p, 'reflection') },
   { emoji: '\uD83D\uDC64', label: 'Silhouettes', pool: p => consensusHas(p, 'silhouette') },
   { emoji: '\uD83C\uDFA8', label: 'Mural',       pool: p => consensusHas(p, 'mural', 'graffiti') },
+
+  /* Gemma composition archetypes */
+  { emoji: '\uD83D\uDEAA', label: 'Portails',    pool: p => archetypeIs(p, 'portal') },
+  { emoji: '\uD83C\uDF04', label: 'Horizons',    pool: p => archetypeIs(p, 'horizon', 'panorama') },
+  { emoji: '\uD83E\uDDF1', label: 'Textures',    pool: p => archetypeIs(p, 'texture') },
+  { emoji: '\uD83D\uDC64', label: 'Figures',     pool: p => archetypeIs(p, 'figure', 'silhouette') },
+  { emoji: '\u25B3',       label: 'G\u00E9om\u00E9trie', pool: p => archetypeIs(p, 'geometry') },
+  { emoji: '\u26AB',       label: 'Vide',        pool: p => archetypeIs(p, 'void') },
+  { emoji: '\uD83C\uDF1F', label: 'Clusters',    pool: p => archetypeIs(p, 'cluster') },
+
+  /* Gemma energy directions */
+  { emoji: '\u2197\uFE0F', label: 'Diagonale',   pool: p => energyIs(p, 'diagonal_down', 'diagonal_up') },
+  { emoji: '\u27A1\uFE0F', label: 'Flux',        pool: p => energyIs(p, 'left_to_right', 'right_to_left') },
+  { emoji: '\uD83C\uDF00', label: 'Rayonnant',   pool: p => energyIs(p, 'center_out', 'inward') },
+  { emoji: '\u23F8\uFE0F', label: 'Statique',    pool: p => energyIs(p, 'static') },
+
+  /* Gemma vibes (richer vocabulary) */
+  { emoji: '\uD83C\uDF0C', label: 'Myst\u00E9rieux',  pool: p => gemmaVibeHas(p, 'mysterious', 'enigmatic', 'cryptic') },
+  { emoji: '\uD83C\uDF42', label: 'M\u00E9lancolie',   pool: p => gemmaVibeHas(p, 'melanchol', 'wistful', 'bittersweet') },
+  { emoji: '\u2728',       label: 'Cin\u00E9matique',  pool: p => gemmaVibeHas(p, 'cinematic', 'filmic', 'dramatic') },
+  { emoji: '\uD83C\uDF3E', label: 'Bucolique',   pool: p => gemmaVibeHas(p, 'pastoral', 'rustic', 'bucolic', 'rural') },
+  { emoji: '\uD83C\uDFD9\uFE0F', label: 'Urbain',      pool: p => gemmaVibeHas(p, 'urban', 'gritty', 'industrial', 'concrete') },
+  { emoji: '\uD83D\uDDBC\uFE0F', label: 'Imprim\u00E9',      pool: p => p.print_worthy === true },
+
+  /* Gemma temperature */
+  { emoji: '\uD83E\uDDCA', label: 'Glacial',     pool: p => p.gc_temp === 'glacial' || p.gc_temp === 'cool' },
+  { emoji: '\uD83C\uDF0B', label: 'Brul\u00E2nt',      pool: p => p.gc_temp === 'molten' || p.gc_temp === 'warm' },
+  { emoji: '\uD83D\uDCA0', label: 'N\u00E9on',         pool: p => p.gc_temp === 'neon' || p.gc_temp === 'electric' },
+
+  /* AI variant set */
+  { emoji: '\uD83C\uDFA8', label: 'Art IA',      pool: p => !!p.variant_type },
 ]
 
 const BOOM_MIN = 25

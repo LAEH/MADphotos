@@ -34,5 +34,16 @@ service cloud.firestore {
                     && request.resource.data.vote in ['accept', 'reject'];
       allow read, update, delete: if false;
     }
+
+    match /bento-loves/{doc} {
+      allow create: if request.resource.data.keys().hasAll(['layoutId', 'cols', 'rows', 'cells', 'photos', 'ts'])
+                    && request.resource.data.layoutId is string
+                    && request.resource.data.cols is number
+                    && request.resource.data.rows is number
+                    && request.resource.data.cells is list
+                    && request.resource.data.photos is list;
+      allow read: if true;
+      allow update, delete: if false;
+    }
   }
 }

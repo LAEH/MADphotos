@@ -1,4 +1,5 @@
 import type { Photo } from '../../types/photo'
+import { smartObjectPosition } from '../../lib/cropUtils'
 
 interface IsitMinimapProps {
   photos: Photo[]
@@ -26,9 +27,7 @@ export function IsitMinimap({ photos, index, votes, onGoBack, animating }: IsitM
 
     const photo = photos[i]
     const src = photo.thumb || photo.mobile || ''
-    const focus = photo.focus
-      ? { objectPosition: `${photo.focus[0]}% ${photo.focus[1]}%` }
-      : undefined
+    const focus = { objectPosition: smartObjectPosition(photo, 1) }
 
     let slotClass = 'isit-mini-slot'
     let tintClass = 'isit-mini-tint'

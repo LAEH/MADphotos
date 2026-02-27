@@ -191,7 +191,16 @@ export function IsitView() {
     const img = document.createElement('img')
     img.alt = photo.alt || photo.caption || ''
     img.draggable = false
-    if (photo.focus) img.style.objectPosition = `${photo.focus[0]}% ${photo.focus[1]}%`
+    // Smart positioning: Gemma crops → saliency → focus → center
+    const cropKey = photo.orientation === 'portrait' ? '2:3' : '3:2'
+    const gemmaCrop = photo.gemma_crops?.[cropKey]
+    if (gemmaCrop) {
+      img.style.objectPosition = `${gemmaCrop.center_x}% ${gemmaCrop.center_y}%`
+    } else if (photo.focus) {
+      img.style.objectPosition = `${photo.focus[0]}% ${photo.focus[1]}%`
+    } else if (photo.saliency) {
+      img.style.objectPosition = `${Math.round(photo.saliency.px * 100)}% ${Math.round(photo.saliency.py * 100)}%`
+    }
 
     const cached = cacheRef.current[photo.id]
     if (cached && cached.decoded) {

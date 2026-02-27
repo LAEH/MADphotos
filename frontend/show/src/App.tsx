@@ -11,6 +11,7 @@ const GameView = lazy(() => import('./views/GameView').then(m => ({ default: m.G
 const IsitView = lazy(() => import('./views/IsitView').then(m => ({ default: m.IsitView })))
 const ScrollView = lazy(() => import('./views/ScrollView').then(m => ({ default: m.ScrollView })))
 const AllView = lazy(() => import('./views/AllView').then(m => ({ default: m.AllView })))
+const LovedView = lazy(() => import('./views/LovedView').then(m => ({ default: m.LovedView })))
 
 /* Derive valid routes from the single source of truth */
 const VALID_ROUTES = new Set(EXPERIENCES.map(e => e.route))
@@ -80,6 +81,7 @@ export function App() {
             <Route path="/isit" element={<IsitView />} />
             <Route path="/scroll" element={<ScrollView />} />
             <Route path="/all" element={<AllView />} />
+            <Route path="/loved" element={<LovedView />} />
             <Route path="*" element={<Navigate to="/isit" replace />} />
           </Routes>
         </Suspense>

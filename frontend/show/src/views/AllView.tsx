@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '../store/appStore'
 import { loadProgressive } from '../lib/imageLoading'
+import { smartObjectPosition } from '../lib/cropUtils'
 import { useViewCleanup } from '../hooks/useViewCleanup'
 import type { Photo } from '../types/photo'
 import './AllView.css'
@@ -276,7 +277,7 @@ const AllTile = memo(function AllTile({
       }}
       onClick={() => onClick(idx)}
     >
-      <img ref={imgRef} className="all-tile-img" decoding="async" alt="" />
+      <img ref={imgRef} className="all-tile-img" decoding="async" alt="" style={{ objectPosition: smartObjectPosition(photo, w / h) }} />
     </div>
   )
 })

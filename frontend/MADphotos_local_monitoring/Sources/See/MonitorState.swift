@@ -24,6 +24,24 @@ struct OllamaModel: Identifiable {
     let sizeGB: Double
 }
 
+struct DBStats {
+    let images: Int
+    let gemma: Int
+    let gemini: Int
+    let variantSuccess: Int
+    let variantAccepted: Int
+    let variantRejected: Int
+    let variantPending: Int
+    let quality: Int
+    let aestheticV2: Int
+    let florence: Int
+    let tags: Int
+    let enhancement: Int
+    let faces: Int
+    let objects: Int
+    let picks: Int
+}
+
 enum OllamaStatus { case up, idle, down }
 
 enum MonitorColor {
@@ -114,11 +132,27 @@ final class DBReader: @unchecked Sendable {
         return (subject, mood)
     }
 
-    func dbStats() -> (images: Int, gemma: Int, gemini: Int, variants: Int) {
-        (queryInt("SELECT COUNT(*) FROM images"),
-         queryInt("SELECT COUNT(*) FROM gemma_analysis"),
-         queryInt("SELECT COUNT(*) FROM gemini_analysis"),
-         queryInt("SELECT COUNT(*) FROM ai_variants WHERE generation_status='success'"))
+    func dbStats() -> DBStats {
+        let variantAccepted = queryInt("SELECT COUNT(*) FROM ai_variants WHERE variant_type='smart_style' AND review_status='accepted'")
+        let variantRejected = queryInt("SELECT COUNT(*) FROM ai_variants WHERE variant_type='smart_style' AND review_status='rejected'")
+        let variantSuccess = queryInt("SELECT COUNT(*) FROM ai_variants WHERE variant_type='smart_style' AND generation_status='success'")
+        return DBStats(
+            images: queryInt("SELECT COUNT(*) FROM images"),
+            gemma: queryInt("SELECT COUNT(*) FROM gemma_analysis"),
+            gemini: queryInt("SELECT COUNT(*) FROM gemini_analysis"),
+            variantSuccess: variantSuccess,
+            variantAccepted: variantAccepted,
+            variantRejected: variantRejected,
+            variantPending: variantSuccess - variantAccepted - variantRejected,
+            quality: queryInt("SELECT COUNT(*) FROM quality_scores"),
+            aestheticV2: queryInt("SELECT COUNT(*) FROM aesthetic_scores_v2"),
+            florence: queryInt("SELECT COUNT(*) FROM florence_captions"),
+            tags: queryInt("SELECT COUNT(*) FROM image_tags"),
+            enhancement: queryInt("SELECT COUNT(*) FROM enhancement_plans_v2"),
+            faces: queryInt("SELECT COUNT(DISTINCT image_uuid) FROM face_detections"),
+            objects: queryInt("SELECT COUNT(DISTINCT image_uuid) FROM open_detections"),
+            picks: 0
+        )
     }
 
     private func queryInt(_ sql: String) -> Int {
@@ -152,10 +186,10 @@ enum Fetchers {
             let entry: (String, MonitorColor)?
             switch (name.lowercased(), port) {
             case ("ollama", _):                   entry = ("Ollama", .green)
-            case (_, "3000"):                     entry = ("Show srv", .blue)
+            case (_, "3000"):                     entry = ("API server", .blue)
             case (_, "8080"):                     entry = ("Dashboard", .blue)
-            case (_, "5173"):                     entry = ("System vite", .sky)
-            case (_, "5174"):                     entry = ("Show vite", .sky)
+            case (_, "5173"):                     entry = ("Show vite", .sky)
+            case (_, "5174"):                     entry = ("System vite", .sky)
             default:                              entry = nil
             }
             if let (label, color) = entry {
@@ -211,7 +245,14 @@ enum Fetchers {
         if cl.contains("gemma_monitor")      { return ("Gemma monitor", .dim) }
         if cl.contains("serve_show")         { return ("Show server", .blue) }
         if cl.contains("dashboard.py")       { return ("Dashboard", .blue) }
+        if cl.contains("suggest_image_variant") { return ("Style gen", .magenta) }
+        if cl.contains("suggest_image_enhancement") { return ("Enhancement", .orange) }
+        if cl.contains("update_and_deploy")  { return ("Deploy", .yellow) }
+        if cl.contains("madphotos_ignition") { return ("Ignition", .green) }
+        if cl.contains("extract_variant_colors") { return ("Colors", .lavender) }
+        if cl.contains("deploy.py")          { return ("Variant deploy", .orange) }
         if cl.contains("imagen.py")          { return ("Imagen", .magenta) }
+        if cl.contains("completions.py")     { return ("Completions", .yellow) }
         if cl.contains("firestore_sync")     { return ("Firestore sync", .teal) }
         if cl.contains("export_gallery")     { return ("Export", .teal) }
         if cl.contains("signals") || cl.contains("pipeline") { return ("Signals", .yellow) }
@@ -257,10 +298,12 @@ final class MonitorState: ObservableObject {
     @Published var gemmaMood = ""
     @Published var gemmaSessionDelta = 0
 
-    @Published var dbImages = 0
-    @Published var dbGemma = 0
-    @Published var dbGemini = 0
-    @Published var dbVariants = 0
+    @Published var stats = DBStats(
+        images: 0, gemma: 0, gemini: 0,
+        variantSuccess: 0, variantAccepted: 0, variantRejected: 0, variantPending: 0,
+        quality: 0, aestheticV2: 0, florence: 0, tags: 0, enhancement: 0,
+        faces: 0, objects: 0, picks: 0
+    )
 
     @Published var uptime: TimeInterval = 0
 
@@ -288,6 +331,8 @@ final class MonitorState: ObservableObject {
 
     func stop() { timer?.invalidate(); timer = nil }
 
+    private var picksCount = 0
+
     private func loadTotal() {
         guard let data = FileManager.default.contents(atPath: Self.picksPath),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
@@ -298,6 +343,7 @@ final class MonitorState: ObservableObject {
             }
         }
         gemmaTotal = uuids.count
+        picksCount = uuids.count
     }
 
     private func refresh() {
@@ -312,7 +358,7 @@ final class MonitorState: ObservableObject {
             let done = reader?.gemmaDone() ?? 0
             let rate = reader?.gemmaRate() ?? 0
             let latest = reader?.gemmaLatest()
-            let stats = reader?.dbStats()
+            let dbStats = reader?.dbStats()
 
             await MainActor.run { [weak self] in
                 guard let self else { return }
@@ -327,10 +373,16 @@ final class MonitorState: ObservableObject {
                     self.gemmaSubject = latest.subject
                     self.gemmaMood = latest.mood
                 }
-                self.dbImages = stats?.images ?? 0
-                self.dbGemma = stats?.gemma ?? 0
-                self.dbGemini = stats?.gemini ?? 0
-                self.dbVariants = stats?.variants ?? 0
+                if let s = dbStats {
+                    self.stats = DBStats(
+                        images: s.images, gemma: s.gemma, gemini: s.gemini,
+                        variantSuccess: s.variantSuccess, variantAccepted: s.variantAccepted,
+                        variantRejected: s.variantRejected, variantPending: s.variantPending,
+                        quality: s.quality, aestheticV2: s.aestheticV2, florence: s.florence,
+                        tags: s.tags, enhancement: s.enhancement,
+                        faces: s.faces, objects: s.objects, picks: self.picksCount
+                    )
+                }
             }
         }
     }

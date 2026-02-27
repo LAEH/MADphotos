@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAppStore } from '../store/appStore'
 import { loadProgressive } from '../lib/imageLoading'
-import { getObjectPosition } from '../lib/cropUtils'
+import { getObjectPosition, BENTO_UNIT_RATIO } from '../lib/cropUtils'
 import { randomFrom } from '../lib/utils'
+import { fireAndForget } from '../lib/firebase'
 import { ViewBottom } from '../components/ui/ViewBottom'
 import type { Photo } from '../types/photo'
 import type { BentoCell } from '../lib/cropUtils'
@@ -331,35 +332,85 @@ function buildBentoColorBuckets(photos: Photo[]): BentoColorBucket[] {
 
 function uniformBentoGrid(count: number, device: 'desktop' | 'mobile'): BentoLayout {
   if (count <= 0) count = 1
+  if (count <= 3) {
+    if (count === 1) return { id: 'UG1', cols: 1, rows: 1, count: 1, device, cells: [L(1,1,1,1)] }
+    if (count === 2) {
+      return device === 'desktop'
+        ? { id: 'UG2', cols: 3, rows: 2, count: 3, device, cells: [L(1,1,2,2), P(1,3,2,1)] }
+        : { id: 'UG2', cols: 2, rows: 2, count: 3, device, cells: [P(1,1,2,1), L(1,2,1,1), L(2,2,1,1)] }
+    }
+    if (count === 3) {
+      return device === 'desktop'
+        ? { id: 'UG3', cols: 4, rows: 2, count: 4, device, cells: [P(1,1,2,1), L(1,2,2,2), P(1,4,2,1)] }
+        : { id: 'UG3', cols: 2, rows: 3, count: 4, device, cells: [L(1,1,1,1), P(1,2,2,1), L(2,1,1,1), L(3,1,1,1)] }
+    }
+  }
   const targetRatio = device === 'desktop' ? 1.25 : 0.5
   let bestCols = 1, bestRows = 1, bestScore = Infinity
-  for (let c = 1; c <= 10; c++) {
+  for (let c = 2; c <= 10; c++) {
     const r = Math.ceil(count / c)
+    if (r < 2) continue // need at least 2 rows for portraits
     const waste = c * r - count
     const ratio = c / r
     const score = waste + Math.abs(ratio - targetRatio) * 5
     if (score < bestScore) { bestCols = c; bestRows = r; bestScore = score }
   }
+  if (bestRows < 2) { bestRows = 2; bestCols = Math.max(2, Math.ceil(count / 2)) }
+  // Fill EVERY grid position — no gaps allowed.
+  // First pass: place portraits every Nth cell, fill rest with landscape.
   const cells: BentoCell[] = []
-  const lastRowStart = count - (count % bestCols || bestCols)
-  for (let i = 0; i < count; i++) {
-    const r = Math.floor(i / bestCols) + 1
-    const c = (i % bestCols) + 1
-    if (i >= lastRowStart) {
-      // Last row: distribute remaining items evenly across all columns
-      const itemsInLastRow = count - lastRowStart
-      const idx = i - lastRowStart
-      const colSpan = Math.floor(bestCols / itemsInLastRow) + (idx < bestCols % itemsInLastRow ? 1 : 0)
-      let colStart = 1
-      for (let j = 0; j < idx; j++) {
-        colStart += Math.floor(bestCols / itemsInLastRow) + (j < bestCols % itemsInLastRow ? 1 : 0)
+  const grid: boolean[][] = Array.from({ length: bestRows }, () => Array(bestCols).fill(false))
+  const totalSlots = bestCols * bestRows
+  const portraitTarget = Math.max(1, Math.floor(totalSlots * 0.2)) // ~20% portraits
+  let portraitCount = 0
+  // Place portraits at regular intervals in the grid
+  const interval = Math.floor(totalSlots / (portraitTarget + 1))
+  let slot = 0
+  for (let r = 0; r < bestRows; r++) {
+    for (let c = 0; c < bestCols; c++) {
+      if (grid[r][c]) continue
+      slot++
+      const wantPortrait = portraitCount < portraitTarget && slot % interval === 0
+        && r + 1 < bestRows && !grid[r + 1][c]
+      if (wantPortrait) {
+        grid[r][c] = true
+        grid[r + 1][c] = true
+        cells.push(P(r + 1, c + 1, 2, 1))
+        portraitCount++
+      } else {
+        grid[r][c] = true
+        cells.push(L(r + 1, c + 1, 1, 1))
       }
-      cells.push(L(r, colStart, 1, colSpan))
-    } else {
-      cells.push(L(r, c, 1, 1))
     }
   }
-  return { id: `UG${count}`, cols: bestCols, rows: bestRows, count: cells.length, device, cells }
+  return { id: `UG${cells.length}`, cols: bestCols, rows: bestRows, count: cells.length, device, cells }
+}
+
+/** Uniform grid — all tiles identical size (1×1 landscape cells). No exceptions.
+ *  Desktop: min 2 cols, max 8 rows. Mobile: min 1 col, max 10 rows.  */
+function uniformSameRatioGrid(count: number, device: 'desktop' | 'mobile'): BentoLayout {
+  if (count <= 0) count = 1
+  const minCols = device === 'desktop' ? 2 : 1
+  const maxRows = device === 'desktop' ? 8 : 10
+  let bestCols = minCols, bestRows = 1, bestScore = Infinity
+  for (let c = minCols; c <= 10; c++) {
+    const r = Math.ceil(count / c)
+    if (r > maxRows) continue
+    const waste = c * r - count
+    const ratio = (c * BENTO_UNIT_RATIO) / r // account for 4:3 unit cells
+    const targetRatio = device === 'desktop' ? 1.6 : 0.7
+    const score = waste * 2 + Math.abs(ratio - targetRatio) * 5
+    if (score < bestScore) { bestCols = c; bestRows = r; bestScore = score }
+  }
+  // Snap count to fill grid perfectly — all cells same size, no partial rows
+  const gridCount = bestCols * bestRows
+  const cells: BentoCell[] = []
+  for (let i = 0; i < gridCount; i++) {
+    const r = Math.floor(i / bestCols) + 1
+    const c = (i % bestCols) + 1
+    cells.push(L(r, c, 1, 1))
+  }
+  return { id: `SG${gridCount}`, cols: bestCols, rows: bestRows, count: gridCount, device, cells }
 }
 
 function pickLayoutForCount(targetCount: number, device: 'desktop' | 'mobile'): BentoLayout {
@@ -403,7 +454,29 @@ function visualImpact(p: Photo): number {
   if (p.saliency && p.saliency.spread < 0.3) s += 2 // focused subject
   if (p.gc_weight) s += (p.gc_weight - 5) * 0.8
   if (p.mono) s += 1 // monochrome has visual gravitas
+  // Gemma technical quality rewards
+  if (p.gemma_sharpness === 'sharp') s += 1.5
+  else if (p.gemma_sharpness === 'motion_blur') s += 0.5 // intentional blur has character
+  if (p.gemma_exposure === 'balanced') s += 1
+  // Directional energy = visual dynamism
+  if (p.gc_energy && p.gc_energy !== 'static') s += 0.8
   return s
+}
+
+/** How well a photo's gemma crop fits a target cell aspect ratio.
+ *  Higher coverage = more of the subject is visible in that crop = better fit. */
+function cropFitness(p: Photo, cell: BentoCell): number {
+  if (!p.gemma_crops) return 0
+  const ratio = (cell.cs * BENTO_UNIT_RATIO) / cell.rs
+  let key: string
+  if (ratio >= 1.6) key = '16:9'
+  else if (ratio >= 1.2) key = '3:2'
+  else if (ratio <= 0.85) key = '2:3'
+  else key = '1:1'
+  const crop = p.gemma_crops[key]
+  if (!crop) return 0
+  // coverage 0-100: higher = subject fills the frame at this crop
+  return (crop.coverage - 50) * 0.06 // ±3 points from neutral
 }
 
 /** Classify color temperature from composition data or hue analysis */
@@ -438,50 +511,37 @@ function fillCells(
   cells: BentoCell[], pools: { P: Photo[]; L: Photo[] },
   usedIds: Set<string>, scoreFn: (p: Photo) => number,
 ): Photo[] {
-  // Score all available photos
-  type Scored = { photo: Photo; score: number }
-  const allP: Scored[] = pools.P.filter(p => !usedIds.has(p.id))
-    .map(p => ({ photo: p, score: scoreFn(p) }))
-  const allL: Scored[] = pools.L.filter(p => !usedIds.has(p.id))
-    .map(p => ({ photo: p, score: scoreFn(p) }))
-
-  // Sort by score descending — best photos first
-  allP.sort((a, b) => b.score - a.score)
-  allL.sort((a, b) => b.score - a.score)
-
   // Sort cells by size (large cells first) to assign heroes to big cells
   const indexedCells = cells.map((cell, i) => ({ cell, i, size: cell.rs * cell.cs }))
   const sortedCells = [...indexedCells].sort((a, b) => b.size - a.size)
 
+  // Score photos per-cell: base score + crop fitness for this specific cell
   const result: (Photo | undefined)[] = new Array(cells.length)
-  const pUsed = new Set<number>() // indices used in allP
-  const lUsed = new Set<number>() // indices used in allL
+  const claimed = new Set<string>()
 
   for (const { cell, i } of sortedCells) {
-    const primary = cell.orient === 'P' ? allP : allL
-    const primaryUsed = cell.orient === 'P' ? pUsed : lUsed
-    const fallback = cell.orient === 'P' ? allL : allP
-    const fallbackUsed = cell.orient === 'P' ? lUsed : pUsed
+    const primary = cell.orient === 'P' ? pools.P : pools.L
+    const fallback = cell.orient === 'P' ? pools.L : pools.P
 
-    let found = false
-    for (let j = 0; j < primary.length; j++) {
-      if (!primaryUsed.has(j) && !usedIds.has(primary[j].photo.id)) {
-        result[i] = primary[j].photo
-        primaryUsed.add(j)
-        usedIds.add(primary[j].photo.id)
-        found = true
-        break
+    // Score candidates with crop fitness bonus for this cell
+    let best: Photo | undefined
+    let bestScore = -Infinity
+    for (const p of primary) {
+      if (usedIds.has(p.id) || claimed.has(p.id)) continue
+      const s = scoreFn(p) + cropFitness(p, cell)
+      if (s > bestScore) { bestScore = s; best = p }
+    }
+    if (!best) {
+      for (const p of fallback) {
+        if (usedIds.has(p.id) || claimed.has(p.id)) continue
+        const s = scoreFn(p) + cropFitness(p, cell)
+        if (s > bestScore) { bestScore = s; best = p }
       }
     }
-    if (!found) {
-      for (let j = 0; j < fallback.length; j++) {
-        if (!fallbackUsed.has(j) && !usedIds.has(fallback[j].photo.id)) {
-          result[i] = fallback[j].photo
-          fallbackUsed.add(j)
-          usedIds.add(fallback[j].photo.id)
-          break
-        }
-      }
+    if (best) {
+      result[i] = best
+      claimed.add(best.id)
+      usedIds.add(best.id)
     }
   }
 
@@ -932,6 +992,224 @@ function curateBrightnessGradient(allPhotos: Photo[], cells: BentoCell[]): Photo
   })
 }
 
+/*
+ * CURATOR: Energy Flow — group by visual energy direction
+ * Creates rhythm: diagonal photos together, or static vs dynamic contrast
+ */
+function curateEnergyFlow(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
+  const photos = allPhotos.filter(p =>
+    p.thumb && p.display && !p.parent && p.gc_energy && (p.aesthetic || 0) > 4
+  )
+  if (photos.length < cells.length) return []
+
+  const energyCounts = new Map<string, number>()
+  for (const p of photos) {
+    energyCounts.set(p.gc_energy!, (energyCounts.get(p.gc_energy!) || 0) + 1)
+  }
+
+  // Pick a directional energy that has enough photos
+  const dynamic = ['diagonal_down', 'diagonal_up', 'left_to_right', 'right_to_left', 'center_out']
+  const goodEnergies = [...energyCounts.entries()]
+    .filter(([e, count]) => dynamic.includes(e) && count >= cells.length)
+    .map(([e]) => e)
+  if (goodEnergies.length === 0) return []
+
+  const targetEnergy = randomFrom(goodEnergies)
+  const matching = photos.filter(p => p.gc_energy === targetEnergy)
+
+  const pools = orientPools(matching)
+  const usedIds = new Set<string>()
+  return fillCells(cells, pools, usedIds, (p) => {
+    let s = visualImpact(p)
+    // Reward photos with strong composition weight for hero cells
+    if (p.gc_weight && p.gc_weight >= 7) s += 3
+    return s + Math.random() * 2
+  })
+}
+
+/*
+ * CURATOR: Semantic Pops — group photos that share striking color-object combos
+ * Uses Gemma's semantic_pops (color + object + impact tuples)
+ */
+function curateSemanticPops(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
+  const photos = allPhotos.filter(p =>
+    p.thumb && p.display && !p.parent && p.gemma_pops && p.gemma_pops.length > 0 && (p.aesthetic || 0) > 4
+  )
+  if (photos.length < cells.length) return []
+
+  // Find the most common pop colors
+  const popColors = new Map<string, Photo[]>()
+  for (const p of photos) {
+    for (const pop of p.gemma_pops!) {
+      const c = pop.color.toLowerCase()
+      if (!popColors.has(c)) popColors.set(c, [])
+      popColors.get(c)!.push(p)
+    }
+  }
+
+  const goodColors = [...popColors.entries()]
+    .filter(([, group]) => group.length >= cells.length)
+    .map(([color]) => color)
+  if (goodColors.length === 0) return []
+
+  const targetColor = randomFrom(goodColors)
+  const matching = popColors.get(targetColor)!
+  // Deduplicate
+  const seen = new Set<string>()
+  const unique = matching.filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); return true })
+
+  if (unique.length < cells.length) return []
+
+  const pools = orientPools(unique)
+  const usedIds = new Set<string>()
+  return fillCells(cells, pools, usedIds, (p) => {
+    let s = visualImpact(p)
+    // Reward photos where the pop has high impact
+    const pop = p.gemma_pops!.find(pp => pp.color.toLowerCase() === targetColor)
+    if (pop && (pop.impact === 'high' || pop.impact === 'dominant')) s += 4
+    return s + Math.random() * 2
+  })
+}
+
+/*
+ * CURATOR: Print Worthy — Gemma's best picks for print
+ * Only showcases photos Gemma deemed print-worthy: strong composition, technical quality
+ */
+function curatePrintWorthy(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
+  const photos = allPhotos.filter(p =>
+    p.thumb && p.display && !p.parent && p.print_worthy && (p.aesthetic || 0) > 4
+  )
+  if (photos.length < cells.length) return []
+
+  const pools = orientPools(photos)
+  const usedIds = new Set<string>()
+  return fillCells(cells, pools, usedIds, (p) => {
+    let s = visualImpact(p)
+    // Sharp + balanced exposure = museum quality
+    if (p.gemma_sharpness === 'sharp') s += 3
+    if (p.gemma_exposure === 'balanced') s += 2
+    if (p.gc_weight && p.gc_weight >= 8) s += 3
+    return s + Math.random() * 2
+  })
+}
+
+/*
+ * CURATOR: Gemma Vibes — uses Gemma's richer vibe vocabulary for deep thematic sets
+ * Gemma vibes are more nuanced than base vibes (e.g., "desolate", "cinematic", "whimsical")
+ */
+function curateGemmaVibes(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
+  const photos = allPhotos.filter(p =>
+    p.thumb && p.display && !p.parent && p.gemma_vibes && p.gemma_vibes.length > 0 && (p.aesthetic || 0) > 4
+  )
+  if (photos.length < cells.length) return []
+
+  const vibeCounts = new Map<string, number>()
+  for (const p of photos) {
+    for (const v of p.gemma_vibes!) {
+      vibeCounts.set(v, (vibeCounts.get(v) || 0) + 1)
+    }
+  }
+
+  // Pick a Gemma vibe with enough photos
+  const goodVibes = [...vibeCounts.entries()]
+    .filter(([, count]) => count >= cells.length * 1.5)
+    .map(([vibe]) => vibe)
+  if (goodVibes.length === 0) return []
+
+  const targetVibe = randomFrom(goodVibes)
+  const matching = photos.filter(p => p.gemma_vibes!.includes(targetVibe))
+
+  const pools = orientPools(matching)
+  const usedIds = new Set<string>()
+  return fillCells(cells, pools, usedIds, (p) => {
+    let s = visualImpact(p)
+    // More shared Gemma vibes = stronger thematic fit
+    const shared = p.gemma_vibes!.filter(v => vibeCounts.get(v)! >= 5).length
+    s += shared * 3
+    // Color cohesion within mood
+    return s + Math.random() * 2
+  })
+}
+
+/*
+ * CURATOR: Subject Gallery — group by Gemma subject analysis
+ * Finds photos with shared subject keywords for thematic exhibitions
+ */
+function curateSubjectGallery(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
+  const photos = allPhotos.filter(p =>
+    p.thumb && p.display && !p.parent && p.gemma_subject && (p.aesthetic || 0) > 4
+  )
+  if (photos.length < cells.length) return []
+
+  // Extract subject keywords and find clusters
+  const subjectWords = new Map<string, Photo[]>()
+  for (const p of photos) {
+    const words = p.gemma_subject!.toLowerCase()
+      .split(/[\s,;]+/)
+      .filter(w => w.length > 3 && !['with', 'from', 'that', 'this', 'have', 'been', 'they', 'them', 'their'].includes(w))
+    for (const w of words) {
+      if (!subjectWords.has(w)) subjectWords.set(w, [])
+      subjectWords.get(w)!.push(p)
+    }
+  }
+
+  const goodSubjects = [...subjectWords.entries()]
+    .filter(([, group]) => group.length >= cells.length && group.length <= 200)
+    .map(([word]) => word)
+  if (goodSubjects.length === 0) return []
+
+  const targetWord = randomFrom(goodSubjects)
+  const matching = subjectWords.get(targetWord)!
+  const seen = new Set<string>()
+  const unique = matching.filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); return true })
+
+  if (unique.length < cells.length) return []
+
+  const pools = orientPools(unique)
+  const usedIds = new Set<string>()
+  return fillCells(cells, pools, usedIds, (p) => {
+    let s = visualImpact(p)
+    // Hue diversity within subject = visual interest
+    return s + Math.random() * 3
+  })
+}
+
+/*
+ * CURATOR: Sharpness Showcase — crisp vs soft, motion blur artistry
+ * Groups photos by Gemma sharpness assessment for technical exhibitions
+ */
+function curateSharpnessShowcase(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
+  const photos = allPhotos.filter(p =>
+    p.thumb && p.display && !p.parent && p.gemma_sharpness && (p.aesthetic || 0) > 4
+  )
+  if (photos.length < cells.length) return []
+
+  // Pick a sharpness category
+  const categories = ['sharp', 'soft', 'motion_blur'] as const
+  const counts = categories.map(c => ({
+    cat: c,
+    photos: photos.filter(p => p.gemma_sharpness === c),
+  }))
+
+  // Try sharp first (most dramatic), then soft (dreamy), then motion_blur (artistic)
+  const viable = counts.filter(c => c.photos.length >= cells.length)
+  if (viable.length === 0) return []
+
+  const { cat: targetSharpness, photos: matching } = randomFrom(viable)
+
+  const pools = orientPools(matching)
+  const usedIds = new Set<string>()
+  return fillCells(cells, pools, usedIds, (p) => {
+    let s = visualImpact(p)
+    // Sharp: reward high gc_weight (strong subjects)
+    // Soft/blur: reward mood and atmosphere
+    if (targetSharpness === 'sharp' && p.gc_weight && p.gc_weight >= 7) s += 3
+    if (targetSharpness === 'soft' && p.vibes?.some(v => ['dreamy', 'ethereal', 'serene'].includes(v))) s += 3
+    if (targetSharpness === 'motion_blur' && (p.contrast || 50) > 60) s += 3
+    return s + Math.random() * 2
+  })
+}
+
 /* Default fill (fallback) — improved with visual impact scoring */
 function fillBentoDefault(photos: Photo[], cells: BentoCell[]): Photo[] {
   const filtered = photos.filter(p => p.thumb && p.display)
@@ -974,9 +1252,19 @@ const CURATORS = [
   curateFaceGallery,            // people-focused
   curateStyleContrast,          // film vs digital
   curateBrightnessGradient,     // dark to light sweep
+  // Gemma-powered curators
+  curateEnergyFlow,             // visual energy direction groups
+  curateEnergyFlow,             // double-weight — great visual coherence
+  curateSemanticPops,           // shared striking color-object combos
+  curatePrintWorthy,            // Gemma's museum-quality picks
+  curatePrintWorthy,            // double-weight — always stunning
+  curateGemmaVibes,             // deep thematic vibe matching
+  curateGemmaVibes,             // double-weight — rich vocabulary
+  curateSubjectGallery,         // shared subject keyword clusters
+  curateSharpnessShowcase,      // crisp vs soft vs motion artistry
 ]
 
-function fillBento(allPhotos: Photo[], layout: BentoLayout, colorFiltered: boolean = false): Photo[] {
+function fillBento(allPhotos: Photo[], layout: BentoLayout, colorFiltered: boolean = false): { photos: Photo[], curator: string } {
   const { cells } = layout
 
   if (!colorFiltered) {
@@ -985,12 +1273,12 @@ function fillBento(allPhotos: Photo[], layout: BentoLayout, colorFiltered: boole
     for (let i = 0; i < Math.min(3, shuffled.length); i++) {
       const result = shuffled[i](allPhotos, cells)
       if (result.length >= Math.min(cells.length, 4)) {
-        return result.slice(0, cells.length)
+        return { photos: result.slice(0, cells.length), curator: shuffled[i].name }
       }
     }
   }
 
-  return fillBentoDefault(allPhotos, cells)
+  return { photos: fillBentoDefault(allPhotos, cells), curator: 'default' }
 }
 
 /* ===== BentoTile component ===== */
@@ -1001,11 +1289,12 @@ interface BentoTileProps {
   cellIndex: number
   index: number
   revealed: boolean
+  hasVariant: boolean
   onSwap: (tileEl: HTMLDivElement) => void
   onFullscreen: (photo: Photo) => void
 }
 
-function BentoTile({ photo, cell, cellIndex, index, revealed, onSwap, onFullscreen }: BentoTileProps) {
+function BentoTile({ photo, cell, cellIndex, index, revealed, hasVariant, onSwap, onFullscreen }: BentoTileProps) {
   const tileRef = useRef<HTMLDivElement>(null)
 
   const imgRef = useCallback((el: HTMLImageElement | null) => {
@@ -1043,6 +1332,11 @@ function BentoTile({ photo, cell, cellIndex, index, revealed, onSwap, onFullscre
       onClick={handleClick}
     >
       <img ref={imgRef} alt="" />
+      {hasVariant && (
+        <span className="bento-tile-variant" aria-label="AI variant available">
+          &#x1F984;
+        </span>
+      )}
       <button className="bento-tile-fs" onClick={handleFullscreen}>
         <FullscreenIcon />
       </button>
@@ -1062,6 +1356,10 @@ export function BentoView() {
   const [colorBuckets, setColorBuckets] = useState<BentoColorBucket[]>([])
   const [activeColorIdx, setActiveColorIdx] = useState(-1) // -1 = all colors
   const [densityIdx, setDensityIdx] = useState(BENTO_DEFAULT_DENSITY_IDX)
+  const [variantsOn, setVariantsOn] = useState(false)
+  const [gridMode, setGridMode] = useState(false) // false=bento, true=uniform grid
+  const [loved, setLoved] = useState(false)
+  const [activeCurator, setActiveCurator] = useState('')
 
   /* Variant map: parentId → variant Photo (prefer smart_style > style_transfer) */
   const variantMap = useRef(new Map<string, Photo>())
@@ -1075,19 +1373,6 @@ export function BentoView() {
   const layoutIdxRef = useRef(-1)
   const deviceLayoutsRef = useRef<BentoLayout[]>(DESKTOP_LAYOUTS)
   const gridRef = useRef<HTMLDivElement>(null)
-  const [gridWidth, setGridWidth] = useState<number | undefined>()
-
-  /* Sync controls width with grid width */
-  useEffect(() => {
-    const el = gridRef.current
-    if (!el) return
-    const ro = new ResizeObserver(entries => {
-      const w = entries[0]?.contentRect.width
-      if (w) setGridWidth(w)
-    })
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
 
   /* Preload buffer: ready-to-swap photos per orientation, already in browser cache */
   const preloadBufferRef = useRef<{ P: Photo[]; L: Photo[] }>({ P: [], L: [] })
@@ -1172,13 +1457,46 @@ export function BentoView() {
       photoPool = data.photos
     }
 
-    let newLayout = pickLayoutForCount(targetCount, device)
-    let selected = fillBento(photoPool, newLayout, !!isColorFiltered)
+    let newLayout = gridMode
+      ? uniformSameRatioGrid(targetCount, device)
+      : pickLayoutForCount(targetCount, device)
+    const fillResult = fillBento(photoPool, newLayout, !!isColorFiltered)
+    let selected = fillResult.photos
+    setActiveCurator(fillResult.curator)
 
     // If couldn't fill layout, use a uniform grid that tiles perfectly
     if (selected.length > 0 && selected.length < newLayout.count) {
-      newLayout = uniformBentoGrid(selected.length, device)
+      newLayout = gridMode
+        ? uniformSameRatioGrid(selected.length, device)
+        : uniformBentoGrid(selected.length, device)
       selected = selected.slice(0, newLayout.count)
+    }
+
+    // Inject AI variants when unicorn is on — swap ALL that have variants,
+    // and try to pick photos that HAVE variants in the first place
+    if (variantsOn && variantMap.current.size > 0) {
+      // First: try to swap in photos that have variants
+      const variantParentIds = new Set(variantMap.current.keys())
+      const withVariants = photoPool.filter(p => variantParentIds.has(p.id) && p.thumb && p.display)
+      if (withVariants.length >= 2) {
+        // Replace as many selected photos as possible with ones that have variants
+        const usedIds = new Set(selected.map(p => p.id))
+        for (let i = 0; i < selected.length && withVariants.length > 0; i++) {
+          if (!variantParentIds.has(selected[i].id)) {
+            const pick = withVariants.find(p => !usedIds.has(p.id))
+            if (pick) {
+              usedIds.delete(selected[i].id)
+              selected[i] = pick
+              usedIds.add(pick.id)
+            }
+          }
+        }
+      }
+      // Then swap all that have variants to show the AI version (only if variant has images)
+      for (let i = 0; i < selected.length; i++) {
+        const variant = variantMap.current.get(selected[i].id)
+        if (variant && (variant.display || variant.thumb)) selected[i] = variant
+      }
     }
 
     deviceLayoutsRef.current = device === 'desktop' ? DESKTOP_LAYOUTS : MOBILE_LAYOUTS
@@ -1188,7 +1506,7 @@ export function BentoView() {
     revealedRef.current = new Set()
     setRevealedSet(new Set())
     requestAnimationFrame(() => refillPreloadBuffer(new Set(selected.map(p => p.id))))
-  }, [data, densityIdx, activeColorIdx, colorBuckets, refillPreloadBuffer])
+  }, [data, densityIdx, activeColorIdx, colorBuckets, variantsOn, gridMode, refillPreloadBuffer])
 
   /* Cycle layouts with arrow keys — just regenerate */
   const cycle = useCallback((_dir: number) => {
@@ -1499,40 +1817,84 @@ export function BentoView() {
     }
   }, [activeColorIdx])
 
-  /* Dice = randomize EVERYTHING */
-  const rollDice = useCallback(() => {
-    if (colorBuckets.length > 0) {
-      const nonEmpty = colorBuckets.map((b, i) => ({ b, i })).filter(x => x.b.photos.length > 0)
-      if (nonEmpty.length > 0 && Math.random() > 0.3) {
-        setActiveColorIdx(randomFrom(nonEmpty).i)
-      } else {
-        setActiveColorIdx(-1) // sometimes show all colors
+  /* 🧞‍♂️ Best bento — pick a random count (2–16), use the best curator, best layout */
+  const showBestBento = useCallback(() => {
+    if (!data) return
+    const device = isDesktop() ? 'desktop' as const : 'mobile' as const
+    // Random count from 2–16 for maximum visual variety
+    const count = 2 + Math.floor(Math.random() * 15)
+    const newLayout = pickLayoutForCount(count, device)
+    // Try ALL curators, pick the one with highest total visual impact
+    const allPhotos = data.photos
+    let bestResult: Photo[] = []
+    let bestScore = -Infinity
+    const shuffled = [...CURATORS].sort(() => Math.random() - 0.5)
+    for (let i = 0; i < Math.min(8, shuffled.length); i++) {
+      const result = shuffled[i](allPhotos, newLayout.cells)
+      if (result.length >= Math.min(newLayout.cells.length, 2)) {
+        const score = result.reduce((s, p) => s + visualImpact(p), 0) / result.length
+        if (score > bestScore) { bestScore = score; bestResult = result.slice(0, newLayout.cells.length) }
       }
     }
-    setDensityIdx(Math.floor(Math.random() * BENTO_DENSITY_STEPS.length))
-  }, [colorBuckets])
-
-  /* Recycle = new layout, same photos */
-  const reshuffleLayout = useCallback(() => {
-    if (photos.length === 0) return
-    const device = isDesktop() ? 'desktop' as const : 'mobile' as const
-    const targetCount = BENTO_DENSITY_STEPS[densityIdx]
-    let newLayout = pickLayoutForCount(targetCount, device)
-    const shuffled = [...photos].sort(() => Math.random() - 0.5)
-    const trimmed = shuffled.slice(0, newLayout.count)
-    if (trimmed.length < newLayout.count) {
-      newLayout = uniformBentoGrid(trimmed.length, device)
+    if (bestResult.length === 0) {
+      bestResult = fillBentoDefault(allPhotos, newLayout.cells)
     }
+    setGridMode(false)
+    setActiveColorIdx(-1)
+    setDensityIdx(BENTO_DENSITY_STEPS.indexOf(
+      BENTO_DENSITY_STEPS.reduce((best, s) => Math.abs(s - count) < Math.abs(best - count) ? s : best)
+    ))
     setLayout(newLayout)
-    setPhotos(trimmed.slice(0, newLayout.count))
+    setPhotos(bestResult)
     revealedRef.current = new Set()
     setRevealedSet(new Set())
-  }, [photos, densityIdx])
+    requestAnimationFrame(() => refillPreloadBuffer(new Set(bestResult.map(p => p.id))))
+  }, [data, refillPreloadBuffer])
 
   /* Regenerate when density or color changes */
   useEffect(() => {
     if (data && colorBuckets.length > 0) generate()
-  }, [densityIdx, activeColorIdx]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [densityIdx, activeColorIdx, variantsOn, gridMode]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* Reset heart when composition changes */
+  useEffect(() => { setLoved(false) }, [photos, layout])
+
+  /* Love this bento — render PNG on server + save locally + Firestore */
+  const loveBento = useCallback(() => {
+    if (!layout || photos.length === 0) return
+    if (loved) return // already loved
+    setLoved(true)
+
+    const payload = {
+      layoutId: layout.id,
+      cols: layout.cols,
+      rows: layout.rows,
+      cells: layout.cells.map(c => ({ r: c.r, c: c.c, rs: c.rs, cs: c.cs, orient: c.orient })),
+      photos: photos.map(p => p.id),
+      gridMode,
+      density: BENTO_DENSITY_STEPS[densityIdx],
+      colorIdx: activeColorIdx,
+      device: isDesktop() ? 'desktop' : 'mobile',
+      curator: activeCurator || 'default',
+    }
+
+    // Save locally (always works)
+    try {
+      const loves = JSON.parse(localStorage.getItem('bento-loves') || '[]')
+      loves.push({ ...payload, ts: Date.now() })
+      localStorage.setItem('bento-loves', JSON.stringify(loves))
+    } catch { /* localStorage full or unavailable */ }
+
+    // Trigger server render (fire-and-forget)
+    fetch('/api/bento/render', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).catch(() => {})
+
+    // Firestore (may fail if auth expired — that's OK)
+    fireAndForget('bento-loves', payload)
+  }, [layout, photos, gridMode, densityIdx, activeColorIdx, loved, activeCurator])
 
   if (!layout || photos.length === 0) {
     return <div className="bento-wrap" />
@@ -1567,6 +1929,7 @@ export function BentoView() {
               cellIndex={i}
               index={i}
               revealed={revealedSet.has(i)}
+              hasVariant={!photo.parent && variantMap.current.has(photo.id)}
               onSwap={swapTile}
               onFullscreen={handleFullscreen}
             />
@@ -1576,7 +1939,6 @@ export function BentoView() {
       <ViewBottom>
         <div
           className="bento-controls"
-          style={{ width: gridWidth ? `${gridWidth}px` : undefined }}
         >
           <div className="bento-spectrum">
             {colorBuckets.map((bucket, i) => (
@@ -1595,9 +1957,8 @@ export function BentoView() {
               disabled={densityIdx <= 0}
               aria-label="Less dense"
             >
-              <svg width="22" height="22" viewBox="0 0 20 20" fill="none">
-                <rect x="2" y="3" width="7" height="14" rx="2.5" stroke="currentColor" strokeWidth="1.5"/>
-                <rect x="11" y="3" width="7" height="14" rx="2.5" stroke="currentColor" strokeWidth="1.5"/>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
+                <line x1="4" y1="10" x2="16" y2="10" />
               </svg>
             </button>
             <button
@@ -1606,39 +1967,57 @@ export function BentoView() {
               disabled={densityIdx >= BENTO_DENSITY_STEPS.length - 1}
               aria-label="More dense"
             >
-              <svg width="22" height="22" viewBox="0 0 20 20" fill="none">
-                <rect x="1" y="2" width="5" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.2"/>
-                <rect x="7.5" y="2" width="5" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.2"/>
-                <rect x="14" y="2" width="5" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.2"/>
-                <rect x="1" y="11" width="5" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.2"/>
-                <rect x="7.5" y="11" width="5" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.2"/>
-                <rect x="14" y="11" width="5" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.2"/>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
+                <line x1="4" y1="10" x2="16" y2="10" />
+                <line x1="10" y1="4" x2="10" y2="16" />
               </svg>
             </button>
             <button
               className="bento-ctrl-btn"
-              onClick={reshuffleLayout}
-              aria-label="New layout"
-              title="Rearrange current photos"
+              onClick={() => setGridMode(g => !g)}
+              aria-label={gridMode ? 'Switch to bento' : 'Switch to grid'}
+              title={gridMode ? 'Uniform grid' : 'Bento layout'}
             >
-              &#x267B;&#xFE0F;
+              {gridMode ? (
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="2" width="7" height="7" rx="1.5" />
+                  <rect x="11" y="2" width="7" height="7" rx="1.5" />
+                  <rect x="2" y="11" width="7" height="7" rx="1.5" />
+                  <rect x="11" y="11" width="7" height="7" rx="1.5" />
+                </svg>
+              ) : (
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="2" width="7" height="16" rx="1.5" />
+                  <rect x="11" y="2" width="7" height="7" rx="1.5" />
+                  <rect x="11" y="11" width="7" height="7" rx="1.5" />
+                </svg>
+              )}
             </button>
             <button
               className="bento-ctrl-btn"
-              onClick={rollDice}
-              aria-label="Shuffle everything"
-              title="New layout, color & density"
+              onClick={showBestBento}
+              aria-label="Best bento"
+              title="Show the best bento"
             >
-              &#x1F3B2;
+              &#x1F9DE;&#x200D;&#x2642;&#xFE0F;
             </button>
             <button
-              className="bento-ctrl-btn"
-              aria-label="Like"
-              title="Save to favorites"
+              className={`bento-ctrl-btn${variantsOn ? ' bento-unicorn-active' : ''}`}
+              onClick={() => setVariantsOn(v => !v)}
+              aria-label="Toggle AI variants"
+              title={variantsOn ? 'Hide AI variants' : 'Show AI variants'}
             >
-              &#x2764;&#xFE0F;
+              &#x1F984;
             </button>
           </div>
+          <button
+            className="bento-ctrl-btn bento-heart"
+            onClick={loveBento}
+            aria-label="Love this composition"
+            title="Love this bento"
+          >
+            {loved ? '\u2764\uFE0F' : '\u{1F90D}'}
+          </button>
         </div>
       </ViewBottom>
     </div>

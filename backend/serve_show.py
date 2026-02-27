@@ -15,6 +15,7 @@ import argparse
 import json
 import mimetypes
 import subprocess
+import time
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 
@@ -28,6 +29,7 @@ GENERATED_DIR = PROJECT_ROOT / "backend" / "suggest_image_variant" / "output"
 
 # Ensure backend is importable
 import sys as _sys
+_sys.path.insert(0, str(PROJECT_ROOT))
 _sys.path.insert(0, str(PROJECT_ROOT / "backend"))
 
 
@@ -117,6 +119,8 @@ class GalleryHandler(SimpleHTTPRequestHandler):
             self._post_enhance_deploy()
         elif self.path == "/api/enhance/generate":
             self._post_enhance_generate()
+        elif self.path == "/api/bento/render":
+            self._post_bento_render()
         else:
             self.send_error(404)
 
@@ -183,6 +187,8 @@ class GalleryHandler(SimpleHTTPRequestHandler):
             camera = qs.get("camera", [None])[0]
             obj = qs.get("obj", [None])[0]
             self._json_response(fn["get_location_tagger_data"](camera=camera, obj=obj))
+        elif path == "/api/bento/loved":
+            self._handle_bento_loved()
         elif path == "/api/enhance/batch":
             self._handle_enhance_batch()
         elif path == "/api/enhance/stats":
@@ -234,6 +240,7 @@ class GalleryHandler(SimpleHTTPRequestHandler):
             pass
 
         Path("/tmp/generated-expected-count").write_text(str(count))
+        Path("/tmp/generated-start-time").write_text(str(int(time.time())))
         script = f"""#!/bin/bash
 cd {PROJECT_ROOT}
 echo "=== Style Transfer — Generate {count} ==="
@@ -401,6 +408,54 @@ read -n 1
         result = generate_batch()
         self._json_response({"ok": True, **result})
 
+    # ── Bento render/loved ──
+
+    def _post_bento_render(self):
+        body = self._read_json_body()
+        if body is None:
+            return self._error_response(400, "Invalid JSON")
+        cols = body.get("cols")
+        rows = body.get("rows")
+        cells = body.get("cells")
+        photo_ids = body.get("photos")
+        if not all([cols, rows, cells, photo_ids]):
+            return self._error_response(400, "cols, rows, cells, photos required")
+        from backend.render_bento import render_bento_png
+        result = render_bento_png(
+            cols=cols, rows=rows, cells=cells, photo_ids=photo_ids,
+            layout_id=body.get("layoutId", ""),
+            curator=body.get("curator", ""),
+        )
+        if result:
+            self._json_response(result)
+        else:
+            self._error_response(500, "Failed to render bento")
+
+    def _handle_bento_loved(self):
+        bentos_dir = RENDERED_DIR / "bentos"
+        if not bentos_dir.exists():
+            return self._json_response({"bentos": []})
+        items = []
+        for meta_file in sorted(bentos_dir.glob("*_meta.json"), reverse=True):
+            try:
+                meta = json.loads(meta_file.read_text())
+                items.append({
+                    "id": meta_file.stem.replace("_meta", ""),
+                    "timestamp": meta.get("timestamp", 0),
+                    "layout_id": meta.get("layout_id", ""),
+                    "cols": meta.get("cols"),
+                    "rows": meta.get("rows"),
+                    "photo_count": meta.get("placed", 0),
+                    "width": meta.get("output_width"),
+                    "height": meta.get("output_height"),
+                    "preview_url": f"/rendered/bentos/{meta.get('preview', '')}",
+                    "png_url": f"/rendered/bentos/{meta.get('png', '')}",
+                    "curator": meta.get("curator", ""),
+                })
+            except Exception:
+                continue
+        self._json_response({"bentos": items})
+
     # ── Enhance GET helpers ──
 
     def _handle_enhance_batch(self):
@@ -469,14 +524,35 @@ read -n 1
             if dirs:
                 latest = dirs[0]
         if not latest:
-            return self._json_response({"completed": 0, "expected": expected, "done": True})
+            # Still respect grace period (process may be authenticating before creating output dir)
+            start_time = 0
+            try:
+                st = Path("/tmp/generated-start-time")
+                if st.exists():
+                    start_time = int(st.read_text().strip())
+            except Exception:
+                pass
+            in_grace = (time.time() - start_time) < 30 if start_time else False
+            return self._json_response({"completed": 0, "expected": expected, "done": not in_grace})
         completed = sum(1 for d in latest.iterdir()
                         if d.is_dir() and not d.name.startswith(".")
                         and any(d.glob("imagen_smart_*.jpg")))
-        result = subprocess.run(["pgrep", "-f", "suggest_image_variant.run"], capture_output=True)
+        # Check only the Python generation process (not the bash wrapper which idles at "press any key")
+        py_proc = subprocess.run(["pgrep", "-f", "suggest_image_variant.run"], capture_output=True)
+        process_running = py_proc.returncode == 0
+        # Grace period: don't report done within 30s of launch (auth may be in progress)
+        start_time = 0
+        try:
+            st = Path("/tmp/generated-start-time")
+            if st.exists():
+                start_time = int(st.read_text().strip())
+        except Exception:
+            pass
+        in_grace = (time.time() - start_time) < 30 if start_time else False
+        done = not process_running and not in_grace
         self._json_response({
             "completed": completed, "expected": expected,
-            "done": result.returncode != 0, "run_dir": latest.name,
+            "done": done, "run_dir": latest.name,
         })
 
     # ── Deploy helper ──

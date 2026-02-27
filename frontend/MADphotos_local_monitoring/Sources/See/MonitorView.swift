@@ -16,6 +16,10 @@ struct MonitorView: View {
             divider
             gemma
             divider
+            variants
+            divider
+            pipeline
+            divider
             footer
         }
         .padding(.vertical, 8)
@@ -240,16 +244,98 @@ struct MonitorView: View {
         .font(.system(size: 10, design: .monospaced))
     }
 
+    // MARK: - Variants
+
+    private var variants: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 0) {
+                Text("Variants")
+                    .font(.system(size: 12, weight: .bold))
+                Spacer()
+                if state.stats.variantSuccess > 0 {
+                    let rate = state.stats.variantAccepted + state.stats.variantRejected > 0
+                        ? Double(state.stats.variantAccepted) * 100.0 / Double(state.stats.variantAccepted + state.stats.variantRejected)
+                        : 0.0
+                    Text(String(format: "%.0f%%", rate))
+                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                        .foregroundStyle(rate >= 40 ? .green : rate >= 25 ? .yellow : .red)
+                }
+            }
+            HStack(spacing: 0) {
+                Text("\(state.stats.variantAccepted)")
+                    .foregroundStyle(.green)
+                Text(" acc  ")
+                    .foregroundStyle(.secondary)
+                Text("\(state.stats.variantRejected)")
+                    .foregroundStyle(.red)
+                Text(" rej  ")
+                    .foregroundStyle(.secondary)
+                Text("\(state.stats.variantPending)")
+                    .foregroundStyle(.yellow)
+                Text(" pending  ")
+                    .foregroundStyle(.secondary)
+                Text("\(state.stats.variantSuccess)")
+                    .foregroundStyle(.white)
+                Text(" total")
+                    .foregroundStyle(.secondary)
+            }
+            .font(.system(size: 10, design: .monospaced))
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+    }
+
+    // MARK: - Signal pipeline
+
+    private var pipeline: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Signals")
+                .font(.system(size: 12, weight: .bold))
+            HStack(alignment: .top, spacing: 0) {
+                VStack(alignment: .leading, spacing: 2) {
+                    signalRow("gemini", state.stats.gemini, state.stats.images)
+                    signalRow("quality", state.stats.quality, state.stats.images)
+                    signalRow("aesthetic2", state.stats.aestheticV2, state.stats.images)
+                    signalRow("florence", state.stats.florence, state.stats.images)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: 2) {
+                    signalRow("tags", state.stats.tags, state.stats.images)
+                    signalRow("enhance", state.stats.enhancement, state.stats.images)
+                    signalRow("faces", state.stats.faces, state.stats.images, partial: true)
+                    signalRow("objects", state.stats.objects, state.stats.images, partial: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+    }
+
+    private func signalRow(_ label: String, _ count: Int, _ total: Int, partial: Bool = false) -> some View {
+        let complete = count >= total && !partial
+        return HStack(spacing: 4) {
+            Circle()
+                .fill(complete ? .green : partial ? MonitorColor.teal.swiftUI : .yellow)
+                .frame(width: 5, height: 5)
+            Text(label)
+                .font(.system(size: 10, weight: .medium))
+                .frame(width: 64, alignment: .leading)
+            Text(formatted(count))
+                .font(.system(size: 10, design: .monospaced))
+                .foregroundStyle(complete ? .green : .white)
+        }
+    }
+
     // MARK: - Footer
 
     private var footer: some View {
         HStack(spacing: 0) {
             Text("DB")
                 .foregroundStyle(.secondary)
-            statPill(state.dbImages, "imgs")
-            statPill(state.dbGemma, "gemma")
-            statPill(state.dbGemini, "gemini")
-            statPill(state.dbVariants, "variants")
+            statPill(state.stats.images, "imgs")
+            statPill(state.stats.picks, "picks")
+            statPill(state.stats.gemma, "gemma")
             Spacer()
         }
         .font(.system(size: 10, design: .monospaced))

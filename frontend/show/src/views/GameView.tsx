@@ -785,6 +785,114 @@ const STRATEGIES: Strategy[] = [
       return pairs
     },
   },
+
+  /* --- Gemma-powered --- */
+  {
+    id: 'archetype',
+    name: 'Archetype',
+    subtitle: 'Same visual structure, different world',
+    icon: '\uD83D\uDD73\uFE0F',
+    type: 'harmony',
+    needsDrift: false,
+    build(photos) {
+      const archetypes = ['portal', 'horizon', 'texture', 'figure', 'geometry', 'void', 'cluster', 'reflection', 'silhouette', 'panorama']
+      const buckets: Record<string, Photo[]> = {}
+      for (const p of photos) {
+        if (!p.gc_archetype || !archetypes.includes(p.gc_archetype) || (p.aesthetic || 0) < 9.5) continue
+        ;(buckets[p.gc_archetype] = buckets[p.gc_archetype] || []).push(p)
+      }
+      const pairs: GamePair[] = []
+      const seen = new Set<string>()
+      for (const [arch, group] of Object.entries(buckets)) {
+        if (group.length < 2) continue
+        const shuffled = shuffleArray([...group])
+        for (let i = 0; i < shuffled.length - 1 && pairs.length < 500; i++) {
+          const a = shuffled[i]
+          for (let j = i + 1; j < shuffled.length && pairs.length < 500; j++) {
+            const b = shuffled[j]
+            if (a.scene === b.scene) continue // different scenes, same structure
+            const key = canonKey(a.id, b.id)
+            if (seen.has(key)) continue
+            seen.add(key)
+            pairs.push({ a, b, reason: `${arch} \u2014 ${a.scene || '?'} vs ${b.scene || '?'}` })
+            break
+          }
+        }
+      }
+      return pairs
+    },
+  },
+  {
+    id: 'energy',
+    name: 'Energy',
+    subtitle: 'Opposing visual forces',
+    icon: '\u26A1',
+    type: 'tension',
+    needsDrift: false,
+    build(photos) {
+      const opposites: [string, string][] = [
+        ['left_to_right', 'right_to_left'],
+        ['up', 'down'],
+        ['diagonal_down', 'diagonal_up'],
+        ['center_out', 'inward'],
+      ]
+      const byEnergy: Record<string, Photo[]> = {}
+      for (const p of photos) {
+        if (!p.gc_energy || p.gc_energy === 'static' || (p.aesthetic || 0) < 9.5) continue
+        ;(byEnergy[p.gc_energy] = byEnergy[p.gc_energy] || []).push(p)
+      }
+      const pairs: GamePair[] = []
+      const seen = new Set<string>()
+      for (const [eA, eB] of opposites) {
+        const groupA = byEnergy[eA] || []
+        const groupB = byEnergy[eB] || []
+        if (groupA.length === 0 || groupB.length === 0) continue
+        const shuffledA = shuffleArray([...groupA])
+        const shuffledB = shuffleArray([...groupB])
+        for (let i = 0; i < shuffledA.length && pairs.length < 500; i++) {
+          const a = shuffledA[i]
+          for (let j = 0; j < shuffledB.length && pairs.length < 500; j++) {
+            const b = shuffledB[j]
+            // Shared scene or brightness range for visual coherence
+            const sameScene = a.scene && a.scene === b.scene
+            const closeBright = Math.abs((a.brightness || 50) - (b.brightness || 50)) < 25
+            if (!sameScene && !closeBright) continue
+            const key = canonKey(a.id, b.id)
+            if (seen.has(key)) continue
+            seen.add(key)
+            pairs.push({ a, b, reason: `${eA} \u2194 ${eB}` })
+            break
+          }
+        }
+      }
+      return pairs
+    },
+  },
+
+  /* --- Variant --- */
+  {
+    id: 'variant',
+    name: 'Variant',
+    subtitle: 'Original meets its AI twin',
+    icon: '\uD83C\uDFA8',
+    type: 'special',
+    needsDrift: false,
+    build(_photos, photoMap) {
+      const pairs: GamePair[] = []
+      const seen = new Set<string>()
+      for (const p of Object.values(photoMap)) {
+        if (!p.parent || !p.variant_type || !p.thumb) continue
+        const original = photoMap[p.parent]
+        if (!original || !original.thumb) continue
+        const key = canonKey(original.id, p.id)
+        if (seen.has(key)) continue
+        seen.add(key)
+        const label = p.style_name || p.variant_type || 'variant'
+        pairs.push({ a: original, b: p, reason: `Original \u00D7 ${label}` })
+      }
+      return shuffleArray(pairs)
+    },
+  },
 ]
 
 /* ===== Build All Pairs ===== */

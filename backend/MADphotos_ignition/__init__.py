@@ -36,6 +36,7 @@ CORE_SERVERS = [
         "port": 5174,
         "health_url": "http://localhost:5174",
         "label": "Vite dev (System)",
+        "env": {"VITE_PORT": "5174"},
     },
 ]
 

@@ -45,12 +45,15 @@ def start_server(server: dict, dry: bool = False) -> dict:
 
     try:
         log_file = open(log_path, "w")
+        import os
+        env = {**os.environ, **server.get("env", {})} if "env" in server else None
         proc = subprocess.Popen(
             server["cmd"],
             cwd=server["cwd"],
             stdout=log_file,
             stderr=subprocess.STDOUT,
             start_new_session=True,
+            env=env,
         )
 
         # Wait briefly and poll for immediate crash

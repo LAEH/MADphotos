@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [react(), tailwindcss()],
   base: '/system/',
   server: {
-    port: 5173,
+    port: parseInt(process.env.VITE_PORT || '5173'),
     proxy: {
       '/api': `http://localhost:${apiPort}`,
       '/rendered': `http://localhost:${apiPort}`,

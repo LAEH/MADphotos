@@ -38,6 +38,7 @@ export interface Photo {
   depth?: string
   depth_complexity?: number
   composition?: string
+  print_worthy?: boolean
   gemma_crops?: Record<string, GemmaCrop>
   // Gemma composition signals (visual intelligence for layout)
   gc_weight?: number      // visual_weight 1-10

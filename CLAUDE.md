@@ -2,6 +2,34 @@
 
 Photo archive of 9,011 photographs. The backend is organized as **five agent folders** that form a pipeline: extract signals from every image, curate the best material with human input, and ship it to screens. See `backend/README.md` for the full agent architecture.
 
+## Welcome
+
+When the user starts a new session (first message, greeting, or says "hello", "hi", "start", etc.), display this welcome:
+
+```
+MADphotosMADphotosMADphotosMADphotosMADphotos
+MADphotosMADphotosMADphotosMADphotosMADphotos
+MADphotosMADphotosMADphotosMADphotosMADphotos
+MADphotosMADphotosMADphotosMADphotosMADphotos
+MADphotosMADphotosMADphotosMADphotosMADphotos
+MADphotosMADphotosMADphotosMADphotosMADphotos
+MADphotosMADphotosMADphotosMADphotosMADphotos
+```
+
+Then list available commands:
+
+| Command | What it does |
+|---------|-------------|
+| **ignition** | Launch dev servers (serve_show, Show vite, System vite) |
+| **shutdown** | Stop all running servers |
+| **deploy** | 10-phase verified deployment to Firebase |
+| **signals** | Run signal extraction pipeline (24+ models) |
+| **enhance** | Propose image enhancements for review |
+| **variants** | Generate AI art variants |
+| **status** | Check server health + running processes |
+
+## Agents
+
 | Agent | Mission | Entry Point |
 |-------|---------|-------------|
 | `image_signals/` | Run 24+ models against every image — the intelligence layer | `python3 -m backend.image_signals.completions` |
@@ -12,11 +40,54 @@ Photo archive of 9,011 photographs. The backend is organized as **five agent fol
 
 ## MADphotos ignition
 
-When the user says "MADphotos ignition", run the ignition agent:
+When the user says "ignition" or "MADphotos ignition", run the ignition agent:
 
 ```bash
 python3 -m backend.MADphotos_ignition.run
 ```
+
+**Scope:** Only care about MADphotos processes. Other Python/Node processes running on this machine (other projects, scrapers, etc.) are out of scope — do not report on them, do not kill them.
+
+When the user says "shutdown", shut down **all** MADphotos processes:
+
+1. Run `python3 -m backend.MADphotos_ignition.run --shutdown` (kills servers + vite)
+2. Then find and kill any remaining MADphotos processes: signal extraction (`extract_signals`, `run_gemma`, `completions`, `gemini.py`, `export_gallery`, `signals_v2`, `signals_advanced`), variant generation (`imagen`, `neural_style`, `generate_test`, `smart_variants`), enhancement (`enhance_exposure`), See.app, and any other process launched from the MADphotos directory. Confirm what was killed.
+
+When the user says "deploy", run:
+
+```bash
+python3 -m backend.update_and_deploy.run
+```
+
+When the user says "signals", run:
+
+```bash
+python3 -m backend.image_signals.completions
+```
+
+When the user says "enhance", run:
+
+```bash
+python3 -m backend.suggest_image_enhancement.propose
+```
+
+When the user says "variants", run:
+
+```bash
+python3 -m backend.suggest_image_variant.run
+```
+
+When the user says "status" or "MADphotos status", perform a **thorough diagnostic report**:
+
+1. **Servers** — check what's running (serve_show :3000, Show vite :5173, System vite :5174, Ollama :11434)
+2. **Processes** — find any running Python/signal/generation processes (`ps aux | grep python`)
+3. **Pipeline health** — query DB for signal coverage gaps, failed/incomplete runs, stale data
+4. **Variants & enhancements** — check `ai_variants` and `enhancement_plans` status counts
+5. **Git state** — uncommitted changes, current branch, ahead/behind remote
+6. **Disk** — DB size, rendered tiers count, vector store health
+7. **Next steps** — propose 3-5 concrete actions to improve signal extraction, data consumption in Show, and visual quality of experiences
+
+Run `python3 -m backend.MADphotos_ignition.run --status` for server health, then supplement with direct DB queries and filesystem checks to build the full picture.
 
 This automates the full startup: pre-checks (git, ports, deps, DB, Ollama) → server launch (serve_show :3000, Show vite :5173, System vite :5174) → health verification → ready URLs.
 

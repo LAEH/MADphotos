@@ -7,4 +7,5 @@ export const EXPERIENCES: Experience[] = [
   { id: 'isit', route: 'isit', name: 'ISIT', emoji: '\u2728', path: '/isit' },
   { id: 'scroll', route: 'scroll', name: 'Scroll', emoji: '\uD83D\uDCDC', path: '/scroll' },
   { id: 'all', route: 'all', name: 'All', emoji: '\uD83C\uDF10', path: '/all' },
+  { id: 'loved', route: 'loved', name: 'Loved', emoji: '\u2764\uFE0F', path: '/loved' },
 ]

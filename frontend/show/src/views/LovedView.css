@@ -1,0 +1,241 @@
+/* Loved — Browse rendered bento compositions */
+
+.loved-wrap {
+  position: fixed;
+  inset: 0;
+  contain: layout style;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: none;
+  padding: 100px 24px 40px;
+}
+
+/* ===== Gallery grid ===== */
+
+.loved-gallery {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .loved-gallery {
+    grid-template-columns: 1fr;
+  }
+}
+
+.loved-card {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--surface-secondary, rgba(128,128,128,0.06));
+  transition:
+    transform 0.2s var(--ease-out-quart),
+    box-shadow 0.2s var(--ease-out-quart);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.08),
+    0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+:root.dark .loved-card {
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.15),
+    0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .loved-card:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 4px 12px rgba(0, 0, 0, 0.1),
+      0 8px 24px rgba(0, 0, 0, 0.08);
+  }
+}
+
+.loved-card img {
+  width: 100%;
+  display: block;
+}
+
+.loved-card-meta {
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-tertiary, #999);
+  font-variant-numeric: tabular-nums;
+}
+
+.loved-card-meta span {
+  white-space: nowrap;
+}
+
+/* ===== Empty state ===== */
+
+.loved-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  gap: 12px;
+  color: var(--text-muted, #aaa);
+  text-align: center;
+}
+
+.loved-empty-icon {
+  font-size: 48px;
+  opacity: 0.4;
+}
+
+.loved-empty p {
+  margin: 0;
+  font-size: 15px;
+  max-width: 280px;
+  line-height: 1.5;
+}
+
+/* ===== Zoom viewer ===== */
+
+.loved-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  contain: layout style;
+}
+
+.loved-viewer-img {
+  max-width: none;
+  max-height: none;
+  transform-origin: 0 0;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.loved-viewer-img.dragging {
+  cursor: grabbing;
+}
+
+/* Zoom controls */
+.loved-zoom-controls {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 16px;
+  z-index: 1001;
+}
+
+.loved-zoom-btn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 18px;
+  transition: background 0.15s;
+}
+
+.loved-zoom-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.loved-zoom-label {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  min-width: 48px;
+  text-align: center;
+}
+
+/* Close button */
+.loved-close {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 20px;
+  z-index: 1001;
+  transition: background 0.15s;
+}
+
+.loved-close:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Nav arrows in viewer */
+.loved-nav {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 20px;
+  z-index: 1001;
+  transition: background 0.15s;
+}
+
+.loved-nav:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.loved-nav-prev { left: 16px; }
+.loved-nav-next { right: 16px; }
+
+/* Counter */
+.loved-counter {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  z-index: 1001;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .loved-card {
+    transition-duration: 0.01ms !important;
+  }
+}

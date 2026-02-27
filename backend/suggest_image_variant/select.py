@@ -117,6 +117,12 @@ def get_candidates(conn: sqlite3.Connection, count: int) -> List[Dict]:
             WHERE variant_type = 'smart_style'
               AND generation_status IN ('success', 'filtered')
         )
+        AND i.uuid NOT IN (
+            SELECT image_uuid FROM ai_variants
+            WHERE variant_type = 'smart_style' AND generation_status = 'failed'
+            GROUP BY image_uuid
+            HAVING COUNT(*) >= 3 AND SUM(CASE WHEN generation_status = 'success' THEN 1 ELSE 0 END) = 0
+        )
         GROUP BY i.uuid
         ORDER BY i.uuid
     """).fetchall()
