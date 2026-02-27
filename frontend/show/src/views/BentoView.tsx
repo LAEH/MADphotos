@@ -1348,6 +1348,7 @@ function BentoTile({ photo, cell, cellIndex, index, revealed, hasVariant, onSwap
 
 export function BentoView() {
   const data = useAppStore(s => s.data)
+  const photoMap = useAppStore(s => s.photoMap)
   const openLightbox = useAppStore(s => s.openLightbox)
 
   const [layout, setLayout] = useState<BentoLayout | null>(null)
@@ -1356,7 +1357,7 @@ export function BentoView() {
   const [colorBuckets, setColorBuckets] = useState<BentoColorBucket[]>([])
   const [activeColorIdx, setActiveColorIdx] = useState(-1) // -1 = all colors
   const [densityIdx, setDensityIdx] = useState(BENTO_DEFAULT_DENSITY_IDX)
-  const [variantsOn, setVariantsOn] = useState(false)
+  const [variantsOn, setVariantsOn] = useState(true)
   const [gridMode, setGridMode] = useState(false) // false=bento, true=uniform grid
   const [loved, setLoved] = useState(false)
   const [activeCurator, setActiveCurator] = useState('')
@@ -1492,10 +1493,14 @@ export function BentoView() {
           }
         }
       }
-      // Then swap all that have variants to show the AI version (only if variant has images)
-      for (let i = 0; i < selected.length; i++) {
-        const variant = variantMap.current.get(selected[i].id)
-        if (variant && (variant.display || variant.thumb)) selected[i] = variant
+      // Swap roughly half to variants — always keep some originals
+      const swappable = selected
+        .map((p, i) => ({ i, variant: variantMap.current.get(p.id) }))
+        .filter(x => x.variant && (x.variant.display || x.variant.thumb))
+      const maxSwap = Math.max(1, Math.ceil(selected.length / 2))
+      const shuffledSwap = [...swappable].sort(() => Math.random() - 0.5).slice(0, maxSwap)
+      for (const { i, variant } of shuffledSwap) {
+        selected[i] = variant!
       }
     }
 
@@ -1524,13 +1529,13 @@ export function BentoView() {
     preload.decoding = 'async'
 
     const doSwap = () => {
-      const img = tileEl.querySelector('img')
+      const img = tileEl.querySelector('img:not(.bento-tile-original)') as HTMLImageElement
       if (!img) return
 
       img.src = target
       img.classList.remove('img-loading', 'img-loaded')
       tileEl.dataset.id = variant.id
-      tileEl.dataset.variant = ''
+      if (variant.parent) tileEl.dataset.variant = ''; else delete tileEl.dataset.variant
 
       const dominant = variant.palette?.[0]
       if (dominant) tileEl.style.backgroundColor = dominant + '99'
@@ -1565,17 +1570,29 @@ export function BentoView() {
     preload.src = target
   }, [])
 
-  /* Swap a single tile — check for variant reveal first, then random swap */
+  /* Swap a single tile — toggle original↔variant first, then random swap */
   const swapTile = useCallback((tileEl: HTMLDivElement) => {
     if (!data) return
     const oldId = tileEl.dataset.id
     const orient = tileEl.dataset.orient as 'P' | 'L' | undefined
     const cellIdx = parseInt(tileEl.dataset.cellIdx || '0', 10)
+    const currentPhoto = photosRef.current.find(p => p.id === oldId)
 
-    /* Check if this tile has a variant to reveal */
+    /* Toggle: if showing a variant → show its original */
+    if (currentPhoto?.parent && !revealedRef.current.has(cellIdx)) {
+      const original = photoMap[currentPhoto.parent]
+      if (original && (original.display || original.thumb)) {
+        revealedRef.current.add(cellIdx)
+        setRevealedSet(new Set(revealedRef.current))
+        revealVariant(tileEl, original, cellIdx)
+        return
+      }
+    }
+
+    /* Toggle: if showing an original that has a variant → show the variant */
     if (oldId && !revealedRef.current.has(cellIdx)) {
       const variant = variantMap.current.get(oldId)
-      if (variant) {
+      if (variant && (variant.display || variant.thumb)) {
         revealedRef.current.add(cellIdx)
         setRevealedSet(new Set(revealedRef.current))
         revealVariant(tileEl, variant, cellIdx)
@@ -1608,7 +1625,7 @@ export function BentoView() {
     const target = newPhoto.display || newPhoto.thumb
     if (!target) return
 
-    const img = tileEl.querySelector('img')
+    const img = tileEl.querySelector('img:not(.bento-tile-original)') as HTMLImageElement
     if (!img) return
 
     /* Instant swap — image should be cached from preload buffer */
@@ -1680,7 +1697,7 @@ export function BentoView() {
     preload.decoding = 'async'
 
     const applySwap = () => {
-      const img = tile.querySelector('img')
+      const img = tile.querySelector('img:not(.bento-tile-original)') as HTMLImageElement
       if (!img) return
 
       img.src = target
@@ -1817,15 +1834,15 @@ export function BentoView() {
     }
   }, [activeColorIdx])
 
-  /* 🧞‍♂️ Best bento — pick a random count (2–16), use the best curator, best layout */
+  /* 🧞‍♂️ Best bento — pick a random count (2–16), use the best curator, best layout.
+   * In unicorn mode: guarantee at least half the tiles show generated variants. */
   const showBestBento = useCallback(() => {
     if (!data) return
     const device = isDesktop() ? 'desktop' as const : 'mobile' as const
-    // Random count from 2–16 for maximum visual variety
     const count = 2 + Math.floor(Math.random() * 15)
     const newLayout = pickLayoutForCount(count, device)
-    // Try ALL curators, pick the one with highest total visual impact
     const allPhotos = data.photos
+
     let bestResult: Photo[] = []
     let bestScore = -Infinity
     const shuffled = [...CURATORS].sort(() => Math.random() - 0.5)
@@ -1839,6 +1856,36 @@ export function BentoView() {
     if (bestResult.length === 0) {
       bestResult = fillBentoDefault(allPhotos, newLayout.cells)
     }
+
+    // In unicorn mode: mix — swap roughly half to variants, keep rest as originals
+    if (variantsOn && variantMap.current.size > 0) {
+      const variantParentIds = new Set(variantMap.current.keys())
+
+      // Try to get photos that have variants into the mix
+      const withVariant = allPhotos.filter(p => variantParentIds.has(p.id) && p.thumb && p.display && !p.parent)
+      const usedIds = new Set(bestResult.map(p => p.id))
+      for (let i = 0; i < bestResult.length && withVariant.length > 0; i++) {
+        if (!variantParentIds.has(bestResult[i].id)) {
+          const pick = withVariant.find(p => !usedIds.has(p.id))
+          if (pick) {
+            usedIds.delete(bestResult[i].id)
+            bestResult[i] = pick
+            usedIds.add(pick.id)
+          }
+        }
+      }
+
+      // Swap roughly half to variant versions, keep at least 1 original
+      const swappable = bestResult
+        .map((p, i) => ({ i, variant: variantMap.current.get(p.id) }))
+        .filter(x => x.variant && (x.variant.display || x.variant.thumb))
+      const maxSwap = Math.min(swappable.length, Math.max(1, Math.ceil(bestResult.length / 2)))
+      const toSwap = [...swappable].sort(() => Math.random() - 0.5).slice(0, maxSwap)
+      for (const { i, variant } of toSwap) {
+        bestResult[i] = variant!
+      }
+    }
+
     setGridMode(false)
     setActiveColorIdx(-1)
     setDensityIdx(BENTO_DENSITY_STEPS.indexOf(
@@ -1849,7 +1896,7 @@ export function BentoView() {
     revealedRef.current = new Set()
     setRevealedSet(new Set())
     requestAnimationFrame(() => refillPreloadBuffer(new Set(bestResult.map(p => p.id))))
-  }, [data, refillPreloadBuffer])
+  }, [data, variantsOn, refillPreloadBuffer])
 
   /* Regenerate when density or color changes */
   useEffect(() => {
@@ -1908,6 +1955,7 @@ export function BentoView() {
       className={`bento-wrap${isMobile ? ' bento-mobile' : ''}`}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
+      onClick={(e) => { if (e.target === e.currentTarget) showBestBento() }}
     >
       <div
         ref={gridRef}

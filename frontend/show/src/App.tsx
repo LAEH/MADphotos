@@ -82,7 +82,7 @@ export function App() {
             <Route path="/scroll" element={<ScrollView />} />
             <Route path="/all" element={<AllView />} />
             <Route path="/loved" element={<LovedView />} />
-            <Route path="*" element={<Navigate to="/isit" replace />} />
+            <Route path="*" element={<Navigate to="/bento" replace />} />
           </Routes>
         </Suspense>
       </ErrorBoundary>
