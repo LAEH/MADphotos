@@ -1517,15 +1517,46 @@ export function BentoView() {
       }
     }
 
-    // Inject AI variants when unicorn is on — only swap photos that naturally
-    // landed in the grid AND have a variant. Never force variant-parents in.
+    // Inject AI variants when unicorn is on.
+    // 1) Swap any naturally-selected photos that have variants
+    // 2) Replace ~30-40% of remaining slots with variant-parents from the pool
     if (variantsOn && variantMap.current.size > 0) {
-      const swappable = selected
-        .map((p, i) => ({ i, variant: variantMap.current.get(p.id) }))
-        .filter(x => x.variant && (x.variant.display || x.variant.thumb))
-      // Swap all that have variants — the curators already picked them naturally
-      for (const { i, variant } of swappable) {
-        selected[i] = variant!
+      const usedIds = new Set(selected.map(p => p.id))
+
+      // Phase 1: swap photos already in grid that have variants
+      for (let i = 0; i < selected.length; i++) {
+        const v = variantMap.current.get(selected[i].id)
+        if (v && (v.display || v.thumb)) {
+          selected[i] = v
+        }
+      }
+
+      // Phase 2: bring in variant-parents that curators missed.
+      // Target: ~40% of grid shows variants (mix of originals + AI art).
+      const currentVariantCount = selected.filter(p => p.parent).length
+      const targetVariants = Math.ceil(selected.length * 0.4)
+      const slotsToFill = targetVariants - currentVariantCount
+
+      if (slotsToFill > 0) {
+        // Find variant-parents NOT already in the grid
+        const parentPhotos = photoPool
+          .filter(p => variantMap.current.has(p.id) && !usedIds.has(p.id) && p.thumb && p.display && !p.parent)
+        // Shuffle so we don't always pick the same ones
+        for (let i = parentPhotos.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [parentPhotos[i], parentPhotos[j]] = [parentPhotos[j], parentPhotos[i]]
+        }
+        // Replace non-variant slots (skip slots that are already variants)
+        let replaced = 0
+        for (let i = 0; i < selected.length && replaced < slotsToFill && replaced < parentPhotos.length; i++) {
+          if (selected[i].parent) continue // already a variant, skip
+          const parent = parentPhotos[replaced]
+          const v = variantMap.current.get(parent.id)
+          if (v && (v.display || v.thumb)) {
+            selected[i] = v
+            replaced++
+          }
+        }
       }
     }
 

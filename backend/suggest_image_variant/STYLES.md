@@ -1,26 +1,26 @@
 # Style Transfer — Performance Scorecard
-# Auto-generated from 805 reviews on 2026-02-28
-# Overall acceptance: 306/805 (38%)
+# Auto-generated from 851 reviews on 2026-02-28
+# Overall acceptance: 321/851 (37%)
 
 | Style                | Accept | Reject | Total |   Rate | Status |
 |----------------------|--------|--------|-------|--------|--------|
 | boldink              |      5 |      2 |     7 |    71% | New    |
-| Linocut Print        |      2 |      1 |     3 |    67% | New    |
+| Technicolor Pop      |      4 |      2 |     6 |    67% | New    |
 | Banksy / Stencil Art |      3 |      2 |     5 |    60% | New    |
-| Technicolor Pop      |      3 |      2 |     5 |    60% | New    |
-| Sumi-e Ink Wash      |     47 |     39 |    86 |    55% | Solid  |
-| Saul Bass Poster     |      1 |      1 |     2 |    50% | New    |
-| Japanese Woodcut     |     27 |     28 |    55 |    49% | Solid  |
-| Sin City / Frank Miller |     45 |     49 |    94 |    48% | Solid  |
-| Scraperboard / Scratchboard |     23 |     27 |    50 |    46% | Solid  |
-| Gonzo / Steadman     |     46 |     57 |   103 |    45% | Solid  |
+| Sumi-e Ink Wash      |     50 |     42 |    92 |    54% | Solid  |
+| Saul Bass Poster     |      3 |      3 |     6 |    50% | New    |
+| Japanese Woodcut     |     30 |     30 |    60 |    50% | Solid  |
+| Gonzo / Steadman     |     47 |     57 |   104 |    45% | Solid  |
 | Batman TAS / Dark DC |     29 |     36 |    65 |    45% | Solid  |
-| Hugo Pratt / Corto Maltese |     39 |     62 |   101 |    39% | Weak   |
-| Alphonse Mucha / Art Nouveau |      1 |      2 |     3 |    33% | New    |
+| Sin City / Frank Miller |     47 |     60 |   107 |    44% | Solid  |
+| Scraperboard / Scratchboard |     25 |     32 |    57 |    44% | Solid  |
+| Linocut Print        |      2 |      3 |     5 |    40% | New    |
+| Hugo Pratt / Corto Maltese |     40 |     65 |   105 |    38% | Weak   |
 | impressionist        |      5 |     11 |    16 |    31% | Weak   |
 | Ukiyo-e Woodblock    |     12 |     43 |    55 |    22% | Weak   |
 | Marvel Comic Book    |      3 |     13 |    16 |    19% | Poor   |
 | editorial            |      4 |     19 |    23 |    17% | Poor   |
+| Alphonse Mucha / Art Nouveau |      1 |      5 |     6 |    17% | New    |
 | Archer TV            |      3 |     16 |    19 |    16% | Poor   |
 | pixar                |      3 |     17 |    20 |    15% | Poor   |
 | moebius              |      2 |     14 |    16 |    12% | Poor   |
