@@ -345,15 +345,9 @@
   margin-left: 6px;
 }
 
-/* Unicorn active — elegant darkened selected state */
+/* Unicorn active — match other active buttons, subtle tint */
 .bento-unicorn-active {
-  background: var(--text, #000) !important;
-  color: #fff !important;
-  box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.15) !important;
-}
-
-:root.dark .bento-unicorn-active {
-  background: #fff !important;
-  color: #000 !important;
-  box-shadow: none !important;
+  background: var(--surface-tertiary, rgba(128,128,128,0.18)) !important;
+  color: var(--text, #000) !important;
+  box-shadow: inset 0 0 0 1.5px var(--text-tertiary, rgba(0,0,0,0.2)) !important;
 }

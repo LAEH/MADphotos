@@ -1,157 +1,271 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useAppStore } from '../store/appStore'
+import { getObjectPosition, BENTO_UNIT_RATIO } from '../lib/cropUtils'
+import { loadProgressive } from '../lib/imageLoading'
+import { db } from '../lib/firebase'
+import { collection, query, orderBy, getDocs } from 'firebase/firestore'
+import type { Photo } from '../types/photo'
+import type { BentoCell } from '../lib/cropUtils'
 import './LovedView.css'
 
-interface LovedBento {
-  id: string
-  timestamp: number
-  layout_id: string
+interface SavedBento {
+  layoutId: string
   cols: number
   rows: number
-  photo_count: number
-  width: number
-  height: number
-  preview_url: string
-  png_url: string
+  cells: { r: number; c: number; rs: number; cs: number; orient: string }[]
+  photos: string[]  // photo UUIDs
+  gridMode: boolean
+  density: number
   curator: string
+  ts: number  // ms from localStorage, Firestore uses server timestamp
+  device: string
 }
 
 function formatDate(ts: number): string {
-  const d = new Date(ts * 1000)
+  const d = new Date(ts)
   const month = d.toLocaleDateString('en-US', { month: 'short' })
   const day = d.getDate()
   const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
   return `${month} ${day}, ${time}`
 }
 
-export function LovedView() {
-  const [bentos, setBentos] = useState<LovedBento[]>([])
-  const [loading, setLoading] = useState(true)
-  const [viewerIdx, setViewerIdx] = useState(-1) // -1 = gallery mode
+function LovedBentoCard({
+  bento,
+  photoMap,
+  onClick,
+}: {
+  bento: SavedBento
+  photoMap: Record<string, Photo>
+  onClick: () => void
+}) {
+  const containerRatio = (bento.cols * BENTO_UNIT_RATIO) / bento.rows
 
-  // Zoom state
-  const [zoom, setZoom] = useState(1)
-  const [pan, setPan] = useState({ x: 0, y: 0 })
-  const dragRef = useRef({ dragging: false, startX: 0, startY: 0, startPanX: 0, startPanY: 0 })
+  return (
+    <div className="loved-card" onClick={onClick}>
+      <div
+        className="loved-card-grid"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${bento.cols}, 1fr)`,
+          gridTemplateRows: `repeat(${bento.rows}, 1fr)`,
+          gap: '2px',
+          aspectRatio: containerRatio,
+          borderRadius: '10px',
+          overflow: 'hidden',
+        }}
+      >
+        {bento.cells.map((cell, i) => {
+          const photoId = bento.photos[i]
+          const photo = photoId ? photoMap[photoId] : undefined
+          if (!photo) return null
+          const src = photo.thumb || photo.display
+          if (!src) return null
+          return (
+            <div
+              key={`${bento.ts}-${i}`}
+              style={{
+                gridRow: `${cell.r} / ${cell.r + cell.rs}`,
+                gridColumn: `${cell.c} / ${cell.c + cell.cs}`,
+                overflow: 'hidden',
+              }}
+            >
+              <img
+                src={src}
+                alt=""
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  objectPosition: getObjectPosition(photo, cell as BentoCell),
+                  display: 'block',
+                }}
+                loading="lazy"
+              />
+            </div>
+          )
+        })}
+      </div>
+      <div className="loved-card-meta">
+        <span>{formatDate(bento.ts)}</span>
+        <span>{bento.photos.length} photos</span>
+        {bento.curator && bento.curator !== 'default' && <span>{bento.curator}</span>}
+      </div>
+    </div>
+  )
+}
+
+function LovedBentoViewer({
+  bento,
+  photoMap,
+  onClose,
+}: {
+  bento: SavedBento
+  photoMap: Record<string, Photo>
+  onClose: () => void
+}) {
   const viewerRef = useRef<HTMLDivElement>(null)
-  const imgRef = useRef<HTMLImageElement>(null)
+  const containerRatio = (bento.cols * BENTO_UNIT_RATIO) / bento.rows
 
-  // Fetch loved bentos from server
   useEffect(() => {
-    fetch('/api/bento/loved')
-      .then(r => r.json())
-      .then(data => {
-        setBentos(data.bentos || [])
-        setLoading(false)
-      })
-      .catch(() => setLoading(false))
-  }, [])
-
-  // Open viewer
-  const openViewer = useCallback((idx: number) => {
-    setViewerIdx(idx)
-    setZoom(1)
-    setPan({ x: 0, y: 0 })
-  }, [])
-
-  // Close viewer
-  const closeViewer = useCallback(() => {
-    setViewerIdx(-1)
-  }, [])
-
-  // Navigate between bentos
-  const navigate = useCallback((dir: number) => {
-    setViewerIdx(prev => {
-      const next = prev + dir
-      if (next < 0 || next >= bentos.length) return prev
-      setZoom(1)
-      setPan({ x: 0, y: 0 })
-      return next
-    })
-  }, [bentos.length])
-
-  // Zoom controls
-  const zoomIn = useCallback(() => {
-    setZoom(z => Math.min(4, z * 1.5))
-  }, [])
-
-  const zoomOut = useCallback(() => {
-    setZoom(z => Math.max(0.25, z / 1.5))
-  }, [])
-
-  const resetZoom = useCallback(() => {
-    setZoom(1)
-    setPan({ x: 0, y: 0 })
-  }, [])
-
-  // Mouse wheel zoom
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault()
-    const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15
-    setZoom(z => Math.max(0.25, Math.min(4, z * factor)))
-  }, [])
-
-  // Pan (drag)
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (zoom <= 1) return
-    e.preventDefault()
-    dragRef.current = {
-      dragging: true,
-      startX: e.clientX,
-      startY: e.clientY,
-      startPanX: pan.x,
-      startPanY: pan.y,
-    }
-  }, [zoom, pan])
-
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!dragRef.current.dragging) return
-    const dx = e.clientX - dragRef.current.startX
-    const dy = e.clientY - dragRef.current.startY
-    setPan({
-      x: dragRef.current.startPanX + dx / zoom,
-      y: dragRef.current.startPanY + dy / zoom,
-    })
-  }, [zoom])
-
-  const handleMouseUp = useCallback(() => {
-    dragRef.current.dragging = false
-  }, [])
-
-  // Keyboard
-  useEffect(() => {
-    if (viewerIdx < 0) return
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeViewer()
-      else if (e.key === 'ArrowLeft') navigate(-1)
-      else if (e.key === 'ArrowRight') navigate(1)
-      else if (e.key === '=' || e.key === '+') { e.preventDefault(); zoomIn() }
-      else if (e.key === '-') { e.preventDefault(); zoomOut() }
-      else if (e.key === '0') { e.preventDefault(); resetZoom() }
+      if (e.key === 'Escape') onClose()
     }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
-  }, [viewerIdx, closeViewer, navigate, zoomIn, zoomOut, resetZoom])
+  }, [onClose])
 
-  // Touch zoom (pinch)
-  const touchRef = useRef({ dist: 0, baseZoom: 1 })
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length === 2) {
-      const dx = e.touches[0].clientX - e.touches[1].clientX
-      const dy = e.touches[0].clientY - e.touches[1].clientY
-      touchRef.current = { dist: Math.hypot(dx, dy), baseZoom: zoom }
-    }
-  }, [zoom])
+  return (
+    <div
+      ref={viewerRef}
+      className="loved-viewer"
+      onClick={(e) => { if (e.target === viewerRef.current) onClose() }}
+    >
+      <div
+        className="loved-viewer-grid"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${bento.cols}, 1fr)`,
+          gridTemplateRows: `repeat(${bento.rows}, 1fr)`,
+          gap: '4px',
+          aspectRatio: containerRatio,
+          maxWidth: '90vw',
+          maxHeight: '85vh',
+          borderRadius: '12px',
+          overflow: 'hidden',
+        }}
+      >
+        {bento.cells.map((cell, i) => {
+          const photoId = bento.photos[i]
+          const photo = photoId ? photoMap[photoId] : undefined
+          if (!photo) return null
+          const src = photo.display || photo.thumb
+          if (!src) return null
+          return (
+            <div
+              key={`${bento.ts}-v-${i}`}
+              style={{
+                gridRow: `${cell.r} / ${cell.r + cell.rs}`,
+                gridColumn: `${cell.c} / ${cell.c + cell.cs}`,
+                overflow: 'hidden',
+              }}
+            >
+              <LovedTileImg photo={photo} cell={cell as BentoCell} />
+            </div>
+          )
+        })}
+      </div>
 
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length === 2) {
-      e.preventDefault()
-      const dx = e.touches[0].clientX - e.touches[1].clientX
-      const dy = e.touches[0].clientY - e.touches[1].clientY
-      const dist = Math.hypot(dx, dy)
-      const scale = dist / (touchRef.current.dist || 1)
-      setZoom(Math.max(0.25, Math.min(4, touchRef.current.baseZoom * scale)))
+      <button className="loved-close" onClick={onClose} aria-label="Close">
+        {'\u2715'}
+      </button>
+    </div>
+  )
+}
+
+function LovedTileImg({ photo, cell }: { photo: Photo; cell: BentoCell }) {
+  const imgRef = useCallback((el: HTMLImageElement | null) => {
+    if (!el) return
+    loadProgressive(el, photo, 'display', '90vw')
+    el.style.objectPosition = getObjectPosition(photo, cell)
+  }, [photo, cell])
+
+  return (
+    <img
+      ref={imgRef}
+      alt=""
+      style={{
+        width: '100%',
+        height: '100%',
+        objectFit: 'cover',
+        display: 'block',
+      }}
+    />
+  )
+}
+
+export function LovedView() {
+  const photoMap = useAppStore(s => s.photoMap)
+  const [bentos, setBentos] = useState<SavedBento[]>([])
+  const [loading, setLoading] = useState(true)
+  const [viewerIdx, setViewerIdx] = useState(-1)
+
+  // Load from localStorage + Firestore
+  useEffect(() => {
+    const localBentos: SavedBento[] = []
+    try {
+      const raw = localStorage.getItem('bento-loves')
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed)) {
+          for (const b of parsed) {
+            if (b.photos && b.cells && b.cols && b.rows) {
+              localBentos.push(b)
+            }
+          }
+        }
+      }
+    } catch { /* corrupted localStorage */ }
+
+    // Show local immediately
+    if (localBentos.length > 0) {
+      setBentos(localBentos.sort((a, b) => (b.ts || 0) - (a.ts || 0)))
+      setLoading(false)
     }
+
+    // Also fetch from Firestore (may have loves from other devices/production)
+    getDocs(query(collection(db, 'bento-loves'), orderBy('ts', 'desc')))
+      .then(snap => {
+        const firestoreBentos: SavedBento[] = []
+        snap.forEach(doc => {
+          const d = doc.data()
+          if (d.photos && d.cells && d.cols && d.rows) {
+            firestoreBentos.push({
+              layoutId: d.layoutId || '',
+              cols: d.cols,
+              rows: d.rows,
+              cells: d.cells,
+              photos: d.photos,
+              gridMode: d.gridMode || false,
+              density: d.density || 0,
+              curator: d.curator || '',
+              ts: d.ts?.toMillis?.() || d.ts || Date.now(),
+              device: d.device || '',
+            })
+          }
+        })
+
+        // Merge: dedupe by photo IDs (same composition)
+        const seen = new Set<string>()
+        const merged: SavedBento[] = []
+        for (const b of [...firestoreBentos, ...localBentos]) {
+          const key = b.photos.sort().join(',')
+          if (!seen.has(key)) {
+            seen.add(key)
+            merged.push(b)
+          }
+        }
+        merged.sort((a, b) => (b.ts || 0) - (a.ts || 0))
+        setBentos(merged)
+        setLoading(false)
+      })
+      .catch(() => {
+        // Firestore unavailable — local only is fine
+        setLoading(false)
+      })
   }, [])
+
+  const activeBento = viewerIdx >= 0 ? bentos[viewerIdx] : null
+
+  // Keyboard nav between bentos
+  useEffect(() => {
+    if (viewerIdx < 0) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft' && viewerIdx > 0) setViewerIdx(viewerIdx - 1)
+      if (e.key === 'ArrowRight' && viewerIdx < bentos.length - 1) setViewerIdx(viewerIdx + 1)
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [viewerIdx, bentos.length])
 
   if (loading) {
     return <div className="loved-wrap"><div className="loved-empty"><p>Loading...</p></div></div>
@@ -168,90 +282,25 @@ export function LovedView() {
     )
   }
 
-  const activeBento = viewerIdx >= 0 ? bentos[viewerIdx] : null
-
   return (
     <div className="loved-wrap">
-      {/* Gallery grid */}
       <div className="loved-gallery">
         {bentos.map((bento, i) => (
-          <div
-            key={bento.id}
-            className="loved-card"
-            onClick={() => openViewer(i)}
-          >
-            <img
-              src={bento.preview_url}
-              alt={`Bento ${bento.layout_id}`}
-              loading="lazy"
-            />
-            <div className="loved-card-meta">
-              <span>{formatDate(bento.timestamp)}</span>
-              <span>{bento.photo_count} photos</span>
-              {bento.curator && <span>{bento.curator}</span>}
-            </div>
-          </div>
+          <LovedBentoCard
+            key={`${bento.ts}-${i}`}
+            bento={bento}
+            photoMap={photoMap}
+            onClick={() => setViewerIdx(i)}
+          />
         ))}
       </div>
 
-      {/* Full-screen zoom viewer */}
       {activeBento && (
-        <div
-          ref={viewerRef}
-          className="loved-viewer"
-          onClick={(e) => { if (e.target === viewerRef.current) closeViewer() }}
-          onWheel={handleWheel}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-        >
-          <img
-            ref={imgRef}
-            className={`loved-viewer-img${dragRef.current.dragging ? ' dragging' : ''}`}
-            src={activeBento.png_url}
-            alt=""
-            style={{
-              transform: `scale(${zoom}) translate(${pan.x}px, ${pan.y}px)`,
-              maxWidth: zoom <= 1 ? '90vw' : 'none',
-              maxHeight: zoom <= 1 ? '85vh' : 'none',
-            }}
-            onMouseDown={handleMouseDown}
-            draggable={false}
-          />
-
-          {/* Close */}
-          <button className="loved-close" onClick={closeViewer} aria-label="Close">
-            {'\u2715'}
-          </button>
-
-          {/* Counter */}
-          <div className="loved-counter">
-            {viewerIdx + 1} / {bentos.length}
-          </div>
-
-          {/* Nav arrows */}
-          {viewerIdx > 0 && (
-            <button className="loved-nav loved-nav-prev" onClick={() => navigate(-1)} aria-label="Previous">
-              {'\u2039'}
-            </button>
-          )}
-          {viewerIdx < bentos.length - 1 && (
-            <button className="loved-nav loved-nav-next" onClick={() => navigate(1)} aria-label="Next">
-              {'\u203A'}
-            </button>
-          )}
-
-          {/* Zoom controls */}
-          <div className="loved-zoom-controls">
-            <button className="loved-zoom-btn" onClick={zoomOut} aria-label="Zoom out">{'\u2212'}</button>
-            <button className="loved-zoom-btn" onClick={resetZoom} aria-label="Reset zoom">
-              <span className="loved-zoom-label">{Math.round(zoom * 100)}%</span>
-            </button>
-            <button className="loved-zoom-btn" onClick={zoomIn} aria-label="Zoom in">{'\u002B'}</button>
-          </div>
-        </div>
+        <LovedBentoViewer
+          bento={activeBento}
+          photoMap={photoMap}
+          onClose={() => setViewerIdx(-1)}
+        />
       )}
     </div>
   )
