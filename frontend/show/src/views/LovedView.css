@@ -1,4 +1,4 @@
-/* Loved — Browse rendered bento compositions */
+/* Loved — Browse saved bento compositions, rendered identically to BentoView */
 
 .loved-wrap {
   position: fixed;
@@ -15,7 +15,7 @@
 .loved-gallery {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+  gap: 48px 32px;
   max-width: 1200px;
   margin: 0 auto;
 }
@@ -27,41 +27,65 @@
 }
 
 .loved-card {
-  position: relative;
-  border-radius: 12px;
-  overflow: hidden;
   cursor: pointer;
-  background: var(--surface-secondary, rgba(128,128,128,0.06));
-  transition:
-    transform 0.2s var(--ease-out-quart),
-    box-shadow 0.2s var(--ease-out-quart);
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.08),
-    0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-:root.dark .loved-card {
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.15),
-    0 2px 8px rgba(0, 0, 0, 0.12);
+  transition: transform 0.2s var(--ease-out-quart);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .loved-card:hover {
     transform: translateY(-2px);
-    box-shadow:
-      0 4px 12px rgba(0, 0, 0, 0.1),
-      0 8px 24px rgba(0, 0, 0, 0.08);
   }
 }
 
-.loved-card img {
+/* ===== Bento grid — mirrors .bento-grid exactly ===== */
+
+.loved-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--bento-cols, 5), 1fr);
+  grid-template-rows: repeat(var(--bento-rows, 4), 1fr);
+  gap: 8px;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* ===== Tile — mirrors .bento-tile exactly ===== */
+
+.loved-tile {
+  position: relative;
+  overflow: hidden;
+  contain: layout style paint;
+  min-width: 0;
+  min-height: 0;
   width: 100%;
+  height: 100%;
+  border-radius: 12px;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.08),
+    0 2px 8px rgba(0, 0, 0, 0.06),
+    0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+:root.dark .loved-tile {
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.15),
+    0 2px 8px rgba(0, 0, 0, 0.12),
+    0 4px 16px rgba(0, 0, 0, 0.10);
+}
+
+.loved-tile img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   display: block;
 }
 
+/* ===== Card meta ===== */
+
 .loved-card-meta {
-  padding: 10px 14px;
+  padding: 10px 4px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -100,7 +124,7 @@
   line-height: 1.5;
 }
 
-/* ===== Zoom viewer ===== */
+/* ===== Viewer — fullscreen ===== */
 
 .loved-viewer {
   position: fixed;
@@ -110,64 +134,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 40px;
   contain: layout style;
 }
 
-.loved-viewer-img {
-  max-width: none;
-  max-height: none;
-  transform-origin: 0 0;
-  cursor: grab;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.loved-viewer-img.dragging {
-  cursor: grabbing;
-}
-
-/* Zoom controls */
-.loved-zoom-controls {
-  position: fixed;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-radius: 16px;
-  z-index: 1001;
-}
-
-.loved-zoom-btn {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-  border-radius: 10px;
-  cursor: pointer;
-  font-size: 18px;
-  transition: background 0.15s;
-}
-
-.loved-zoom-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.loved-zoom-label {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  min-width: 48px;
-  text-align: center;
+.loved-grid-viewer {
+  max-width: 90vw;
+  max-height: 85vh;
 }
 
 /* Close button */
@@ -194,7 +167,7 @@
   background: rgba(255, 255, 255, 0.25);
 }
 
-/* Nav arrows in viewer */
+/* Nav arrows */
 .loved-nav {
   position: fixed;
   top: 50%;

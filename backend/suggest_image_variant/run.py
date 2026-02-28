@@ -66,7 +66,10 @@ def cmd_dry(candidates: List[Dict], assignments: List[Tuple[Dict, List[str]]]) -
             style_counts[s] = style_counts.get(s, 0) + 1
 
     total_variants = len(candidates) * STYLES_PER_PHOTO
-    print(f"\nStyle distribution across {len(candidates)} photos ({total_variants} variants):")
+    n_portrait = sum(1 for c in candidates if c.get("orientation") == "portrait")
+    n_landscape = len(candidates) - n_portrait
+    print(f"\nOrientation: {n_portrait} portrait + {n_landscape} landscape")
+    print(f"Style distribution across {len(candidates)} photos ({total_variants} variants):")
     for key in sorted(style_counts, key=lambda k: -style_counts[k]):
         pct = style_counts[key] * 100 // max(total_variants, 1)
         print(f"  {STYLES[key]['name']:<25} {style_counts[key]:>4} ({pct}%)")

@@ -13,11 +13,11 @@ interface SavedBento {
   cols: number
   rows: number
   cells: { r: number; c: number; rs: number; cs: number; orient: string }[]
-  photos: string[]  // photo UUIDs
+  photos: string[]
   gridMode: boolean
   density: number
   curator: string
-  ts: number  // ms from localStorage, Firestore uses server timestamp
+  ts: number
   device: string
 }
 
@@ -29,157 +29,70 @@ function formatDate(ts: number): string {
   return `${month} ${day}, ${time}`
 }
 
-function LovedBentoCard({
-  bento,
-  photoMap,
-  onClick,
+/* Tile that mirrors BentoView's .bento-tile exactly */
+function LovedTile({
+  photo, cell, tier,
 }: {
-  bento: SavedBento
-  photoMap: Record<string, Photo>
-  onClick: () => void
+  photo: Photo
+  cell: BentoCell
+  tier: 'thumb' | 'display'
 }) {
-  const containerRatio = (bento.cols * BENTO_UNIT_RATIO) / bento.rows
+  const imgRef = useCallback((el: HTMLImageElement | null) => {
+    if (!el) return
+    loadProgressive(el, photo, tier, tier === 'display' ? '90vw' : '50vw')
+    el.style.objectPosition = getObjectPosition(photo, cell)
+  }, [photo, cell, tier])
 
-  return (
-    <div className="loved-card" onClick={onClick}>
-      <div
-        className="loved-card-grid"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: `repeat(${bento.cols}, 1fr)`,
-          gridTemplateRows: `repeat(${bento.rows}, 1fr)`,
-          gap: '2px',
-          aspectRatio: containerRatio,
-          borderRadius: '10px',
-          overflow: 'hidden',
-        }}
-      >
-        {bento.cells.map((cell, i) => {
-          const photoId = bento.photos[i]
-          const photo = photoId ? photoMap[photoId] : undefined
-          if (!photo) return null
-          const src = photo.thumb || photo.display
-          if (!src) return null
-          return (
-            <div
-              key={`${bento.ts}-${i}`}
-              style={{
-                gridRow: `${cell.r} / ${cell.r + cell.rs}`,
-                gridColumn: `${cell.c} / ${cell.c + cell.cs}`,
-                overflow: 'hidden',
-              }}
-            >
-              <img
-                src={src}
-                alt=""
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  objectPosition: getObjectPosition(photo, cell as BentoCell),
-                  display: 'block',
-                }}
-                loading="lazy"
-              />
-            </div>
-          )
-        })}
-      </div>
-      <div className="loved-card-meta">
-        <span>{formatDate(bento.ts)}</span>
-        <span>{bento.photos.length} photos</span>
-        {bento.curator && bento.curator !== 'default' && <span>{bento.curator}</span>}
-      </div>
-    </div>
-  )
-}
-
-function LovedBentoViewer({
-  bento,
-  photoMap,
-  onClose,
-}: {
-  bento: SavedBento
-  photoMap: Record<string, Photo>
-  onClose: () => void
-}) {
-  const viewerRef = useRef<HTMLDivElement>(null)
-  const containerRatio = (bento.cols * BENTO_UNIT_RATIO) / bento.rows
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', handler)
-    return () => document.removeEventListener('keydown', handler)
-  }, [onClose])
+  const dominant = photo.palette?.[0]
 
   return (
     <div
-      ref={viewerRef}
-      className="loved-viewer"
-      onClick={(e) => { if (e.target === viewerRef.current) onClose() }}
+      className="loved-tile"
+      style={{
+        gridRow: `${cell.r} / ${cell.r + cell.rs}`,
+        gridColumn: `${cell.c} / ${cell.c + cell.cs}`,
+        backgroundColor: dominant ? dominant + '99' : undefined,
+      }}
     >
-      <div
-        className="loved-viewer-grid"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: `repeat(${bento.cols}, 1fr)`,
-          gridTemplateRows: `repeat(${bento.rows}, 1fr)`,
-          gap: '4px',
-          aspectRatio: containerRatio,
-          maxWidth: '90vw',
-          maxHeight: '85vh',
-          borderRadius: '12px',
-          overflow: 'hidden',
-        }}
-      >
-        {bento.cells.map((cell, i) => {
-          const photoId = bento.photos[i]
-          const photo = photoId ? photoMap[photoId] : undefined
-          if (!photo) return null
-          const src = photo.display || photo.thumb
-          if (!src) return null
-          return (
-            <div
-              key={`${bento.ts}-v-${i}`}
-              style={{
-                gridRow: `${cell.r} / ${cell.r + cell.rs}`,
-                gridColumn: `${cell.c} / ${cell.c + cell.cs}`,
-                overflow: 'hidden',
-              }}
-            >
-              <LovedTileImg photo={photo} cell={cell as BentoCell} />
-            </div>
-          )
-        })}
-      </div>
-
-      <button className="loved-close" onClick={onClose} aria-label="Close">
-        {'\u2715'}
-      </button>
+      <img ref={imgRef} alt="" />
     </div>
   )
 }
 
-function LovedTileImg({ photo, cell }: { photo: Photo; cell: BentoCell }) {
-  const imgRef = useCallback((el: HTMLImageElement | null) => {
-    if (!el) return
-    loadProgressive(el, photo, 'display', '90vw')
-    el.style.objectPosition = getObjectPosition(photo, cell)
-  }, [photo, cell])
+/* Render a bento grid — used by both card and viewer */
+function BentoGrid({
+  bento, photoMap, tier, className,
+}: {
+  bento: SavedBento
+  photoMap: Record<string, Photo>
+  tier: 'thumb' | 'display'
+  className: string
+}) {
+  const containerRatio = (bento.cols * BENTO_UNIT_RATIO) / bento.rows
 
   return (
-    <img
-      ref={imgRef}
-      alt=""
+    <div
+      className={className}
       style={{
-        width: '100%',
-        height: '100%',
-        objectFit: 'cover',
-        display: 'block',
-      }}
-    />
+        '--bento-cols': bento.cols,
+        '--bento-rows': bento.rows,
+        aspectRatio: containerRatio,
+      } as React.CSSProperties}
+    >
+      {bento.cells.map((cell, i) => {
+        const photoId = bento.photos[i]
+        const photo = photoId ? photoMap[photoId] : undefined
+        if (!photo) return null
+        return (
+          <LovedTile
+            key={`${bento.ts}-${i}`}
+            photo={photo}
+            cell={cell as BentoCell}
+            tier={tier}
+          />
+        )
+      })}
+    </div>
   )
 }
 
@@ -188,6 +101,7 @@ export function LovedView() {
   const [bentos, setBentos] = useState<SavedBento[]>([])
   const [loading, setLoading] = useState(true)
   const [viewerIdx, setViewerIdx] = useState(-1)
+  const viewerRef = useRef<HTMLDivElement>(null)
 
   // Load from localStorage + Firestore
   useEffect(() => {
@@ -206,13 +120,11 @@ export function LovedView() {
       }
     } catch { /* corrupted localStorage */ }
 
-    // Show local immediately
     if (localBentos.length > 0) {
       setBentos(localBentos.sort((a, b) => (b.ts || 0) - (a.ts || 0)))
       setLoading(false)
     }
 
-    // Also fetch from Firestore (may have loves from other devices/production)
     getDocs(query(collection(db, 'bento-loves'), orderBy('ts', 'desc')))
       .then(snap => {
         const firestoreBentos: SavedBento[] = []
@@ -234,11 +146,10 @@ export function LovedView() {
           }
         })
 
-        // Merge: dedupe by photo IDs (same composition)
         const seen = new Set<string>()
         const merged: SavedBento[] = []
         for (const b of [...firestoreBentos, ...localBentos]) {
-          const key = b.photos.sort().join(',')
+          const key = [...b.photos].sort().join(',')
           if (!seen.has(key)) {
             seen.add(key)
             merged.push(b)
@@ -248,18 +159,16 @@ export function LovedView() {
         setBentos(merged)
         setLoading(false)
       })
-      .catch(() => {
-        // Firestore unavailable — local only is fine
-        setLoading(false)
-      })
+      .catch(() => setLoading(false))
   }, [])
 
   const activeBento = viewerIdx >= 0 ? bentos[viewerIdx] : null
 
-  // Keyboard nav between bentos
+  // Keyboard
   useEffect(() => {
     if (viewerIdx < 0) return
     const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setViewerIdx(-1)
       if (e.key === 'ArrowLeft' && viewerIdx > 0) setViewerIdx(viewerIdx - 1)
       if (e.key === 'ArrowRight' && viewerIdx < bentos.length - 1) setViewerIdx(viewerIdx + 1)
     }
@@ -286,21 +195,43 @@ export function LovedView() {
     <div className="loved-wrap">
       <div className="loved-gallery">
         {bentos.map((bento, i) => (
-          <LovedBentoCard
-            key={`${bento.ts}-${i}`}
-            bento={bento}
-            photoMap={photoMap}
-            onClick={() => setViewerIdx(i)}
-          />
+          <div key={`${bento.ts}-${i}`} className="loved-card" onClick={() => setViewerIdx(i)}>
+            <BentoGrid bento={bento} photoMap={photoMap} tier="thumb" className="loved-grid" />
+            <div className="loved-card-meta">
+              <span>{formatDate(bento.ts)}</span>
+              <span>{bento.photos.length} photos</span>
+            </div>
+          </div>
         ))}
       </div>
 
       {activeBento && (
-        <LovedBentoViewer
-          bento={activeBento}
-          photoMap={photoMap}
-          onClose={() => setViewerIdx(-1)}
-        />
+        <div
+          ref={viewerRef}
+          className="loved-viewer"
+          onClick={(e) => { if (e.target === viewerRef.current) setViewerIdx(-1) }}
+        >
+          <BentoGrid bento={activeBento} photoMap={photoMap} tier="display" className="loved-grid loved-grid-viewer" />
+
+          <button className="loved-close" onClick={() => setViewerIdx(-1)} aria-label="Close">
+            {'\u2715'}
+          </button>
+
+          <div className="loved-counter">
+            {viewerIdx + 1} / {bentos.length}
+          </div>
+
+          {viewerIdx > 0 && (
+            <button className="loved-nav loved-nav-prev" onClick={() => setViewerIdx(viewerIdx - 1)} aria-label="Previous">
+              {'\u2039'}
+            </button>
+          )}
+          {viewerIdx < bentos.length - 1 && (
+            <button className="loved-nav loved-nav-next" onClick={() => setViewerIdx(viewerIdx + 1)} aria-label="Next">
+              {'\u203A'}
+            </button>
+          )}
+        </div>
       )}
     </div>
   )

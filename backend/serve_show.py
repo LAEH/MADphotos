@@ -253,8 +253,7 @@ fi
 .venv-gen/bin/python3 -u -m backend.suggest_image_variant.run --count {count}
 echo ""
 echo "=== Generation complete ==="
-echo "Press any key to close..."
-read -n 1
+echo "Done."
 """
         script_path = Path("/tmp/generated-generate.sh")
         script_path.write_text(script)
@@ -297,8 +296,7 @@ echo "Step 4/4 — Regenerate System data"
 python3 -u backend/dashboard.py
 echo ""
 echo "=== Export complete ==="
-echo "Press any key to close..."
-read -n 1
+echo "Done."
 """
         script_path = Path("/tmp/generated-export.sh")
         script_path.write_text(script)
@@ -572,8 +570,7 @@ echo "Step 3/3 — Regenerate System data"
 python3 -u backend/dashboard.py
 echo ""
 echo "=== Deploy complete ==="
-echo "Press any key to close..."
-read -n 1
+echo "Done."
 """
         script_path = Path("/tmp/enhance-auto-deploy.sh")
         script_path.write_text(script)

@@ -457,22 +457,23 @@ function hueDist(a: number, b: number): number {
 }
 
 /** Visual impact score — determines which photos deserve the big cells.
+ *  Uses aesthetic_v2 (real spread: 16-48) instead of useless aesthetic (99% score 10/10).
  *  High score = dramatic, attention-grabbing, hero material.
  *  Low score = supporting cast, texture, atmosphere. */
 function visualImpact(p: Photo): number {
-  let s = (p.aesthetic || 5) * 1.5
-  if ((p.face_count || 0) > 0) s += 4
-  if ((p.contrast || 50) > 70) s += 2
-  if ((p.depth_complexity || 0) > 3) s += 1.5
-  if (p.saliency && p.saliency.spread < 0.3) s += 2 // focused subject
-  if (p.gc_weight) s += (p.gc_weight - 5) * 0.8
-  if (p.mono) s += 1 // monochrome has visual gravitas
-  // Gemma technical quality rewards
-  if (p.gemma_sharpness === 'sharp') s += 1.5
-  else if (p.gemma_sharpness === 'motion_blur') s += 0.5 // intentional blur has character
-  if (p.gemma_exposure === 'balanced') s += 1
-  // Directional energy = visual dynamism
-  if (p.gc_energy && p.gc_energy !== 'static') s += 0.8
+  // aesthetic_v2: range ~17-48, mean ~37, std ~5. Normalize to 0-10 range.
+  const av2 = (p as unknown as Record<string, unknown>).aesthetic_v2 as number | undefined
+  let s = av2 != null ? ((av2 - 17) / 3.1) : ((p.aesthetic || 5) * 1.5)
+  if ((p.face_count || 0) > 0) s += 3
+  if ((p.contrast || 50) > 70) s += 1.5
+  if ((p.depth_complexity || 0) > 3) s += 1
+  if (p.saliency && p.saliency.spread < 0.3) s += 1.5
+  if (p.gc_weight) s += (p.gc_weight - 5) * 0.5
+  if (p.mono) s += 0.5
+  if (p.gemma_sharpness === 'sharp') s += 1
+  else if (p.gemma_sharpness === 'motion_blur') s += 0.3
+  if (p.gemma_exposure === 'balanced') s += 0.5
+  if (p.gc_energy && p.gc_energy !== 'static') s += 0.5
   return s
 }
 
@@ -615,7 +616,7 @@ function curateHeroStory(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
     if (p.scene === hero.scene && hero.scene) s += 3
     if (p.time === hero.time && hero.time) s += 2
     if (p.grading === hero.grading && hero.grading) s += 2
-    return s + Math.random() * 2
+    return s + Math.random() * 8
   })
 }
 
@@ -657,7 +658,7 @@ function curateTemperatureHarmony(allPhotos: Photo[], cells: BentoCell[]): Photo
     // Hue cohesion within the temperature
     const targetHue = temp === 'warm' ? 30 : 210
     s += (60 - hueDist(p.hue || 0, targetHue)) / 6
-    return s + Math.random() * 2
+    return s + Math.random() * 8
   })
 }
 
@@ -689,7 +690,7 @@ function curateDepthJourney(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
     const dc = p.depth_complexity || 2
     s += dc * 0.5 // deep = higher score → bigger cells
     // Hue variety bonus (diverse palette)
-    s += Math.random() * 3
+    s += Math.random() * 8
     return s
   })
 }
@@ -721,7 +722,7 @@ function curateMonoAccent(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
     let s = visualImpact(p)
     // Color accents should land in large cells
     if (!p.mono) s += 10
-    return s + Math.random() * 1.5
+    return s + Math.random() * 8
   })
 }
 
@@ -756,7 +757,7 @@ function curateColorStory(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
     let s = visualImpact(p)
     s += (45 - hueDist(p.hue || 0, targetHue)) / 4 // tighter hue = better
     if (p.parent) s -= 3
-    return s + Math.random() * 2
+    return s + Math.random() * 8
   })
 }
 
@@ -793,7 +794,7 @@ function curateMoodBoard(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
     const shared = p.vibes!.filter(v => vibeCounts.get(v)! >= 5).length
     s += shared * 3
     // Color cohesion within the mood
-    return s + Math.random() * 2
+    return s + Math.random() * 8
   })
 }
 
@@ -828,7 +829,7 @@ function curateSceneStory(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
     let s = visualImpact(p)
     // Color harmony within scene
     s += (60 - hueDist(p.hue || 0, avgHue)) / 6
-    return s + Math.random() * 2
+    return s + Math.random() * 8
   })
 }
 
@@ -895,7 +896,7 @@ function curateCameraStory(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
     let s = visualImpact(p)
     // Reward hue diversity — photos far from average hue add visual interest
     s += hueDist(p.hue || 0, avgHue) / 20
-    return s + Math.random() * 2
+    return s + Math.random() * 8
   })
 }
 
@@ -916,7 +917,7 @@ function curateNightVision(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
     let s = visualImpact(p)
     // High contrast photos get bonus for large cells
     if ((p.contrast || 50) > 60) s += 3
-    return s + Math.random() * 2
+    return s + Math.random() * 8
   })
 }
 
@@ -938,7 +939,7 @@ function curateGoldenHour(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
     // Warm hues (orange/yellow range) get bonus
     const h = p.hue || 0
     if (h > 15 && h < 60) s += 4
-    return s + Math.random() * 2
+    return s + Math.random() * 8
   })
 }
 
@@ -959,7 +960,7 @@ function curateFaceGallery(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
     let s = visualImpact(p)
     // More faces → bigger cells
     s += (p.face_count || 0) * 2
-    return s + Math.random() * 2
+    return s + Math.random() * 8
   })
 }
 
@@ -986,7 +987,7 @@ function curateStyleContrast(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
     let s = visualImpact(p)
     // Analog photos get boost to land in large cells
     if (p.style === 'analog') s += 5
-    return s + Math.random() * 2
+    return s + Math.random() * 8
   })
 }
 
@@ -1019,7 +1020,7 @@ function curateBrightnessGradient(allPhotos: Photo[], cells: BentoCell[]): Photo
     let s = visualImpact(p)
     // Dark photos → large cells (higher score), light → small cells
     s += ((maxBright - (p.brightness || 0)) / range) * 6
-    return s + Math.random() * 1.5
+    return s + Math.random() * 8
   })
 }
 
@@ -1054,7 +1055,7 @@ function curateEnergyFlow(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
     let s = visualImpact(p)
     // Reward photos with strong composition weight for hero cells
     if (p.gc_weight && p.gc_weight >= 7) s += 3
-    return s + Math.random() * 2
+    return s + Math.random() * 8
   })
 }
 
@@ -1098,7 +1099,7 @@ function curateSemanticPops(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
     // Reward photos where the pop has high impact
     const pop = p.gemma_pops!.find(pp => pp.color.toLowerCase() === targetColor)
     if (pop && (pop.impact === 'high' || pop.impact === 'dominant')) s += 4
-    return s + Math.random() * 2
+    return s + Math.random() * 8
   })
 }
 
@@ -1120,7 +1121,7 @@ function curatePrintWorthy(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
     if (p.gemma_sharpness === 'sharp') s += 3
     if (p.gemma_exposure === 'balanced') s += 2
     if (p.gc_weight && p.gc_weight >= 8) s += 3
-    return s + Math.random() * 2
+    return s + Math.random() * 8
   })
 }
 
@@ -1158,7 +1159,7 @@ function curateGemmaVibes(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
     const shared = p.gemma_vibes!.filter(v => vibeCounts.get(v)! >= 5).length
     s += shared * 3
     // Color cohesion within mood
-    return s + Math.random() * 2
+    return s + Math.random() * 8
   })
 }
 
@@ -1237,16 +1238,16 @@ function curateSharpnessShowcase(allPhotos: Photo[], cells: BentoCell[]): Photo[
     if (targetSharpness === 'sharp' && p.gc_weight && p.gc_weight >= 7) s += 3
     if (targetSharpness === 'soft' && p.vibes?.some(v => ['dreamy', 'ethereal', 'serene'].includes(v))) s += 3
     if (targetSharpness === 'motion_blur' && (p.contrast || 50) > 60) s += 3
-    return s + Math.random() * 2
+    return s + Math.random() * 8
   })
 }
 
-/* Default fill (fallback) — improved with visual impact scoring */
+/* Default fill (fallback) — all photos are candidates, heavy randomness */
 function fillBentoDefault(photos: Photo[], cells: BentoCell[]): Photo[] {
   const filtered = photos.filter(p => p.thumb && p.display)
   if (filtered.length === 0) return []
-  const sorted = [...filtered].sort((a, b) => visualImpact(b) - visualImpact(a))
-  const pools = orientPools(sorted.slice(0, 500))
+  // Use ALL photos — no top-N cap. Every picked photo deserves to appear.
+  const pools = orientPools(filtered)
 
   const allPool = [...pools.L, ...pools.P]
   const firstPool = cells[0].orient === 'P' ? pools.P : pools.L
@@ -1256,12 +1257,12 @@ function fillBentoDefault(photos: Photo[], cells: BentoCell[]): Photo[] {
 
   return fillCells(cells, pools, usedIds, (p) => {
     let s = visualImpact(p)
-    // Color harmony: analogous or complementary
     const hd = hueDist(seedHue, p.hue || 0)
-    if (hd < 40) s += 4 // analogous
-    else if (hd > 140) s += 2 // complementary
-    if (p.parent) s -= 3
-    return s + Math.random() * 2
+    if (hd < 40) s += 3
+    else if (hd > 140) s += 1.5
+    if (p.parent) s -= 2
+    // Heavy randomness so the full archive rotates — impact is a gentle nudge, not a filter
+    return s + Math.random() * 8
   })
 }
 
@@ -1480,13 +1481,17 @@ export function BentoView() {
   const generate = useCallback(() => {
     if (!data) return
     const device = isDesktop() ? 'desktop' as const : 'mobile' as const
-    const targetCount = BENTO_DENSITY_STEPS[densityIdx]
+    let targetCount = BENTO_DENSITY_STEPS[densityIdx]
     const isColorFiltered = activeColorIdx >= 0 && colorBuckets[activeColorIdx]
     let photoPool = isColorFiltered ? colorBuckets[activeColorIdx].photos : data.photos
 
     // Fall back to all photos if color filter too restrictive
-    if (photoPool.filter(p => p.thumb && p.display).length < 3) {
+    const availableCount = photoPool.filter(p => p.thumb && p.display).length
+    if (availableCount < 3) {
       photoPool = data.photos
+    } else if (isColorFiltered && availableCount < targetCount) {
+      // Adapt density to what's available in this color bucket
+      targetCount = availableCount
     }
 
     let newLayout = gridMode
@@ -1512,33 +1517,14 @@ export function BentoView() {
       }
     }
 
-    // Inject AI variants when unicorn is on — swap ALL that have variants,
-    // and try to pick photos that HAVE variants in the first place
+    // Inject AI variants when unicorn is on — only swap photos that naturally
+    // landed in the grid AND have a variant. Never force variant-parents in.
     if (variantsOn && variantMap.current.size > 0) {
-      // First: try to swap in photos that have variants
-      const variantParentIds = new Set(variantMap.current.keys())
-      const withVariants = photoPool.filter(p => variantParentIds.has(p.id) && p.thumb && p.display)
-      if (withVariants.length >= 2) {
-        // Replace as many selected photos as possible with ones that have variants
-        const usedIds = new Set(selected.map(p => p.id))
-        for (let i = 0; i < selected.length && withVariants.length > 0; i++) {
-          if (!variantParentIds.has(selected[i].id)) {
-            const pick = withVariants.find(p => !usedIds.has(p.id))
-            if (pick) {
-              usedIds.delete(selected[i].id)
-              selected[i] = pick
-              usedIds.add(pick.id)
-            }
-          }
-        }
-      }
-      // Swap roughly half to variants — always keep some originals
       const swappable = selected
         .map((p, i) => ({ i, variant: variantMap.current.get(p.id) }))
         .filter(x => x.variant && (x.variant.display || x.variant.thumb))
-      const maxSwap = Math.max(1, Math.ceil(selected.length / 2))
-      const shuffledSwap = [...swappable].sort(() => Math.random() - 0.5).slice(0, maxSwap)
-      for (const { i, variant } of shuffledSwap) {
+      // Swap all that have variants — the curators already picked them naturally
+      for (const { i, variant } of swappable) {
         selected[i] = variant!
       }
     }

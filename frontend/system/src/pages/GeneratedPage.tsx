@@ -164,6 +164,7 @@ export function GeneratedPage() {
         const d = await r.json()
         showToast(`Exporting ${d.count} variants in Terminal...`)
         setExportedIds(new Set(Object.keys(reviews)))
+        setExporting(false)
       } else {
         showToast('No accepted variants')
         setExporting(false)

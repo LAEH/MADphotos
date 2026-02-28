@@ -33,6 +33,10 @@ PERFORMANCE_SCALE = 10.0    # multiplier for rate → score conversion
 PERFORMANCE_MIN_TRUST = 8   # need this many reviews before applying performance modifier
 EXPLORATION_BONUS = 2.0     # score bonus for styles with <3 reviews
 
+# Orientation balance for bento — target portrait ratio in each generation batch.
+# Bento grids need both portrait and landscape tiles; 0.45 means ~45% portrait.
+BENTO_PORTRAIT_RATIO = 0.45
+
 # Learned negative prompt from rejection patterns
 NEGATIVE_PROMPT = (
     "photorealistic, dull colors, blurry, low quality, text, watermark, "

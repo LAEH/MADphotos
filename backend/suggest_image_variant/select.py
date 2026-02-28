@@ -7,6 +7,7 @@ import sqlite3
 from typing import Any, Dict, List, Optional, Tuple
 
 from .config import (
+    BENTO_PORTRAIT_RATIO,
     CARTOON_STYLE_MAP,
     DEAD_MIN_REVIEWS,
     DEAD_THRESHOLD,
@@ -154,9 +155,48 @@ def get_candidates(conn: sqlite3.Connection, count: int) -> List[Dict]:
         photo["_quality_score"] = score
         candidates.append(photo)
 
-    # Sort by quality score descending, then uuid for stability
-    candidates.sort(key=lambda p: (-p["_quality_score"], p["uuid"]))
-    return candidates[:count]
+    # Split by orientation and sort each pool by quality
+    portraits = sorted(
+        [c for c in candidates if c.get("orientation") == "portrait"],
+        key=lambda p: (-p["_quality_score"], p["uuid"]),
+    )
+    landscapes = sorted(
+        [c for c in candidates if c.get("orientation") != "portrait"],
+        key=lambda p: (-p["_quality_score"], p["uuid"]),
+    )
+
+    # Interleave to achieve BENTO_PORTRAIT_RATIO balance.
+    # Bento grids need both orientations; this ensures each batch is balanced.
+    target_portrait = max(1, int(count * BENTO_PORTRAIT_RATIO))
+    target_landscape = count - target_portrait
+
+    # Adjust if one pool is too small
+    if len(portraits) < target_portrait:
+        target_portrait = len(portraits)
+        target_landscape = min(len(landscapes), count - target_portrait)
+    elif len(landscapes) < target_landscape:
+        target_landscape = len(landscapes)
+        target_portrait = min(len(portraits), count - target_landscape)
+
+    selected_p = portraits[:target_portrait]
+    selected_l = landscapes[:target_landscape]
+
+    # Round-robin interleave (P, L, P, L, ...) so both orientations spread
+    # evenly across the generation run
+    result: List[Dict] = []
+    pi, li = 0, 0
+    while pi < len(selected_p) or li < len(selected_l):
+        if pi < len(selected_p):
+            result.append(selected_p[pi])
+            pi += 1
+        if li < len(selected_l):
+            result.append(selected_l[li])
+            li += 1
+
+    orient_summary = f"{len(selected_p)}P + {len(selected_l)}L"
+    print(f"  Orientation balance: {orient_summary} (target {BENTO_PORTRAIT_RATIO:.0%} portrait)")
+
+    return result
 
 
 def _parse_gemma_json(raw: Optional[str]) -> Dict[str, Any]:
