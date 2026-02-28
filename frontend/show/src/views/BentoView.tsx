@@ -402,7 +402,20 @@ function uniformSameRatioGrid(count: number, device: 'desktop' | 'mobile'): Bent
     const score = waste * 2 + Math.abs(ratio - targetRatio) * 5
     if (score < bestScore) { bestCols = c; bestRows = r; bestScore = score }
   }
-  // Snap count to fill grid perfectly — all cells same size, no partial rows
+  // Only accept grids that exactly fit count (zero waste)
+  // Re-search with waste=0 constraint
+  let perfectCols = 0, perfectRows = 0, perfectScore = Infinity
+  for (let c = minCols; c <= 10; c++) {
+    if (count % c !== 0) continue
+    const r = count / c
+    if (r > maxRows || r < 1) continue
+    const ratio = (c * BENTO_UNIT_RATIO) / r
+    const targetRatio = device === 'desktop' ? 1.6 : 0.7
+    const score = Math.abs(ratio - targetRatio) * 5
+    if (score < perfectScore) { perfectCols = c; perfectRows = r; perfectScore = score }
+  }
+  // Use perfect fit if found, otherwise use best (may have waste — caller must fill)
+  if (perfectCols > 0) { bestCols = perfectCols; bestRows = perfectRows }
   const gridCount = bestCols * bestRows
   const cells: BentoCell[] = []
   for (let i = 0; i < gridCount; i++) {
@@ -537,6 +550,24 @@ function fillCells(
         const s = scoreFn(p) + cropFitness(p, cell)
         if (s > bestScore) { bestScore = s; best = p }
       }
+    }
+    if (best) {
+      result[i] = best
+      claimed.add(best.id)
+      usedIds.add(best.id)
+    }
+  }
+
+  // Second pass: fill any remaining empty slots from ALL unclaimed photos (ignore orientation)
+  const allRemaining = [...pools.P, ...pools.L]
+  for (let i = 0; i < result.length; i++) {
+    if (result[i]) continue
+    let best: Photo | undefined
+    let bestScore = -Infinity
+    for (const p of allRemaining) {
+      if (usedIds.has(p.id) || claimed.has(p.id)) continue
+      const s = scoreFn(p)
+      if (s > bestScore) { bestScore = s; best = p }
     }
     if (best) {
       result[i] = best
@@ -1272,7 +1303,7 @@ function fillBento(allPhotos: Photo[], layout: BentoLayout, colorFiltered: boole
     const shuffled = [...CURATORS].sort(() => Math.random() - 0.5)
     for (let i = 0; i < Math.min(3, shuffled.length); i++) {
       const result = shuffled[i](allPhotos, cells)
-      if (result.length >= Math.min(cells.length, 4)) {
+      if (result.length >= cells.length) {
         return { photos: result.slice(0, cells.length), curator: shuffled[i].name }
       }
     }
@@ -1465,12 +1496,20 @@ export function BentoView() {
     let selected = fillResult.photos
     setActiveCurator(fillResult.curator)
 
-    // If couldn't fill layout, use a uniform grid that tiles perfectly
+    // NEVER allow empty tiles — if we have fewer photos than cells, fix it
     if (selected.length > 0 && selected.length < newLayout.count) {
-      newLayout = gridMode
-        ? uniformSameRatioGrid(selected.length, device)
-        : uniformBentoGrid(selected.length, device)
-      selected = selected.slice(0, newLayout.count)
+      // First try: pull more photos from the pool to fill the gap
+      const usedIds = new Set(selected.map(p => p.id))
+      const extras = photoPool.filter(p => p.thumb && p.display && !usedIds.has(p.id))
+      while (selected.length < newLayout.count && extras.length > 0) {
+        const pick = extras.splice(Math.floor(Math.random() * extras.length), 1)[0]
+        selected.push(pick)
+      }
+      // If still short, shrink to a uniform grid that exactly fits
+      if (selected.length < newLayout.count) {
+        newLayout = uniformSameRatioGrid(selected.length, device)
+        selected = selected.slice(0, newLayout.count)
+      }
     }
 
     // Inject AI variants when unicorn is on — swap ALL that have variants,

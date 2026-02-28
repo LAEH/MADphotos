@@ -1,20 +1,22 @@
 # Style Transfer — Performance Scorecard
-# Auto-generated from 706 reviews on 2026-02-27
-# Overall acceptance: 264/706 (37%)
+# Auto-generated from 805 reviews on 2026-02-28
+# Overall acceptance: 306/805 (38%)
 
 | Style                | Accept | Reject | Total |   Rate | Status |
 |----------------------|--------|--------|-------|--------|--------|
 | boldink              |      5 |      2 |     7 |    71% | New    |
-| Banksy / Stencil Art |      2 |      1 |     3 |    67% | New    |
-| Technicolor Pop      |      2 |      1 |     3 |    67% | New    |
-| Sumi-e Ink Wash      |     35 |     28 |    63 |    56% | Solid  |
-| Alphonse Mucha / Art Nouveau |      1 |      1 |     2 |    50% | New    |
-| Scraperboard / Scratchboard |     22 |     22 |    44 |    50% | Solid  |
-| Japanese Woodcut     |     17 |     18 |    35 |    49% | Solid  |
-| Sin City / Frank Miller |     37 |     40 |    77 |    48% | Solid  |
-| Batman TAS / Dark DC |     29 |     35 |    64 |    45% | Solid  |
-| Gonzo / Steadman     |     46 |     56 |   102 |    45% | Solid  |
-| Hugo Pratt / Corto Maltese |     33 |     48 |    81 |    41% | Solid  |
+| Linocut Print        |      2 |      1 |     3 |    67% | New    |
+| Banksy / Stencil Art |      3 |      2 |     5 |    60% | New    |
+| Technicolor Pop      |      3 |      2 |     5 |    60% | New    |
+| Sumi-e Ink Wash      |     47 |     39 |    86 |    55% | Solid  |
+| Saul Bass Poster     |      1 |      1 |     2 |    50% | New    |
+| Japanese Woodcut     |     27 |     28 |    55 |    49% | Solid  |
+| Sin City / Frank Miller |     45 |     49 |    94 |    48% | Solid  |
+| Scraperboard / Scratchboard |     23 |     27 |    50 |    46% | Solid  |
+| Gonzo / Steadman     |     46 |     57 |   103 |    45% | Solid  |
+| Batman TAS / Dark DC |     29 |     36 |    65 |    45% | Solid  |
+| Hugo Pratt / Corto Maltese |     39 |     62 |   101 |    39% | Weak   |
+| Alphonse Mucha / Art Nouveau |      1 |      2 |     3 |    33% | New    |
 | impressionist        |      5 |     11 |    16 |    31% | Weak   |
 | Ukiyo-e Woodblock    |     12 |     43 |    55 |    22% | Weak   |
 | Marvel Comic Book    |      3 |     13 |    16 |    19% | Poor   |
@@ -24,9 +26,7 @@
 | moebius              |      2 |     14 |    16 |    12% | Poor   |
 | ghibli               |      2 |     27 |    29 |     7% | Dead   |
 | watercolor           |      1 |     26 |    27 |     4% | Dead   |
-| Makoto Shinkai       |      0 |      4 |     4 |     0% | New    |
-| Linocut Print        |      0 |      0 |     0 |      — | New    |
-| Saul Bass Poster     |      0 |      0 |     0 |      — | New    |
+| Makoto Shinkai       |      0 |      5 |     5 |     0% | New    |
 
 ## Legend
 - **Star**: ≥60% rate, ≥8 reviews — top performer
