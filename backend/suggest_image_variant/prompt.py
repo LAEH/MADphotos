@@ -21,6 +21,7 @@ def build_prompt(style_key: str, photo: Dict) -> str:
 
     Uses the style's composition/technique but overrides all color guidance
     with the global COLOR_DIRECTIVE (black, white, vibrant saturated accents).
+    Enriches prompt with composition technique, depth, and setting from signals.
     """
     style = STYLES[style_key]
     base = style["prompt"]
@@ -37,6 +38,16 @@ def build_prompt(style_key: str, photo: Dict) -> str:
     lighting = gemma.get("lighting")
     if lighting and isinstance(lighting, str) and len(lighting) > 5:
         parts.append(f"Maintain the lighting structure: {lighting}.")
+
+    # Composition technique from Gemini (e.g., "leading lines", "rule of thirds")
+    comp_technique = photo.get("composition_technique")
+    if comp_technique and isinstance(comp_technique, str) and len(comp_technique) > 3:
+        parts.append(f"Composition: {comp_technique}.")
+
+    # Depth context — helps depth-aware styles (papercut, stainedglass)
+    setting = photo.get("setting")
+    if setting and isinstance(setting, str) and len(setting) > 3:
+        parts.append(f"Setting: {setting}.")
 
     # Subject/composition awareness
     description = photo.get("gemma_description")

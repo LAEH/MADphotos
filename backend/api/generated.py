@@ -91,13 +91,13 @@ def get_generated_data():
     }
 
 
-def review_generated(variant_id: str, status):
-    """Update review_status for a smart_style variant."""
+def review_generated(variant_id: str, status, comment: str | None = None):
+    """Update review_status (and optional comment) for a smart_style variant."""
     try:
         conn = sqlite3.connect(str(DB_PATH), timeout=10)
         conn.execute(
-            "UPDATE ai_variants SET review_status = ? WHERE variant_id = ?",
-            (status, variant_id),
+            "UPDATE ai_variants SET review_status = ?, review_comment = ? WHERE variant_id = ?",
+            (status, comment or None, variant_id),
         )
         conn.commit()
         conn.close()

@@ -4,290 +4,21 @@ import { loadProgressive } from '../lib/imageLoading'
 import { getObjectPosition, BENTO_UNIT_RATIO } from '../lib/cropUtils'
 import { randomFrom } from '../lib/utils'
 import { fireAndForget } from '../lib/firebase'
-import { ViewBottom } from '../components/ui/ViewBottom'
+import {
+  DESKTOP_LAYOUTS, MOBILE_LAYOUTS,
+  BENTO_DEFAULT_DENSITY_IDX,
+  uniformSameRatioGrid, pickLayoutForCount,
+  computeValidDensities, filterByImageType,
+  type BentoLayout, type DisplayMode, type ImageTypeFilter,
+} from '../lib/layoutRegistry'
+import { ShowControls } from '../components/controls/ShowControls'
 import type { Photo } from '../types/photo'
 import type { BentoCell } from '../lib/cropUtils'
 import './BentoView.css'
 
-/* ===== Layout definitions ===== */
-
-interface BentoLayout {
-  id: string
-  cols: number
-  rows: number
-  count: number
-  cells: BentoCell[]
-  device: 'desktop' | 'mobile'
-}
-
-/** Portrait cell (1 col × 2 rows → ratio 0.667 with 4:3 unit) */
-function P(r: number, c: number, rs: number, cs: number): BentoCell {
-  return { r, c, rs, cs, orient: 'P' }
-}
-
-/** Landscape cell (1×1 → ratio 1.333, or 2×2 → ratio 1.333) */
-function L(r: number, c: number, rs: number, cs: number): BentoCell {
-  return { r, c, rs, cs, orient: 'L' }
-}
-
-/*
- * Layout system uses 4:3 unit ratio (BENTO_UNIT_RATIO = 4/3).
- * Cell aspect ratios:
- *   L 1×1 = 1.333 (≈3:2 landscape, 11% off — barely crops)
- *   P 1×2 = 0.667 (= 2:3 portrait, perfect match)
- *   L 2×2 = 1.333 (large landscape, same ratio)
- * Container ratio = cols × UNIT_RATIO / rows
- */
-
-/* ── Desktop layouts (5×4 grid, ratio ≈ 1.667, 8–11 images) ── */
-
-const DESKTOP_LAYOUTS: BentoLayout[] = [
-  /* D1: Balanced — 5×4, 8 images, 3P 5L */
-  {
-    id: 'D1', cols: 5, rows: 4, count: 8, device: 'desktop',
-    cells: [
-      L(1, 1, 2, 2),  // large landscape top-left
-      P(1, 3, 2, 1),  // portrait center
-      L(1, 4, 2, 2),  // large landscape top-right
-      P(3, 1, 2, 1),  // portrait bottom-left
-      L(3, 2, 2, 2),  // large landscape center
-      P(3, 4, 2, 1),  // portrait bottom-right
-      L(3, 5, 1, 1),  // landscape
-      L(4, 5, 1, 1),  // landscape
-    ],
-  },
-  /* D2: Gallery — 5×4, 11 images, 3P 8L */
-  {
-    id: 'D2', cols: 5, rows: 4, count: 11, device: 'desktop',
-    cells: [
-      P(1, 1, 2, 1),  // portrait left
-      L(1, 2, 2, 2),  // large landscape top-center
-      L(1, 4, 1, 1),  // landscape
-      P(1, 5, 2, 1),  // portrait right
-      L(2, 4, 1, 1),  // landscape
-      L(3, 1, 2, 2),  // large landscape bottom-left
-      P(3, 3, 2, 1),  // portrait center
-      L(3, 4, 1, 1),  // landscape
-      L(3, 5, 1, 1),  // landscape
-      L(4, 4, 1, 1),  // landscape
-      L(4, 5, 1, 1),  // landscape
-    ],
-  },
-  /* D3: Columns — 5×4, 11 images, 3P 8L */
-  {
-    id: 'D3', cols: 5, rows: 4, count: 11, device: 'desktop',
-    cells: [
-      P(1, 1, 2, 1),  // portrait col1 top
-      L(1, 2, 2, 2),  // large landscape top-center
-      P(1, 4, 2, 1),  // portrait col4 top
-      L(1, 5, 1, 1),  // landscape top-right
-      L(2, 5, 1, 1),  // landscape mid-right
-      P(3, 1, 2, 1),  // portrait col1 bottom
-      L(3, 2, 1, 1),  // landscape
-      L(3, 3, 1, 1),  // landscape
-      L(3, 4, 2, 2),  // large landscape bottom-right
-      L(4, 2, 1, 1),  // landscape
-      L(4, 3, 1, 1),  // landscape
-    ],
-  },
-  /* D4: Feature — 5×4, 9 images, 2P 7L */
-  {
-    id: 'D4', cols: 5, rows: 4, count: 9, device: 'desktop',
-    cells: [
-      L(1, 1, 2, 2),  // large landscape top-left
-      L(1, 3, 1, 1),  // landscape
-      P(1, 4, 2, 1),  // portrait
-      L(1, 5, 1, 1),  // landscape
-      P(2, 3, 2, 1),  // portrait mid
-      L(2, 5, 1, 1),  // landscape
-      L(3, 1, 2, 2),  // large landscape bottom-left
-      L(3, 4, 2, 2),  // large landscape bottom-right
-      L(4, 3, 1, 1),  // landscape bottom-center
-    ],
-  },
-  /* D5: Mosaic — 5×4, 10 images, 4P 6L */
-  {
-    id: 'D5', cols: 5, rows: 4, count: 10, device: 'desktop',
-    cells: [
-      P(1, 1, 2, 1),  // portrait top-left
-      L(1, 2, 2, 2),  // large landscape top-center
-      P(1, 4, 2, 1),  // portrait top-right
-      L(1, 5, 1, 1),  // landscape
-      L(2, 5, 1, 1),  // landscape
-      L(3, 1, 1, 1),  // landscape bottom-left
-      P(3, 2, 2, 1),  // portrait bottom
-      L(3, 3, 2, 2),  // large landscape bottom-center
-      P(3, 5, 2, 1),  // portrait bottom-right
-      L(4, 1, 1, 1),  // landscape
-    ],
-  },
-  /* D6: Quilt — 5×4, 16 images, 4P 12L — no large cells */
-  {
-    id: 'D6', cols: 5, rows: 4, count: 16, device: 'desktop',
-    cells: [
-      P(1, 1, 2, 1), P(1, 2, 2, 1), L(1, 3, 1, 1), L(1, 4, 1, 1), L(1, 5, 1, 1),
-                                      L(2, 3, 1, 1), L(2, 4, 1, 1), L(2, 5, 1, 1),
-      L(3, 1, 1, 1), L(3, 2, 1, 1), P(3, 3, 2, 1), P(3, 4, 2, 1), L(3, 5, 1, 1),
-      L(4, 1, 1, 1), L(4, 2, 1, 1),                                 L(4, 5, 1, 1),
-    ],
-  },
-  /* D7: Portrait Wall — 5×4, 14 images, 6P 8L — portrait-heavy, no large cells */
-  {
-    id: 'D7', cols: 5, rows: 4, count: 14, device: 'desktop',
-    cells: [
-      P(1, 1, 2, 1), L(1, 2, 1, 1), P(1, 3, 2, 1), L(1, 4, 1, 1), P(1, 5, 2, 1),
-                      L(2, 2, 1, 1),                  L(2, 4, 1, 1),
-      P(3, 1, 2, 1), L(3, 2, 1, 1), P(3, 3, 2, 1), L(3, 4, 1, 1), P(3, 5, 2, 1),
-                      L(4, 2, 1, 1),                  L(4, 4, 1, 1),
-    ],
-  },
-  /* D8: Rhythm — 5×4, 16 images, 4P 12L — alternating columns, no large cells */
-  {
-    id: 'D8', cols: 5, rows: 4, count: 16, device: 'desktop',
-    cells: [
-      L(1, 1, 1, 1), P(1, 2, 2, 1), L(1, 3, 1, 1), P(1, 4, 2, 1), L(1, 5, 1, 1),
-      L(2, 1, 1, 1),                  L(2, 3, 1, 1),                  L(2, 5, 1, 1),
-      L(3, 1, 1, 1), P(3, 2, 2, 1), L(3, 3, 1, 1), P(3, 4, 2, 1), L(3, 5, 1, 1),
-      L(4, 1, 1, 1),                  L(4, 3, 1, 1),                  L(4, 5, 1, 1),
-    ],
-  },
-  /* D9: Panoramic — 5×3, 11 images, 2P 9L — wider, shorter grid */
-  {
-    id: 'D9', cols: 5, rows: 3, count: 11, device: 'desktop',
-    cells: [
-      L(1, 1, 1, 1), L(1, 2, 1, 1), P(1, 3, 2, 1), L(1, 4, 1, 1), L(1, 5, 1, 1),
-      L(2, 1, 1, 1), L(2, 2, 1, 1),                  L(2, 4, 1, 1), P(2, 5, 2, 1),
-      L(3, 1, 1, 1), L(3, 2, 1, 1), L(3, 3, 1, 1), L(3, 4, 1, 1),
-    ],
-  },
-  /* D10: Dense Grid — 4×4, 12 images, 4P 8L — compact square grid, no large cells */
-  {
-    id: 'D10', cols: 4, rows: 4, count: 12, device: 'desktop',
-    cells: [
-      P(1, 1, 2, 1), L(1, 2, 1, 1), L(1, 3, 1, 1), P(1, 4, 2, 1),
-                      L(2, 2, 1, 1), L(2, 3, 1, 1),
-      L(3, 1, 1, 1), P(3, 2, 2, 1), P(3, 3, 2, 1), L(3, 4, 1, 1),
-      L(4, 1, 1, 1),                                  L(4, 4, 1, 1),
-    ],
-  },
-  /* DS1: Solo — 1 image */
-  { id: 'DS1', cols: 1, rows: 1, count: 1, device: 'desktop', cells: [L(1,1,1,1)] },
-  /* DS2: Pair — 2 side by side */
-  { id: 'DS2', cols: 2, rows: 1, count: 2, device: 'desktop', cells: [L(1,1,1,1), L(1,2,1,1)] },
-  /* DS3: Trio strip */
-  { id: 'DS3', cols: 3, rows: 1, count: 3, device: 'desktop', cells: [L(1,1,1,1), L(1,2,1,1), L(1,3,1,1)] },
-  /* DS4: Quad — 2×2 */
-  { id: 'DS4', cols: 2, rows: 2, count: 4, device: 'desktop', cells: [L(1,1,1,1), L(1,2,1,1), L(2,1,1,1), L(2,2,1,1)] },
-  /* DS6: Quilt — 3×2 */
-  {
-    id: 'DS6', cols: 3, rows: 2, count: 6, device: 'desktop',
-    cells: [L(1,1,1,1), L(1,2,1,1), L(1,3,1,1), L(2,1,1,1), L(2,2,1,1), L(2,3,1,1)],
-  },
-  /* DS6p: Portraits — 3×2 with 2P */
-  {
-    id: 'DS6p', cols: 3, rows: 2, count: 4, device: 'desktop',
-    cells: [P(1,1,2,1), L(1,2,1,1), P(1,3,2,1), L(2,2,1,1)],
-  },
-]
-
-/* ── Mobile layouts (3×6 grid, ratio ≈ 0.667, 8–9 images) ── */
-
-const MOBILE_LAYOUTS: BentoLayout[] = [
-  /* M1: Stack — 3×6, 9 images, 3P 6L */
-  {
-    id: 'M1', cols: 3, rows: 6, count: 9, device: 'mobile',
-    cells: [
-      L(1, 1, 2, 2),  // large landscape top-left
-      P(1, 3, 2, 1),  // portrait top-right
-      P(3, 1, 2, 1),  // portrait mid-left
-      L(3, 2, 2, 2),  // large landscape mid-right
-      L(5, 1, 1, 1),  // landscape
-      P(5, 2, 2, 1),  // portrait bottom-center
-      L(5, 3, 1, 1),  // landscape
-      L(6, 1, 1, 1),  // landscape
-      L(6, 3, 1, 1),  // landscape
-    ],
-  },
-  /* M2: Tower — 3×6, 8 images, 4P 4L */
-  {
-    id: 'M2', cols: 3, rows: 6, count: 8, device: 'mobile',
-    cells: [
-      P(1, 1, 2, 1),  // portrait top-left
-      L(1, 2, 2, 2),  // large landscape top-right
-      L(3, 1, 2, 2),  // large landscape mid-left
-      P(3, 3, 2, 1),  // portrait mid-right
-      P(5, 1, 2, 1),  // portrait bottom-left
-      L(5, 2, 1, 1),  // landscape
-      P(5, 3, 2, 1),  // portrait bottom-right
-      L(6, 2, 1, 1),  // landscape
-    ],
-  },
-  /* M3: Cascade — 3×6, 9 images, 3P 6L */
-  {
-    id: 'M3', cols: 3, rows: 6, count: 9, device: 'mobile',
-    cells: [
-      L(1, 1, 1, 1),  // landscape top-left
-      P(1, 2, 2, 1),  // portrait top-center
-      L(1, 3, 1, 1),  // landscape top-right
-      P(2, 1, 2, 1),  // portrait left
-      L(2, 3, 1, 1),  // landscape
-      L(3, 2, 2, 2),  // large landscape center
-      P(4, 1, 2, 1),  // portrait bottom-left
-      L(5, 2, 2, 2),  // large landscape bottom-right
-      L(6, 1, 1, 1),  // landscape bottom-left
-    ],
-  },
-  /* M4: Scroll — 3×6, 9 images, 3P 6L */
-  {
-    id: 'M4', cols: 3, rows: 6, count: 9, device: 'mobile',
-    cells: [
-      L(1, 1, 2, 2),  // large landscape top-left
-      P(1, 3, 2, 1),  // portrait top-right
-      P(3, 1, 2, 1),  // portrait mid-left
-      L(3, 2, 1, 1),  // landscape
-      P(3, 3, 2, 1),  // portrait mid-right
-      L(4, 2, 1, 1),  // landscape
-      L(5, 1, 1, 1),  // landscape
-      L(5, 2, 2, 2),  // large landscape bottom-right
-      L(6, 1, 1, 1),  // landscape bottom-left
-    ],
-  },
-  /* M5: Dense — 3×6, 9 images, 3P 6L */
-  {
-    id: 'M5', cols: 3, rows: 6, count: 9, device: 'mobile',
-    cells: [
-      P(1, 1, 2, 1),  // portrait top-left
-      L(1, 2, 2, 2),  // large landscape top-right
-      L(3, 1, 1, 1),  // landscape
-      P(3, 2, 2, 1),  // portrait mid-center
-      L(3, 3, 1, 1),  // landscape
-      P(4, 1, 2, 1),  // portrait mid-left
-      L(4, 3, 1, 1),  // landscape
-      L(5, 2, 2, 2),  // large landscape bottom-right
-      L(6, 1, 1, 1),  // landscape bottom-left
-    ],
-  },
-  /* MS1: Solo */
-  { id: 'MS1', cols: 1, rows: 1, count: 1, device: 'mobile', cells: [L(1,1,1,1)] },
-  /* MS2: Stack — 2 stacked */
-  { id: 'MS2', cols: 1, rows: 2, count: 2, device: 'mobile', cells: [L(1,1,1,1), L(2,1,1,1)] },
-  /* MS3: Triple stack */
-  { id: 'MS3', cols: 1, rows: 3, count: 3, device: 'mobile', cells: [L(1,1,1,1), L(2,1,1,1), L(3,1,1,1)] },
-  /* MS4: Quad — 2×2 */
-  { id: 'MS4', cols: 2, rows: 2, count: 4, device: 'mobile', cells: [L(1,1,1,1), L(1,2,1,1), L(2,1,1,1), L(2,2,1,1)] },
-  /* MS6: Grid — 2×3 */
-  {
-    id: 'MS6', cols: 2, rows: 3, count: 6, device: 'mobile',
-    cells: [L(1,1,1,1), L(1,2,1,1), L(2,1,1,1), L(2,2,1,1), L(3,1,1,1), L(3,2,1,1)],
-  },
-]
+/* Layouts, density steps, and grid generators are in layoutRegistry.ts */
 
 const CROSSFADE_INTERVAL = 20_000
-
-/* ===== Density ===== */
-
-const BENTO_DENSITY_STEPS = [1, 2, 4, 6, 8, 12, 16, 24, 36, 48, 64]
-const BENTO_DEFAULT_DENSITY_IDX = 4 // 8 images
 
 /* ===== Color bucketing ===== */
 
@@ -326,112 +57,6 @@ function buildBentoColorBuckets(photos: Photo[]): BentoColorBucket[] {
     buckets.push({ hueStart: -1, hueEnd: -1, color: '#8e8e93', photos: grayPhotos })
   }
   return buckets
-}
-
-/* ===== Dynamic layout generation ===== */
-
-function uniformBentoGrid(count: number, device: 'desktop' | 'mobile'): BentoLayout {
-  if (count <= 0) count = 1
-  if (count <= 3) {
-    if (count === 1) return { id: 'UG1', cols: 1, rows: 1, count: 1, device, cells: [L(1,1,1,1)] }
-    if (count === 2) {
-      return device === 'desktop'
-        ? { id: 'UG2', cols: 3, rows: 2, count: 3, device, cells: [L(1,1,2,2), P(1,3,2,1)] }
-        : { id: 'UG2', cols: 2, rows: 2, count: 3, device, cells: [P(1,1,2,1), L(1,2,1,1), L(2,2,1,1)] }
-    }
-    if (count === 3) {
-      return device === 'desktop'
-        ? { id: 'UG3', cols: 4, rows: 2, count: 4, device, cells: [P(1,1,2,1), L(1,2,2,2), P(1,4,2,1)] }
-        : { id: 'UG3', cols: 2, rows: 3, count: 4, device, cells: [L(1,1,1,1), P(1,2,2,1), L(2,1,1,1), L(3,1,1,1)] }
-    }
-  }
-  const targetRatio = device === 'desktop' ? 1.25 : 0.5
-  let bestCols = 1, bestRows = 1, bestScore = Infinity
-  for (let c = 2; c <= 10; c++) {
-    const r = Math.ceil(count / c)
-    if (r < 2) continue // need at least 2 rows for portraits
-    const waste = c * r - count
-    const ratio = c / r
-    const score = waste + Math.abs(ratio - targetRatio) * 5
-    if (score < bestScore) { bestCols = c; bestRows = r; bestScore = score }
-  }
-  if (bestRows < 2) { bestRows = 2; bestCols = Math.max(2, Math.ceil(count / 2)) }
-  // Fill EVERY grid position — no gaps allowed.
-  // First pass: place portraits every Nth cell, fill rest with landscape.
-  const cells: BentoCell[] = []
-  const grid: boolean[][] = Array.from({ length: bestRows }, () => Array(bestCols).fill(false))
-  const totalSlots = bestCols * bestRows
-  const portraitTarget = Math.max(1, Math.floor(totalSlots * 0.2)) // ~20% portraits
-  let portraitCount = 0
-  // Place portraits at regular intervals in the grid
-  const interval = Math.floor(totalSlots / (portraitTarget + 1))
-  let slot = 0
-  for (let r = 0; r < bestRows; r++) {
-    for (let c = 0; c < bestCols; c++) {
-      if (grid[r][c]) continue
-      slot++
-      const wantPortrait = portraitCount < portraitTarget && slot % interval === 0
-        && r + 1 < bestRows && !grid[r + 1][c]
-      if (wantPortrait) {
-        grid[r][c] = true
-        grid[r + 1][c] = true
-        cells.push(P(r + 1, c + 1, 2, 1))
-        portraitCount++
-      } else {
-        grid[r][c] = true
-        cells.push(L(r + 1, c + 1, 1, 1))
-      }
-    }
-  }
-  return { id: `UG${cells.length}`, cols: bestCols, rows: bestRows, count: cells.length, device, cells }
-}
-
-/** Uniform grid — all tiles identical size (1×1 landscape cells). No exceptions.
- *  Desktop: min 2 cols, max 8 rows. Mobile: min 1 col, max 10 rows.  */
-function uniformSameRatioGrid(count: number, device: 'desktop' | 'mobile'): BentoLayout {
-  if (count <= 0) count = 1
-  const minCols = device === 'desktop' ? 2 : 1
-  const maxRows = device === 'desktop' ? 8 : 10
-  let bestCols = minCols, bestRows = 1, bestScore = Infinity
-  for (let c = minCols; c <= 10; c++) {
-    const r = Math.ceil(count / c)
-    if (r > maxRows) continue
-    const waste = c * r - count
-    const ratio = (c * BENTO_UNIT_RATIO) / r // account for 4:3 unit cells
-    const targetRatio = device === 'desktop' ? 1.6 : 0.7
-    const score = waste * 2 + Math.abs(ratio - targetRatio) * 5
-    if (score < bestScore) { bestCols = c; bestRows = r; bestScore = score }
-  }
-  // Only accept grids that exactly fit count (zero waste)
-  // Re-search with waste=0 constraint
-  let perfectCols = 0, perfectRows = 0, perfectScore = Infinity
-  for (let c = minCols; c <= 10; c++) {
-    if (count % c !== 0) continue
-    const r = count / c
-    if (r > maxRows || r < 1) continue
-    const ratio = (c * BENTO_UNIT_RATIO) / r
-    const targetRatio = device === 'desktop' ? 1.6 : 0.7
-    const score = Math.abs(ratio - targetRatio) * 5
-    if (score < perfectScore) { perfectCols = c; perfectRows = r; perfectScore = score }
-  }
-  // Use perfect fit if found, otherwise use best (may have waste — caller must fill)
-  if (perfectCols > 0) { bestCols = perfectCols; bestRows = perfectRows }
-  const gridCount = bestCols * bestRows
-  const cells: BentoCell[] = []
-  for (let i = 0; i < gridCount; i++) {
-    const r = Math.floor(i / bestCols) + 1
-    const c = (i % bestCols) + 1
-    cells.push(L(r, c, 1, 1))
-  }
-  return { id: `SG${gridCount}`, cols: bestCols, rows: bestRows, count: gridCount, device, cells }
-}
-
-function pickLayoutForCount(targetCount: number, device: 'desktop' | 'mobile'): BentoLayout {
-  const layouts = device === 'desktop' ? DESKTOP_LAYOUTS : MOBILE_LAYOUTS
-  const tolerance = Math.max(2, Math.ceil(targetCount * 0.3))
-  const matching = layouts.filter(l => l.device === device && Math.abs(l.count - targetCount) <= tolerance)
-  if (matching.length > 0) return randomFrom(matching)
-  return uniformBentoGrid(targetCount, device)
 }
 
 /* ===== Fullscreen SVG icon ===== */
@@ -1389,8 +1014,8 @@ export function BentoView() {
   const [colorBuckets, setColorBuckets] = useState<BentoColorBucket[]>([])
   const [activeColorIdx, setActiveColorIdx] = useState(-1) // -1 = all colors
   const [densityIdx, setDensityIdx] = useState(BENTO_DEFAULT_DENSITY_IDX)
-  const [variantsOn, setVariantsOn] = useState(true)
-  const [gridMode, setGridMode] = useState(false) // false=bento, true=uniform grid
+  const [displayMode, setDisplayMode] = useState<DisplayMode>('bento')
+  const [imageTypeFilter, setImageTypeFilter] = useState<ImageTypeFilter>('mixed')
   const [loved, setLoved] = useState(false)
   const [activeCurator, setActiveCurator] = useState('')
 
@@ -1477,79 +1102,80 @@ export function BentoView() {
     }
   }, [data])
 
+  /* Compute valid densities for current mode/device */
+  const validDensities = (() => {
+    const device = isDesktop() ? 'desktop' as const : 'mobile' as const
+    const available = data ? data.photos.filter(p => p.thumb && p.display).length : 100
+    return computeValidDensities(displayMode, device, available)
+  })()
+
   /* Generate a fresh bento (layout + fill based on density & color) */
   const generate = useCallback(() => {
     if (!data) return
     const device = isDesktop() ? 'desktop' as const : 'mobile' as const
-    let targetCount = BENTO_DENSITY_STEPS[densityIdx]
+    const vd = computeValidDensities(displayMode, device, data.photos.filter(p => p.thumb && p.display).length)
+    let targetCount = vd[densityIdx] ?? vd[vd.length - 1] ?? 8
     const isColorFiltered = activeColorIdx >= 0 && colorBuckets[activeColorIdx]
     let photoPool = isColorFiltered ? colorBuckets[activeColorIdx].photos : data.photos
 
-    // Fall back to all photos if color filter too restrictive
+    // Apply image type filter
+    photoPool = filterByImageType(photoPool, imageTypeFilter)
+
+    // Fall back to all photos if color/type filter too restrictive
     const availableCount = photoPool.filter(p => p.thumb && p.display).length
     if (availableCount < 3) {
-      photoPool = data.photos
+      photoPool = filterByImageType(data.photos, imageTypeFilter)
+      if (photoPool.filter(p => p.thumb && p.display).length < 3) {
+        photoPool = data.photos
+      }
     } else if (isColorFiltered && availableCount < targetCount) {
-      // Adapt density to what's available in this color bucket
       targetCount = availableCount
     }
 
-    let newLayout = gridMode
-      ? uniformSameRatioGrid(targetCount, device)
-      : pickLayoutForCount(targetCount, device)
+    const isBentoMode = displayMode === 'bento'
+    let newLayout = isBentoMode
+      ? pickLayoutForCount(targetCount, device, true) // requireMixed = true
+      : uniformSameRatioGrid(targetCount, device)
     const fillResult = fillBento(photoPool, newLayout, !!isColorFiltered)
     let selected = fillResult.photos
     setActiveCurator(fillResult.curator)
 
     // NEVER allow empty tiles — if we have fewer photos than cells, fix it
     if (selected.length > 0 && selected.length < newLayout.count) {
-      // First try: pull more photos from the pool to fill the gap
       const usedIds = new Set(selected.map(p => p.id))
       const extras = photoPool.filter(p => p.thumb && p.display && !usedIds.has(p.id))
       while (selected.length < newLayout.count && extras.length > 0) {
         const pick = extras.splice(Math.floor(Math.random() * extras.length), 1)[0]
         selected.push(pick)
       }
-      // If still short, shrink to a uniform grid that exactly fits
       if (selected.length < newLayout.count) {
         newLayout = uniformSameRatioGrid(selected.length, device)
         selected = selected.slice(0, newLayout.count)
       }
     }
 
-    // Inject AI variants when unicorn is on.
-    // 1) Swap any naturally-selected photos that have variants
-    // 2) Replace ~30-40% of remaining slots with variant-parents from the pool
-    if (variantsOn && variantMap.current.size > 0) {
+    // Inject AI variants when imageType is 'mixed' and variants exist
+    if (imageTypeFilter === 'mixed' && variantMap.current.size > 0) {
       const usedIds = new Set(selected.map(p => p.id))
-
-      // Phase 1: swap photos already in grid that have variants
       for (let i = 0; i < selected.length; i++) {
         const v = variantMap.current.get(selected[i].id)
         if (v && (v.display || v.thumb)) {
           selected[i] = v
         }
       }
-
-      // Phase 2: bring in variant-parents that curators missed.
-      // Target: ~40% of grid shows variants (mix of originals + AI art).
       const currentVariantCount = selected.filter(p => p.parent).length
       const targetVariants = Math.ceil(selected.length * 0.4)
       const slotsToFill = targetVariants - currentVariantCount
-
       if (slotsToFill > 0) {
-        // Find variant-parents NOT already in the grid
         const parentPhotos = photoPool
           .filter(p => variantMap.current.has(p.id) && !usedIds.has(p.id) && p.thumb && p.display && !p.parent)
-        // Shuffle so we don't always pick the same ones
         for (let i = parentPhotos.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
           [parentPhotos[i], parentPhotos[j]] = [parentPhotos[j], parentPhotos[i]]
         }
-        // Replace non-variant slots (skip slots that are already variants)
         let replaced = 0
         for (let i = 0; i < selected.length && replaced < slotsToFill && replaced < parentPhotos.length; i++) {
-          if (selected[i].parent) continue // already a variant, skip
+          if (selected[i].parent) continue
           const parent = parentPhotos[replaced]
           const v = variantMap.current.get(parent.id)
           if (v && (v.display || v.thumb)) {
@@ -1567,7 +1193,7 @@ export function BentoView() {
     revealedRef.current = new Set()
     setRevealedSet(new Set())
     requestAnimationFrame(() => refillPreloadBuffer(new Set(selected.map(p => p.id))))
-  }, [data, densityIdx, activeColorIdx, colorBuckets, variantsOn, gridMode, refillPreloadBuffer])
+  }, [data, densityIdx, activeColorIdx, colorBuckets, displayMode, imageTypeFilter, refillPreloadBuffer])
 
   /* Cycle layouts with arrow keys — just regenerate */
   const cycle = useCallback((_dir: number) => {
@@ -1872,23 +1498,11 @@ export function BentoView() {
     openLightbox(photo, photosRef.current)
   }, [openLightbox])
 
-  /* Density controls */
-  const lessDense = useCallback(() => {
-    setDensityIdx(i => Math.max(0, i - 1))
-  }, [])
-
-  const moreDense = useCallback(() => {
-    setDensityIdx(i => Math.min(BENTO_DENSITY_STEPS.length - 1, i + 1))
-  }, [])
-
-  /* Color band selection */
-  const selectColorBand = useCallback((idx: number) => {
-    if (idx === activeColorIdx) {
-      setActiveColorIdx(-1) // deselect = show all
-    } else {
-      setActiveColorIdx(idx)
-    }
-  }, [activeColorIdx])
+  /* ShowControls callbacks */
+  const handleColorChange = useCallback((idx: number) => setActiveColorIdx(idx), [])
+  const handleDensityChange = useCallback((idx: number) => setDensityIdx(idx), [])
+  const handleDisplayModeChange = useCallback((mode: DisplayMode) => setDisplayMode(mode), [])
+  const handleImageTypeChange = useCallback((filter: ImageTypeFilter) => setImageTypeFilter(filter), [])
 
   /* 🧞‍♂️ Best bento — pick a random count (2–16), use the best curator, best layout.
    * In unicorn mode: guarantee at least half the tiles show generated variants. */
@@ -1913,8 +1527,8 @@ export function BentoView() {
       bestResult = fillBentoDefault(allPhotos, newLayout.cells)
     }
 
-    // In unicorn mode: mix — swap roughly half to variants, keep rest as originals
-    if (variantsOn && variantMap.current.size > 0) {
+    // In mixed mode: swap roughly half to variants, keep rest as originals
+    if (imageTypeFilter !== 'photo' && variantMap.current.size > 0) {
       const variantParentIds = new Set(variantMap.current.keys())
 
       // Try to get photos that have variants into the mix
@@ -1942,22 +1556,23 @@ export function BentoView() {
       }
     }
 
-    setGridMode(false)
+    setDisplayMode('bento')
     setActiveColorIdx(-1)
-    setDensityIdx(BENTO_DENSITY_STEPS.indexOf(
-      BENTO_DENSITY_STEPS.reduce((best, s) => Math.abs(s - count) < Math.abs(best - count) ? s : best)
-    ))
+    // Find closest valid density index
+    const vd = computeValidDensities('bento', device, data.photos.filter(p => p.thumb && p.display).length)
+    const closestIdx = vd.reduce((best, s, i) => Math.abs(s - count) < Math.abs(vd[best] - count) ? i : best, 0)
+    setDensityIdx(closestIdx)
     setLayout(newLayout)
     setPhotos(bestResult)
     revealedRef.current = new Set()
     setRevealedSet(new Set())
     requestAnimationFrame(() => refillPreloadBuffer(new Set(bestResult.map(p => p.id))))
-  }, [data, variantsOn, refillPreloadBuffer])
+  }, [data, imageTypeFilter, refillPreloadBuffer])
 
-  /* Regenerate when density or color changes */
+  /* Regenerate when density, color, display mode, or image type changes */
   useEffect(() => {
     if (data && colorBuckets.length > 0) generate()
-  }, [densityIdx, activeColorIdx, variantsOn, gridMode]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [densityIdx, activeColorIdx, displayMode, imageTypeFilter]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /* Reset heart when composition changes */
   useEffect(() => { setLoved(false) }, [photos, layout])
@@ -1974,8 +1589,8 @@ export function BentoView() {
       rows: layout.rows,
       cells: layout.cells.map(c => ({ r: c.r, c: c.c, rs: c.rs, cs: c.cs, orient: c.orient })),
       photos: photos.map(p => p.id),
-      gridMode,
-      density: BENTO_DENSITY_STEPS[densityIdx],
+      displayMode,
+      density: validDensities[densityIdx] ?? 8,
       colorIdx: activeColorIdx,
       device: isDesktop() ? 'desktop' : 'mobile',
       curator: activeCurator || 'default',
@@ -1997,7 +1612,7 @@ export function BentoView() {
 
     // Firestore (may fail if auth expired — that's OK)
     fireAndForget('bento-loves', payload)
-  }, [layout, photos, gridMode, densityIdx, activeColorIdx, loved, activeCurator])
+  }, [layout, photos, displayMode, densityIdx, activeColorIdx, loved, activeCurator])
 
   if (!layout || photos.length === 0) {
     return <div className="bento-wrap" />
@@ -2040,90 +1655,32 @@ export function BentoView() {
           )
         })}
       </div>
-      <ViewBottom>
-        <div
-          className="bento-controls"
-        >
-          <div className="bento-spectrum">
-            {colorBuckets.map((bucket, i) => (
-              <div
-                key={i}
-                className={`bento-band${i === activeColorIdx ? ' active' : ''}`}
-                style={{ background: bucket.color }}
-                onClick={() => selectColorBand(i)}
-              />
-            ))}
-          </div>
-          <div className="bento-btn-group">
-            <button
-              className="bento-ctrl-btn"
-              onClick={lessDense}
-              disabled={densityIdx <= 0}
-              aria-label="Less dense"
-            >
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
-                <line x1="4" y1="10" x2="16" y2="10" />
-              </svg>
-            </button>
-            <button
-              className="bento-ctrl-btn"
-              onClick={moreDense}
-              disabled={densityIdx >= BENTO_DENSITY_STEPS.length - 1}
-              aria-label="More dense"
-            >
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
-                <line x1="4" y1="10" x2="16" y2="10" />
-                <line x1="10" y1="4" x2="10" y2="16" />
-              </svg>
-            </button>
-            <button
-              className="bento-ctrl-btn"
-              onClick={() => setGridMode(g => !g)}
-              aria-label={gridMode ? 'Switch to bento' : 'Switch to grid'}
-              title={gridMode ? 'Uniform grid' : 'Bento layout'}
-            >
-              {gridMode ? (
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="2" y="2" width="7" height="7" rx="1.5" />
-                  <rect x="11" y="2" width="7" height="7" rx="1.5" />
-                  <rect x="2" y="11" width="7" height="7" rx="1.5" />
-                  <rect x="11" y="11" width="7" height="7" rx="1.5" />
-                </svg>
-              ) : (
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="2" y="2" width="7" height="16" rx="1.5" />
-                  <rect x="11" y="2" width="7" height="7" rx="1.5" />
-                  <rect x="11" y="11" width="7" height="7" rx="1.5" />
-                </svg>
-              )}
-            </button>
-            <button
-              className="bento-ctrl-btn"
-              onClick={showBestBento}
-              aria-label="Best bento"
-              title="Show the best bento"
-            >
-              &#x1F9DE;&#x200D;&#x2642;&#xFE0F;
-            </button>
-            <button
-              className={`bento-ctrl-btn${variantsOn ? ' bento-unicorn-active' : ''}`}
-              onClick={() => setVariantsOn(v => !v)}
-              aria-label="Toggle AI variants"
-              title={variantsOn ? 'Hide AI variants' : 'Show AI variants'}
-            >
-              &#x1F984;
-            </button>
-          </div>
-          <button
-            className="bento-ctrl-btn bento-heart"
-            onClick={loveBento}
-            aria-label="Love this composition"
-            title="Love this bento"
-          >
-            {loved ? '\u2764\uFE0F' : '\u{1F90D}'}
-          </button>
-        </div>
-      </ViewBottom>
+      <div className="view-bottom">
+        <ShowControls
+          controls={['color', 'displayType', 'density', 'imageType', 'genie', 'heart']}
+          state={{
+            activeColorIdx,
+            densityStepIdx: densityIdx,
+            displayMode,
+            imageTypeFilter,
+            loved,
+          }}
+          config={{
+            validDensities,
+            colorBuckets: colorBuckets.map(b => ({ color: b.color, hueStart: b.hueStart })),
+            hasVariants: variantMap.current.size > 0,
+          }}
+          callbacks={{
+            onColorChange: handleColorChange,
+            onDensityChange: handleDensityChange,
+            onDisplayModeChange: handleDisplayModeChange,
+            onImageTypeChange: handleImageTypeChange,
+            onGenie: showBestBento,
+            onLove: loveBento,
+          }}
+          compact={isMobile}
+        />
+      </div>
     </div>
   )
 }

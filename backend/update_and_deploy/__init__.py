@@ -18,6 +18,7 @@ AGENT_FOLDERS = [
     BACKEND / "suggest_image_variant",
     BACKEND / "suggest_image_enhancement",
     BACKEND / "image_signals",
+    BACKEND / "prepare_show",
     BACKEND / "MADphotos_ignition",
 ]
 

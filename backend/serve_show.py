@@ -229,7 +229,8 @@ class GalleryHandler(SimpleHTTPRequestHandler):
         status = body.get("status")
         if not variant_id or status not in ("accepted", "rejected", ""):
             return self._error_response(400, "variant_id and status required")
-        self._json_response(self._db()["review_generated"](variant_id, status or None))
+        comment = body.get("comment")
+        self._json_response(self._db()["review_generated"](variant_id, status or None, comment))
 
     def _post_generated_generate(self):
         count = 20

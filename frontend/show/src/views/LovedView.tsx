@@ -4,6 +4,7 @@ import { getObjectPosition, BENTO_UNIT_RATIO } from '../lib/cropUtils'
 import { loadProgressive } from '../lib/imageLoading'
 import { db } from '../lib/firebase'
 import { collection, query, orderBy, getDocs } from 'firebase/firestore'
+import { ShowControls } from '../components/controls/ShowControls'
 import type { Photo } from '../types/photo'
 import type { BentoCell } from '../lib/cropUtils'
 import './LovedView.css'
@@ -216,6 +217,39 @@ export function LovedView() {
           <button className="loved-close" onClick={() => setViewerIdx(-1)} aria-label="Close">
             {'\u2715'}
           </button>
+
+          <div className="loved-viewer-controls">
+            <ShowControls
+              controls={['heart']}
+              state={{
+                activeColorIdx: -1,
+                densityStepIdx: 0,
+                displayMode: 'bento',
+                imageTypeFilter: 'mixed',
+                loved: true,
+              }}
+              config={{
+                validDensities: [],
+                colorBuckets: [],
+                hasVariants: false,
+              }}
+              callbacks={{
+                onColorChange: () => {},
+                onDensityChange: () => {},
+                onDisplayModeChange: () => {},
+                onImageTypeChange: () => {},
+                onGenie: () => {},
+                onLove: () => {
+                  // Unlove: remove from list
+                  const updated = bentos.filter((_, i) => i !== viewerIdx)
+                  setBentos(updated)
+                  try { localStorage.setItem('bento-loves', JSON.stringify(updated)) } catch { /* */ }
+                  if (viewerIdx >= updated.length) setViewerIdx(updated.length - 1)
+                  if (updated.length === 0) setViewerIdx(-1)
+                },
+              }}
+            />
+          </div>
 
           <div className="loved-counter">
             {viewerIdx + 1} / {bentos.length}

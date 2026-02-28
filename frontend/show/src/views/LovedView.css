@@ -194,6 +194,15 @@
 .loved-nav-prev { left: 16px; }
 .loved-nav-next { right: 16px; }
 
+/* Viewer controls (ShowControls bar) */
+.loved-viewer-controls {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1001;
+}
+
 /* Counter */
 .loved-counter {
   position: fixed;

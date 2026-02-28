@@ -1,9 +1,11 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useAppStore } from '../store/appStore'
 import { loadProgressive } from '../lib/imageLoading'
 import { shuffleArray } from '../lib/utils'
 import { hexToHue } from '../lib/colorUtils'
-import { ViewBottom, ActionButton } from '../components/ui/ViewBottom'
+import { filterByImageType } from '../lib/layoutRegistry'
+import { ShowControls } from '../components/controls/ShowControls'
+import type { ImageTypeFilter } from '../lib/layoutRegistry'
 import type { Photo, DriftNeighbor } from '../types/photo'
 import './BoomView.css'
 
@@ -158,6 +160,45 @@ const BOOM_DEFS: BoomDef[] = [
 
 const BOOM_MIN = 25
 
+/* ===== Color buckets for ShowControls ===== */
+
+const BOOM_NUM_BUCKETS = 24
+
+interface BoomColorBucket {
+  color: string
+  hueStart: number
+  hueEnd: number
+}
+
+function buildBoomColorBuckets(): BoomColorBucket[] {
+  const bucketSize = 360 / BOOM_NUM_BUCKETS
+  const buckets: BoomColorBucket[] = []
+  for (let i = 0; i < BOOM_NUM_BUCKETS; i++) {
+    const hueStart = i * bucketSize
+    const hueMid = hueStart + bucketSize / 2
+    buckets.push({ hueStart, hueEnd: hueStart + bucketSize, color: `hsl(${hueMid}, 65%, 50%)` })
+  }
+  // Gray bucket
+  buckets.push({ hueStart: -1, hueEnd: -1, color: '#8e8e93' })
+  return buckets
+}
+
+function photoMatchesBucket(photo: Photo, bucket: BoomColorBucket): boolean {
+  if (bucket.hueStart === -1) {
+    // Gray: all palette entries are low-saturation
+    const palette = photo.palette
+    if (!palette || palette.length === 0) return false
+    return palette.every(hex => {
+      if (!hex || hex.length < 7) return true
+      const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16)
+      return (Math.max(r, g, b) - Math.min(r, g, b)) < 30
+    })
+  }
+  const hue = photo.hue || 0
+  if (bucket.hueStart <= bucket.hueEnd) return hue >= bucket.hueStart && hue < bucket.hueEnd
+  return hue >= bucket.hueStart || hue < bucket.hueEnd
+}
+
 /* Grid dimensions for rectangular container (landscape desktop / portrait mobile) */
 function computeGrid(n: number): { cols: number; rows: number } {
   const isLandscape = window.innerWidth >= window.innerHeight
@@ -283,6 +324,7 @@ function diverseSample(
 function buildBoomSets(
   photos: Photo[],
   neighbors: Record<string, DriftNeighbor[]> | null,
+  targetDensity?: number,
 ): BoomSet[] {
   const pool = photos.filter(p => p.thumb)
   const sets: BoomSet[] = []
@@ -292,18 +334,19 @@ function buildBoomSets(
     const matches = pool.filter(def.pool)
     if (matches.length < BOOM_MIN) continue
 
-    /* Pick count that fills the rectangular grid exactly (cols×rows) */
-    const grid = computeGrid(
+    /* Use target density if specified, otherwise adapt to pool size */
+    const targetN = targetDensity || (
       matches.length >= 100 ? 70
       : matches.length >= 70 ? 54
       : matches.length >= 50 ? 40 : 24
     )
+    const grid = computeGrid(targetN)
     const n = grid.cols * grid.rows
 
     sets.push({
       emoji: def.emoji,
       label: def.label,
-      photos: diverseSample(matches, n, neighbors),
+      photos: diverseSample(matches, Math.min(n, matches.length), neighbors),
     })
 
     if (sets.length >= 24) break
@@ -523,6 +566,15 @@ export function BoomView() {
   const [assembled, setAssembled] = useState(false)
   const [scattering, setScattering] = useState(false)
   const [previewPhoto, setPreviewPhoto] = useState<Photo | null>(null)
+  const [boomDensityIdx, setBoomDensityIdx] = useState(0)
+  const [boomLoved, setBoomLoved] = useState(false)
+  const [activeColorIdx, setActiveColorIdx] = useState(-1)
+  const [imageTypeFilter, setImageTypeFilter] = useState<ImageTypeFilter>('mixed')
+
+  const boomDensities = [24, 40, 54, 70]
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < window.innerHeight
+  const colorBuckets = useMemo(buildBoomColorBuckets, [])
+  const hasVariants = useMemo(() => data ? data.photos.some(p => !!p.parent) : false, [data])
 
   /* Refs for mutable state used in callbacks */
   const setsRef = useRef<BoomSet[]>([])
@@ -533,21 +585,54 @@ export function BoomView() {
   useEffect(() => { activeIdxRef.current = activeIdx }, [activeIdx])
   useEffect(() => { animatingRef.current = animating }, [animating])
 
-  /* Load drift neighbors then build sets */
+  /* Ref for drift neighbors (loaded once, reused on rebuilds) */
+  const neighborsRef = useRef<Record<string, DriftNeighbor[]> | null>(null)
+
+  /* Load drift neighbors once */
   useEffect(() => {
     if (!data) return
     let cancelled = false
     loadDriftNeighbors().then(neighbors => {
       if (cancelled) return
-      const builtSets = buildBoomSets(data.photos, neighbors)
-      setSets(builtSets)
-      if (builtSets.length > 0) {
-        const startIdx = Math.floor(Math.random() * builtSets.length)
-        selectSet(startIdx, builtSets)
-      }
+      neighborsRef.current = neighbors
+      // Trigger initial build
+      rebuildSets(data.photos, neighbors, boomDensities[boomDensityIdx], activeColorIdx, imageTypeFilter)
     })
     return () => { cancelled = true }
   }, [data, loadDriftNeighbors]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* Rebuild sets when density, color, or imageType changes */
+  const rebuildSets = useCallback((
+    photos: Photo[],
+    neighbors: Record<string, DriftNeighbor[]> | null,
+    density: number,
+    colorIdx: number,
+    imgType: ImageTypeFilter,
+  ) => {
+    // Apply image type filter
+    let pool = filterByImageType(photos, imgType)
+    // Apply color filter
+    if (colorIdx >= 0 && colorBuckets[colorIdx]) {
+      pool = pool.filter(p => photoMatchesBucket(p, colorBuckets[colorIdx]))
+    }
+    const builtSets = buildBoomSets(pool, neighbors, density)
+    setSets(builtSets)
+    if (builtSets.length > 0) {
+      const startIdx = Math.floor(Math.random() * builtSets.length)
+      selectSet(startIdx, builtSets)
+    } else {
+      setActiveIdx(-1)
+      setAssembled(false)
+    }
+  }, [colorBuckets]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* Re-trigger build when controls change (after initial load) */
+  const initialBuildDone = useRef(false)
+  useEffect(() => {
+    if (!data || !neighborsRef.current) return
+    if (!initialBuildDone.current) { initialBuildDone.current = true; return }
+    rebuildSets(data.photos, neighborsRef.current, boomDensities[boomDensityIdx], activeColorIdx, imageTypeFilter)
+  }, [boomDensityIdx, activeColorIdx, imageTypeFilter]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /* Select a set and animate assembly */
   const selectSet = useCallback((idx: number, setsOverride?: BoomSet[]) => {
@@ -662,9 +747,32 @@ export function BoomView() {
           </div>
         )}
       </div>
-      <ViewBottom>
-        <ActionButton emoji={'\uD83D\uDCA3'} onClick={blow} label="Boom" title="Boom" />
-      </ViewBottom>
+      <div className="view-bottom">
+        <ShowControls
+          controls={['color', 'density', 'imageType', 'genie', 'heart']}
+          state={{
+            activeColorIdx,
+            densityStepIdx: boomDensityIdx,
+            displayMode: 'bento',
+            imageTypeFilter,
+            loved: boomLoved,
+          }}
+          config={{
+            validDensities: boomDensities,
+            colorBuckets: colorBuckets.map(b => ({ color: b.color, hueStart: b.hueStart })),
+            hasVariants,
+          }}
+          callbacks={{
+            onColorChange: setActiveColorIdx,
+            onDensityChange: setBoomDensityIdx,
+            onDisplayModeChange: () => {},
+            onImageTypeChange: setImageTypeFilter,
+            onGenie: blow,
+            onLove: () => setBoomLoved(l => !l),
+          }}
+          compact={isMobile}
+        />
+      </div>
 
       <BoomPreview photo={previewPhoto} onClose={closePreview} />
     </div>

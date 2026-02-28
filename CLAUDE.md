@@ -26,7 +26,9 @@ Then list available commands:
 | **signals** | Run signal extraction pipeline (24+ models) |
 | **enhance** | Propose image enhancements for review |
 | **variants** | Generate AI art variants |
+| **prepare** | Pre-compute Show data (bentos, pairs, scores) |
 | **status** | Check server health + running processes |
+| **myteam** | Show all 6 agents — see `myteam.md` |
 
 ## Agents
 
@@ -36,6 +38,7 @@ Then list available commands:
 | `suggest_image_enhancement/` | Propose non-destructive improvements, user votes accept/reject | `python3 -m backend.suggest_image_enhancement.propose` |
 | `suggest_image_variant/` | Generate AI art variants with learned style selection | `python3 -m backend.suggest_image_variant.run` |
 | `update_and_deploy/` | 10-phase verified deployment to Firebase production | `python3 -m backend.update_and_deploy.run` |
+| `prepare_show/` | Pre-compute Show data — bentos, pairs, scores, indices | `python3 -m backend.prepare_show.run` |
 | `MADphotos_ignition/` | Dev environment startup — servers, health, companions | `python3 -m backend.MADphotos_ignition.run` |
 
 ## MADphotos ignition
@@ -75,6 +78,12 @@ When the user says "variants", run:
 
 ```bash
 python3 -m backend.suggest_image_variant.run
+```
+
+When the user says "prepare", run:
+
+```bash
+python3 -m backend.prepare_show.run
 ```
 
 When the user says "status" or "MADphotos status", perform a **thorough diagnostic report**:

@@ -33,6 +33,9 @@ interface StyleData {
   rejected: number
 }
 
+/* Cost estimate per variant (Imagen 3 standard) */
+const COST_PER_VARIANT = 0.04
+
 export function GeneratedPage() {
   const [data, setData] = useState<StyleData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -45,8 +48,11 @@ export function GeneratedPage() {
   const [batchProgress, setBatchProgress] = useState<{ completed: number; expected: number } | null>(null)
   const [exporting, setExporting] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
-  const [generateCount, setGenerateCount] = useState(20)
   const [exportedIds, setExportedIds] = useState<Set<string>>(new Set())
+  const [comment, setComment] = useState('')
+  const [generateModalOpen, setGenerateModalOpen] = useState(false)
+  const [generateCount, setGenerateCount] = useState(20)
+  const commentRef = useRef<HTMLInputElement>(null)
   const cursorReject = useRef('')
   const cursorAccept = useRef('')
   const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -130,14 +136,15 @@ export function GeneratedPage() {
   // Cleanup progress timer on unmount
   useEffect(() => stopProgressPoll, [stopProgressPoll])
 
-  const handleGenerate = useCallback(async () => {
+  const launchGenerate = useCallback(async (count: number) => {
+    setGenerateModalOpen(false)
     setGenerating(true)
-    setBatchProgress({ completed: 0, expected: generateCount })
+    setBatchProgress({ completed: 0, expected: count })
     try {
       const r = await fetch('/api/generated/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ count: generateCount }),
+        body: JSON.stringify({ count }),
       })
       if (!r.ok) {
         showToast('Failed to launch')
@@ -154,7 +161,7 @@ export function GeneratedPage() {
     // Start polling progress every 3s
     stopProgressPoll()
     progressTimer.current = setInterval(pollProgress, 3000)
-  }, [showToast, stopProgressPoll, pollProgress, generateCount])
+  }, [showToast, stopProgressPoll, pollProgress])
 
   const handleExport = useCallback(async () => {
     setExporting(true)
@@ -180,12 +187,14 @@ export function GeneratedPage() {
   }, [reviews])
 
   const handleReview = useCallback(async (variantId: string, status: string) => {
+    const text = comment.trim() || undefined
     setReviews(r => ({ ...r, [variantId]: status }))
+    setComment('')
     try {
       await fetch('/api/generated/review', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ variant_id: variantId, status }),
+        body: JSON.stringify({ variant_id: variantId, status, comment: text }),
       })
     } catch {
       setReviews(r => {
@@ -194,7 +203,7 @@ export function GeneratedPage() {
         return next
       })
     }
-  }, [])
+  }, [comment])
 
   const filtered = useMemo(() => {
     if (!data) return []
@@ -209,10 +218,10 @@ export function GeneratedPage() {
     handleReview(current.variant_id, status)
   }, [current, handleReview])
 
-  // Keyboard: A = accept, R = reject (disabled while generating)
+  // Keyboard: A = accept, R = reject (disabled while generating or modal open)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (generating) return
+      if (generating || generateModalOpen) return
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
       switch (e.key) {
         case 'a': case 'A':
@@ -223,7 +232,17 @@ export function GeneratedPage() {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [reviewAndAdvance, generating])
+  }, [reviewAndAdvance, generating, generateModalOpen])
+
+  // Close modal on Escape
+  useEffect(() => {
+    if (!generateModalOpen) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setGenerateModalOpen(false)
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [generateModalOpen])
 
   if (loading) return <div style={{ color: 'var(--muted)', padding: '80px', textAlign: 'center' }}>Loading...</div>
   if (error) return <div style={{ color: 'var(--red)', padding: '80px', textAlign: 'center' }}>Error: {error}</div>
@@ -232,21 +251,46 @@ export function GeneratedPage() {
   const review = current ? getReview(current) : null
   // Count accepts done this session that haven't been exported yet
   const newAccepts = Object.entries(reviews).filter(
-    ([id, v]) => v === 'accepted' && !exportedIds.has(id)
+    ([, v]) => v === 'accepted' && !exportedIds.has(v)
   ).length
   const exportReady = newAccepts > 0
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-      {/* Top bar — single row of chips */}
+      {/* Top bar */}
       <div className="filter-bar" style={{
         flexShrink: 0, padding: '10px 16px', margin: 0,
         borderBottom: '1px solid var(--border)',
-        alignItems: 'center',
+        alignItems: 'center', gap: '8px',
       }}>
         <span style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)' }}>
           {filtered.length} to review {data.accepted > 0 && `· ${data.accepted} accepted · ${data.rejected} rejected`}
         </span>
+
+        {/* Comment input — inline in top bar */}
+        {current && !generating && !exporting && (
+          <input
+            ref={commentRef}
+            type="text"
+            value={comment}
+            onChange={e => setComment(e.target.value)}
+            placeholder="Comment..."
+            style={{
+              flex: '1 1 120px',
+              minWidth: '80px',
+              maxWidth: '300px',
+              padding: '5px 10px',
+              background: '#1a1a1a',
+              border: '1px solid #333',
+              borderRadius: '6px',
+              color: '#ccc',
+              fontSize: '12px',
+              outline: 'none',
+            }}
+            onFocus={e => (e.target.style.borderColor = '#555')}
+            onBlur={e => (e.target.style.borderColor = '#333')}
+          />
+        )}
 
         <div style={{ flex: 1 }} />
 
@@ -269,23 +313,9 @@ export function GeneratedPage() {
           </>
         )}
 
-        {!generating && (
-          <span style={{ display: 'inline-flex', gap: '2px' }}>
-            {[10, 20, 40, 80].map(n => (
-              <button key={n} className="filter-btn"
-                onClick={() => setGenerateCount(n)}
-                style={{
-                  minWidth: '28px', padding: '4px 6px',
-                  borderColor: generateCount === n ? '#0A84FF' : undefined,
-                  color: generateCount === n ? '#0A84FF' : undefined,
-                  fontSize: 'var(--text-xs)',
-                }}>
-                {n}
-              </button>
-            ))}
-          </span>
-        )}
-        <button className="filter-btn" onClick={handleGenerate} disabled={generating || exporting}
+        <button className="filter-btn"
+          onClick={() => generating ? undefined : setGenerateModalOpen(true)}
+          disabled={generating || exporting}
           style={{
             borderColor: generating ? '#FF9F0A' : undefined,
             color: generating ? '#FF9F0A' : undefined,
@@ -293,7 +323,7 @@ export function GeneratedPage() {
           }}>
           {generating && batchProgress
             ? `⏳ ${batchProgress.completed}/${batchProgress.expected}`
-            : `Generate ${generateCount}`}
+            : 'Generate'}
         </button>
 
         <button className="filter-btn" onClick={handleExport}
@@ -309,11 +339,12 @@ export function GeneratedPage() {
 
       {/* Images */}
       <div style={{
-        flex: 1, minHeight: 0,
+        flex: '1 1 0', minHeight: 0,
         display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
         gap: '4px', padding: '8px',
         transition: 'opacity 0.12s',
         background: '#0a0a0a',
+        overflow: 'hidden',
       }}>
         {(generating && batchProgress) || exporting ? (
           <div style={{
@@ -383,6 +414,109 @@ export function GeneratedPage() {
           </span>
         )}
       </div>
+
+      {/* Generate modal */}
+      {generateModalOpen && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1000,
+            background: 'rgba(0, 0, 0, 0.6)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+          onClick={() => setGenerateModalOpen(false)}
+        >
+          <div
+            style={{
+              background: '#1c1c1e',
+              borderRadius: '14px',
+              padding: '28px 32px',
+              minWidth: '320px',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ fontSize: '16px', fontWeight: 600, color: '#fff', marginBottom: '20px' }}>
+              Generate Variants
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+              {[10, 20, 40, 80].map(n => (
+                <button
+                  key={n}
+                  onClick={() => setGenerateCount(n)}
+                  style={{
+                    flex: 1,
+                    padding: '10px 0',
+                    background: generateCount === n ? '#0A84FF' : '#2c2c2e',
+                    color: generateCount === n ? '#fff' : '#999',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '15px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '10px 14px',
+              background: '#2c2c2e',
+              borderRadius: '8px',
+              marginBottom: '20px',
+            }}>
+              <span style={{ color: '#999', fontSize: '13px' }}>Estimated cost</span>
+              <span style={{ color: '#fff', fontSize: '15px', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                ${(generateCount * COST_PER_VARIANT).toFixed(2)}
+              </span>
+            </div>
+
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '8px 14px',
+              background: '#2c2c2e',
+              borderRadius: '8px',
+              marginBottom: '24px',
+              fontSize: '12px', color: '#666',
+            }}>
+              <span>~{Math.ceil(generateCount / 4)} min at 4 req/min</span>
+              <span>Imagen 3</span>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={() => setGenerateModalOpen(false)}
+                style={{
+                  flex: 1, padding: '10px',
+                  background: '#2c2c2e', color: '#999',
+                  border: 'none', borderRadius: '8px',
+                  fontSize: '14px', fontWeight: 500, cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => launchGenerate(generateCount)}
+                style={{
+                  flex: 1, padding: '10px',
+                  background: '#30D158', color: '#000',
+                  border: 'none', borderRadius: '8px',
+                  fontSize: '14px', fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                Generate {generateCount}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

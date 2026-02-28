@@ -13,6 +13,8 @@ from .config import (
     DEAD_THRESHOLD,
     EXPLORATION_BONUS,
     EXPLORE_MAX_REVIEWS,
+    EXPLORE_MIN_RATE,
+    EXPLORE_MIN_RATE_REVIEWS,
     EXPLORE_RATE,
     FAMILIES,
     MOOD_STYLE_MAP,
@@ -20,6 +22,9 @@ from .config import (
     PERFORMANCE_MIN_TRUST,
     PERFORMANCE_SCALE,
     REJECTED_HUE_RANGES,
+    STRUGGLING_MIN_REVIEWS,
+    STRUGGLING_PENALTY,
+    STRUGGLING_THRESHOLD,
     STYLES,
 )
 
@@ -87,15 +92,25 @@ def _load_style_rates(conn: sqlite3.Connection) -> Dict[str, Dict]:
     return _cached_style_rates
 
 
-def get_candidates(conn: sqlite3.Connection, count: int) -> List[Dict]:
+def get_candidates(conn: sqlite3.Connection, count: int,
+                    category: Optional[str] = None) -> List[Dict]:
     """Select candidate picks with all signals, scored by composite quality.
 
     Skips photos that already have accepted or pending smart_style variants,
     and photos with dominant salmon/coral/khaki palettes.
+
+    If category is set, only picks from that category (e.g. 'Analog').
     """
-    rows = conn.execute("""
+    cat_filter = ""
+    params: List[str] = []
+    if category:
+        cat_filter = "AND i.category = ?"
+        params.append(category)
+
+    rows = conn.execute(f"""
         SELECT i.uuid, i.category, i.subcategory, i.orientation, i.is_monochrome,
                gem.setting, gem.time_of_day, gem.grading_style, gem.vibe, gem.faces_count,
+               gem.composition_technique,
                a.score as aesthetic,
                ga.description as gemma_description, ga.mood as gemma_mood, ga.tags as gemma_tags,
                ga.raw_json as gemma_json, ga.print_worthy, ga.cartoon_style,
@@ -108,7 +123,11 @@ def get_candidates(conn: sqlite3.Connection, count: int) -> List[Dict]:
         LEFT JOIN image_analysis ia ON i.uuid = ia.image_uuid
         JOIN tiers t ON i.uuid = t.image_uuid
             AND t.tier_name = 'mobile' AND t.format = 'jpeg' AND t.variant_id IS NULL
-        WHERE i.uuid NOT IN (
+        WHERE i.uuid IN (
+            SELECT photo FROM firestore_tinder_votes WHERE vote = 'accept'
+        )
+        {cat_filter}
+        AND i.uuid NOT IN (
             SELECT image_uuid FROM ai_variants
             WHERE review_status = 'accepted'
               AND variant_type = 'smart_style'
@@ -126,7 +145,7 @@ def get_candidates(conn: sqlite3.Connection, count: int) -> List[Dict]:
         )
         GROUP BY i.uuid
         ORDER BY i.uuid
-    """).fetchall()
+    """, params).fetchall()
 
     candidates = []
     for r in rows:
@@ -136,21 +155,17 @@ def get_candidates(conn: sqlite3.Connection, count: int) -> List[Dict]:
         if _hue_in_rejected_range(photo.get("dominant_hue")):
             continue
 
-        # Composite quality score for ranking
+        # Composite quality score — base signals + strong randomness for diversity.
+        # Without randomness, the same top-scoring monochrome interiors always win.
         score = 0.0
         if photo.get("print_worthy"):
-            score += 3.0
+            score += 2.0
         if (photo.get("faces_count") or 0) == 0:
-            score += 2.0
-        if photo.get("is_monochrome"):
-            score += 2.0
-        if (photo.get("aesthetic") or 0) > 7.0:
             score += 1.0
         if photo.get("gemma_description"):
             score += 1.0  # has complete Gemma data
-        setting = (photo.get("setting") or "").lower()
-        if "exterior" in setting:
-            score += 1.0
+        # Randomness ensures diverse sources — different categories, settings, moods
+        score += random.random() * 6.0
 
         photo["_quality_score"] = score
         candidates.append(photo)
@@ -221,13 +236,17 @@ def score_style(style_key: str, photo: Dict,
     penalties = style.get("penalties", {})
     score = 0.0
 
-    # ── Dead style check ──
+    # ── Dead / struggling style checks ──
     if rates:
         style_data = rates.get(style_key)
-        if (style_data
-                and style_data["total"] >= DEAD_MIN_REVIEWS
-                and style_data["rate"] < DEAD_THRESHOLD):
-            return -999.0
+        if style_data:
+            if (style_data["total"] >= DEAD_MIN_REVIEWS
+                    and style_data["rate"] < DEAD_THRESHOLD):
+                return -999.0
+            # Struggling: not dead, but performing badly — heavy penalty
+            if (style_data["total"] >= STRUGGLING_MIN_REVIEWS
+                    and style_data["rate"] < STRUGGLING_THRESHOLD):
+                score += STRUGGLING_PENALTY
 
     setting = (photo.get("setting") or "").lower()
     grading = (photo.get("grading_style") or "").lower()
@@ -337,11 +356,14 @@ def pick_styles(photo: Dict,
 
     # Slot 2: explore/exploit
     if rates and random.random() < EXPLORE_RATE:
-        # Explore: pick an undertested style from a different family
+        # Explore: pick an undertested style from a different family.
+        # Skip styles that already proved they don't work (0% with ≥3 reviews).
         undertested = [
             k for k, _ in scores[1:]
             if FAMILIES.get(k) != first_family
             and rates.get(k, {}).get("total", 0) < EXPLORE_MAX_REVIEWS
+            and not (rates.get(k, {}).get("total", 0) >= EXPLORE_MIN_RATE_REVIEWS
+                     and rates.get(k, {}).get("rate", 1.0) <= EXPLORE_MIN_RATE)
         ]
         if undertested:
             picked.append(random.choice(undertested))

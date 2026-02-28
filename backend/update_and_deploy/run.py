@@ -206,6 +206,14 @@ def main() -> None:
     except Exception as e:
         print(f"  EXPORT ERROR: {e}")
 
+    # Phase 5.5: Prepare Show data
+    banner(5, 10, "PREPARE SHOW", args.dry)
+    try:
+        from backend.prepare_show import run as prepare_show
+        prepare_show.main_pipeline(args.dry, args.force or args.full)
+    except Exception as e:
+        print(f"  PREPARE SHOW ERROR: {e}")
+
     # Phase 6: System data
     banner(6, 10, "SYSTEM DATA", args.dry)
     try:

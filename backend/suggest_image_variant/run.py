@@ -34,6 +34,9 @@ from .config import (
     EXPLORE_RATE,
     GENERATED_DIR,
     PERFORMANCE_MIN_TRUST,
+    STRUGGLING_MIN_REVIEWS,
+    STRUGGLING_PENALTY,
+    STRUGGLING_THRESHOLD,
     STYLES,
     STYLES_PER_PHOTO,
 )
@@ -115,6 +118,8 @@ def cmd_scorecard(conn: sqlite3.Connection) -> None:
             status = "Weak"
         elif total >= DEAD_MIN_REVIEWS and rate < DEAD_THRESHOLD:
             status = "Dead"
+        elif total >= STRUGGLING_MIN_REVIEWS and rate < STRUGGLING_THRESHOLD:
+            status = "Dying"
         else:
             status = "Poor"
         entries.append((key, data["accepted"], data["rejected"], total, rate, status))
@@ -151,6 +156,7 @@ def cmd_scorecard(conn: sqlite3.Connection) -> None:
         f"- **Solid**: 40-59% rate, ≥{PERFORMANCE_MIN_TRUST} reviews — reliable",
         f"- **Weak**: 20-39% rate, ≥{PERFORMANCE_MIN_TRUST} reviews — underperforming",
         f"- **Poor**: <20% rate, ≥{PERFORMANCE_MIN_TRUST} reviews — struggling",
+        f"- **Dying**: <{STRUGGLING_THRESHOLD*100:.0f}% rate, ≥{STRUGGLING_MIN_REVIEWS} reviews — heavy penalty ({STRUGGLING_PENALTY:+.0f} score)",
         f"- **Dead**: <{DEAD_THRESHOLD*100:.0f}% rate, ≥{DEAD_MIN_REVIEWS} reviews — auto-excluded from selection",
         f"- **New**: <{PERFORMANCE_MIN_TRUST} reviews — still being tested (gets exploration bonus)",
         "",
@@ -285,6 +291,8 @@ def main() -> None:
                         help="List all available styles")
     parser.add_argument("--scorecard", action="store_true",
                         help="Generate STYLES.md performance scorecard")
+    parser.add_argument("--category", type=str, default=None,
+                        help="Filter to a specific image category (e.g. Analog, Digital, Monochrome)")
     args = parser.parse_args()
 
     if args.styles:
@@ -305,16 +313,25 @@ def main() -> None:
         reviewed = sum(d["total"] for d in rates.values())
         dead = [k for k, d in rates.items()
                 if d["total"] >= DEAD_MIN_REVIEWS and d["rate"] < DEAD_THRESHOLD]
-        print(f"Loaded performance data: {len(rates)} styles, {reviewed} reviews"
-              + (f", {len(dead)} dead ({', '.join(dead)})" if dead else ""))
+        struggling = [k for k, d in rates.items()
+                      if d["total"] >= STRUGGLING_MIN_REVIEWS
+                      and d["rate"] < STRUGGLING_THRESHOLD
+                      and not (d["total"] >= DEAD_MIN_REVIEWS and d["rate"] < DEAD_THRESHOLD)]
+        status_parts = [f"Loaded performance data: {len(rates)} styles, {reviewed} reviews"]
+        if dead:
+            status_parts.append(f"{len(dead)} dead ({', '.join(dead)})")
+        if struggling:
+            status_parts.append(f"{len(struggling)} struggling ({', '.join(struggling)})")
+        print(", ".join(status_parts))
 
     # How many source photos can the budget support?
     max_photos = int(args.budget / (COST_PER_IMAGE * STYLES_PER_PHOTO))
     count = min(args.count, max_photos) if args.count > 0 else max_photos
 
-    candidates = get_candidates(conn, count)
+    candidates = get_candidates(conn, count, category=args.category)
 
-    print(f"Found {len(candidates)} candidate photos (budget supports {max_photos})")
+    cat_label = f" [{args.category}]" if args.category else ""
+    print(f"Found {len(candidates)}{cat_label} candidate photos (budget supports {max_photos})")
 
     if not candidates:
         print("Nothing to do — all picked photos already have smart variants.")

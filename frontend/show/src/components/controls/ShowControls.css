@@ -1,0 +1,344 @@
+/* ShowControls — Quiet Glass
+   One material. One shadow. Content supremacy.
+   The bar is infrastructure, never the star. */
+
+.show-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 4px 6px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 0.5px solid rgba(255, 255, 255, 0.3);
+  border-radius: 18px;
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  user-select: none;
+  -webkit-user-select: none;
+  position: relative;
+  /* Active color accent — set via JS */
+  transition: border-color 0.4s ease;
+}
+
+:root.dark .show-controls {
+  background: rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* ===== Buttons ===== */
+
+.show-ctrl-btn {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: rgba(0, 0, 0, 0.35);
+  border-radius: 10px;
+  cursor: pointer;
+  padding: 0;
+  position: relative;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease,
+    transform 0.12s var(--ease-out-quart);
+}
+
+:root.dark .show-ctrl-btn {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.show-ctrl-btn:disabled {
+  opacity: 0.2;
+  cursor: default;
+}
+
+/* Active state — fill + full color, no shadow theatrics */
+.show-ctrl-btn.active {
+  color: rgba(0, 0, 0, 0.85);
+  background: rgba(0, 0, 0, 0.06);
+}
+
+:root.dark .show-ctrl-btn.active {
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* ===== Divider — separates filters from actions ===== */
+
+.show-ctrl-divider {
+  width: 1px;
+  height: 18px;
+  margin: 0 3px;
+  background: rgba(0, 0, 0, 0.08);
+  flex-shrink: 0;
+}
+
+:root.dark .show-ctrl-divider {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* ===== Color dot ===== */
+
+.show-ctrl-color {
+  width: 24px;
+  height: 24px;
+  margin: 0 3px;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.15s var(--ease-out-quart), box-shadow 0.3s ease;
+  /* Inactive: subtle prismatic shimmer */
+  background: conic-gradient(
+    hsl(0, 50%, 65%), hsl(60, 45%, 60%), hsl(120, 40%, 55%),
+    hsl(180, 45%, 55%), hsl(240, 50%, 60%), hsl(300, 45%, 60%), hsl(360, 50%, 65%)
+  );
+  opacity: 0.55;
+}
+
+:root.dark .show-ctrl-color {
+  opacity: 0.5;
+}
+
+.show-ctrl-color.active {
+  opacity: 1;
+  background: var(--show-ctrl-color-glow, hsl(0, 70%, 60%));
+  box-shadow: 0 0 12px var(--show-ctrl-color-glow, rgba(100, 100, 255, 0.3));
+}
+
+.show-ctrl-color.color-gray {
+  background: radial-gradient(circle, #aaa, #777);
+}
+
+/* ===== Display type — emoji bento/waffle ===== */
+
+.show-ctrl-display {
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* ===== Density — dot grid icon ===== */
+
+.show-ctrl-density svg {
+  transition: transform 0.2s var(--ease-out-quart);
+}
+
+.show-ctrl-density.morphing svg {
+  animation: show-ctrl-density-morph 0.25s var(--ease-out-quart);
+}
+
+@keyframes show-ctrl-density-morph {
+  0% { transform: scale(0.7); opacity: 0.3; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ===== Image type — camera icon with gradient fill states ===== */
+
+.show-ctrl-cam-lens {
+  fill: white;
+}
+
+:root.dark .show-ctrl-cam-lens {
+  fill: #1c1c1e;
+}
+
+/* ===== Heart — emoji sizing ===== */
+
+.show-ctrl-heart {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.show-ctrl-heart.loved {
+  animation: show-ctrl-love 0.35s var(--ease-spring);
+}
+
+@keyframes show-ctrl-love {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+/* ===== Genie — emoji sizing + pulse, never dimmed ===== */
+
+.show-ctrl-genie {
+  font-size: 16px;
+  line-height: 1;
+  color: inherit;
+  opacity: 1;
+}
+
+.show-ctrl-genie.pulsing {
+  animation: show-ctrl-pulse 0.4s var(--ease-spring);
+}
+
+@keyframes show-ctrl-pulse {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+/* ===== Color picker popover ===== */
+
+.show-ctrl-color-picker {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 0.5px solid rgba(255, 255, 255, 0.3);
+  border-radius: 14px;
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  animation: show-ctrl-fade-up 0.2s var(--ease-out-quart) both;
+  z-index: 10;
+  max-width: calc(100vw - 32px);
+}
+
+:root.dark .show-ctrl-color-picker {
+  background: rgba(0, 0, 0, 0.35);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+@keyframes show-ctrl-fade-up {
+  from { opacity: 0; transform: translateY(4px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.show-ctrl-color-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  transition: transform 0.12s var(--ease-out-quart);
+}
+
+.show-ctrl-color-swatch:hover {
+  transform: scale(1.15);
+}
+
+.show-ctrl-color-swatch.active {
+  transform: scale(1.2);
+  border-color: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.2);
+}
+
+/* ===== Hover ===== */
+
+@media (hover: hover) and (pointer: fine) {
+  .show-ctrl-btn:hover:not(:disabled) {
+    color: rgba(0, 0, 0, 0.6);
+    background: rgba(0, 0, 0, 0.04);
+  }
+
+  :root.dark .show-ctrl-btn:hover:not(:disabled) {
+    color: rgba(255, 255, 255, 0.7);
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .show-ctrl-color:hover {
+    transform: scale(1.08);
+  }
+
+  .show-ctrl-btn:active:not(:disabled) {
+    transform: scale(0.94);
+  }
+}
+
+/* ===== Compact (mobile) ===== */
+
+.show-controls.compact {
+  padding: 3px 5px;
+  gap: 1px;
+  border-radius: 14px;
+}
+
+.show-controls.compact .show-ctrl-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+.show-controls.compact .show-ctrl-color {
+  width: 20px;
+  height: 20px;
+}
+
+.show-controls.compact .show-ctrl-density svg {
+  width: 14px;
+  height: 14px;
+}
+
+.show-controls.compact .show-ctrl-divider {
+  height: 14px;
+  margin: 0 2px;
+}
+
+.show-controls.compact .show-ctrl-display,
+.show-controls.compact .show-ctrl-genie,
+.show-controls.compact .show-ctrl-heart {
+  font-size: 12px;
+}
+
+.show-controls.compact .show-ctrl-imgtype svg {
+  width: 14px;
+  height: 14px;
+}
+
+.show-controls.compact .show-ctrl-color-swatch {
+  width: 14px;
+  height: 14px;
+}
+
+/* ===== Tier B — no backdrop-filter ===== */
+
+:root.tier-b .show-controls,
+:root.tier-b .show-ctrl-color-picker {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgba(240, 240, 245, 0.92);
+}
+
+:root.tier-b.dark .show-controls,
+:root.tier-b.dark .show-ctrl-color-picker {
+  background: rgba(28, 28, 30, 0.92);
+}
+
+/* ===== Tier C — minimal ===== */
+
+:root.tier-c .show-controls,
+:root.tier-c .show-ctrl-color-picker {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* ===== Reduced motion ===== */
+
+@media (prefers-reduced-motion: reduce) {
+  .show-ctrl-btn {
+    transition: none !important;
+  }
+  .show-ctrl-heart.loved,
+  .show-ctrl-genie.pulsing {
+    animation: none !important;
+  }
+  .show-ctrl-color-picker {
+    animation: none !important;
+  }
+  .show-ctrl-density-num.slide-up {
+    animation: none !important;
+  }
+}
