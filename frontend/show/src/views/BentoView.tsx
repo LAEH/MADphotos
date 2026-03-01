@@ -1648,18 +1648,6 @@ export function BentoView() {
     fireAndForget('bento-loves', payload)
   }, [layout, photos, workingCells, activeColorIdx, loved, activeCurator])
 
-  /* Listen for 'bento-love' custom event (from FloatingNav heart) */
-  useEffect(() => {
-    const handler = () => loveBento()
-    document.addEventListener('bento-love', handler)
-    return () => document.removeEventListener('bento-love', handler)
-  }, [loveBento])
-
-  /* Broadcast loved state so FloatingNav can reflect it */
-  useEffect(() => {
-    document.dispatchEvent(new CustomEvent('bento-loved-change', { detail: { loved } }))
-  }, [loved])
-
   if (!layout || photos.length === 0) {
     return <div className="bento-wrap" />
   }
@@ -1707,7 +1695,7 @@ export function BentoView() {
       </div>
       <div className="view-bottom">
         <ShowControls
-          controls={['imageType', 'color', 'genie']}
+          controls={['imageType', 'color', 'heart', 'genie']}
           state={{
             activeColorIdx,
             densityStepIdx: 0,

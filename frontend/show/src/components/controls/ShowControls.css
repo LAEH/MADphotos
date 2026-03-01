@@ -189,7 +189,15 @@
   right: 0;
 }
 
-/* ===== Heart ===== */
+/* ===== Heart — always red, dimmed until loved ===== */
+
+.show-ctrl-heart {
+  color: rgba(239, 68, 68, 0.35);
+}
+
+:root.dark .show-ctrl-heart {
+  color: rgba(248, 113, 113, 0.35);
+}
 
 .show-ctrl-heart.active {
   color: #ef4444;
