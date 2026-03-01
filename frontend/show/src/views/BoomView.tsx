@@ -761,9 +761,9 @@ export function BoomView() {
             validDensities: boomDensities,
             colorBuckets: colorBuckets.map(b => ({ color: b.color, hueStart: b.hueStart })),
             hasVariants,
-            samplePhoto: data?.photos.find(p => p.id === '0f754e8e-b2be-52cb-9af6-7d474d2a60b7')?.thumb
+            samplePhoto: data?.photos.find(p => p.id === '001a5d8a-64bc-5ff7-a53f-9a8040e25f78')?.thumb
               || data?.photos.find(p => !p.parent && p.thumb)?.thumb,
-            sampleVariant: data?.photos.find(p => p.id === '52f34b54-41b5-5962-a100-2af90ac3ae54')?.thumb
+            sampleVariant: data?.photos.find(p => p.id === '001a5d8a-64bc-5ff7-a53f-9a8040e25f78_gonzo')?.thumb
               || data?.photos.find(p => p.parent && p.thumb)?.thumb,
           }}
           callbacks={{

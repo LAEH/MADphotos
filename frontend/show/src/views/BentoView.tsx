@@ -43,11 +43,16 @@ function buildBentoColorBuckets(photos: Photo[]): BentoColorBucket[] {
     if (!photo.thumb) continue
     if (photo.has_border) continue
     const palette = photo.palette
-    if (palette && palette.length > 0 && palette.every(hex => {
-      if (!hex || hex.length < 7) return true
-      const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16)
-      return (Math.max(r, g, b) - Math.min(r, g, b)) < 30
-    })) { grayPhotos.push(photo); continue }
+    // Gray detection: check top 2 dominant colors (not all) with generous threshold
+    if (palette && palette.length > 0) {
+      const topColors = palette.slice(0, Math.min(2, palette.length))
+      const allGray = topColors.every(hex => {
+        if (!hex || hex.length < 7) return true
+        const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16)
+        return (Math.max(r, g, b) - Math.min(r, g, b)) < 40
+      })
+      if (allGray) { grayPhotos.push(photo); continue }
+    }
     const hue = photo.hue || 0
     const idx = Math.min(Math.floor(hue / bucketSize), BENTO_NUM_BUCKETS - 1)
     buckets[idx].photos.push(photo)
@@ -1207,7 +1212,8 @@ export function BentoView() {
     }
 
     // Inject AI variants when imageType is 'mixed' and variants exist
-    if (imageTypeFilter === 'mixed' && variantMap.current.size > 0) {
+    // Skip when color filtered — variants break color coherence
+    if (imageTypeFilter === 'mixed' && variantMap.current.size > 0 && !isColorFiltered) {
       const usedIds = new Set(selected.map(p => p.id))
       for (let i = 0; i < selected.length; i++) {
         const v = variantMap.current.get(selected[i].id)
@@ -1318,6 +1324,30 @@ export function BentoView() {
     const oldId = tileEl.dataset.id
     const orient = tileEl.dataset.orient as 'P' | 'L' | undefined
     const cellIdx = parseInt(tileEl.dataset.cellIdx || '0', 10)
+
+    // If current photo is a variant, first click reveals the original
+    const currentPhoto = photosRef.current.find(p => p.id === oldId)
+    if (currentPhoto?.parent) {
+      const original = data.photos.find(p => p.id === currentPhoto.parent)
+      if (original && (original.display || original.thumb)) {
+        const target = original.display || original.thumb!
+        const img = tileEl.querySelector('img:not(.bento-tile-original)') as HTMLImageElement
+        if (img) {
+          img.src = target
+          tileEl.dataset.id = original.id
+          delete tileEl.dataset.variant
+          const wCells = workingCellsRef.current
+          if (wCells[cellIdx]) img.style.objectPosition = getObjectPosition(original, wCells[cellIdx])
+          setPhotos(prev => {
+            const next = [...prev]
+            const bIdx = next.findIndex(p => p.id === oldId)
+            if (bIdx >= 0) next[bIdx] = original
+            return next
+          })
+        }
+        return
+      }
+    }
 
     const currentIds = new Set(photosRef.current.map(p => p.id))
     const buf = preloadBufferRef.current
@@ -1707,9 +1737,9 @@ export function BentoView() {
             validDensities: [],
             colorBuckets: colorBuckets.map(b => ({ color: b.color, hueStart: b.hueStart })),
             hasVariants: variantMap.current.size > 0,
-            samplePhoto: data?.photos.find(p => p.id === '0f754e8e-b2be-52cb-9af6-7d474d2a60b7')?.thumb
+            samplePhoto: data?.photos.find(p => p.id === '001a5d8a-64bc-5ff7-a53f-9a8040e25f78')?.thumb
               || photos.find(p => !p.parent && p.thumb)?.thumb,
-            sampleVariant: data?.photos.find(p => p.id === '52f34b54-41b5-5962-a100-2af90ac3ae54')?.thumb
+            sampleVariant: data?.photos.find(p => p.id === '001a5d8a-64bc-5ff7-a53f-9a8040e25f78_gonzo')?.thumb
               || [...variantMap.current.values()].find(v => v.thumb)?.thumb,
           }}
           callbacks={{
