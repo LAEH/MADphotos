@@ -1,7 +1,9 @@
 /**
  * layoutRegistry.ts — Shared layout definitions for Bento and other fixed-screen views.
- * Extracted from BentoView.tsx. Houses all grid layouts, dynamic generators,
- * density computation, and the bento-bug fix (hasMixedSizes).
+ *
+ * Finite-ratio system: UNIT_RATIO = 1 (square units).
+ * Desktop: 5×3 grid (15 units). Mobile: 3×6 grid (18 units).
+ * Only 7 allowed ratios: 1/2, 2/3, 3/4, 1, 4/3, 3/2, 2/1.
  */
 
 import { BENTO_UNIT_RATIO } from './cropUtils'
@@ -22,121 +24,109 @@ export interface BentoLayout {
 
 /* ===== Cell helpers ===== */
 
-/** Portrait cell (1 col × 2 rows → ratio 0.667 with 4:3 unit) */
+/** Portrait cell (ratio < 1: rs > cs) */
 function P(r: number, c: number, rs: number, cs: number): BentoCell {
   return { r, c, rs, cs, orient: 'P' }
 }
 
-/** Landscape cell (1×1 → ratio 1.333, or 2×2 → ratio 1.333) */
+/** Landscape/square cell (ratio >= 1: cs >= rs) */
 function L(r: number, c: number, rs: number, cs: number): BentoCell {
   return { r, c, rs, cs, orient: 'L' }
 }
 
-/* ── Desktop layouts (5×4 grid, ratio ≈ 1.667, 8–11 images) ── */
+/* ── Desktop layouts (5×3 grid, 15 units, 3–11 images) ── */
 
 export const DESKTOP_LAYOUTS: BentoLayout[] = [
-  /* D1: Balanced — 5×4, 8 images, 3P 5L */
+  /* D1: Hero — big 3:2 top-left, portrait, strip bottom — 8 tiles */
   {
-    id: 'D1', cols: 5, rows: 4, count: 8, device: 'desktop',
+    id: 'D1', cols: 5, rows: 3, count: 8, device: 'desktop',
+    cells: [
+      L(1, 1, 2, 3), P(1, 4, 2, 1), L(1, 5, 1, 1),
+      L(2, 5, 1, 1),
+      L(3, 1, 1, 1), L(3, 2, 1, 2), L(3, 4, 1, 1), L(3, 5, 1, 1),
+    ],
+  },
+  /* D2: Balanced — two squares + portrait top, wides bottom — 6 tiles */
+  {
+    id: 'D2', cols: 5, rows: 3, count: 6, device: 'desktop',
     cells: [
       L(1, 1, 2, 2), P(1, 3, 2, 1), L(1, 4, 2, 2),
-      P(3, 1, 2, 1), L(3, 2, 2, 2), P(3, 4, 2, 1),
-      L(3, 5, 1, 1), L(4, 5, 1, 1),
+      L(3, 1, 1, 2), L(3, 3, 1, 1), L(3, 4, 1, 2),
     ],
   },
-  /* D2: Gallery — 5×4, 11 images, 3P 8L */
+  /* D3: Gallery — portrait anchor left, mixed right — 9 tiles */
   {
-    id: 'D2', cols: 5, rows: 4, count: 11, device: 'desktop',
+    id: 'D3', cols: 5, rows: 3, count: 9, device: 'desktop',
     cells: [
-      P(1, 1, 2, 1), L(1, 2, 2, 2), L(1, 4, 1, 1), P(1, 5, 2, 1),
-      L(2, 4, 1, 1),
-      L(3, 1, 2, 2), P(3, 3, 2, 1), L(3, 4, 1, 1), L(3, 5, 1, 1),
-      L(4, 4, 1, 1), L(4, 5, 1, 1),
+      P(1, 1, 2, 1), L(1, 2, 2, 2), L(1, 4, 1, 2),
+      P(2, 4, 2, 1), L(2, 5, 1, 1),
+      L(3, 1, 1, 1), L(3, 2, 1, 1), L(3, 3, 1, 1), L(3, 5, 1, 1),
     ],
   },
-  /* D3: Columns — 5×4, 11 images, 3P 8L */
+  /* D4: Bold — two big blocks top, wide strip bottom — 5 tiles */
   {
-    id: 'D3', cols: 5, rows: 4, count: 11, device: 'desktop',
+    id: 'D4', cols: 5, rows: 3, count: 5, device: 'desktop',
     cells: [
-      P(1, 1, 2, 1), L(1, 2, 2, 2), P(1, 4, 2, 1), L(1, 5, 1, 1),
-      L(2, 5, 1, 1),
-      P(3, 1, 2, 1), L(3, 2, 1, 1), L(3, 3, 1, 1), L(3, 4, 2, 2),
-      L(4, 2, 1, 1), L(4, 3, 1, 1),
+      L(1, 1, 2, 3), L(1, 4, 2, 2),
+      L(3, 1, 1, 2), L(3, 3, 1, 2), L(3, 5, 1, 1),
     ],
   },
-  /* D4: Feature — 5×4, 9 images, 2P 7L */
+  /* D5: Portrait wall — alternating portraits + squares — 10 tiles */
   {
-    id: 'D4', cols: 5, rows: 4, count: 9, device: 'desktop',
-    cells: [
-      L(1, 1, 2, 2), L(1, 3, 1, 1), P(1, 4, 2, 1), L(1, 5, 1, 1),
-      P(2, 3, 2, 1), L(2, 5, 1, 1),
-      L(3, 1, 2, 2), L(3, 4, 2, 2), L(4, 3, 1, 1),
-    ],
-  },
-  /* D5: Mosaic — 5×4, 10 images, 4P 6L */
-  {
-    id: 'D5', cols: 5, rows: 4, count: 10, device: 'desktop',
-    cells: [
-      P(1, 1, 2, 1), L(1, 2, 2, 2), P(1, 4, 2, 1), L(1, 5, 1, 1),
-      L(2, 5, 1, 1),
-      L(3, 1, 1, 1), P(3, 2, 2, 1), L(3, 3, 2, 2), P(3, 5, 2, 1),
-      L(4, 1, 1, 1),
-    ],
-  },
-  /* D6: Quilt — 5×4, 16 images, 4P 12L — no large cells */
-  {
-    id: 'D6', cols: 5, rows: 4, count: 16, device: 'desktop',
-    cells: [
-      P(1, 1, 2, 1), P(1, 2, 2, 1), L(1, 3, 1, 1), L(1, 4, 1, 1), L(1, 5, 1, 1),
-                                       L(2, 3, 1, 1), L(2, 4, 1, 1), L(2, 5, 1, 1),
-      L(3, 1, 1, 1), L(3, 2, 1, 1), P(3, 3, 2, 1), P(3, 4, 2, 1), L(3, 5, 1, 1),
-      L(4, 1, 1, 1), L(4, 2, 1, 1),                                  L(4, 5, 1, 1),
-    ],
-  },
-  /* D7: Portrait Wall — 5×4, 14 images, 6P 8L — portrait-heavy, no large cells */
-  {
-    id: 'D7', cols: 5, rows: 4, count: 14, device: 'desktop',
+    id: 'D5', cols: 5, rows: 3, count: 10, device: 'desktop',
     cells: [
       P(1, 1, 2, 1), L(1, 2, 1, 1), P(1, 3, 2, 1), L(1, 4, 1, 1), P(1, 5, 2, 1),
-                       L(2, 2, 1, 1),                  L(2, 4, 1, 1),
-      P(3, 1, 2, 1), L(3, 2, 1, 1), P(3, 3, 2, 1), L(3, 4, 1, 1), P(3, 5, 2, 1),
-                       L(4, 2, 1, 1),                  L(4, 4, 1, 1),
+      L(2, 2, 1, 1), L(2, 4, 1, 1),
+      L(3, 1, 1, 2), L(3, 3, 1, 1), L(3, 4, 1, 2),
     ],
   },
-  /* D8: Rhythm — 5×4, 16 images, 4P 12L — alternating columns, no large cells */
+  /* D6: Showcase — square + wide 3:2 top, strip bottom — 6 tiles */
   {
-    id: 'D8', cols: 5, rows: 4, count: 16, device: 'desktop',
+    id: 'D6', cols: 5, rows: 3, count: 6, device: 'desktop',
     cells: [
-      L(1, 1, 1, 1), P(1, 2, 2, 1), L(1, 3, 1, 1), P(1, 4, 2, 1), L(1, 5, 1, 1),
-      L(2, 1, 1, 1),                  L(2, 3, 1, 1),                  L(2, 5, 1, 1),
-      L(3, 1, 1, 1), P(3, 2, 2, 1), L(3, 3, 1, 1), P(3, 4, 2, 1), L(3, 5, 1, 1),
-      L(4, 1, 1, 1),                  L(4, 3, 1, 1),                  L(4, 5, 1, 1),
+      L(1, 1, 2, 2), L(1, 3, 2, 3),
+      L(3, 1, 1, 1), L(3, 2, 1, 1), L(3, 3, 1, 2), L(3, 5, 1, 1),
     ],
   },
-  /* D9: Panoramic — 5×3, 11 images, 2P 9L — wider, shorter grid */
+  /* D7: Mosaic — many small tiles, visual complexity — 11 tiles */
   {
-    id: 'D9', cols: 5, rows: 3, count: 11, device: 'desktop',
+    id: 'D7', cols: 5, rows: 3, count: 11, device: 'desktop',
     cells: [
-      L(1, 1, 1, 1), L(1, 2, 1, 1), P(1, 3, 2, 1), L(1, 4, 1, 1), L(1, 5, 1, 1),
-      L(2, 1, 1, 1), L(2, 2, 1, 1),                  L(2, 4, 1, 1), P(2, 5, 2, 1),
-      L(3, 1, 1, 1), L(3, 2, 1, 1), L(3, 3, 1, 1), L(3, 4, 1, 1),
+      L(1, 1, 1, 2), P(1, 3, 2, 1), L(1, 4, 1, 1), L(1, 5, 1, 1),
+      L(2, 1, 1, 1), L(2, 2, 1, 1), L(2, 4, 1, 2),
+      L(3, 1, 1, 1), L(3, 2, 1, 1), L(3, 3, 1, 1), L(3, 4, 1, 2),
     ],
   },
-  /* D10: Dense Grid — 4×4, 12 images, 4P 8L — compact square grid, no large cells */
+  /* D8: Cinema — massive 3×3 square hero — 5 tiles */
   {
-    id: 'D10', cols: 4, rows: 4, count: 12, device: 'desktop',
+    id: 'D8', cols: 5, rows: 3, count: 5, device: 'desktop',
     cells: [
-      P(1, 1, 2, 1), L(1, 2, 1, 1), L(1, 3, 1, 1), P(1, 4, 2, 1),
-                       L(2, 2, 1, 1), L(2, 3, 1, 1),
-      L(3, 1, 1, 1), P(3, 2, 2, 1), P(3, 3, 2, 1), L(3, 4, 1, 1),
-      L(4, 1, 1, 1),                                  L(4, 4, 1, 1),
+      L(1, 1, 3, 3), P(1, 4, 2, 1), L(1, 5, 1, 1),
+      L(2, 5, 1, 1),
+      L(3, 4, 1, 2),
     ],
   },
-  /* DS1: Solo — 1 image */
+  /* D9: Asymmetric — 3:2 hero + portrait + varied bottom — 7 tiles */
+  {
+    id: 'D9', cols: 5, rows: 3, count: 7, device: 'desktop',
+    cells: [
+      L(1, 1, 2, 3), P(1, 4, 2, 1), L(1, 5, 1, 1),
+      L(2, 5, 1, 1),
+      L(3, 1, 1, 2), L(3, 3, 1, 1), L(3, 4, 1, 2),
+    ],
+  },
+  /* D10: Widescreen — massive 4:3 hero + side column — 3 tiles */
+  {
+    id: 'D10', cols: 5, rows: 3, count: 3, device: 'desktop',
+    cells: [
+      L(1, 1, 3, 4), P(1, 5, 2, 1), L(3, 5, 1, 1),
+    ],
+  },
+  /* DS1: Solo */
   { id: 'DS1', cols: 1, rows: 1, count: 1, device: 'desktop', cells: [L(1,1,1,1)] },
-  /* DS2: Pair — 2 side by side */
+  /* DS2: Pair */
   { id: 'DS2', cols: 2, rows: 1, count: 2, device: 'desktop', cells: [L(1,1,1,1), L(1,2,1,1)] },
-  /* DS3: Trio strip — ALL SAME SIZE */
+  /* DS3: Trio — ALL SAME SIZE */
   { id: 'DS3', cols: 3, rows: 1, count: 3, device: 'desktop', cells: [L(1,1,1,1), L(1,2,1,1), L(1,3,1,1)] },
   /* DS4: Quad — 2×2 — ALL SAME SIZE */
   { id: 'DS4', cols: 2, rows: 2, count: 4, device: 'desktop', cells: [L(1,1,1,1), L(1,2,1,1), L(2,1,1,1), L(2,2,1,1)] },
@@ -152,82 +142,77 @@ export const DESKTOP_LAYOUTS: BentoLayout[] = [
   },
 ]
 
-/* ── Mobile layouts (3×4 grid, bigger tiles, 4–6 images) ── */
+/* ── Mobile layouts (3×6 grid, 18 units, 5–8 images) ── */
 
 export const MOBILE_LAYOUTS: BentoLayout[] = [
-  /* M1: Hero — 3×4, 5 images. Big hero top-left, portrait right, 3 portraits bottom */
+  /* M1: Blocks — alternating sq+portrait rows — 6 tiles */
   {
-    id: 'M1', cols: 3, rows: 4, count: 5, device: 'mobile',
-    cells: [
-      L(1, 1, 2, 2), P(1, 3, 2, 1),
-      P(3, 1, 2, 1), P(3, 2, 2, 1), P(3, 3, 2, 1),
-    ],
-  },
-  /* M2: Blocks — 3×4, 4 images. Diagonal big blocks */
-  {
-    id: 'M2', cols: 3, rows: 4, count: 4, device: 'mobile',
-    cells: [
-      P(1, 1, 2, 1), L(1, 2, 2, 2),
-      L(3, 1, 2, 2), P(3, 3, 2, 1),
-    ],
-  },
-  /* M3: Feature — 3×4, 5 images. Full-width banner top, portrait pair + squares bottom */
-  {
-    id: 'M3', cols: 3, rows: 4, count: 5, device: 'mobile',
-    cells: [
-      L(1, 1, 2, 3),
-      P(3, 1, 2, 1), L(3, 2, 1, 1), P(3, 3, 2, 1),
-      L(4, 2, 1, 1),
-    ],
-  },
-  /* M4: Rhythm — 3×4, 6 images. Mixed sizes for visual variety */
-  {
-    id: 'M4', cols: 3, rows: 4, count: 6, device: 'mobile',
-    cells: [
-      L(1, 1, 1, 2), P(1, 3, 2, 1),
-      L(2, 1, 1, 1), L(2, 2, 1, 1),
-      P(3, 1, 2, 1), L(3, 2, 2, 2),
-    ],
-  },
-  /* M5: Vertical — 3×4, 5 images. Full-height portrait left, stack right */
-  {
-    id: 'M5', cols: 3, rows: 4, count: 5, device: 'mobile',
-    cells: [
-      P(1, 1, 4, 1), L(1, 2, 2, 2),
-      L(3, 2, 1, 1), L(3, 3, 1, 1),
-      L(4, 2, 1, 2),
-    ],
-  },
-  /* M6: Mosaic — 3×6, 6 images. All big tiles, alternating hero blocks */
-  {
-    id: 'M6', cols: 3, rows: 6, count: 6, device: 'mobile',
+    id: 'M1', cols: 3, rows: 6, count: 6, device: 'mobile',
     cells: [
       L(1, 1, 2, 2), P(1, 3, 2, 1),
       P(3, 1, 2, 1), L(3, 2, 2, 2),
       L(5, 1, 2, 2), P(5, 3, 2, 1),
     ],
   },
-  /* M7: Column — 3×6, 7 images. 2 hero blocks + 3 portraits bottom */
+  /* M2: Zigzag — portrait+sq alternating — 6 tiles */
+  {
+    id: 'M2', cols: 3, rows: 6, count: 6, device: 'mobile',
+    cells: [
+      P(1, 1, 2, 1), L(1, 2, 2, 2),
+      L(3, 1, 2, 2), P(3, 3, 2, 1),
+      P(5, 1, 2, 1), L(5, 2, 2, 2),
+    ],
+  },
+  /* M3: Mixed — sq+p, 3 portraits, p+sq — 7 tiles */
+  {
+    id: 'M3', cols: 3, rows: 6, count: 7, device: 'mobile',
+    cells: [
+      L(1, 1, 2, 2), P(1, 3, 2, 1),
+      P(3, 1, 2, 1), P(3, 2, 2, 1), P(3, 3, 2, 1),
+      P(5, 1, 2, 1), L(5, 2, 2, 2),
+    ],
+  },
+  /* M4: Rhythm — sq+p, p+singles+p, sq+p — 8 tiles */
+  {
+    id: 'M4', cols: 3, rows: 6, count: 8, device: 'mobile',
+    cells: [
+      L(1, 1, 2, 2), P(1, 3, 2, 1),
+      P(3, 1, 2, 1), L(3, 2, 1, 1), P(3, 3, 2, 1),
+      L(4, 2, 1, 1),
+      L(5, 1, 2, 2), P(5, 3, 2, 1),
+    ],
+  },
+  /* M5: Drama — full-width 3:2 top, blocks below — 5 tiles */
+  {
+    id: 'M5', cols: 3, rows: 6, count: 5, device: 'mobile',
+    cells: [
+      L(1, 1, 2, 3),
+      P(3, 1, 2, 1), L(3, 2, 2, 2),
+      L(5, 1, 2, 2), P(5, 3, 2, 1),
+    ],
+  },
+  /* M6: Feature — tall 2:3 portrait left, stack right, landscape bottom — 7 tiles */
+  {
+    id: 'M6', cols: 3, rows: 6, count: 7, device: 'mobile',
+    cells: [
+      P(1, 1, 3, 2), P(1, 3, 2, 1),
+      L(3, 3, 1, 1),
+      L(4, 1, 2, 2), P(4, 3, 2, 1),
+      L(6, 1, 1, 2), L(6, 3, 1, 1),
+    ],
+  },
+  /* M7: Portrait trio + alternating blocks — 7 tiles */
   {
     id: 'M7', cols: 3, rows: 6, count: 7, device: 'mobile',
     cells: [
-      L(1, 1, 2, 2), P(1, 3, 2, 1),
-      P(3, 1, 2, 1), L(3, 2, 2, 2),
-      P(5, 1, 2, 1), P(5, 2, 2, 1), P(5, 3, 2, 1),
-    ],
-  },
-  /* M8: Wall — 3×6, 9 images. 3 rows of portrait trios */
-  {
-    id: 'M8', cols: 3, rows: 6, count: 9, device: 'mobile',
-    cells: [
       P(1, 1, 2, 1), P(1, 2, 2, 1), P(1, 3, 2, 1),
-      P(3, 1, 2, 1), P(3, 2, 2, 1), P(3, 3, 2, 1),
-      P(5, 1, 2, 1), P(5, 2, 2, 1), P(5, 3, 2, 1),
+      L(3, 1, 2, 2), P(3, 3, 2, 1),
+      P(5, 1, 2, 1), L(5, 2, 2, 2),
     ],
   },
   /* MS1: Solo */
   { id: 'MS1', cols: 1, rows: 1, count: 1, device: 'mobile', cells: [L(1,1,1,1)] },
-  /* MS2: Stack — 2 stacked */
+  /* MS2: Stack */
   { id: 'MS2', cols: 1, rows: 2, count: 2, device: 'mobile', cells: [L(1,1,1,1), L(2,1,1,1)] },
   /* MS3: Triple stack — ALL SAME SIZE */
   { id: 'MS3', cols: 1, rows: 3, count: 3, device: 'mobile', cells: [L(1,1,1,1), L(2,1,1,1), L(3,1,1,1)] },
@@ -436,49 +421,55 @@ export function isSplittable(cell: BentoCell): boolean {
 }
 
 /** Predefined split patterns for each cell shape.
- *  Each pattern is a function (r, c) → BentoCell[] that fills the same rectangle
- *  with interesting sub-layouts instead of boring all-1×1 grids. */
+ *  All children must produce allowed ratios.
+ *  Each pattern is a function (r, c) → BentoCell[] */
 type SplitPattern = (r: number, c: number) => BentoCell[]
 
 const SPLIT_PATTERNS: Record<string, SplitPattern[]> = {
-  // 2×2 → 3 or 4 children (never all 1×1)
+  // 2×2 (ratio 1) → children with allowed ratios
   '2x2': [
-    (r, c) => [L(r, c, 1, 2), L(r+1, c, 1, 1), L(r+1, c+1, 1, 1)],    // wide top + 2 squares
-    (r, c) => [L(r, c, 1, 1), L(r, c+1, 1, 1), L(r+1, c, 1, 2)],       // 2 squares + wide bottom
-    (r, c) => [P(r, c, 2, 1), L(r, c+1, 1, 1), L(r+1, c+1, 1, 1)],     // portrait left + 2 squares
-    (r, c) => [L(r, c, 1, 1), P(r, c+1, 2, 1), L(r+1, c, 1, 1)],       // square + portrait right + square
+    (r, c) => [L(r, c, 1, 1), L(r, c+1, 1, 1), L(r+1, c, 1, 1), L(r+1, c+1, 1, 1)],  // 4 squares
+    (r, c) => [P(r, c, 2, 1), P(r, c+1, 2, 1)],                                          // 2 portraits (1/2)
+    (r, c) => [L(r, c, 1, 2), L(r+1, c, 1, 2)],                                          // 2 wides (2/1)
   ],
-  // 2×3 → 2 or 3 children
+  // 2×3 (ratio 3/2) → children
   '2x3': [
-    (r, c) => [L(r, c, 2, 2), P(r, c+2, 2, 1)],                          // big square + portrait
-    (r, c) => [P(r, c, 2, 1), L(r, c+1, 2, 2)],                          // portrait + big square
-    (r, c) => [L(r, c, 1, 2), P(r, c+2, 2, 1), L(r+1, c, 1, 2)],       // 2 wide + portrait
-    (r, c) => [L(r, c, 1, 3), L(r+1, c, 1, 1), L(r+1, c+1, 1, 2)],     // banner top + square + wide bottom
+    (r, c) => [L(r, c, 2, 2), P(r, c+2, 2, 1)],     // square + portrait
+    (r, c) => [P(r, c, 2, 1), L(r, c+1, 2, 2)],      // portrait + square
   ],
-  // 2×1 → 2 children (only option)
+  // 3×2 (ratio 2/3) → children
+  '3x2': [
+    (r, c) => [L(r, c, 2, 2), L(r+2, c, 1, 2)],      // square + wide
+    (r, c) => [L(r, c, 1, 2), L(r+1, c, 2, 2)],       // wide + square
+  ],
+  // 2×1 (ratio 1/2) → 2 squares
   '2x1': [
     (r, c) => [L(r, c, 1, 1), L(r+1, c, 1, 1)],
   ],
-  // 1×2 → 2 children (only option)
+  // 1×2 (ratio 2/1) → 2 squares
   '1x2': [
     (r, c) => [L(r, c, 1, 1), L(r, c+1, 1, 1)],
   ],
-  // 1×3 → 2 or 3 children
-  '1x3': [
-    (r, c) => [L(r, c, 1, 2), L(r, c+2, 1, 1)],                          // wide + square
-    (r, c) => [L(r, c, 1, 1), L(r, c+1, 1, 2)],                          // square + wide
+  // 3×3 (ratio 1) → children
+  '3x3': [
+    (r, c) => [L(r, c, 2, 2), P(r, c+2, 2, 1), L(r+2, c, 1, 2), L(r+2, c+2, 1, 1)],  // sq + portrait + wide + sq
+    (r, c) => [L(r, c, 2, 3), L(r+2, c, 1, 2), L(r+2, c+2, 1, 1)],                      // 3:2 + wide + sq
+    (r, c) => [P(r, c, 3, 2), L(r, c+2, 1, 1), L(r+1, c+2, 1, 1), L(r+2, c+2, 1, 1)], // 2:3 portrait + 3 squares
   ],
-  // 4×1 → 2 children
-  '4x1': [
-    (r, c) => [P(r, c, 2, 1), P(r+2, c, 2, 1)],                          // 2 portraits stacked
+  // 3×4 (ratio 4/3) → children
+  '3x4': [
+    (r, c) => [P(r, c, 3, 2), P(r, c+2, 3, 2)],                                          // two 2:3 portraits
+    (r, c) => [L(r, c, 2, 2), L(r, c+2, 2, 2), L(r+2, c, 1, 2), L(r+2, c+2, 1, 2)],   // 2 squares + 2 wides
   ],
-  // 2×2 (square) already covered above
-  // 2×4, 3×2, etc — generic fallback
+  // 4×3 (ratio 3/4) → children
+  '4x3': [
+    (r, c) => [L(r, c, 2, 3), L(r+2, c, 2, 3)],                                          // two 3:2 landscapes
+  ],
 }
 
-/** Split a multi-span cell into interesting sub-cells (not just 1×1).
- *  Returns a new cells array with the target cell replaced by its children.
- *  The first child occupies the original top-left position (keeps the original photo). */
+/** Split a multi-span cell into interesting sub-cells.
+ *  All children use allowed ratios.
+ *  Returns a new cells array with the target cell replaced by its children. */
 export function splitCell(cells: BentoCell[], index: number): BentoCell[] {
   const cell = cells[index]
   if (!cell || !isSplittable(cell)) return cells
@@ -491,7 +482,7 @@ export function splitCell(cells: BentoCell[], index: number): BentoCell[] {
     const pattern = randomFrom(patterns)
     children = pattern(cell.r, cell.c)
   } else {
-    // Generic fallback: split into halves (never all 1×1 for large cells)
+    // Generic fallback: split into halves
     children = genericSplit(cell)
   }
 
@@ -525,96 +516,64 @@ function genericSplit(cell: BentoCell): BentoCell[] {
 
 /* ===== Starter layouts — low density, big splittable tiles ===== */
 
-/** Desktop starter layouts (5×4 grid, 4-7 big tiles) — variety is king */
+/** Desktop starter layouts (5×3 grid, 3-8 big tiles) */
 export const DESKTOP_STARTER_LAYOUTS: BentoLayout[] = [
-  /* DST1: 6 tiles — hero + portrait + square top; square + portrait + wide bottom */
+  /* DST1: sq + wide 3:2, strip bottom — 5 tiles */
   {
-    id: 'DST1', cols: 5, rows: 4, count: 6, device: 'desktop',
-    cells: [
-      L(1, 1, 2, 3), P(1, 4, 2, 1), L(1, 5, 2, 1),
-      L(3, 1, 2, 2), P(3, 3, 2, 1), L(3, 4, 2, 2),
-    ],
-  },
-  /* DST2: 5 tiles — 2 wide top + 3 bottom */
-  {
-    id: 'DST2', cols: 5, rows: 4, count: 5, device: 'desktop',
+    id: 'DST1', cols: 5, rows: 3, count: 5, device: 'desktop',
     cells: [
       L(1, 1, 2, 2), L(1, 3, 2, 3),
-      L(3, 1, 2, 2), P(3, 3, 2, 1), L(3, 4, 2, 2),
+      L(3, 1, 1, 2), L(3, 3, 1, 2), L(3, 5, 1, 1),
     ],
   },
-  /* DST3: 6 tiles — 3 pairs of 2×2 and portraits */
+  /* DST2: wide 3:2 + sq, strip bottom — 5 tiles */
   {
-    id: 'DST3', cols: 5, rows: 4, count: 6, device: 'desktop',
-    cells: [
-      L(1, 1, 2, 2), P(1, 3, 2, 1), L(1, 4, 2, 2),
-      P(3, 1, 2, 1), L(3, 2, 2, 2), L(3, 4, 2, 2),
-    ],
-  },
-  /* DST4: 5 tiles — massive hero + full-height portrait + 2 stacked + wide bottom */
-  {
-    id: 'DST4', cols: 5, rows: 4, count: 5, device: 'desktop',
-    cells: [
-      L(1, 1, 2, 3), P(1, 4, 4, 1), L(1, 5, 2, 1),
-      L(3, 1, 2, 3),                  L(3, 5, 2, 1),
-    ],
-  },
-  /* DST5: 4 tiles — 2 massive blocks top + 2 massive blocks bottom (dramatic) */
-  {
-    id: 'DST5', cols: 5, rows: 4, count: 4, device: 'desktop',
+    id: 'DST2', cols: 5, rows: 3, count: 5, device: 'desktop',
     cells: [
       L(1, 1, 2, 3), L(1, 4, 2, 2),
-      L(3, 1, 2, 2), L(3, 3, 2, 3),
+      L(3, 1, 1, 2), L(3, 3, 1, 2), L(3, 5, 1, 1),
     ],
   },
-  /* DST6: 6 tiles — tall portrait anchor left, 4 blocks right */
+  /* DST3: massive 3×3 square hero, side column — 5 tiles */
   {
-    id: 'DST6', cols: 5, rows: 4, count: 6, device: 'desktop',
+    id: 'DST3', cols: 5, rows: 3, count: 5, device: 'desktop',
     cells: [
-      P(1, 1, 4, 1), L(1, 2, 2, 2), L(1, 4, 2, 2),
-                      L(3, 2, 2, 2), L(3, 4, 2, 2),
+      L(1, 1, 3, 3), P(1, 4, 2, 1), L(1, 5, 1, 1),
+      L(2, 5, 1, 1),
+      L(3, 4, 1, 2),
     ],
   },
-  /* DST7: 5 tiles — wide top, portrait + wide bottom */
+  /* DST4: sq + portrait + sq, strip bottom — 6 tiles */
   {
-    id: 'DST7', cols: 5, rows: 4, count: 5, device: 'desktop',
-    cells: [
-      L(1, 1, 2, 3), L(1, 4, 2, 2),
-      L(3, 1, 2, 2), P(3, 3, 2, 1), L(3, 4, 2, 2),
-    ],
-  },
-  /* DST8: 6 tiles — alternating wide/narrow columns */
-  {
-    id: 'DST8', cols: 5, rows: 4, count: 6, device: 'desktop',
+    id: 'DST4', cols: 5, rows: 3, count: 6, device: 'desktop',
     cells: [
       L(1, 1, 2, 2), P(1, 3, 2, 1), L(1, 4, 2, 2),
-      L(3, 1, 2, 3),                  L(3, 4, 2, 2),
+      L(3, 1, 1, 2), L(3, 3, 1, 2), L(3, 5, 1, 1),
     ],
   },
-  /* DST9: 4 tiles — bold quadrants */
+  /* DST5: 4:3 hero + side portrait + square — 3 tiles */
   {
-    id: 'DST9', cols: 5, rows: 4, count: 4, device: 'desktop',
+    id: 'DST5', cols: 5, rows: 3, count: 3, device: 'desktop',
     cells: [
-      L(1, 1, 2, 2), L(1, 3, 2, 3),
-      L(3, 1, 2, 3), L(3, 4, 2, 2),
+      L(1, 1, 3, 4), P(1, 5, 2, 1), L(3, 5, 1, 1),
     ],
   },
-  /* DST10: 7 tiles — dense top, open bottom */
+  /* DST6: portraits + square top, wides bottom — 8 tiles */
   {
-    id: 'DST10', cols: 5, rows: 4, count: 7, device: 'desktop',
+    id: 'DST6', cols: 5, rows: 3, count: 8, device: 'desktop',
     cells: [
-      L(1, 1, 2, 2), P(1, 3, 2, 1), P(1, 4, 2, 1), L(1, 5, 2, 1),
-      L(3, 1, 2, 2),                  L(3, 3, 2, 3),
+      P(1, 1, 2, 1), L(1, 2, 2, 2), P(1, 4, 2, 1),
+      L(1, 5, 1, 1), L(2, 5, 1, 1),
+      L(3, 1, 1, 2), L(3, 3, 1, 2), L(3, 5, 1, 1),
     ],
   },
 ]
 
-/** Mobile starter layouts — reuse M1-M5 (all have large splittable cells) */
+/** Mobile starter layouts (3×6 grid, big splittable tiles) */
 export const MOBILE_STARTER_LAYOUTS: BentoLayout[] = [
-  MOBILE_LAYOUTS[0], // M1: 5 tiles
-  MOBILE_LAYOUTS[1], // M2: 4 tiles
-  MOBILE_LAYOUTS[2], // M3: 5 tiles
-  MOBILE_LAYOUTS[4], // M5: 5 tiles
+  MOBILE_LAYOUTS[0], // M1: 6 tiles — blocks
+  MOBILE_LAYOUTS[1], // M2: 6 tiles — zigzag
+  MOBILE_LAYOUTS[4], // M5: 5 tiles — drama
 ]
 
 /* ===== Image type filter ===== */

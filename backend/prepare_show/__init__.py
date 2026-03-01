@@ -20,5 +20,5 @@ PAIRS_JSON = PUBLIC_DATA_DIR / "show_pairs.json"
 
 ALL_OUTPUTS = [SCORES_JSON, INDEX_JSON, BENTOS_JSON, BOOM_JSON, PAIRS_JSON]
 
-# Bento unit ratio (4:3) — matches cropUtils.ts BENTO_UNIT_RATIO
-BENTO_UNIT_RATIO = 4 / 3
+# Bento unit ratio (square) — matches cropUtils.ts BENTO_UNIT_RATIO
+from backend.bento import UNIT_RATIO as BENTO_UNIT_RATIO

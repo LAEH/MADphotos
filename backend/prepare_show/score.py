@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 
 from . import SCORES_JSON, BENTO_UNIT_RATIO
+from backend.bento.ratios import ratio_to_crop_key as _bento_ratio_to_key
 
 
 def visual_impact(p: dict) -> float:
@@ -17,8 +18,6 @@ def visual_impact(p: dict) -> float:
     else:
         s = (p.get("aesthetic") or 5) * 1.5
 
-    if (p.get("face_count") or 0) > 0:
-        s += 3
     if (p.get("contrast") or 50) > 70:
         s += 1.5
     if (p.get("depth_complexity") or 0) > 3:
@@ -60,14 +59,8 @@ def crop_fitness(p: dict, ratio_key: str) -> float:
 
 
 def ratio_to_key(ratio: float) -> str:
-    """Map cell aspect ratio to crop key — mirrors BentoView.tsx logic."""
-    if ratio >= 1.6:
-        return "16:9"
-    if ratio >= 1.2:
-        return "3:2"
-    if ratio <= 0.85:
-        return "2:3"
-    return "1:1"
+    """Map cell aspect ratio to crop key — delegates to bento.ratios."""
+    return _bento_ratio_to_key(ratio)
 
 
 def run(picks: list[dict], dry: bool = False) -> dict:

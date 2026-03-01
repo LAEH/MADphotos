@@ -12,6 +12,8 @@ import { UnpickedPage } from './pages/UnpickedPage'
 import { SignalInspectorPage } from './pages/SignalInspectorPage'
 import { LocationPage } from './pages/LocationPage'
 import { GeneratedPage } from './pages/GeneratedPage'
+import { VariantReviewPage } from './pages/VariantReviewPage'
+import { BentoExplainerPage } from './pages/BentoExplainerPage'
 
 export default function App() {
   const themeCtx = useThemeProvider()
@@ -32,6 +34,8 @@ export default function App() {
           <Route path="experiments/signals" element={<SignalInspectorPage />} />
           <Route path="curation/location" element={<LocationPage />} />
           <Route path="experiments/generated" element={<GeneratedPage />} />
+          <Route path="review/variants" element={<VariantReviewPage />} />
+          <Route path="docs/bento" element={<BentoExplainerPage />} />
         </Route>
       </Routes>
     </ThemeContext.Provider>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAppStore } from '../store/appStore'
-import { getObjectPosition, BENTO_UNIT_RATIO } from '../lib/cropUtils'
+import { getObjectPosition } from '../lib/cropUtils'
 import { loadProgressive } from '../lib/imageLoading'
 import { db } from '../lib/firebase'
 import { collection, query, orderBy, getDocs } from 'firebase/firestore'
@@ -32,17 +32,20 @@ function formatDate(ts: number): string {
 
 /* Tile that mirrors BentoView's .bento-tile exactly */
 function LovedTile({
-  photo, cell, tier,
+  photo, cell, tier, gridCols, gridRows, containerRatio,
 }: {
   photo: Photo
   cell: BentoCell
   tier: 'thumb' | 'display'
+  gridCols: number
+  gridRows: number
+  containerRatio: number
 }) {
   const imgRef = useCallback((el: HTMLImageElement | null) => {
     if (!el) return
     loadProgressive(el, photo, tier, tier === 'display' ? '90vw' : '50vw')
-    el.style.objectPosition = getObjectPosition(photo, cell)
-  }, [photo, cell, tier])
+    el.style.objectPosition = getObjectPosition(photo, cell, gridCols, gridRows, containerRatio)
+  }, [photo, cell, tier, gridCols, gridRows, containerRatio])
 
   const dominant = photo.palette?.[0]
 
@@ -69,7 +72,7 @@ function BentoGrid({
   tier: 'thumb' | 'display'
   className: string
 }) {
-  const containerRatio = (bento.cols * BENTO_UNIT_RATIO) / bento.rows
+  const containerRatio = bento.device === 'mobile' ? (2 / 3) : (3 / 2)
 
   return (
     <div
@@ -90,6 +93,9 @@ function BentoGrid({
             photo={photo}
             cell={cell as BentoCell}
             tier={tier}
+            gridCols={bento.cols}
+            gridRows={bento.rows}
+            containerRatio={containerRatio}
           />
         )
       })}

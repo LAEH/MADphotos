@@ -11,6 +11,7 @@ const navItems: NavItem[] = [
   { to: '/status', label: 'Status' },
   { to: '/journal', label: 'Journal' },
   { to: '/instructions', label: 'Instructions' },
+  { to: '/docs/bento', label: 'Bento Algorithm' },
 ]
 
 const signals: NavItem[] = [
@@ -23,6 +24,7 @@ const curation: NavItem[] = [
   { to: '/review/unpicked', label: 'Unpicked' },
   { to: '/curation/location', label: 'Location' },
   { to: '/experiments/generated', label: 'Generated' },
+  { to: '/review/variants', label: 'Variant Disks' },
 
   { to: '/experiments/enhanced', label: 'Enhanced' },
 ]

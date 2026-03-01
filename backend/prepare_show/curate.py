@@ -14,7 +14,14 @@ from typing import Any
 from . import (
     BENTO_UNIT_RATIO, BENTOS_JSON, BOOM_JSON, PAIRS_JSON, DRIFT_JSON,
 )
-from .score import visual_impact, crop_fitness, ratio_to_key
+from .score import visual_impact, ratio_to_key
+from backend.bento.assign import crop_fitness, fill_cells as _bento_fill_cells, orient_pools as _bento_orient_pools
+from backend.bento.layouts import (
+    DESKTOP_LAYOUTS as _BENTO_DESKTOP,
+    DESKTOP_SMALL_LAYOUTS as _BENTO_DESKTOP_SMALL,
+    MOBILE_LAYOUTS as _BENTO_MOBILE,
+    MOBILE_SMALL_LAYOUTS as _BENTO_MOBILE_SMALL,
+)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -67,58 +74,21 @@ def _hex_to_hue(hex_str: str) -> float:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Layout definitions — from layoutRegistry.ts
+# Layout definitions — imported from backend.bento.layouts (single source of truth)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def _cell(r: int, c: int, rs: int, cs: int, orient: str) -> dict:
-    return {"r": r, "c": c, "rs": rs, "cs": cs, "orient": orient}
+DESKTOP_LAYOUTS = _BENTO_DESKTOP + _BENTO_DESKTOP_SMALL
+MOBILE_LAYOUTS = _BENTO_MOBILE + _BENTO_MOBILE_SMALL
 
 
-def P(r, c, rs, cs): return _cell(r, c, rs, cs, "P")
-def L(r, c, rs, cs): return _cell(r, c, rs, cs, "L")
+def P(r, c, rs, cs):
+    """Portrait cell helper (for any remaining inline usage)."""
+    return {"r": r, "c": c, "rs": rs, "cs": cs, "orient": "P"}
 
 
-DESKTOP_LAYOUTS = [
-    {"id": "D1", "cols": 5, "rows": 4, "count": 8, "device": "desktop", "cells": [
-        L(1,1,2,2), P(1,3,2,1), L(1,4,2,2), P(3,1,2,1), L(3,2,2,2), P(3,4,2,1), L(3,5,1,1), L(4,5,1,1)]},
-    {"id": "D2", "cols": 5, "rows": 4, "count": 11, "device": "desktop", "cells": [
-        P(1,1,2,1), L(1,2,2,2), L(1,4,1,1), P(1,5,2,1), L(2,4,1,1), L(3,1,2,2), P(3,3,2,1), L(3,4,1,1), L(3,5,1,1), L(4,4,1,1), L(4,5,1,1)]},
-    {"id": "D3", "cols": 5, "rows": 4, "count": 11, "device": "desktop", "cells": [
-        P(1,1,2,1), L(1,2,2,2), P(1,4,2,1), L(1,5,1,1), L(2,5,1,1), P(3,1,2,1), L(3,2,1,1), L(3,3,1,1), L(3,4,2,2), L(4,2,1,1), L(4,3,1,1)]},
-    {"id": "D4", "cols": 5, "rows": 4, "count": 9, "device": "desktop", "cells": [
-        L(1,1,2,2), L(1,3,1,1), P(1,4,2,1), L(1,5,1,1), P(2,3,2,1), L(2,5,1,1), L(3,1,2,2), L(3,4,2,2), L(4,3,1,1)]},
-    {"id": "D5", "cols": 5, "rows": 4, "count": 10, "device": "desktop", "cells": [
-        P(1,1,2,1), L(1,2,2,2), P(1,4,2,1), L(1,5,1,1), L(2,5,1,1), L(3,1,1,1), P(3,2,2,1), L(3,3,2,2), P(3,5,2,1), L(4,1,1,1)]},
-    {"id": "D6", "cols": 5, "rows": 4, "count": 16, "device": "desktop", "cells": [
-        P(1,1,2,1), P(1,2,2,1), L(1,3,1,1), L(1,4,1,1), L(1,5,1,1), L(2,3,1,1), L(2,4,1,1), L(2,5,1,1),
-        L(3,1,1,1), L(3,2,1,1), P(3,3,2,1), P(3,4,2,1), L(3,5,1,1), L(4,1,1,1), L(4,2,1,1), L(4,5,1,1)]},
-    {"id": "D7", "cols": 5, "rows": 4, "count": 14, "device": "desktop", "cells": [
-        P(1,1,2,1), L(1,2,1,1), P(1,3,2,1), L(1,4,1,1), P(1,5,2,1), L(2,2,1,1), L(2,4,1,1),
-        P(3,1,2,1), L(3,2,1,1), P(3,3,2,1), L(3,4,1,1), P(3,5,2,1), L(4,2,1,1), L(4,4,1,1)]},
-    {"id": "D8", "cols": 5, "rows": 4, "count": 16, "device": "desktop", "cells": [
-        L(1,1,1,1), P(1,2,2,1), L(1,3,1,1), P(1,4,2,1), L(1,5,1,1), L(2,1,1,1), L(2,3,1,1), L(2,5,1,1),
-        L(3,1,1,1), P(3,2,2,1), L(3,3,1,1), P(3,4,2,1), L(3,5,1,1), L(4,1,1,1), L(4,3,1,1), L(4,5,1,1)]},
-    {"id": "D9", "cols": 5, "rows": 3, "count": 11, "device": "desktop", "cells": [
-        L(1,1,1,1), L(1,2,1,1), P(1,3,2,1), L(1,4,1,1), L(1,5,1,1), L(2,1,1,1), L(2,2,1,1), L(2,4,1,1), P(2,5,2,1),
-        L(3,1,1,1), L(3,2,1,1), L(3,3,1,1), L(3,4,1,1)]},
-    {"id": "D10", "cols": 4, "rows": 4, "count": 12, "device": "desktop", "cells": [
-        P(1,1,2,1), L(1,2,1,1), L(1,3,1,1), P(1,4,2,1), L(2,2,1,1), L(2,3,1,1),
-        L(3,1,1,1), P(3,2,2,1), P(3,3,2,1), L(3,4,1,1), L(4,1,1,1), L(4,4,1,1)]},
-    {"id": "DS6p", "cols": 3, "rows": 2, "count": 4, "device": "desktop", "cells": [P(1,1,2,1), L(1,2,1,1), P(1,3,2,1), L(2,2,1,1)]},
-]
-
-MOBILE_LAYOUTS = [
-    {"id": "M1", "cols": 3, "rows": 6, "count": 9, "device": "mobile", "cells": [
-        L(1,1,2,2), P(1,3,2,1), P(3,1,2,1), L(3,2,2,2), L(5,1,1,1), P(5,2,2,1), L(5,3,1,1), L(6,1,1,1), L(6,3,1,1)]},
-    {"id": "M2", "cols": 3, "rows": 6, "count": 8, "device": "mobile", "cells": [
-        P(1,1,2,1), L(1,2,2,2), L(3,1,2,2), P(3,3,2,1), P(5,1,2,1), L(5,2,1,1), P(5,3,2,1), L(6,2,1,1)]},
-    {"id": "M3", "cols": 3, "rows": 6, "count": 9, "device": "mobile", "cells": [
-        L(1,1,1,1), P(1,2,2,1), L(1,3,1,1), P(2,1,2,1), L(2,3,1,1), L(3,2,2,2), P(4,1,2,1), L(5,2,2,2), L(6,1,1,1)]},
-    {"id": "M4", "cols": 3, "rows": 6, "count": 9, "device": "mobile", "cells": [
-        L(1,1,2,2), P(1,3,2,1), P(3,1,2,1), L(3,2,1,1), P(3,3,2,1), L(4,2,1,1), L(5,1,1,1), L(5,2,2,2), L(6,1,1,1)]},
-    {"id": "M5", "cols": 3, "rows": 6, "count": 9, "device": "mobile", "cells": [
-        P(1,1,2,1), L(1,2,2,2), L(3,1,1,1), P(3,2,2,1), L(3,3,1,1), P(4,1,2,1), L(4,3,1,1), L(5,2,2,2), L(6,1,1,1)]},
-]
+def L(r, c, rs, cs):
+    """Landscape cell helper (for any remaining inline usage)."""
+    return {"r": r, "c": c, "rs": rs, "cs": cs, "orient": "L"}
 
 
 def _has_mixed_sizes(layout: dict) -> bool:
@@ -161,10 +131,7 @@ def _pick_layout_for_count(target: int, device: str) -> dict:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _orient_pools(photos: list[dict]) -> dict[str, list[dict]]:
-    return {
-        "P": [p for p in photos if p.get("orientation") == "portrait"],
-        "L": [p for p in photos if p.get("orientation") in ("landscape", "square")],
-    }
+    return _bento_orient_pools(photos)
 
 
 def _color_warmth(p: dict) -> str:
@@ -193,68 +160,8 @@ def _fill_cells(
     used_ids: set[str],
     score_fn,
 ) -> list[dict]:
-    """Smart cell assignment — mirrors BentoView.tsx fillCells()."""
-    indexed = [(i, cell, cell["rs"] * cell["cs"]) for i, cell in enumerate(cells)]
-    sorted_cells = sorted(indexed, key=lambda x: -x[2])
-
-    result: list[dict | None] = [None] * len(cells)
-    claimed: set[str] = set()
-
-    for i, cell, _size in sorted_cells:
-        primary = pools["P"] if cell["orient"] == "P" else pools["L"]
-        fallback = pools["L"] if cell["orient"] == "P" else pools["P"]
-
-        best = None
-        best_score = float("-inf")
-
-        ratio = (cell["cs"] * BENTO_UNIT_RATIO) / cell["rs"]
-        rkey = ratio_to_key(ratio)
-
-        for p in primary:
-            pid = _pid(p)
-            if pid in used_ids or pid in claimed:
-                continue
-            s = score_fn(p) + crop_fitness(p, rkey)
-            if s > best_score:
-                best_score = s
-                best = p
-
-        if not best:
-            for p in fallback:
-                pid = _pid(p)
-                if pid in used_ids or pid in claimed:
-                    continue
-                s = score_fn(p) + crop_fitness(p, rkey)
-                if s > best_score:
-                    best_score = s
-                    best = p
-
-        if best:
-            result[i] = best
-            claimed.add(_pid(best))
-            used_ids.add(_pid(best))
-
-    # Second pass: fill empty slots
-    all_remaining = pools["P"] + pools["L"]
-    for i in range(len(result)):
-        if result[i] is not None:
-            continue
-        best = None
-        best_score = float("-inf")
-        for p in all_remaining:
-            pid = _pid(p)
-            if pid in used_ids or pid in claimed:
-                continue
-            s = score_fn(p)
-            if s > best_score:
-                best_score = s
-                best = p
-        if best:
-            result[i] = best
-            claimed.add(_pid(best))
-            used_ids.add(_pid(best))
-
-    return [p for p in result if p is not None]
+    """Smart cell assignment — delegates to backend.bento.assign.fill_cells()."""
+    return _bento_fill_cells(cells, pools, used_ids, score_fn)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

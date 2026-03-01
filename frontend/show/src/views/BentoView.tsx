@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAppStore } from '../store/appStore'
 import { loadProgressive } from '../lib/imageLoading'
-import { getObjectPosition, BENTO_UNIT_RATIO } from '../lib/cropUtils'
+import { getObjectPosition } from '../lib/cropUtils'
 import { randomFrom } from '../lib/utils'
 import { fireAndForget } from '../lib/firebase'
 import {
@@ -18,6 +18,10 @@ import './BentoView.css'
 /* Layouts, density steps, and grid generators are in layoutRegistry.ts */
 
 const CROSSFADE_INTERVAL = 20_000
+
+/** Rendered unit cell w/h ratio — set by fillBento before curators run.
+ *  Desktop (5×3, container 3/2): 0.9. Mobile (3×6, container 2/3): 1.333. */
+let _activeUnitRatio = 1
 
 /* ===== Color bucketing ===== */
 
@@ -93,7 +97,6 @@ function visualImpact(p: Photo): number {
   // aesthetic_v2: range ~17-48, mean ~37, std ~5. Normalize to 0-10 range.
   const av2 = (p as unknown as Record<string, unknown>).aesthetic_v2 as number | undefined
   let s = av2 != null ? ((av2 - 17) / 3.1) : ((p.aesthetic || 5) * 1.5)
-  if ((p.face_count || 0) > 0) s += 3
   if ((p.contrast || 50) > 70) s += 1.5
   if ((p.depth_complexity || 0) > 3) s += 1
   if (p.saliency && p.saliency.spread < 0.3) s += 1.5
@@ -107,10 +110,11 @@ function visualImpact(p: Photo): number {
 }
 
 /** How well a photo's gemma crop fits a target cell aspect ratio.
- *  Higher coverage = more of the subject is visible in that crop = better fit. */
-function cropFitness(p: Photo, cell: BentoCell): number {
+ *  Higher coverage = more of the subject is visible in that crop = better fit.
+ *  unitRatio = actual rendered w/h ratio of a 1×1 cell (accounts for container distortion). */
+function cropFitness(p: Photo, cell: BentoCell, unitRatio = 1): number {
   if (!p.gemma_crops) return 0
-  const ratio = (cell.cs * BENTO_UNIT_RATIO) / cell.rs
+  const ratio = (cell.cs / cell.rs) * unitRatio
   let key: string
   if (ratio >= 1.6) key = '16:9'
   else if (ratio >= 1.2) key = '3:2'
@@ -154,6 +158,7 @@ function fillCells(
   cells: BentoCell[], pools: { P: Photo[]; L: Photo[] },
   usedIds: Set<string>, scoreFn: (p: Photo) => number,
 ): Photo[] {
+  const unitRatio = _activeUnitRatio
   // Sort cells by size (large cells first) to assign heroes to big cells
   const indexedCells = cells.map((cell, i) => ({ cell, i, size: cell.rs * cell.cs }))
   const sortedCells = [...indexedCells].sort((a, b) => b.size - a.size)
@@ -161,6 +166,18 @@ function fillCells(
   // Score photos per-cell: base score + crop fitness for this specific cell
   const result: (Photo | undefined)[] = new Array(cells.length)
   const claimed = new Set<string>()
+
+  // Parent-child dedup: skip photos whose parent or child is already claimed
+  const skip = (p: Photo) =>
+    usedIds.has(p.id) || claimed.has(p.id) ||
+    (p.parent && (usedIds.has(p.parent) || claimed.has(p.parent)))
+
+  const claim = (p: Photo) => {
+    claimed.add(p.id)
+    usedIds.add(p.id)
+    // Also block the parent so the original can't be selected alongside its variant
+    if (p.parent) { claimed.add(p.parent); usedIds.add(p.parent) }
+  }
 
   for (const { cell, i } of sortedCells) {
     const primary = cell.orient === 'P' ? pools.P : pools.L
@@ -170,21 +187,20 @@ function fillCells(
     let best: Photo | undefined
     let bestScore = -Infinity
     for (const p of primary) {
-      if (usedIds.has(p.id) || claimed.has(p.id)) continue
-      const s = scoreFn(p) + cropFitness(p, cell)
+      if (skip(p)) continue
+      const s = scoreFn(p) + cropFitness(p, cell, unitRatio)
       if (s > bestScore) { bestScore = s; best = p }
     }
     if (!best) {
       for (const p of fallback) {
-        if (usedIds.has(p.id) || claimed.has(p.id)) continue
-        const s = scoreFn(p) + cropFitness(p, cell)
+        if (skip(p)) continue
+        const s = scoreFn(p) + cropFitness(p, cell, unitRatio)
         if (s > bestScore) { bestScore = s; best = p }
       }
     }
     if (best) {
       result[i] = best
-      claimed.add(best.id)
-      usedIds.add(best.id)
+      claim(best)
     }
   }
 
@@ -195,14 +211,13 @@ function fillCells(
     let best: Photo | undefined
     let bestScore = -Infinity
     for (const p of allRemaining) {
-      if (usedIds.has(p.id) || claimed.has(p.id)) continue
+      if (skip(p)) continue
       const s = scoreFn(p)
       if (s > bestScore) { bestScore = s; best = p }
     }
     if (best) {
       result[i] = best
-      claimed.add(best.id)
-      usedIds.add(best.id)
+      claim(best)
     }
   }
 
@@ -216,7 +231,7 @@ function fillCells(
  * that shares mood but contrasts in weight (hero is loud, court is quieter)
  */
 function curateHeroStory(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
-  const photos = allPhotos.filter(p => p.thumb && p.display && !p.parent && (p.aesthetic || 0) > 4)
+  const photos = allPhotos.filter(p => p.thumb && p.display && (p.aesthetic || 0) > 4)
   if (photos.length < cells.length) return []
 
   // Pick a random hero from the top 20% by visual impact
@@ -254,7 +269,7 @@ function curateHeroStory(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
  * Creates a cohesive temperature palette that feels intentional
  */
 function curateTemperatureHarmony(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
-  const photos = allPhotos.filter(p => p.thumb && p.display && !p.parent && (p.aesthetic || 0) > 4)
+  const photos = allPhotos.filter(p => p.thumb && p.display && (p.aesthetic || 0) > 4)
 
   // Count warm vs cool
   const warm = photos.filter(p => colorWarmth(p) === 'warm')
@@ -297,7 +312,7 @@ function curateTemperatureHarmony(allPhotos: Photo[], cells: BentoCell[]): Photo
  */
 function curateDepthJourney(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
   const photos = allPhotos.filter(p =>
-    p.thumb && p.display && !p.parent && (p.aesthetic || 0) > 4 && p.depth_complexity != null
+    p.thumb && p.display && (p.aesthetic || 0) > 4 && p.depth_complexity != null
   )
   if (photos.length < cells.length) return []
 
@@ -329,9 +344,9 @@ function curateDepthJourney(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
  * The color photos pop dramatically against the monochrome backdrop
  */
 function curateMonoAccent(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
-  const monoPhotos = allPhotos.filter(p => p.thumb && p.display && !p.parent && p.mono && (p.aesthetic || 0) > 4)
+  const monoPhotos = allPhotos.filter(p => p.thumb && p.display && p.mono && (p.aesthetic || 0) > 4)
   const colorPhotos = allPhotos.filter(p =>
-    p.thumb && p.display && !p.parent && !p.mono && (p.aesthetic || 0) > 5 &&
+    p.thumb && p.display && !p.mono && (p.aesthetic || 0) > 5 &&
     (p.contrast || 50) > 60
   )
 
@@ -396,7 +411,7 @@ function curateColorStory(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
  * uses visual impact for hero assignment
  */
 function curateMoodBoard(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
-  const photos = allPhotos.filter(p => p.thumb && p.display && !p.parent && p.vibes && p.vibes.length > 0)
+  const photos = allPhotos.filter(p => p.thumb && p.display && p.vibes && p.vibes.length > 0)
   if (photos.length === 0) return []
 
   const vibeCounts = new Map<string, number>()
@@ -432,7 +447,7 @@ function curateMoodBoard(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
  * Improved: visual impact scoring, hue harmony within scene
  */
 function curateSceneStory(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
-  const photos = allPhotos.filter(p => p.thumb && p.display && !p.parent && p.scene)
+  const photos = allPhotos.filter(p => p.thumb && p.display && p.scene)
   if (photos.length === 0) return []
 
   const sceneCounts = new Map<string, number>()
@@ -468,7 +483,7 @@ function curateSceneStory(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
  */
 function curateArchetypeExhibition(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
   const photos = allPhotos.filter(p =>
-    p.thumb && p.display && !p.parent && p.gc_archetype && (p.aesthetic || 0) > 4
+    p.thumb && p.display && p.gc_archetype && (p.aesthetic || 0) > 4
   )
   if (photos.length < cells.length) return []
 
@@ -499,7 +514,7 @@ function curateArchetypeExhibition(allPhotos: Photo[], cells: BentoCell[]): Phot
  * Groups photos by camera model, scores by visual impact + hue diversity
  */
 function curateCameraStory(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
-  const photos = allPhotos.filter(p => p.thumb && p.display && !p.parent && p.camera && (p.aesthetic || 0) > 4)
+  const photos = allPhotos.filter(p => p.thumb && p.display && p.camera && (p.aesthetic || 0) > 4)
   if (photos.length === 0) return []
 
   const camCounts = new Map<string, number>()
@@ -535,7 +550,7 @@ function curateCameraStory(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
  */
 function curateNightVision(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
   const photos = allPhotos.filter(p =>
-    p.thumb && p.display && !p.parent && (p.aesthetic || 0) > 4 &&
+    p.thumb && p.display && (p.aesthetic || 0) > 4 &&
     (p.time === 'night' || (p.brightness != null && p.brightness < 50))
   )
   if (photos.length < cells.length) return []
@@ -556,7 +571,7 @@ function curateNightVision(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
  */
 function curateGoldenHour(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
   const photos = allPhotos.filter(p =>
-    p.thumb && p.display && !p.parent && (p.aesthetic || 0) > 4 &&
+    p.thumb && p.display && (p.aesthetic || 0) > 4 &&
     p.time === 'golden hour'
   )
   if (photos.length < cells.length) return []
@@ -578,7 +593,7 @@ function curateGoldenHour(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
  */
 function curateFaceGallery(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
   const photos = allPhotos.filter(p =>
-    p.thumb && p.display && !p.parent && (p.aesthetic || 0) > 4 &&
+    p.thumb && p.display && (p.aesthetic || 0) > 4 &&
     (p.face_count || 0) > 0
   )
   if (photos.length < cells.length) return []
@@ -599,10 +614,10 @@ function curateFaceGallery(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
  */
 function curateStyleContrast(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
   const analog = allPhotos.filter(p =>
-    p.thumb && p.display && !p.parent && (p.aesthetic || 0) > 4 && p.style === 'analog'
+    p.thumb && p.display && (p.aesthetic || 0) > 4 && p.style === 'analog'
   )
   const digital = allPhotos.filter(p =>
-    p.thumb && p.display && !p.parent && (p.aesthetic || 0) > 4 &&
+    p.thumb && p.display && (p.aesthetic || 0) > 4 &&
     (p.style === 'street' || p.style === 'documentary')
   )
 
@@ -626,7 +641,7 @@ function curateStyleContrast(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
  */
 function curateBrightnessGradient(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
   const photos = allPhotos.filter(p =>
-    p.thumb && p.display && !p.parent && (p.aesthetic || 0) > 4 && p.brightness != null
+    p.thumb && p.display && (p.aesthetic || 0) > 4 && p.brightness != null
   )
   if (photos.length < cells.length) return []
 
@@ -659,7 +674,7 @@ function curateBrightnessGradient(allPhotos: Photo[], cells: BentoCell[]): Photo
  */
 function curateEnergyFlow(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
   const photos = allPhotos.filter(p =>
-    p.thumb && p.display && !p.parent && p.gc_energy && (p.aesthetic || 0) > 4
+    p.thumb && p.display && p.gc_energy && (p.aesthetic || 0) > 4
   )
   if (photos.length < cells.length) return []
 
@@ -694,7 +709,7 @@ function curateEnergyFlow(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
  */
 function curateSemanticPops(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
   const photos = allPhotos.filter(p =>
-    p.thumb && p.display && !p.parent && p.gemma_pops && p.gemma_pops.length > 0 && (p.aesthetic || 0) > 4
+    p.thumb && p.display && p.gemma_pops && p.gemma_pops.length > 0 && (p.aesthetic || 0) > 4
   )
   if (photos.length < cells.length) return []
 
@@ -738,7 +753,7 @@ function curateSemanticPops(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
  */
 function curatePrintWorthy(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
   const photos = allPhotos.filter(p =>
-    p.thumb && p.display && !p.parent && p.print_worthy && (p.aesthetic || 0) > 4
+    p.thumb && p.display && p.print_worthy && (p.aesthetic || 0) > 4
   )
   if (photos.length < cells.length) return []
 
@@ -760,7 +775,7 @@ function curatePrintWorthy(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
  */
 function curateGemmaVibes(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
   const photos = allPhotos.filter(p =>
-    p.thumb && p.display && !p.parent && p.gemma_vibes && p.gemma_vibes.length > 0 && (p.aesthetic || 0) > 4
+    p.thumb && p.display && p.gemma_vibes && p.gemma_vibes.length > 0 && (p.aesthetic || 0) > 4
   )
   if (photos.length < cells.length) return []
 
@@ -798,7 +813,7 @@ function curateGemmaVibes(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
  */
 function curateSubjectGallery(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
   const photos = allPhotos.filter(p =>
-    p.thumb && p.display && !p.parent && p.gemma_subject && (p.aesthetic || 0) > 4
+    p.thumb && p.display && p.gemma_subject && (p.aesthetic || 0) > 4
   )
   if (photos.length < cells.length) return []
 
@@ -841,7 +856,7 @@ function curateSubjectGallery(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
  */
 function curateSharpnessShowcase(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
   const photos = allPhotos.filter(p =>
-    p.thumb && p.display && !p.parent && p.gemma_sharpness && (p.aesthetic || 0) > 4
+    p.thumb && p.display && p.gemma_sharpness && (p.aesthetic || 0) > 4
   )
   if (photos.length < cells.length) return []
 
@@ -927,6 +942,9 @@ const CURATORS = [
 
 function fillBento(allPhotos: Photo[], layout: BentoLayout, colorFiltered: boolean = false): { photos: Photo[], curator: string } {
   const { cells } = layout
+  // Set the rendered unit ratio so cropFitness uses the true on-screen ratio
+  const containerRatio = layout.device === 'mobile' ? (2 / 3) : (3 / 2)
+  _activeUnitRatio = containerRatio * layout.rows / layout.cols
 
   if (!colorFiltered) {
     // Try up to 3 random curators before falling back
@@ -964,20 +982,23 @@ interface BentoTileProps {
   hasVariant: boolean
   splittable: boolean
   isSplit?: boolean
+  gridCols: number
+  gridRows: number
+  containerRatio: number
   onSwap: (tileEl: HTMLDivElement) => void
   onSplit: (cellIndex: number) => void
   onFullscreen: (photo: Photo) => void
 }
 
-function BentoTile({ photo, cell, cellIndex, index, revealed, hasVariant, splittable, isSplit, onSwap, onSplit, onFullscreen }: BentoTileProps) {
+function BentoTile({ photo, cell, cellIndex, index, revealed, hasVariant, splittable, isSplit, gridCols, gridRows, containerRatio, onSwap, onSplit, onFullscreen }: BentoTileProps) {
   const tileRef = useRef<HTMLDivElement>(null)
   const touchRef = useRef({ x: 0, y: 0, moved: false })
 
   const imgRef = useCallback((el: HTMLImageElement | null) => {
     if (!el) return
     loadProgressive(el, photo, 'display', '(max-width: 768px) 50vw, 33vw')
-    el.style.objectPosition = getObjectPosition(photo, cell)
-  }, [photo, cell])
+    el.style.objectPosition = getObjectPosition(photo, cell, gridCols, gridRows, containerRatio)
+  }, [photo, cell, gridCols, gridRows, containerRatio])
 
   const dominant = photo.palette?.[0]
 
@@ -1082,6 +1103,7 @@ export function BentoView() {
   /* Refs for mutable state used by intervals/callbacks */
   const photosRef = useRef<Photo[]>([])
   const workingCellsRef = useRef<BentoCell[]>([])
+  const layoutRef = useRef<BentoLayout | null>(null)
   const gridRef = useRef<HTMLDivElement>(null)
 
   /* Preload buffer: ready-to-swap photos per orientation, already in browser cache */
@@ -1131,6 +1153,7 @@ export function BentoView() {
   /* Keep refs in sync with state */
   useEffect(() => { photosRef.current = photos }, [photos])
   useEffect(() => { workingCellsRef.current = workingCells }, [workingCells])
+  useEffect(() => { layoutRef.current = layout }, [layout])
 
   /* Fill preload buffer with candidates not currently displayed, and warm browser cache */
   const refillPreloadBuffer = useCallback((currentIds: Set<string>) => {
@@ -1192,7 +1215,9 @@ export function BentoView() {
     // NEVER allow empty tiles — if we have fewer photos than cells, fix it
     if (selected.length > 0 && selected.length < newLayout.count) {
       const usedIds = new Set(selected.map(p => p.id))
-      const extras = photoPool.filter(p => p.thumb && p.display && !usedIds.has(p.id))
+      // Also block parents of selected variants to prevent duplicates
+      for (const p of selected) { if (p.parent) usedIds.add(p.parent) }
+      const extras = photoPool.filter(p => p.thumb && p.display && !usedIds.has(p.id) && (!p.parent || !usedIds.has(p.parent)))
       while (selected.length < newLayout.count && extras.length > 0) {
         const pick = extras.splice(Math.floor(Math.random() * extras.length), 1)[0]
         selected.push(pick)
@@ -1215,14 +1240,16 @@ export function BentoView() {
     // Skip when color filtered — variants break color coherence
     if (imageTypeFilter === 'mixed' && variantMap.current.size > 0 && !isColorFiltered) {
       const usedIds = new Set(selected.map(p => p.id))
+      // First pass: swap any selected photo that has a variant
       for (let i = 0; i < selected.length; i++) {
         const v = variantMap.current.get(selected[i].id)
         if (v && (v.display || v.thumb)) {
           selected[i] = v
         }
       }
+      // Second pass: if still below target, pull random variants from pool
       const currentVariantCount = selected.filter(p => p.parent).length
-      const targetVariants = Math.ceil(selected.length * 0.4)
+      const targetVariants = Math.max(1, Math.ceil(selected.length * 0.4))
       const slotsToFill = targetVariants - currentVariantCount
       if (slotsToFill > 0) {
         const parentPhotos = photoPool
@@ -1240,6 +1267,15 @@ export function BentoView() {
             selected[i] = v
             replaced++
           }
+        }
+      }
+      // Guarantee: if still zero variants, force one by replacing a random tile
+      if (selected.filter(p => p.parent).length === 0) {
+        const allVariants = [...variantMap.current.values()].filter(v => v.display || v.thumb)
+        if (allVariants.length > 0) {
+          const rv = allVariants[Math.floor(Math.random() * allVariants.length)]
+          const slot = Math.floor(Math.random() * selected.length)
+          selected[slot] = rv
         }
       }
     }
@@ -1337,7 +1373,12 @@ export function BentoView() {
           tileEl.dataset.id = original.id
           delete tileEl.dataset.variant
           const wCells = workingCellsRef.current
-          if (wCells[cellIdx]) img.style.objectPosition = getObjectPosition(original, wCells[cellIdx])
+          const ly = layoutRef.current
+          if (wCells[cellIdx]) {
+            img.style.objectPosition = ly
+              ? getObjectPosition(original, wCells[cellIdx], ly.cols, ly.rows, ly.device === 'mobile' ? 2/3 : 3/2)
+              : getObjectPosition(original, wCells[cellIdx])
+          }
           setPhotos(prev => {
             const next = [...prev]
             const bIdx = next.findIndex(p => p.id === oldId)
@@ -1384,8 +1425,11 @@ export function BentoView() {
     if (dominant) tileEl.style.backgroundColor = dominant + '99'
 
     const wCells = workingCellsRef.current
+    const ly = layoutRef.current
     if (wCells[cellIdx]) {
-      img.style.objectPosition = getObjectPosition(newPhoto, wCells[cellIdx])
+      img.style.objectPosition = ly
+        ? getObjectPosition(newPhoto, wCells[cellIdx], ly.cols, ly.rows, ly.device === 'mobile' ? 2/3 : 3/2)
+        : getObjectPosition(newPhoto, wCells[cellIdx])
     }
 
     setPhotos(prev => {
@@ -1460,8 +1504,11 @@ export function BentoView() {
       if (dominant) tile.style.backgroundColor = dominant + '99'
 
       const wCells = workingCellsRef.current
+      const ly = layoutRef.current
       if (wCells[cellIdx]) {
-        img.style.objectPosition = getObjectPosition(newPhoto!, wCells[cellIdx])
+        img.style.objectPosition = ly
+          ? getObjectPosition(newPhoto!, wCells[cellIdx], ly.cols, ly.rows, ly.device === 'mobile' ? 2/3 : 3/2)
+          : getObjectPosition(newPhoto!, wCells[cellIdx])
       }
 
       setPhotos(prev => {
@@ -1716,6 +1763,9 @@ export function BentoView() {
               hasVariant={!photo.parent && variantMap.current.has(photo.id)}
               splittable={canSplit}
               isSplit={splitIndices.has(i)}
+              gridCols={layout.cols}
+              gridRows={layout.rows}
+              containerRatio={containerRatio}
               onSwap={swapTile}
               onSplit={performSplit}
               onFullscreen={handleFullscreen}
@@ -1738,7 +1788,7 @@ export function BentoView() {
             colorBuckets: colorBuckets.map(b => ({ color: b.color, hueStart: b.hueStart })),
             hasVariants: variantMap.current.size > 0,
             samplePhoto: data?.photos.find(p => p.id === '001a5d8a-64bc-5ff7-a53f-9a8040e25f78')?.thumb
-              || photos.find(p => !p.parent && p.thumb)?.thumb,
+              || data?.photos.find(p => !p.parent && p.thumb)?.thumb,
             sampleVariant: data?.photos.find(p => p.id === '001a5d8a-64bc-5ff7-a53f-9a8040e25f78_gonzo')?.thumb
               || [...variantMap.current.values()].find(v => v.thumb)?.thumb,
           }}

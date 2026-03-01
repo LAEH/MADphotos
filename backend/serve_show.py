@@ -40,7 +40,7 @@ def _import_dashboard():
         get_cartoon_data, get_gemma_cartoon_data, get_all_cartoon_data,
         review_cartoon, similarity_search, drift_search, _get_lance,
         get_gemma_data, get_gemma_progress,
-        get_generated_data, review_generated,
+        get_generated_data, review_generated, get_variant_review_data, batch_reject_variants,
         get_unpicked_data, get_signal_inspector_picks_data,
         get_location_tagger_data,
         do_pick, tag_location, untag_location, register_location,
@@ -103,6 +103,8 @@ class GalleryHandler(SimpleHTTPRequestHandler):
             self._post_generated_generate()
         elif self.path == "/api/generated/export":
             self._post_generated_export()
+        elif self.path == "/api/variant-review/reject":
+            self._post_variant_batch_reject()
         elif self.path == "/api/cartoon/review":
             self._post_cartoon_review()
         elif self.path == "/api/pick":
@@ -178,6 +180,8 @@ class GalleryHandler(SimpleHTTPRequestHandler):
             self._json_response(fn["get_generated_data"]())
         elif path == "/api/generated/progress":
             self._handle_generated_progress()
+        elif path == "/api/variant-review":
+            self._json_response(fn["get_variant_review_data"]())
         elif path == "/api/signal-inspector":
             self._json_response(fn["get_signal_inspector_picks_data"]())
         elif path == "/api/unpicked":
@@ -231,6 +235,15 @@ class GalleryHandler(SimpleHTTPRequestHandler):
             return self._error_response(400, "variant_id and status required")
         comment = body.get("comment")
         self._json_response(self._db()["review_generated"](variant_id, status or None, comment))
+
+    def _post_variant_batch_reject(self):
+        body = self._read_json_body()
+        if body is None:
+            return self._error_response(400, "Invalid JSON")
+        ids = body.get("variant_ids", [])
+        if not isinstance(ids, list):
+            return self._error_response(400, "variant_ids must be a list")
+        self._json_response(self._db()["batch_reject_variants"](ids))
 
     def _post_generated_generate(self):
         count = 20

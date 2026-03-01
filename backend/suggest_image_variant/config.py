@@ -51,13 +51,12 @@ NEGATIVE_PROMPT = (
     "border, frame, decorative edge, vignette, mat, picture frame"
 )
 
-# Global color directive — loose guidance, NOT prescriptive hex codes.
-# Learned from 950+ reviews: user accepts dark/monochrome with organic color accents.
-# Forced systematic colors (cyan, teal, red every time) feel artificial.
+# Default color directive — minimal guard rails, NOT prescriptive palette.
+# Only blocks rejected tones and borders. Each style should define its own
+# color_directive if it needs specific palette control.
+# The old global directive forced dark/monochrome on EVERYTHING, killing
+# specialty styles like azulejo, bauhaus, constructivist, etc.
 COLOR_DIRECTIVE = (
-    "COLOR: The image should be dominated by deep blacks and strong whites. "
-    "If color appears, let it arise naturally from the subject and style — "
-    "one or two vivid accents that feel organic, not forced. "
     "NEVER use beige, cream, yellow, ochre, sepia, warm brown, pastel, or muted earth tones. "
     "Textures matter: ink grain, paper fiber, spray stipple, brush drag, carved relief. "
     "NEVER add any border, frame, mat, edge decoration, or vignette. Fill the entire canvas edge to edge."
@@ -118,6 +117,15 @@ FAMILIES = {
     "rorschach": "psych",
     "nebula": "astro",
     "basrelief": "relief",
+    # Industrial / Construction styles
+    "constructivist": "constructivist",
+    "blueprint": "technical",
+    "precisionist": "precisionist",
+    "brutalgraphic": "brutalist_gd",
+    "bauhaus": "bauhaus",
+    "destijl": "destijl",
+    "isoproject": "technical",
+    "lebbeus": "speculative",
 }
 
 # ── 10-style library ────────────────────────────────────────────────────────
@@ -910,6 +918,202 @@ STYLES = {
                         "no_faces": 1, "serene": 2},
         "penalties": {"urban": -1, "gritty": -2, "chaotic": -2},
     },
+
+    # ── INDUSTRIAL / CONSTRUCTION — Priority 1 ──────────────────────────────
+    #
+    # The user loves construction sites, industrial architecture, raw materials.
+    # Inspired by: MADbox punk visual styles, Constructivism, Precisionism,
+    # Brutalist graphic design. Constraint breeds identity.
+
+    "constructivist": {
+        "name": "Constructivist / Rodchenko",
+        "prompt": (
+            "Soviet Constructivist photomontage in the style of Alexander Rodchenko and El Lissitzky. "
+            "Bold diagonal composition — everything tilted at dynamic 30-45° angles. "
+            "Photographic elements cut and reassembled with geometric overlays. "
+            "Strong diagonal lines, triangles, circles as compositional weapons. "
+            "Typography fragments in Cyrillic block letters as decorative elements. "
+            "The image as propaganda poster — heroic, monumental, mechanical. "
+            "Every element serves the diagonal thrust of the composition."
+        ),
+        "color_directive": (
+            "COLOR: RED, BLACK, AND WHITE ONLY. "
+            "Deep Red #FF3B30 as the accent weapon — slashing through black and white. "
+            "Strong blacks, clean whites, and that one searing red. "
+            "No other colors. The power comes from the constraint. "
+            "NEVER add borders, frames, or vignettes. Fill edge to edge."
+        ),
+        "affinities": {"urban": 3, "gritty": 3, "architectural": 3, "exterior": 2,
+                        "monochrome": 2, "no_faces": 1},
+        "penalties": {"serene": -2, "peaceful": -3, "ethereal": -3, "nature": -2, "bright": -1},
+    },
+    "blueprint": {
+        "name": "Blueprint / Technical Drawing",
+        "prompt": (
+            "Architectural blueprint — white lines on deep Prussian blue diazo paper. "
+            "The scene rendered as a precise technical drawing with dimension lines, "
+            "section markers, scale bars, and construction annotations. "
+            "Fine white linework: continuous for visible edges, dashed for hidden. "
+            "Center lines, hatch patterns for cut sections, leader arrows with notes. "
+            "The aesthetics of engineering documentation — every line has meaning. "
+            "Title block in the corner with drawing number and revision. "
+            "The beauty of technical precision applied to the real world."
+        ),
+        "color_directive": (
+            "COLOR: WHITE ON DEEP BLUE ONLY. "
+            "Background: deep Prussian blue (#003366) diazo paper. "
+            "All lines, text, annotations in white. "
+            "No other colors — pure blueprint aesthetic. "
+            "NEVER add borders, frames, or vignettes. Fill edge to edge."
+        ),
+        "affinities": {"urban": 3, "architectural": 4, "exterior": 2, "gritty": 2,
+                        "monochrome": 2, "no_faces": 2},
+        "penalties": {"nature": -3, "serene": -2, "ethereal": -3, "peaceful": -2, "bright": -1},
+    },
+    "precisionist": {
+        "name": "Precisionist / Sheeler",
+        "prompt": (
+            "American Precisionist painting in the style of Charles Sheeler and Charles Demuth. "
+            "Machine-age realism — industrial subjects rendered with geometric clarity. "
+            "Smooth, clean surfaces with razor-sharp edges. No visible brushstrokes. "
+            "Simplified forms: smokestacks become cylinders, buildings become cubes, "
+            "cables become perfect lines. The beauty of industrial geometry. "
+            "Muted but luminous palette — cool grays, steel blues, cement whites. "
+            "Light falls cleanly on hard surfaces. The factory as cathedral."
+        ),
+        "color_directive": (
+            "COLOR: INDUSTRIAL MUTED PALETTE. "
+            "Cool grays, steel Blue #007AFF, cement white, slate. "
+            "One warm accent: rust Orange #FF9500 or copper. "
+            "No bright saturated colors — everything filtered through industrial haze. "
+            "The palette of concrete, steel, glass, and sky. "
+            "NEVER add borders, frames, or vignettes. Fill edge to edge."
+        ),
+        "affinities": {"urban": 3, "architectural": 3, "exterior": 2, "monochrome": 2,
+                        "cinematic": 2, "no_faces": 2, "vast": 1},
+        "penalties": {"nature": -2, "chaotic": -3, "faces_many": -3, "playful": -2, "serene": -1},
+    },
+    "brutalgraphic": {
+        "name": "Brutalist Graphic Design",
+        "prompt": (
+            "Brutalist graphic design — Experimental Jetset meets raw Swiss typography. "
+            "Heavy Helvetica/Akzidenz type as structural element, not decoration. "
+            "Strict grid system with deliberate violations. "
+            "High contrast black and white with one violent accent color. "
+            "Raw, undesigned, anti-aesthetic — the content IS the design. "
+            "Oversized type fragments overlaid on the image. "
+            "The visual language of concrete architecture applied to graphic design. "
+            "Unapologetic, confrontational, stripped to essentials."
+        ),
+        "color_directive": (
+            "COLOR: BLACK, WHITE, AND ONE ACCENT. "
+            "Dominant: pure black and pure white in extreme contrast. "
+            "One single accent: Red #FF3B30 OR electric Blue #007AFF — never both. "
+            "The accent appears sparingly — a stripe, a dot, a word. "
+            "NEVER add borders, frames, or vignettes. Fill edge to edge."
+        ),
+        "affinities": {"urban": 3, "gritty": 3, "architectural": 3, "monochrome": 2,
+                        "dark": 2, "no_faces": 1},
+        "penalties": {"serene": -3, "peaceful": -3, "ethereal": -3, "nature": -2,
+                      "dreamy": -2, "bright": -2},
+    },
+
+    # ── INDUSTRIAL / CONSTRUCTION — Priority 2 ──────────────────────────────
+
+    "bauhaus": {
+        "name": "Bauhaus / Moholy-Nagy",
+        "prompt": (
+            "Bauhaus design in the style of László Moholy-Nagy and Josef Albers. "
+            "Primary geometric forms: circles, squares, triangles in primary colors. "
+            "Photogram aesthetic — objects as silhouettes and light traces on paper. "
+            "Strict grid composition with mathematical proportions. "
+            "The image abstracted into its geometric essence. "
+            "Typography as form — Bauhaus letterforms integrated into composition. "
+            "The unity of art and technology. Form follows function."
+        ),
+        "color_directive": (
+            "COLOR: PRIMARY COLORS + BLACK + WHITE. "
+            "Red #FF3B30, Blue #007AFF, Yellow/Gold #FF9500 — pure and flat. "
+            "Black for structure, white for space. "
+            "No gradients, no mixed tones — each color area is pure and unmodulated. "
+            "The Bauhaus palette: constrained, bold, geometric. "
+            "NEVER add borders, frames, or vignettes. Fill edge to edge."
+        ),
+        "affinities": {"urban": 2, "architectural": 3, "exterior": 2, "monochrome": 1,
+                        "no_faces": 2, "minimal": 2},
+        "penalties": {"chaotic": -3, "gritty": -1, "nature": -2, "faces_many": -2},
+    },
+    "destijl": {
+        "name": "De Stijl / Mondrian",
+        "prompt": (
+            "De Stijl composition in the style of Piet Mondrian and Theo van Doesburg. "
+            "The image deconstructed into strict horizontal and vertical black lines "
+            "forming a grid, with rectangular cells filled in primary colors or white. "
+            "No diagonals, no curves — only the orthogonal grid. "
+            "Thick black lines separating color fields. "
+            "The image's essential structure revealed through Neo-Plastic abstraction. "
+            "Asymmetric balance — tension between filled and empty cells."
+        ),
+        "color_directive": (
+            "COLOR: MONDRIAN PALETTE ONLY. "
+            "Red #FF3B30, Blue #007AFF, Yellow #FF9500, pure white, jet black. "
+            "No other colors. Each rectangular cell is ONE solid color. "
+            "Black lines are thick and structural. "
+            "NEVER add borders, frames, or vignettes. Fill edge to edge."
+        ),
+        "affinities": {"architectural": 3, "no_faces": 3, "minimal": 3,
+                        "exterior": 2, "monochrome": 1},
+        "penalties": {"chaotic": -3, "gritty": -2, "nature": -2, "faces_many": -3, "dark": -1},
+    },
+    "isoproject": {
+        "name": "Isometric Projection",
+        "prompt": (
+            "Isometric technical illustration — the scene rendered at 30° axonometric angles. "
+            "Every surface at precise 30°/60° angles from horizontal, no perspective foreshortening. "
+            "Clean vector lines, flat color fills, architectural precision. "
+            "The aesthetic of technical manuals and exploded diagrams. "
+            "Cutaway sections revealing internal structure. "
+            "Dimension callouts and part labels in small sans-serif type. "
+            "The beauty of seeing a scene from the impossible isometric viewpoint — "
+            "where parallel lines stay parallel and nothing recedes."
+        ),
+        "color_directive": (
+            "COLOR: TECHNICAL ILLUSTRATION PALETTE. "
+            "Flat fills: cool gray, steel Blue #007AFF, light gray, white. "
+            "Accent: Orange #FF9500 for highlighted sections or callout lines. "
+            "Clean, precise, diagrammatic. No textures, no gradients. "
+            "Each surface is one flat color, differentiated by the 3 visible faces. "
+            "NEVER add borders, frames, or vignettes. Fill edge to edge."
+        ),
+        "affinities": {"architectural": 3, "exterior": 2, "no_faces": 2,
+                        "urban": 2, "minimal": 1},
+        "penalties": {"nature": -3, "chaotic": -3, "faces_many": -4, "dark": -2,
+                      "moody": -1, "gritty": -1},
+    },
+    "lebbeus": {
+        "name": "Lebbeus Woods / Speculative Architecture",
+        "prompt": (
+            "Speculative architecture drawing in the style of Lebbeus Woods. "
+            "Parasitic structures erupting from existing buildings — angular, aggressive, "
+            "impossible constructions that challenge gravity and convention. "
+            "Pen and ink on paper: precise architectural linework meets expressionist energy. "
+            "Structural members, tension cables, cantilevers at extreme angles. "
+            "The drama of architecture in crisis — buildings as living organisms growing, "
+            "breaking, rebuilding. Shadows rendered in dense crosshatching. "
+            "The visionary madness of architecture that refuses to be built."
+        ),
+        "color_directive": (
+            "COLOR: INK ON PAPER. "
+            "Black ink linework on warm white paper. "
+            "Occasional wash of Teal #30B0C7 or rust Orange #FF9500 watercolor accent. "
+            "Mostly monochrome — the power is in the line, not the color. "
+            "NEVER add borders, frames, or vignettes. Fill edge to edge."
+        ),
+        "affinities": {"architectural": 4, "urban": 3, "gritty": 2, "exterior": 2,
+                        "no_faces": 2, "dark": 1},
+        "penalties": {"serene": -3, "peaceful": -3, "nature": -3, "bright": -2,
+                      "ethereal": -2},
+    },
 }
 
 # Mood → style affinity boosts (from Gemma mood analysis)
@@ -919,36 +1123,36 @@ MOOD_STYLE_MAP = {
     "peaceful": {"papercut": 3, "sumie": 2, "malevich": 2, "woodcut": 1},
     "nostalgic": {"wheatpaste": 3, "stainedglass": 2, "scraperboard": 2, "woodcut": 1, "charcoal": 2, "boldink": 2, "risograph": 3, "etching": 2},
     "melancholic": {"wheatpaste": 3, "charcoal": 3, "boldink": 3, "sumie": 2, "scraperboard": 2, "batman": 1, "sprayabstract": 2, "minpunk": 2},
-    "moody": {"sprayabstract": 3, "wheatpaste": 2, "batman": 3, "gonzo": 2, "sincity": 3, "hugopratt": 2, "charcoal": 2, "boldink": 3, "minpunk": 2},
-    "gritty": {"wildstyle": 4, "throwup": 3, "sprayabstract": 3, "gonzo": 3, "sincity": 3, "banksy": 2, "batman": 1, "minpunk": 4, "boldink": 2},
+    "moody": {"sprayabstract": 3, "wheatpaste": 2, "batman": 3, "gonzo": 2, "sincity": 3, "hugopratt": 2, "charcoal": 2, "boldink": 3, "minpunk": 2, "precisionist": 2, "lebbeus": 2},
+    "gritty": {"wildstyle": 4, "throwup": 3, "sprayabstract": 3, "gonzo": 3, "sincity": 3, "banksy": 2, "batman": 1, "minpunk": 4, "boldink": 2, "constructivist": 3, "brutalgraphic": 3, "lebbeus": 3, "blueprint": 2},
     "mysterious": {"sprayabstract": 2, "stainedglass": 2, "batman": 3, "sincity": 2, "sumie": 2, "hugopratt": 2, "charcoal": 2, "malevich": 2},
-    "dramatic": {"stainedglass": 3, "wildstyle": 2, "sincity": 3, "batman": 2, "saulbass": 2, "malevich": 3, "boldink": 2},
+    "dramatic": {"stainedglass": 3, "wildstyle": 2, "sincity": 3, "batman": 2, "saulbass": 2, "malevich": 3, "boldink": 2, "constructivist": 3, "brutalgraphic": 2, "lebbeus": 3},
     "whimsical": {"papercut": 3, "linocut": 3, "mucha": 2, "throwup": 1},
     "vibrant": {"technicolor": 4, "stainedglass": 4, "wildstyle": 3, "linocut": 3},
     "ethereal": {"stainedglass": 3, "papercut": 2, "mucha": 2, "malevich": 1},
     "energetic": {"wildstyle": 4, "throwup": 3, "technicolor": 3, "gonzo": 2, "banksy": 1, "sprayabstract": 3, "minpunk": 3},
     "contemplative": {"papercut": 3, "sumie": 3, "scraperboard": 2, "charcoal": 3, "malevich": 3, "boldink": 2, "etching": 3},
     "warm": {"stainedglass": 3, "technicolor": 2, "linocut": 2},
-    "cold": {"sincity": 3, "batman": 2, "scraperboard": 2, "sprayabstract": 2, "malevich": 2},
+    "cold": {"sincity": 3, "batman": 2, "scraperboard": 2, "sprayabstract": 2, "malevich": 2, "blueprint": 3, "precisionist": 3, "isoproject": 2},
     "playful": {"throwup": 3, "technicolor": 3, "stainedglass": 2, "linocut": 3, "banksy": 1},
-    "cinematic": {"wheatpaste": 2, "stainedglass": 2, "saulbass": 3, "sincity": 2, "batman": 2, "hugopratt": 1, "boldink": 2},
-    "dark": {"sprayabstract": 3, "sincity": 4, "batman": 3, "hugopratt": 2, "gonzo": 2, "charcoal": 3, "boldink": 3, "minpunk": 3},
+    "cinematic": {"wheatpaste": 2, "stainedglass": 2, "saulbass": 3, "sincity": 2, "batman": 2, "hugopratt": 1, "boldink": 2, "constructivist": 2, "precisionist": 2},
+    "dark": {"sprayabstract": 3, "sincity": 4, "batman": 3, "hugopratt": 2, "gonzo": 2, "charcoal": 3, "boldink": 3, "minpunk": 3, "brutalgraphic": 2, "lebbeus": 2},
     "bright": {"stainedglass": 3, "technicolor": 4, "wildstyle": 2, "linocut": 3, "saulbass": 1},
     "tender": {"papercut": 3, "sumie": 2, "woodcut": 1, "charcoal": 1},
     "lonely": {"wheatpaste": 3, "hugopratt": 2, "sumie": 2, "sincity": 1, "batman": 1, "charcoal": 2, "papercut": 2, "minpunk": 2, "malevich": 2},
     "chaotic": {"wildstyle": 5, "gonzo": 4, "banksy": 3, "sprayabstract": 3, "throwup": 2, "minpunk": 4},
     "zen": {"papercut": 3, "sumie": 4, "malevich": 3},
-    "urban": {"wildstyle": 5, "throwup": 4, "sprayabstract": 4, "wheatpaste": 3, "banksy": 4, "sincity": 2, "batman": 2, "gonzo": 1, "minpunk": 3},
+    "urban": {"wildstyle": 5, "throwup": 4, "sprayabstract": 4, "wheatpaste": 3, "banksy": 4, "sincity": 2, "batman": 2, "gonzo": 1, "minpunk": 3, "constructivist": 4, "blueprint": 4, "precisionist": 3, "brutalgraphic": 4, "bauhaus": 3, "isoproject": 3, "lebbeus": 3},
     "retro": {"wheatpaste": 3, "saulbass": 3, "stainedglass": 2, "mucha": 1, "minpunk": 2, "risograph": 3},
     "raw": {"sprayabstract": 4, "charcoal": 4, "wildstyle": 3, "gonzo": 2, "minpunk": 4, "boldink": 3},
-    "industrial": {"sprayabstract": 3, "wildstyle": 2, "wheatpaste": 2, "batman": 1, "malevich": 2, "minpunk": 2},
-    "desolate": {"wheatpaste": 3, "charcoal": 3, "sincity": 2, "scraperboard": 2, "sprayabstract": 2, "malevich": 2},
-    "stark": {"malevich": 4, "boldink": 3, "sincity": 3, "minpunk": 2},
-    "minimal": {"malevich": 4, "sumie": 3, "boldink": 2, "papercut": 2},
-    "abstract": {"malevich": 5, "sprayabstract": 2, "wildstyle": 1},
-    "powerful": {"boldink": 4, "sincity": 3, "wildstyle": 3, "malevich": 2, "minpunk": 2},
+    "industrial": {"sprayabstract": 3, "wildstyle": 2, "wheatpaste": 2, "batman": 1, "malevich": 2, "minpunk": 2, "constructivist": 5, "blueprint": 5, "precisionist": 5, "brutalgraphic": 4, "bauhaus": 3, "destijl": 3, "isoproject": 4, "lebbeus": 4},
+    "desolate": {"wheatpaste": 3, "charcoal": 3, "sincity": 2, "scraperboard": 2, "sprayabstract": 2, "malevich": 2, "precisionist": 3, "lebbeus": 3, "blueprint": 2},
+    "stark": {"malevich": 4, "boldink": 3, "sincity": 3, "minpunk": 2, "brutalgraphic": 4, "constructivist": 3, "precisionist": 2},
+    "minimal": {"malevich": 4, "sumie": 3, "boldink": 2, "papercut": 2, "destijl": 3, "bauhaus": 3, "isoproject": 2},
+    "abstract": {"malevich": 5, "sprayabstract": 2, "wildstyle": 1, "destijl": 4, "bauhaus": 3, "constructivist": 2},
+    "powerful": {"boldink": 4, "sincity": 3, "wildstyle": 3, "malevich": 2, "minpunk": 2, "constructivist": 4, "brutalgraphic": 3},
     "intense": {"boldink": 3, "sincity": 3, "minpunk": 3, "wildstyle": 2, "gonzo": 2},
-    "rebellious": {"minpunk": 5, "wildstyle": 4, "throwup": 3, "banksy": 3, "gonzo": 2},
+    "rebellious": {"minpunk": 5, "wildstyle": 4, "throwup": 3, "banksy": 3, "gonzo": 2, "constructivist": 3, "brutalgraphic": 2},
     "somber": {"charcoal": 3, "boldink": 3, "malevich": 2, "sincity": 2, "wheatpaste": 2, "etching": 3},
 }
 

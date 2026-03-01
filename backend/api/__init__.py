@@ -23,7 +23,8 @@ __all__ = [
     "generate_signal_inspector_data", "get_signal_inspector_picks_data",
     "generate_embedding_audit_data", "generate_collection_coverage_data", "generate_schema_data",
     # generated
-    "get_generated_data", "review_generated", "get_unpicked_data", "get_location_tagger_data",
+    "get_generated_data", "review_generated", "get_variant_review_data", "batch_reject_variants",
+    "get_unpicked_data", "get_location_tagger_data",
     "do_pick", "tag_location", "untag_location", "register_location",
     # pages
     "PAGE_HTML", "page_shell", "serve", "generate_static", "_static_links",
@@ -47,7 +48,7 @@ from .inspectors import (  # noqa: F401
     generate_schema_data,
 )
 from .generated import (  # noqa: F401
-    get_generated_data, review_generated,
+    get_generated_data, review_generated, get_variant_review_data, batch_reject_variants,
     get_unpicked_data, get_location_tagger_data,
     do_pick, tag_location, untag_location, register_location,
 )

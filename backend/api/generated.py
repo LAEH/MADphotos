@@ -45,42 +45,43 @@ def get_generated_data():
     accepted = sum(r["cnt"] for r in counts if r["review_status"] == "accepted")
     rejected = sum(r["cnt"] for r in counts if r["review_status"] == "rejected")
 
-    # Build a map of uuid -> run_dir by scanning filesystem
-    uuid_to_run = {}
+    # Build a map of uuid -> list of run_dirs (a UUID may appear in multiple runs)
+    uuid_to_runs: dict[str, list[str]] = {}
     if GENERATED_DIR.exists():
         for run_dir in sorted(GENERATED_DIR.iterdir(), reverse=True):
             if not run_dir.is_dir() or run_dir.name.startswith("."):
                 continue
             for uuid_dir in run_dir.iterdir():
-                if uuid_dir.is_dir() and uuid_dir.name not in uuid_to_run:
-                    uuid_to_run[uuid_dir.name] = run_dir.name
+                if uuid_dir.is_dir():
+                    uuid_to_runs.setdefault(uuid_dir.name, []).append(run_dir.name)
 
     pairs = []
     for row in unreviewed:
         uid = row["image_uuid"]
         vid = row["variant_id"]
-        run = uuid_to_run.get(uid)
-        if not run:
-            continue
-        # Find the variant file on disk
-        uuid_dir = GENERATED_DIR / run / uid
-        # Match variant_id to style key
-        for vf in uuid_dir.glob("imagen_smart_*.jpg"):
-            style_key = vf.stem.replace("imagen_smart_", "")
-            if _variant_id_for(uid, style_key) == vid:
-                pairs.append({
-                    "variant_id": vid,
-                    "uuid": uid,
-                    "original_path": f"/generated/{run}/{uid}/original.jpg",
-                    "variant_path": f"/generated/{run}/{uid}/{vf.name}",
-                    "style_name": style_key,
-                    "style_prompt": row["prompt"] or "",
-                    "strength": 0,
-                    "why": "",
-                    "rotation": 0,
-                    "review": None,
-                    "variant_type": "smart_style",
-                })
+        runs = uuid_to_runs.get(uid, [])
+        found = False
+        for run in runs:
+            uuid_dir = GENERATED_DIR / run / uid
+            for vf in uuid_dir.glob("imagen_smart_*.jpg"):
+                style_key = vf.stem.replace("imagen_smart_", "")
+                if _variant_id_for(uid, style_key) == vid:
+                    pairs.append({
+                        "variant_id": vid,
+                        "uuid": uid,
+                        "original_path": f"/generated/{run}/{uid}/original.jpg",
+                        "variant_path": f"/generated/{run}/{uid}/{vf.name}",
+                        "style_name": style_key,
+                        "style_prompt": row["prompt"] or "",
+                        "strength": 0,
+                        "why": "",
+                        "rotation": 0,
+                        "review": None,
+                        "variant_type": "smart_style",
+                    })
+                    found = True
+                    break
+            if found:
                 break
 
     return {
@@ -102,6 +103,112 @@ def review_generated(variant_id: str, status, comment: str | None = None):
         conn.commit()
         conn.close()
         return {"ok": True}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def get_variant_review_data():
+    """Return accepted variants for the disk review page."""
+    try:
+        conn = sqlite3.connect(str(DB_PATH), timeout=5)
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT v.variant_id, v.image_uuid, v.style_key, v.variant_type, "
+            "v.review_status, v.prompt "
+            "FROM ai_variants v "
+            "WHERE v.generation_status='success' AND v.review_status='accepted' "
+            "ORDER BY v.variant_type, v.variant_id"
+        ).fetchall()
+        conn.close()
+    except Exception:
+        return {"variants": []}
+
+    # Build filesystem map: uuid -> (run_dir, files)
+    uuid_to_runs: dict[str, list[tuple[str, list[str]]]] = {}
+    if GENERATED_DIR.exists():
+        for run_dir in sorted(GENERATED_DIR.iterdir(), reverse=True):
+            if not run_dir.is_dir() or run_dir.name.startswith("."):
+                continue
+            for uuid_dir in run_dir.iterdir():
+                if not uuid_dir.is_dir():
+                    continue
+                files = [f.name for f in uuid_dir.iterdir() if f.is_file()]
+                if uuid_dir.name not in uuid_to_runs:
+                    uuid_to_runs[uuid_dir.name] = []
+                uuid_to_runs[uuid_dir.name].append((run_dir.name, files))
+
+    # Also check rendered thumb/display for originals
+    rendered_dir = GENERATED_DIR.parent.parent / "images" / "rendered"
+
+    variants = []
+    for row in rows:
+        uid = row["image_uuid"]
+        vid = row["variant_id"]
+        vtype = row["variant_type"]
+        style = row["style_key"] or ""
+
+        # Find variant file on disk
+        original_path = None
+        variant_path = None
+
+        runs = uuid_to_runs.get(uid, [])
+        for run_name, files in runs:
+            # Find original
+            if "original.jpg" in files:
+                original_path = f"/generated/{run_name}/{uid}/original.jpg"
+
+            # Find variant file matching style
+            if vtype == "nst":
+                fname = f"{style}.jpg"
+                if fname in files:
+                    variant_path = f"/generated/{run_name}/{uid}/{fname}"
+            elif vtype == "smart_style":
+                fname = f"imagen_smart_{style}.jpg"
+                if fname in files:
+                    variant_path = f"/generated/{run_name}/{uid}/{fname}"
+            elif vtype in ("style_transfer", "cartoon", "gemma_cartoon"):
+                # Legacy types — try pattern matching
+                for f in files:
+                    if f != "original.jpg" and f.endswith(".jpg"):
+                        if style in f or vtype in f:
+                            variant_path = f"/generated/{run_name}/{uid}/{f}"
+                            break
+
+            if original_path and variant_path:
+                break
+
+        if not original_path or not variant_path:
+            continue
+
+        variants.append({
+            "variant_id": vid,
+            "uuid": uid,
+            "style_key": style,
+            "variant_type": vtype,
+            "review_status": row["review_status"],
+            "original_path": original_path,
+            "variant_path": variant_path,
+            "prompt": row["prompt"] or "",
+        })
+
+    return {"variants": variants}
+
+
+def batch_reject_variants(variant_ids: list[str]):
+    """Reject a batch of variants by ID."""
+    if not variant_ids:
+        return {"ok": True, "count": 0}
+    try:
+        conn = sqlite3.connect(str(DB_PATH), timeout=10)
+        placeholders = ",".join("?" for _ in variant_ids)
+        conn.execute(
+            f"UPDATE ai_variants SET review_status='rejected' WHERE variant_id IN ({placeholders})",
+            variant_ids,
+        )
+        conn.commit()
+        count = conn.total_changes
+        conn.close()
+        return {"ok": True, "count": count}
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
