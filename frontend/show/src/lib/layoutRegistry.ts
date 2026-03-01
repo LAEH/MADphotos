@@ -152,60 +152,77 @@ export const DESKTOP_LAYOUTS: BentoLayout[] = [
   },
 ]
 
-/* ── Mobile layouts (3×6 grid, ratio ≈ 0.667, 8–9 images) ── */
+/* ── Mobile layouts (3×4 grid, bigger tiles, 4–6 images) ── */
 
 export const MOBILE_LAYOUTS: BentoLayout[] = [
-  /* M1: Stack — 3×6, 9 images, 3P 6L */
+  /* M1: Hero — 3×4, 5 images. Big hero top-left, portrait right, 3 portraits bottom */
   {
-    id: 'M1', cols: 3, rows: 6, count: 9, device: 'mobile',
+    id: 'M1', cols: 3, rows: 4, count: 5, device: 'mobile',
     cells: [
       L(1, 1, 2, 2), P(1, 3, 2, 1),
-      P(3, 1, 2, 1), L(3, 2, 2, 2),
-      L(5, 1, 1, 1), P(5, 2, 2, 1), L(5, 3, 1, 1),
-      L(6, 1, 1, 1), L(6, 3, 1, 1),
+      P(3, 1, 2, 1), P(3, 2, 2, 1), P(3, 3, 2, 1),
     ],
   },
-  /* M2: Tower — 3×6, 8 images, 4P 4L */
+  /* M2: Blocks — 3×4, 4 images. Diagonal big blocks */
   {
-    id: 'M2', cols: 3, rows: 6, count: 8, device: 'mobile',
+    id: 'M2', cols: 3, rows: 4, count: 4, device: 'mobile',
     cells: [
       P(1, 1, 2, 1), L(1, 2, 2, 2),
       L(3, 1, 2, 2), P(3, 3, 2, 1),
-      P(5, 1, 2, 1), L(5, 2, 1, 1), P(5, 3, 2, 1),
-      L(6, 2, 1, 1),
     ],
   },
-  /* M3: Cascade — 3×6, 9 images, 3P 6L */
+  /* M3: Feature — 3×4, 5 images. Full-width banner top, portrait pair + squares bottom */
   {
-    id: 'M3', cols: 3, rows: 6, count: 9, device: 'mobile',
+    id: 'M3', cols: 3, rows: 4, count: 5, device: 'mobile',
     cells: [
-      L(1, 1, 1, 1), P(1, 2, 2, 1), L(1, 3, 1, 1),
-      P(2, 1, 2, 1), L(2, 3, 1, 1),
-      L(3, 2, 2, 2),
-      P(4, 1, 2, 1), L(5, 2, 2, 2),
-      L(6, 1, 1, 1),
-    ],
-  },
-  /* M4: Scroll — 3×6, 9 images, 3P 6L */
-  {
-    id: 'M4', cols: 3, rows: 6, count: 9, device: 'mobile',
-    cells: [
-      L(1, 1, 2, 2), P(1, 3, 2, 1),
+      L(1, 1, 2, 3),
       P(3, 1, 2, 1), L(3, 2, 1, 1), P(3, 3, 2, 1),
       L(4, 2, 1, 1),
-      L(5, 1, 1, 1), L(5, 2, 2, 2),
-      L(6, 1, 1, 1),
     ],
   },
-  /* M5: Dense — 3×6, 9 images, 3P 6L */
+  /* M4: Rhythm — 3×4, 6 images. Mixed sizes for visual variety */
   {
-    id: 'M5', cols: 3, rows: 6, count: 9, device: 'mobile',
+    id: 'M4', cols: 3, rows: 4, count: 6, device: 'mobile',
     cells: [
-      P(1, 1, 2, 1), L(1, 2, 2, 2),
-      L(3, 1, 1, 1), P(3, 2, 2, 1), L(3, 3, 1, 1),
-      P(4, 1, 2, 1), L(4, 3, 1, 1),
-      L(5, 2, 2, 2),
-      L(6, 1, 1, 1),
+      L(1, 1, 1, 2), P(1, 3, 2, 1),
+      L(2, 1, 1, 1), L(2, 2, 1, 1),
+      P(3, 1, 2, 1), L(3, 2, 2, 2),
+    ],
+  },
+  /* M5: Vertical — 3×4, 5 images. Full-height portrait left, stack right */
+  {
+    id: 'M5', cols: 3, rows: 4, count: 5, device: 'mobile',
+    cells: [
+      P(1, 1, 4, 1), L(1, 2, 2, 2),
+      L(3, 2, 1, 1), L(3, 3, 1, 1),
+      L(4, 2, 1, 2),
+    ],
+  },
+  /* M6: Mosaic — 3×6, 6 images. All big tiles, alternating hero blocks */
+  {
+    id: 'M6', cols: 3, rows: 6, count: 6, device: 'mobile',
+    cells: [
+      L(1, 1, 2, 2), P(1, 3, 2, 1),
+      P(3, 1, 2, 1), L(3, 2, 2, 2),
+      L(5, 1, 2, 2), P(5, 3, 2, 1),
+    ],
+  },
+  /* M7: Column — 3×6, 7 images. 2 hero blocks + 3 portraits bottom */
+  {
+    id: 'M7', cols: 3, rows: 6, count: 7, device: 'mobile',
+    cells: [
+      L(1, 1, 2, 2), P(1, 3, 2, 1),
+      P(3, 1, 2, 1), L(3, 2, 2, 2),
+      P(5, 1, 2, 1), P(5, 2, 2, 1), P(5, 3, 2, 1),
+    ],
+  },
+  /* M8: Wall — 3×6, 9 images. 3 rows of portrait trios */
+  {
+    id: 'M8', cols: 3, rows: 6, count: 9, device: 'mobile',
+    cells: [
+      P(1, 1, 2, 1), P(1, 2, 2, 1), P(1, 3, 2, 1),
+      P(3, 1, 2, 1), P(3, 2, 2, 1), P(3, 3, 2, 1),
+      P(5, 1, 2, 1), P(5, 2, 2, 1), P(5, 3, 2, 1),
     ],
   },
   /* MS1: Solo */
@@ -259,16 +276,20 @@ export function uniformBentoGrid(count: number, device: 'desktop' | 'mobile'): B
     }
   }
   const targetRatio = device === 'desktop' ? 1.25 : 0.5
-  let bestCols = 1, bestRows = 1, bestScore = Infinity
-  for (let c = 2; c <= 10; c++) {
-    const r = Math.ceil(count / c)
+  // Mobile: force 3 cols minimum for count >= 6, rows always in pairs for portrait cells
+  const minCols = (device === 'mobile' && count >= 6) ? 3 : 2
+  let bestCols = minCols, bestRows = 2, bestScore = Infinity
+  for (let c = minCols; c <= 10; c++) {
+    let r = Math.ceil(count / c)
     if (r < 2) continue
+    // Mobile: round rows up to even so portrait cells (2-row) tile cleanly
+    if (device === 'mobile' && r % 2 !== 0) r++
     const waste = c * r - count
     const ratio = c / r
     const score = waste + Math.abs(ratio - targetRatio) * 5
     if (score < bestScore) { bestCols = c; bestRows = r; bestScore = score }
   }
-  if (bestRows < 2) { bestRows = 2; bestCols = Math.max(2, Math.ceil(count / 2)) }
+  if (bestRows < 2) { bestRows = 2; bestCols = Math.max(minCols, Math.ceil(count / 2)) }
   const cells: BentoCell[] = []
   const grid: boolean[][] = Array.from({ length: bestRows }, () => Array(bestCols).fill(false))
   const totalSlots = bestCols * bestRows
@@ -389,16 +410,212 @@ export function computeValidDensities(
   for (const l of layouts) {
     if (hasMixedSizes(l)) mixedCounts.add(l.count)
   }
-  // Dynamic uniformBentoGrid always produces mixed sizes for counts >= 4
-  for (const n of [4, 6, 8, 10, 12, 16, 20, 24, 36, 48, 64]) {
-    mixedCounts.add(n)
+  if (device === 'desktop') {
+    // Desktop: dynamic layouts at larger counts
+    for (const n of [4, 6, 8, 10, 12, 16, 20, 24, 36, 48, 64]) {
+      mixedCounts.add(n)
+    }
+  } else {
+    // Mobile: cap at 9 — more than that is too dense for a phone screen
+    for (const n of [4, 5, 6, 7, 8, 9]) {
+      mixedCounts.add(n)
+    }
   }
-  // Include 2 (pair always works; no solo — bento is about combination)
+  // Include 2 (pair always works)
   mixedCounts.add(2)
 
   const result = [...mixedCounts].filter(n => n <= photoCount).sort((a, b) => a - b)
   return result
 }
+
+/* ===== Split helpers ===== */
+
+/** Returns true if a cell spans more than 1×1 (can be split into smaller tiles) */
+export function isSplittable(cell: BentoCell): boolean {
+  return cell.rs > 1 || cell.cs > 1
+}
+
+/** Predefined split patterns for each cell shape.
+ *  Each pattern is a function (r, c) → BentoCell[] that fills the same rectangle
+ *  with interesting sub-layouts instead of boring all-1×1 grids. */
+type SplitPattern = (r: number, c: number) => BentoCell[]
+
+const SPLIT_PATTERNS: Record<string, SplitPattern[]> = {
+  // 2×2 → 3 or 4 children (never all 1×1)
+  '2x2': [
+    (r, c) => [L(r, c, 1, 2), L(r+1, c, 1, 1), L(r+1, c+1, 1, 1)],    // wide top + 2 squares
+    (r, c) => [L(r, c, 1, 1), L(r, c+1, 1, 1), L(r+1, c, 1, 2)],       // 2 squares + wide bottom
+    (r, c) => [P(r, c, 2, 1), L(r, c+1, 1, 1), L(r+1, c+1, 1, 1)],     // portrait left + 2 squares
+    (r, c) => [L(r, c, 1, 1), P(r, c+1, 2, 1), L(r+1, c, 1, 1)],       // square + portrait right + square
+  ],
+  // 2×3 → 2 or 3 children
+  '2x3': [
+    (r, c) => [L(r, c, 2, 2), P(r, c+2, 2, 1)],                          // big square + portrait
+    (r, c) => [P(r, c, 2, 1), L(r, c+1, 2, 2)],                          // portrait + big square
+    (r, c) => [L(r, c, 1, 2), P(r, c+2, 2, 1), L(r+1, c, 1, 2)],       // 2 wide + portrait
+    (r, c) => [L(r, c, 1, 3), L(r+1, c, 1, 1), L(r+1, c+1, 1, 2)],     // banner top + square + wide bottom
+  ],
+  // 2×1 → 2 children (only option)
+  '2x1': [
+    (r, c) => [L(r, c, 1, 1), L(r+1, c, 1, 1)],
+  ],
+  // 1×2 → 2 children (only option)
+  '1x2': [
+    (r, c) => [L(r, c, 1, 1), L(r, c+1, 1, 1)],
+  ],
+  // 1×3 → 2 or 3 children
+  '1x3': [
+    (r, c) => [L(r, c, 1, 2), L(r, c+2, 1, 1)],                          // wide + square
+    (r, c) => [L(r, c, 1, 1), L(r, c+1, 1, 2)],                          // square + wide
+  ],
+  // 4×1 → 2 children
+  '4x1': [
+    (r, c) => [P(r, c, 2, 1), P(r+2, c, 2, 1)],                          // 2 portraits stacked
+  ],
+  // 2×2 (square) already covered above
+  // 2×4, 3×2, etc — generic fallback
+}
+
+/** Split a multi-span cell into interesting sub-cells (not just 1×1).
+ *  Returns a new cells array with the target cell replaced by its children.
+ *  The first child occupies the original top-left position (keeps the original photo). */
+export function splitCell(cells: BentoCell[], index: number): BentoCell[] {
+  const cell = cells[index]
+  if (!cell || !isSplittable(cell)) return cells
+
+  const key = `${cell.rs}x${cell.cs}`
+  const patterns = SPLIT_PATTERNS[key]
+
+  let children: BentoCell[]
+  if (patterns && patterns.length > 0) {
+    const pattern = randomFrom(patterns)
+    children = pattern(cell.r, cell.c)
+  } else {
+    // Generic fallback: split into halves (never all 1×1 for large cells)
+    children = genericSplit(cell)
+  }
+
+  const result = [...cells]
+  result.splice(index, 1, ...children)
+  return result
+}
+
+/** Generic fallback split — halves the cell along its longer dimension */
+function genericSplit(cell: BentoCell): BentoCell[] {
+  const { r, c, rs, cs } = cell
+  if (rs >= cs && rs >= 2) {
+    // Split horizontally
+    const topH = Math.ceil(rs / 2)
+    const botH = rs - topH
+    return [
+      L(r, c, topH, cs),
+      L(r + topH, c, botH, cs),
+    ]
+  } else if (cs >= 2) {
+    // Split vertically
+    const leftW = Math.ceil(cs / 2)
+    const rightW = cs - leftW
+    return [
+      L(r, c, rs, leftW),
+      L(r, c + leftW, rs, rightW),
+    ]
+  }
+  return [L(r, c, 1, 1)]
+}
+
+/* ===== Starter layouts — low density, big splittable tiles ===== */
+
+/** Desktop starter layouts (5×4 grid, 4-7 big tiles) — variety is king */
+export const DESKTOP_STARTER_LAYOUTS: BentoLayout[] = [
+  /* DST1: 6 tiles — hero + portrait + square top; square + portrait + wide bottom */
+  {
+    id: 'DST1', cols: 5, rows: 4, count: 6, device: 'desktop',
+    cells: [
+      L(1, 1, 2, 3), P(1, 4, 2, 1), L(1, 5, 2, 1),
+      L(3, 1, 2, 2), P(3, 3, 2, 1), L(3, 4, 2, 2),
+    ],
+  },
+  /* DST2: 5 tiles — 2 wide top + 3 bottom */
+  {
+    id: 'DST2', cols: 5, rows: 4, count: 5, device: 'desktop',
+    cells: [
+      L(1, 1, 2, 2), L(1, 3, 2, 3),
+      L(3, 1, 2, 2), P(3, 3, 2, 1), L(3, 4, 2, 2),
+    ],
+  },
+  /* DST3: 6 tiles — 3 pairs of 2×2 and portraits */
+  {
+    id: 'DST3', cols: 5, rows: 4, count: 6, device: 'desktop',
+    cells: [
+      L(1, 1, 2, 2), P(1, 3, 2, 1), L(1, 4, 2, 2),
+      P(3, 1, 2, 1), L(3, 2, 2, 2), L(3, 4, 2, 2),
+    ],
+  },
+  /* DST4: 5 tiles — massive hero + full-height portrait + 2 stacked + wide bottom */
+  {
+    id: 'DST4', cols: 5, rows: 4, count: 5, device: 'desktop',
+    cells: [
+      L(1, 1, 2, 3), P(1, 4, 4, 1), L(1, 5, 2, 1),
+      L(3, 1, 2, 3),                  L(3, 5, 2, 1),
+    ],
+  },
+  /* DST5: 4 tiles — 2 massive blocks top + 2 massive blocks bottom (dramatic) */
+  {
+    id: 'DST5', cols: 5, rows: 4, count: 4, device: 'desktop',
+    cells: [
+      L(1, 1, 2, 3), L(1, 4, 2, 2),
+      L(3, 1, 2, 2), L(3, 3, 2, 3),
+    ],
+  },
+  /* DST6: 6 tiles — tall portrait anchor left, 4 blocks right */
+  {
+    id: 'DST6', cols: 5, rows: 4, count: 6, device: 'desktop',
+    cells: [
+      P(1, 1, 4, 1), L(1, 2, 2, 2), L(1, 4, 2, 2),
+                      L(3, 2, 2, 2), L(3, 4, 2, 2),
+    ],
+  },
+  /* DST7: 5 tiles — wide top, portrait + wide bottom */
+  {
+    id: 'DST7', cols: 5, rows: 4, count: 5, device: 'desktop',
+    cells: [
+      L(1, 1, 2, 3), L(1, 4, 2, 2),
+      L(3, 1, 2, 2), P(3, 3, 2, 1), L(3, 4, 2, 2),
+    ],
+  },
+  /* DST8: 6 tiles — alternating wide/narrow columns */
+  {
+    id: 'DST8', cols: 5, rows: 4, count: 6, device: 'desktop',
+    cells: [
+      L(1, 1, 2, 2), P(1, 3, 2, 1), L(1, 4, 2, 2),
+      L(3, 1, 2, 3),                  L(3, 4, 2, 2),
+    ],
+  },
+  /* DST9: 4 tiles — bold quadrants */
+  {
+    id: 'DST9', cols: 5, rows: 4, count: 4, device: 'desktop',
+    cells: [
+      L(1, 1, 2, 2), L(1, 3, 2, 3),
+      L(3, 1, 2, 3), L(3, 4, 2, 2),
+    ],
+  },
+  /* DST10: 7 tiles — dense top, open bottom */
+  {
+    id: 'DST10', cols: 5, rows: 4, count: 7, device: 'desktop',
+    cells: [
+      L(1, 1, 2, 2), P(1, 3, 2, 1), P(1, 4, 2, 1), L(1, 5, 2, 1),
+      L(3, 1, 2, 2),                  L(3, 3, 2, 3),
+    ],
+  },
+]
+
+/** Mobile starter layouts — reuse M1-M5 (all have large splittable cells) */
+export const MOBILE_STARTER_LAYOUTS: BentoLayout[] = [
+  MOBILE_LAYOUTS[0], // M1: 5 tiles
+  MOBILE_LAYOUTS[1], // M2: 4 tiles
+  MOBILE_LAYOUTS[2], // M3: 5 tiles
+  MOBILE_LAYOUTS[4], // M5: 5 tiles
+]
 
 /* ===== Image type filter ===== */
 

@@ -5,11 +5,10 @@ import { getObjectPosition, BENTO_UNIT_RATIO } from '../lib/cropUtils'
 import { randomFrom } from '../lib/utils'
 import { fireAndForget } from '../lib/firebase'
 import {
-  DESKTOP_LAYOUTS, MOBILE_LAYOUTS,
-  BENTO_DEFAULT_DENSITY_IDX,
-  uniformSameRatioGrid, pickLayoutForCount,
-  computeValidDensities, filterByImageType,
-  type BentoLayout, type DisplayMode, type ImageTypeFilter,
+  DESKTOP_STARTER_LAYOUTS, MOBILE_STARTER_LAYOUTS,
+  uniformBentoGrid, pickLayoutForCount,
+  filterByImageType, isSplittable, splitCell,
+  type BentoLayout, type ImageTypeFilter,
 } from '../lib/layoutRegistry'
 import { ShowControls } from '../components/controls/ShowControls'
 import type { Photo } from '../types/photo'
@@ -938,6 +937,17 @@ function fillBento(allPhotos: Photo[], layout: BentoLayout, colorFiltered: boole
   return { photos: fillBentoDefault(allPhotos, cells), curator: 'default' }
 }
 
+/* ===== Split icon ===== */
+const SplitIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="7" height="7" rx="1" />
+    <rect x="14" y="3" width="7" height="7" rx="1" />
+    <rect x="3" y="14" width="7" height="7" rx="1" />
+    <rect x="14" y="14" width="7" height="7" rx="1" />
+  </svg>
+)
+
 /* ===== BentoTile component ===== */
 
 interface BentoTileProps {
@@ -947,22 +957,26 @@ interface BentoTileProps {
   index: number
   revealed: boolean
   hasVariant: boolean
+  splittable: boolean
+  isSplit?: boolean
   onSwap: (tileEl: HTMLDivElement) => void
+  onSplit: (cellIndex: number) => void
   onFullscreen: (photo: Photo) => void
 }
 
-function BentoTile({ photo, cell, cellIndex, index, revealed, hasVariant, onSwap, onFullscreen }: BentoTileProps) {
+function BentoTile({ photo, cell, cellIndex, index, revealed, hasVariant, splittable, isSplit, onSwap, onSplit, onFullscreen }: BentoTileProps) {
   const tileRef = useRef<HTMLDivElement>(null)
+  const touchRef = useRef({ x: 0, y: 0, moved: false })
 
   const imgRef = useCallback((el: HTMLImageElement | null) => {
     if (!el) return
     loadProgressive(el, photo, 'display', '(max-width: 768px) 50vw, 33vw')
-    /* Override object-position with smart crop */
     el.style.objectPosition = getObjectPosition(photo, cell)
   }, [photo, cell])
 
   const dominant = photo.palette?.[0]
 
+  /* Click → swap photo (desktop primary action) */
   const handleClick = useCallback(() => {
     if (tileRef.current) onSwap(tileRef.current)
   }, [onSwap])
@@ -972,10 +986,39 @@ function BentoTile({ photo, cell, cellIndex, index, revealed, hasVariant, onSwap
     onFullscreen(photo)
   }, [onFullscreen, photo])
 
+  const handleSplitBtn = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    onSplit(cellIndex)
+  }, [onSplit, cellIndex])
+
+  /* Mobile: per-tile touch — horizontal swipe swaps, vertical swipe splits */
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, moved: false }
+  }, [])
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    const dx = e.changedTouches[0].clientX - touchRef.current.x
+    const dy = e.changedTouches[0].clientY - touchRef.current.y
+    const absDx = Math.abs(dx)
+    const absDy = Math.abs(dy)
+
+    if (absDx < 30 && absDy < 30) return // tap, not swipe — let click handle it
+
+    e.stopPropagation() // prevent grid-level swipe
+
+    if (absDy > absDx && absDy > 40 && splittable) {
+      // Vertical swipe → split
+      onSplit(cellIndex)
+    } else if (absDx > absDy && absDx > 40) {
+      // Horizontal swipe → swap photo
+      if (tileRef.current) onSwap(tileRef.current)
+    }
+  }, [splittable, cellIndex, onSwap, onSplit])
+
   return (
     <div
       ref={tileRef}
-      className={`bento-tile${revealed ? ' bento-tile-revealed' : ''}`}
+      className={`bento-tile${revealed ? ' bento-tile-revealed' : ''}${splittable ? ' bento-tile-splittable' : ''}${isSplit ? ' bento-tile-split' : ''}`}
       data-id={photo.id}
       data-orient={cell.orient}
       data-cell-idx={cellIndex}
@@ -987,6 +1030,8 @@ function BentoTile({ photo, cell, cellIndex, index, revealed, hasVariant, onSwap
         '--i': index,
       } as React.CSSProperties}
       onClick={handleClick}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
     >
       <img ref={imgRef} alt="" />
       {hasVariant && (
@@ -997,6 +1042,11 @@ function BentoTile({ photo, cell, cellIndex, index, revealed, hasVariant, onSwap
       <button className="bento-tile-fs" onClick={handleFullscreen}>
         <FullscreenIcon />
       </button>
+      {splittable && (
+        <button className="bento-tile-split-btn" onClick={handleSplitBtn}>
+          <SplitIcon />
+        </button>
+      )}
     </div>
   )
 }
@@ -1005,19 +1055,18 @@ function BentoTile({ photo, cell, cellIndex, index, revealed, hasVariant, onSwap
 
 export function BentoView() {
   const data = useAppStore(s => s.data)
-  const photoMap = useAppStore(s => s.photoMap)
   const openLightbox = useAppStore(s => s.openLightbox)
 
   const [layout, setLayout] = useState<BentoLayout | null>(null)
-  const [layoutIdx, setLayoutIdx] = useState(-1)
+  const [workingCells, setWorkingCells] = useState<BentoCell[]>([])
   const [photos, setPhotos] = useState<Photo[]>([])
   const [colorBuckets, setColorBuckets] = useState<BentoColorBucket[]>([])
-  const [activeColorIdx, setActiveColorIdx] = useState(-1) // -1 = all colors
-  const [densityIdx, setDensityIdx] = useState(BENTO_DEFAULT_DENSITY_IDX)
-  const [displayMode, setDisplayMode] = useState<DisplayMode>('bento')
+  const [activeColorIdx, setActiveColorIdx] = useState(-1) // set to random after buckets build
   const [imageTypeFilter, setImageTypeFilter] = useState<ImageTypeFilter>('mixed')
   const [loved, setLoved] = useState(false)
   const [activeCurator, setActiveCurator] = useState('')
+  /* Track which cell indices were just split (for animation) */
+  const [splitIndices, setSplitIndices] = useState(new Set<number>())
 
   /* Variant map: parentId → variant Photo (prefer smart_style > style_transfer) */
   const variantMap = useRef(new Map<string, Photo>())
@@ -1027,9 +1076,7 @@ export function BentoView() {
 
   /* Refs for mutable state used by intervals/callbacks */
   const photosRef = useRef<Photo[]>([])
-  const layoutRef = useRef<BentoLayout | null>(null)
-  const layoutIdxRef = useRef(-1)
-  const deviceLayoutsRef = useRef<BentoLayout[]>(DESKTOP_LAYOUTS)
+  const workingCellsRef = useRef<BentoCell[]>([])
   const gridRef = useRef<HTMLDivElement>(null)
 
   /* Preload buffer: ready-to-swap photos per orientation, already in browser cache */
@@ -1051,10 +1098,20 @@ export function BentoView() {
     variantMap.current = map
   }, [data])
 
-  /* Build color buckets */
+  /* Build color buckets — pick a random starting color with enough photos */
+  const initialColorPicked = useRef(false)
   useEffect(() => {
     if (!data) return
-    setColorBuckets(buildBentoColorBuckets(data.photos))
+    const buckets = buildBentoColorBuckets(data.photos)
+    setColorBuckets(buckets)
+    if (!initialColorPicked.current) {
+      initialColorPicked.current = true
+      // Pick a random bucket that has enough photos (at least 4)
+      const rich = buckets.map((b, i) => ({ i, count: b.photos.length })).filter(x => x.count >= 4)
+      if (rich.length > 0) {
+        setActiveColorIdx(rich[Math.floor(Math.random() * rich.length)].i)
+      }
+    }
   }, [data])
 
   /* Photo pool ref for crossfade/swap (respects color filter) */
@@ -1068,8 +1125,7 @@ export function BentoView() {
 
   /* Keep refs in sync with state */
   useEffect(() => { photosRef.current = photos }, [photos])
-  useEffect(() => { layoutRef.current = layout }, [layout])
-  useEffect(() => { layoutIdxRef.current = layoutIdx }, [layoutIdx])
+  useEffect(() => { workingCellsRef.current = workingCells }, [workingCells])
 
   /* Fill preload buffer with candidates not currently displayed, and warm browser cache */
   const refillPreloadBuffer = useCallback((currentIds: Set<string>) => {
@@ -1102,19 +1158,13 @@ export function BentoView() {
     }
   }, [data])
 
-  /* Compute valid densities for current mode/device */
-  const validDensities = (() => {
-    const device = isDesktop() ? 'desktop' as const : 'mobile' as const
-    const available = data ? data.photos.filter(p => p.thumb && p.display).length : 100
-    return computeValidDensities(displayMode, device, available)
-  })()
-
-  /* Generate a fresh bento (layout + fill based on density & color) */
+  /* Generate a fresh bento — always picks from starter layouts (low density, big splittable tiles) */
   const generate = useCallback(() => {
     if (!data) return
     const device = isDesktop() ? 'desktop' as const : 'mobile' as const
-    const vd = computeValidDensities(displayMode, device, data.photos.filter(p => p.thumb && p.display).length)
-    let targetCount = vd[densityIdx] ?? vd[vd.length - 1] ?? 8
+    const starterLayouts = device === 'desktop' ? DESKTOP_STARTER_LAYOUTS : MOBILE_STARTER_LAYOUTS
+    const newLayout = randomFrom(starterLayouts)
+
     const isColorFiltered = activeColorIdx >= 0 && colorBuckets[activeColorIdx]
     let photoPool = isColorFiltered ? colorBuckets[activeColorIdx].photos : data.photos
 
@@ -1128,14 +1178,8 @@ export function BentoView() {
       if (photoPool.filter(p => p.thumb && p.display).length < 3) {
         photoPool = data.photos
       }
-    } else if (isColorFiltered && availableCount < targetCount) {
-      targetCount = availableCount
     }
 
-    const isBentoMode = displayMode === 'bento'
-    let newLayout = isBentoMode
-      ? pickLayoutForCount(targetCount, device, true) // requireMixed = true
-      : uniformSameRatioGrid(targetCount, device)
     const fillResult = fillBento(photoPool, newLayout, !!isColorFiltered)
     let selected = fillResult.photos
     setActiveCurator(fillResult.curator)
@@ -1149,8 +1193,16 @@ export function BentoView() {
         selected.push(pick)
       }
       if (selected.length < newLayout.count) {
-        newLayout = uniformSameRatioGrid(selected.length, device)
-        selected = selected.slice(0, newLayout.count)
+        const fallbackLayout = uniformBentoGrid(selected.length, device)
+        setLayout(fallbackLayout)
+        setWorkingCells([...fallbackLayout.cells])
+        selected = selected.slice(0, fallbackLayout.count)
+        setPhotos(selected)
+        revealedRef.current = new Set()
+        setRevealedSet(new Set())
+        setSplitIndices(new Set())
+        requestAnimationFrame(() => refillPreloadBuffer(new Set(selected.map(p => p.id))))
+        return
       }
     }
 
@@ -1186,107 +1238,91 @@ export function BentoView() {
       }
     }
 
-    deviceLayoutsRef.current = device === 'desktop' ? DESKTOP_LAYOUTS : MOBILE_LAYOUTS
     setLayout(newLayout)
-    setLayoutIdx(-1)
+    setWorkingCells([...newLayout.cells])
     setPhotos(selected)
     revealedRef.current = new Set()
     setRevealedSet(new Set())
+    setSplitIndices(new Set())
     requestAnimationFrame(() => refillPreloadBuffer(new Set(selected.map(p => p.id))))
-  }, [data, densityIdx, activeColorIdx, colorBuckets, displayMode, imageTypeFilter, refillPreloadBuffer])
+  }, [data, activeColorIdx, colorBuckets, imageTypeFilter, refillPreloadBuffer])
 
-  /* Cycle layouts with arrow keys — just regenerate */
-  const cycle = useCallback((_dir: number) => {
-    generate()
-  }, [generate])
+  /* Perform split — replace a multi-span cell with 1×1 children, filling new photos */
+  const performSplit = useCallback((cellIdx: number) => {
+    if (!data) return
+    const cells = workingCellsRef.current
+    const cell = cells[cellIdx]
+    if (!cell || !isSplittable(cell)) return
 
-  /* Reveal variant with crossfade for a specific tile */
-  const revealVariant = useCallback((tileEl: HTMLDivElement, variant: Photo, cellIdx: number) => {
-    const oldId = tileEl.dataset.id
-    const target = variant.display || variant.thumb
-    if (!target) return
+    // Split the cell into 1×1 children
+    const newCells = splitCell(cells, cellIdx)
+    // How many new cells were created (children - 1 original)
+    const childCount = cell.rs * cell.cs
+    const newSlots = childCount - 1
 
-    /* Preload the variant image, then crossfade */
-    const preload = new Image()
-    preload.decoding = 'async'
+    // The original photo stays in the first child cell (at cellIdx)
+    // We need newSlots new photos for the remaining children
+    const currentIds = new Set(photosRef.current.map(p => p.id))
+    const buf = preloadBufferRef.current
+    const newPhotos: Photo[] = []
 
-    const doSwap = () => {
-      const img = tileEl.querySelector('img:not(.bento-tile-original)') as HTMLImageElement
-      if (!img) return
+    for (let i = 0; i < newSlots; i++) {
+      let pick: Photo | undefined
 
-      img.src = target
-      img.classList.remove('img-loading', 'img-loaded')
-      tileEl.dataset.id = variant.id
-      if (variant.parent) tileEl.dataset.variant = ''; else delete tileEl.dataset.variant
-
-      const dominant = variant.palette?.[0]
-      if (dominant) tileEl.style.backgroundColor = dominant + '99'
-
-      const currentLayout = layoutRef.current
-      if (currentLayout && currentLayout.cells[cellIdx]) {
-        img.style.objectPosition = getObjectPosition(variant, currentLayout.cells[cellIdx])
+      // Try preload buffer first
+      const allBuf = [...buf.L, ...buf.P]
+      const ready = allBuf.filter(p => !currentIds.has(p.id) && !newPhotos.some(np => np.id === p.id))
+      if (ready.length > 0) {
+        pick = ready[Math.floor(Math.random() * ready.length)]
+        // Remove from buffer
+        let bIdx = buf.L.findIndex(p => p.id === pick!.id)
+        if (bIdx >= 0) buf.L.splice(bIdx, 1)
+        else { bIdx = buf.P.findIndex(p => p.id === pick!.id); if (bIdx >= 0) buf.P.splice(bIdx, 1) }
+      } else {
+        // Fall back to random pool
+        const pool = (data.photos).filter(p =>
+          p.thumb && p.display && !currentIds.has(p.id) && !newPhotos.some(np => np.id === p.id)
+        )
+        if (pool.length > 0) pick = randomFrom(pool)
       }
 
-      setPhotos(prev => {
-        const next = [...prev]
-        const bIdx = next.findIndex(p => p.id === oldId)
-        if (bIdx >= 0) next[bIdx] = variant
-        return next
-      })
-
-      requestAnimationFrame(() => { tileEl.style.opacity = '1' })
+      if (pick) {
+        newPhotos.push(pick)
+        currentIds.add(pick.id)
+      }
     }
 
-    /* Fade out → swap → fade in */
-    tileEl.style.opacity = '0'
-    let done = false
-    const onEnd = () => {
-      if (done) return
-      done = true
-      tileEl.removeEventListener('transitionend', onEnd)
-      doSwap()
+    // Build new photos array: splice in new photos after the original
+    const updatedPhotos = [...photosRef.current]
+    updatedPhotos.splice(cellIdx + 1, 0, ...newPhotos)
+
+    // Track which indices are newly split (for animation)
+    const newSplitIndices = new Set<number>()
+    for (let i = 0; i < childCount; i++) {
+      newSplitIndices.add(cellIdx + i)
     }
-    tileEl.addEventListener('transitionend', onEnd)
-    setTimeout(() => { if (!done) { done = true; tileEl.removeEventListener('transitionend', onEnd); doSwap() } }, 600)
 
-    preload.src = target
-  }, [])
+    setWorkingCells(newCells)
+    setPhotos(updatedPhotos)
+    setSplitIndices(newSplitIndices)
+    // Clear split animation class after animation completes
+    setTimeout(() => setSplitIndices(new Set()), 500)
 
-  /* Swap a single tile — toggle original↔variant first, then random swap */
+    // Refill preload buffer
+    requestAnimationFrame(() => refillPreloadBuffer(new Set(updatedPhotos.map(p => p.id))))
+  }, [data, refillPreloadBuffer])
+
+  /* Swap a single tile — pull a new photo from preload buffer */
   const swapTile = useCallback((tileEl: HTMLDivElement) => {
     if (!data) return
     const oldId = tileEl.dataset.id
     const orient = tileEl.dataset.orient as 'P' | 'L' | undefined
     const cellIdx = parseInt(tileEl.dataset.cellIdx || '0', 10)
-    const currentPhoto = photosRef.current.find(p => p.id === oldId)
-
-    /* Toggle: if showing a variant → show its original */
-    if (currentPhoto?.parent && !revealedRef.current.has(cellIdx)) {
-      const original = photoMap[currentPhoto.parent]
-      if (original && (original.display || original.thumb)) {
-        revealedRef.current.add(cellIdx)
-        setRevealedSet(new Set(revealedRef.current))
-        revealVariant(tileEl, original, cellIdx)
-        return
-      }
-    }
-
-    /* Toggle: if showing an original that has a variant → show the variant */
-    if (oldId && !revealedRef.current.has(cellIdx)) {
-      const variant = variantMap.current.get(oldId)
-      if (variant && (variant.display || variant.thumb)) {
-        revealedRef.current.add(cellIdx)
-        setRevealedSet(new Set(revealedRef.current))
-        revealVariant(tileEl, variant, cellIdx)
-        return
-      }
-    }
 
     const currentIds = new Set(photosRef.current.map(p => p.id))
     const buf = preloadBufferRef.current
     const bufPool = orient === 'P' ? buf.P : buf.L
 
-    /* Try preloaded buffer first (already in browser cache), fall back to full pool */
     let newPhoto: Photo | undefined
     const bufReady = bufPool.filter(p => !currentIds.has(p.id))
     if (bufReady.length > 0) {
@@ -1310,7 +1346,6 @@ export function BentoView() {
     const img = tileEl.querySelector('img:not(.bento-tile-original)') as HTMLImageElement
     if (!img) return
 
-    /* Instant swap — image should be cached from preload buffer */
     img.src = target
     img.classList.remove('img-loading', 'img-loaded')
     tileEl.dataset.id = newPhoto.id
@@ -1318,9 +1353,9 @@ export function BentoView() {
     const dominant = newPhoto.palette?.[0]
     if (dominant) tileEl.style.backgroundColor = dominant + '99'
 
-    const currentLayout = layoutRef.current
-    if (currentLayout && currentLayout.cells[cellIdx]) {
-      img.style.objectPosition = getObjectPosition(newPhoto, currentLayout.cells[cellIdx])
+    const wCells = workingCellsRef.current
+    if (wCells[cellIdx]) {
+      img.style.objectPosition = getObjectPosition(newPhoto, wCells[cellIdx])
     }
 
     setPhotos(prev => {
@@ -1330,12 +1365,16 @@ export function BentoView() {
       return next
     })
 
-    /* Refill buffer in background */
     const nextIds = new Set(photosRef.current.map(p => p.id))
     nextIds.delete(oldId!)
     nextIds.add(newPhoto.id)
     refillPreloadBuffer(nextIds)
-  }, [data, refillPreloadBuffer, revealVariant])
+  }, [data, refillPreloadBuffer])
+
+  /* Cycle layouts with arrow keys — just regenerate */
+  const cycle = useCallback((_dir: number) => {
+    generate()
+  }, [generate])
 
   /* Auto crossfade one random tile every CROSSFADE_INTERVAL — uses preload buffer */
   const crossfadeOneTile = useCallback(() => {
@@ -1390,9 +1429,9 @@ export function BentoView() {
       const dominant = newPhoto!.palette?.[0]
       if (dominant) tile.style.backgroundColor = dominant + '99'
 
-      const currentLayout = layoutRef.current
-      if (currentLayout && currentLayout.cells[cellIdx]) {
-        img.style.objectPosition = getObjectPosition(newPhoto!, currentLayout.cells[cellIdx])
+      const wCells = workingCellsRef.current
+      if (wCells[cellIdx]) {
+        img.style.objectPosition = getObjectPosition(newPhoto!, wCells[cellIdx])
       }
 
       setPhotos(prev => {
@@ -1500,8 +1539,6 @@ export function BentoView() {
 
   /* ShowControls callbacks */
   const handleColorChange = useCallback((idx: number) => setActiveColorIdx(idx), [])
-  const handleDensityChange = useCallback((idx: number) => setDensityIdx(idx), [])
-  const handleDisplayModeChange = useCallback((mode: DisplayMode) => setDisplayMode(mode), [])
   const handleImageTypeChange = useCallback((filter: ImageTypeFilter) => setImageTypeFilter(filter), [])
 
   /* 🧞‍♂️ Best bento — pick a random count (2–16), use the best curator, best layout.
@@ -1556,23 +1593,20 @@ export function BentoView() {
       }
     }
 
-    setDisplayMode('bento')
     setActiveColorIdx(-1)
-    // Find closest valid density index
-    const vd = computeValidDensities('bento', device, data.photos.filter(p => p.thumb && p.display).length)
-    const closestIdx = vd.reduce((best, s, i) => Math.abs(s - count) < Math.abs(vd[best] - count) ? i : best, 0)
-    setDensityIdx(closestIdx)
     setLayout(newLayout)
+    setWorkingCells([...newLayout.cells])
     setPhotos(bestResult)
     revealedRef.current = new Set()
     setRevealedSet(new Set())
+    setSplitIndices(new Set())
     requestAnimationFrame(() => refillPreloadBuffer(new Set(bestResult.map(p => p.id))))
   }, [data, imageTypeFilter, refillPreloadBuffer])
 
-  /* Regenerate when density, color, display mode, or image type changes */
+  /* Regenerate when color or image type changes */
   useEffect(() => {
     if (data && colorBuckets.length > 0) generate()
-  }, [densityIdx, activeColorIdx, displayMode, imageTypeFilter]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeColorIdx, imageTypeFilter]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /* Reset heart when composition changes */
   useEffect(() => { setLoved(false) }, [photos, layout])
@@ -1587,10 +1621,10 @@ export function BentoView() {
       layoutId: layout.id,
       cols: layout.cols,
       rows: layout.rows,
-      cells: layout.cells.map(c => ({ r: c.r, c: c.c, rs: c.rs, cs: c.cs, orient: c.orient })),
+      cells: workingCells.map(c => ({ r: c.r, c: c.c, rs: c.rs, cs: c.cs, orient: c.orient })),
       photos: photos.map(p => p.id),
-      displayMode,
-      density: validDensities[densityIdx] ?? 8,
+      displayMode: 'bento',
+      density: workingCells.length,
       colorIdx: activeColorIdx,
       device: isDesktop() ? 'desktop' : 'mobile',
       curator: activeCurator || 'default',
@@ -1612,7 +1646,19 @@ export function BentoView() {
 
     // Firestore (may fail if auth expired — that's OK)
     fireAndForget('bento-loves', payload)
-  }, [layout, photos, displayMode, densityIdx, activeColorIdx, loved, activeCurator])
+  }, [layout, photos, workingCells, activeColorIdx, loved, activeCurator])
+
+  /* Listen for 'bento-love' custom event (from FloatingNav heart) */
+  useEffect(() => {
+    const handler = () => loveBento()
+    document.addEventListener('bento-love', handler)
+    return () => document.removeEventListener('bento-love', handler)
+  }, [loveBento])
+
+  /* Broadcast loved state so FloatingNav can reflect it */
+  useEffect(() => {
+    document.dispatchEvent(new CustomEvent('bento-loved-change', { detail: { loved } }))
+  }, [loved])
 
   if (!layout || photos.length === 0) {
     return <div className="bento-wrap" />
@@ -1638,18 +1684,22 @@ export function BentoView() {
         } as React.CSSProperties}
       >
         {photos.map((photo, i) => {
-          const cell = layout.cells[i]
+          const cell = workingCells[i]
           if (!cell || !photo) return null
+          const canSplit = isSplittable(cell)
           return (
             <BentoTile
-              key={photo.id}
+              key={`${photo.id}-${cell.r}-${cell.c}`}
               photo={photo}
               cell={cell}
               cellIndex={i}
               index={i}
               revealed={revealedSet.has(i)}
               hasVariant={!photo.parent && variantMap.current.has(photo.id)}
+              splittable={canSplit}
+              isSplit={splitIndices.has(i)}
               onSwap={swapTile}
+              onSplit={performSplit}
               onFullscreen={handleFullscreen}
             />
           )
@@ -1657,23 +1707,27 @@ export function BentoView() {
       </div>
       <div className="view-bottom">
         <ShowControls
-          controls={['color', 'displayType', 'density', 'imageType', 'genie', 'heart']}
+          controls={['imageType', 'color', 'genie']}
           state={{
             activeColorIdx,
-            densityStepIdx: densityIdx,
-            displayMode,
+            densityStepIdx: 0,
+            displayMode: 'bento',
             imageTypeFilter,
             loved,
           }}
           config={{
-            validDensities,
+            validDensities: [],
             colorBuckets: colorBuckets.map(b => ({ color: b.color, hueStart: b.hueStart })),
             hasVariants: variantMap.current.size > 0,
+            samplePhoto: data?.photos.find(p => p.id === '0f754e8e-b2be-52cb-9af6-7d474d2a60b7')?.thumb
+              || photos.find(p => !p.parent && p.thumb)?.thumb,
+            sampleVariant: data?.photos.find(p => p.id === '52f34b54-41b5-5962-a100-2af90ac3ae54')?.thumb
+              || [...variantMap.current.values()].find(v => v.thumb)?.thumb,
           }}
           callbacks={{
             onColorChange: handleColorChange,
-            onDensityChange: handleDensityChange,
-            onDisplayModeChange: handleDisplayModeChange,
+            onDensityChange: () => {},
+            onDisplayModeChange: () => {},
             onImageTypeChange: handleImageTypeChange,
             onGenie: showBestBento,
             onLove: loveBento,

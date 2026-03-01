@@ -1,24 +1,24 @@
 /* ShowControls — Quiet Glass
    One material. One shadow. Content supremacy.
-   The bar is infrastructure, never the star. */
+   The bar is infrastructure, never the star.
+   All icons: 20×20 SVGs in 24×24 viewBox. Buttons: 44px desktop, 40px mobile. */
 
 .show-controls {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   width: fit-content;
   max-width: 100%;
-  padding: 4px 6px;
+  padding: 6px 8px;
   background: rgba(255, 255, 255, 0.12);
   border: 0.5px solid rgba(255, 255, 255, 0.3);
-  border-radius: 18px;
+  border-radius: 22px;
   backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
   user-select: none;
   -webkit-user-select: none;
   position: relative;
-  /* Active color accent — set via JS */
   transition: border-color 0.4s ease;
 }
 
@@ -28,19 +28,28 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
-/* ===== Buttons ===== */
+/* ===== Shared icon class — single source of truth for icon size ===== */
+
+.show-ctrl-icon {
+  width: 20px;
+  height: 20px;
+  display: block;
+  flex-shrink: 0;
+}
+
+/* ===== Buttons — 44px touch targets ===== */
 
 .show-ctrl-btn {
   flex-shrink: 0;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
   border: none;
   background: transparent;
-  color: rgba(0, 0, 0, 0.35);
-  border-radius: 10px;
+  color: rgba(0, 0, 0, 0.4);
+  border-radius: 12px;
   cursor: pointer;
   padding: 0;
   position: relative;
@@ -51,7 +60,7 @@
 }
 
 :root.dark .show-ctrl-btn {
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.45);
 }
 
 .show-ctrl-btn:disabled {
@@ -59,7 +68,7 @@
   cursor: default;
 }
 
-/* Active state — fill + full color, no shadow theatrics */
+/* Active state */
 .show-ctrl-btn.active {
   color: rgba(0, 0, 0, 0.85);
   background: rgba(0, 0, 0, 0.06);
@@ -70,32 +79,31 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
-/* ===== Divider — separates filters from actions ===== */
+/* ===== Divider ===== */
 
 .show-ctrl-divider {
   width: 1px;
-  height: 18px;
-  margin: 0 3px;
-  background: rgba(0, 0, 0, 0.08);
+  height: 22px;
+  margin: 0 4px;
+  background: rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
 }
 
 :root.dark .show-ctrl-divider {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 /* ===== Color dot ===== */
 
 .show-ctrl-color {
-  width: 24px;
-  height: 24px;
-  margin: 0 3px;
+  width: 28px;
+  height: 28px;
+  margin: 0 4px;
   border: none;
   border-radius: 50%;
   cursor: pointer;
   flex-shrink: 0;
   transition: transform 0.15s var(--ease-out-quart), box-shadow 0.3s ease;
-  /* Inactive: subtle prismatic shimmer */
   background: conic-gradient(
     hsl(0, 50%, 65%), hsl(60, 45%, 60%), hsl(120, 40%, 55%),
     hsl(180, 45%, 55%), hsl(240, 50%, 60%), hsl(300, 45%, 60%), hsl(360, 50%, 65%)
@@ -113,24 +121,19 @@
   box-shadow: 0 0 12px var(--show-ctrl-color-glow, rgba(100, 100, 255, 0.3));
 }
 
+/* Next color preview — shows the upcoming color at reduced opacity */
+.show-ctrl-color.show-next {
+  opacity: 0.85;
+  background: var(--show-ctrl-color-glow, hsl(0, 70%, 60%));
+}
+
 .show-ctrl-color.color-gray {
   background: radial-gradient(circle, #aaa, #777);
 }
 
-/* ===== Display type — emoji bento/waffle ===== */
+/* ===== Density morph animation ===== */
 
-.show-ctrl-display {
-  font-size: 16px;
-  line-height: 1;
-}
-
-/* ===== Density — dot grid icon ===== */
-
-.show-ctrl-density svg {
-  transition: transform 0.2s var(--ease-out-quart);
-}
-
-.show-ctrl-density.morphing svg {
+.show-ctrl-density.morphing .show-ctrl-icon {
   animation: show-ctrl-density-morph 0.25s var(--ease-out-quart);
 }
 
@@ -139,21 +142,61 @@
   100% { transform: scale(1); opacity: 1; }
 }
 
-/* ===== Image type — camera icon with gradient fill states ===== */
+/* ===== Image type disc — real photo thumbnail ===== */
 
-.show-ctrl-cam-lens {
-  fill: white;
+.show-ctrl-imgdisc {
+  width: 28px;
+  height: 28px;
+  margin: 0 4px;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  flex-shrink: 0;
+  overflow: hidden;
+  position: relative;
+  padding: 0;
+  background: #333;
+  outline: none;
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s var(--ease-out-quart), box-shadow 0.3s ease;
 }
 
-:root.dark .show-ctrl-cam-lens {
-  fill: #1c1c1e;
+.show-ctrl-imgdisc-full {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 50%;
 }
 
-/* ===== Heart — emoji sizing ===== */
+/* Half-half: left photo, right variant */
+.show-ctrl-imgdisc-half {
+  position: absolute;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 
-.show-ctrl-heart {
-  font-size: 16px;
-  line-height: 1;
+.show-ctrl-imgdisc-half.left {
+  clip-path: inset(0 50% 0 0);
+  left: 0;
+}
+
+.show-ctrl-imgdisc-half.right {
+  clip-path: inset(0 0 0 50%);
+  right: 0;
+}
+
+/* ===== Heart ===== */
+
+.show-ctrl-heart.active {
+  color: #ef4444;
+}
+
+:root.dark .show-ctrl-heart.active {
+  color: #f87171;
 }
 
 .show-ctrl-heart.loved {
@@ -162,14 +205,14 @@
 
 @keyframes show-ctrl-love {
   0% { transform: scale(1); }
-  35% { transform: scale(1.2); }
+  35% { transform: scale(1.25); }
   100% { transform: scale(1); }
 }
 
-/* ===== Genie — emoji sizing + pulse, never dimmed ===== */
+/* ===== Genie — emoji, bigger than SVGs, never dimmed ===== */
 
 .show-ctrl-genie {
-  font-size: 16px;
+  font-size: 22px;
   line-height: 1;
   color: inherit;
   opacity: 1;
@@ -181,7 +224,7 @@
 
 @keyframes show-ctrl-pulse {
   0% { transform: scale(1); }
-  40% { transform: scale(1.1); }
+  40% { transform: scale(1.15); }
   100% { transform: scale(1); }
 }
 
@@ -193,11 +236,11 @@
   left: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
-  padding: 10px 12px;
+  gap: 6px;
+  padding: 12px 14px;
   background: rgba(255, 255, 255, 0.15);
   border: 0.5px solid rgba(255, 255, 255, 0.3);
-  border-radius: 14px;
+  border-radius: 16px;
   backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
@@ -218,8 +261,8 @@
 }
 
 .show-ctrl-color-swatch {
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   cursor: pointer;
   border: 1.5px solid transparent;
@@ -240,13 +283,13 @@
 
 @media (hover: hover) and (pointer: fine) {
   .show-ctrl-btn:hover:not(:disabled) {
-    color: rgba(0, 0, 0, 0.6);
-    background: rgba(0, 0, 0, 0.04);
+    color: rgba(0, 0, 0, 0.65);
+    background: rgba(0, 0, 0, 0.05);
   }
 
   :root.dark .show-ctrl-btn:hover:not(:disabled) {
-    color: rgba(255, 255, 255, 0.7);
-    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.75);
+    background: rgba(255, 255, 255, 0.07);
   }
 
   .show-ctrl-color:hover {
@@ -254,53 +297,46 @@
   }
 
   .show-ctrl-btn:active:not(:disabled) {
-    transform: scale(0.94);
+    transform: scale(0.93);
   }
 }
 
-/* ===== Compact (mobile) ===== */
+/* ===== Compact (mobile) — 40px buttons, 18px icons ===== */
 
 .show-controls.compact {
-  padding: 3px 5px;
-  gap: 1px;
-  border-radius: 14px;
+  padding: 5px 6px;
+  gap: 2px;
+  border-radius: 20px;
 }
 
 .show-controls.compact .show-ctrl-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+}
+
+.show-controls.compact .show-ctrl-icon {
+  width: 18px;
+  height: 18px;
 }
 
 .show-controls.compact .show-ctrl-color {
-  width: 20px;
-  height: 20px;
-}
-
-.show-controls.compact .show-ctrl-density svg {
-  width: 14px;
-  height: 14px;
+  width: 26px;
+  height: 26px;
 }
 
 .show-controls.compact .show-ctrl-divider {
-  height: 14px;
-  margin: 0 2px;
+  height: 18px;
+  margin: 0 3px;
 }
 
-.show-controls.compact .show-ctrl-display,
-.show-controls.compact .show-ctrl-genie,
-.show-controls.compact .show-ctrl-heart {
-  font-size: 12px;
-}
-
-.show-controls.compact .show-ctrl-imgtype svg {
-  width: 14px;
-  height: 14px;
+.show-controls.compact .show-ctrl-genie {
+  font-size: 20px;
 }
 
 .show-controls.compact .show-ctrl-color-swatch {
-  width: 14px;
-  height: 14px;
+  width: 18px;
+  height: 18px;
 }
 
 /* ===== Tier B — no backdrop-filter ===== */
@@ -336,9 +372,6 @@
     animation: none !important;
   }
   .show-ctrl-color-picker {
-    animation: none !important;
-  }
-  .show-ctrl-density-num.slide-up {
     animation: none !important;
   }
 }

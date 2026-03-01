@@ -2,6 +2,9 @@
  * ShowControls — Quiet Glass control bar.
  * One material. One shadow. Content supremacy.
  * Each view picks which controls to show via the `controls` array.
+ *
+ * All icons are 20×20 SVGs in a 24×24 viewBox for uniform optical weight.
+ * Genie stays emoji — user designs it.
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react'
@@ -31,6 +34,8 @@ export interface ShowControlsConfig {
   validDensities: number[]
   colorBuckets: ColorBucket[]
   hasVariants: boolean
+  samplePhoto?: string   // thumb URL for an original photo
+  sampleVariant?: string // thumb URL for a generated variant
 }
 
 export interface ShowControlsCallbacks {
@@ -50,66 +55,39 @@ interface ShowControlsProps {
   compact?: boolean
 }
 
-/* ===== SVG icons ===== */
+/* ===== SVG Icons — all 20×20 in 24×24 viewBox for consistent optical size ===== */
 
-/** Camera icon with 3 fill modes — matches Figma frames 1247/1248/1249.
- *  photo: solid currentColor. mixed: left-half gradient, right-half solid.
- *  generated: full rainbow gradient with gradient lens center. */
-const camBody = 'M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z'
+const ICON = 'show-ctrl-icon'
 
-const CameraIcon = ({ mode }: { mode: ImageTypeFilter }) => {
-  const grad = mode !== 'photo'
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" className="show-ctrl-cam-svg">
-      {grad && (
-        <defs>
-          <linearGradient id="it-g" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#f87171" />
-            <stop offset="25%" stopColor="#fbbf24" />
-            <stop offset="45%" stopColor="#34d399" />
-            <stop offset="70%" stopColor="#60a5fa" />
-            <stop offset="100%" stopColor="#a78bfa" />
-          </linearGradient>
-          {mode === 'mixed' && (
-            <>
-              <clipPath id="it-cl"><rect x="0" y="0" width="12" height="24" /></clipPath>
-              <clipPath id="it-cr"><rect x="12" y="0" width="12" height="24" /></clipPath>
-            </>
-          )}
-        </defs>
-      )}
+/** Bento — mixed-size rectangles */
+const BentoIcon = () => (
+  <svg className={ICON} viewBox="0 0 24 24" fill="currentColor">
+    <rect x="3" y="3" width="8" height="11" rx="2" />
+    <rect x="13" y="3" width="8" height="5" rx="2" />
+    <rect x="13" y="10" width="8" height="11" rx="2" />
+    <rect x="3" y="16" width="8" height="5" rx="2" />
+  </svg>
+)
 
-      {mode === 'mixed' ? (
-        <>
-          <g clipPath="url(#it-cl)"><path d={camBody} fill="url(#it-g)" /></g>
-          <g clipPath="url(#it-cr)"><path d={camBody} fill="currentColor" /></g>
-        </>
-      ) : (
-        <path d={camBody} fill={grad ? 'url(#it-g)' : 'currentColor'} />
-      )}
+/** Grid — uniform 2×2 */
+const GridIcon = () => (
+  <svg className={ICON} viewBox="0 0 24 24" fill="currentColor">
+    <rect x="3" y="3" width="8" height="8" rx="2" />
+    <rect x="13" y="3" width="8" height="8" rx="2" />
+    <rect x="3" y="13" width="8" height="8" rx="2" />
+    <rect x="13" y="13" width="8" height="8" rx="2" />
+  </svg>
+)
 
-      {/* Lens ring */}
-      <circle cx="12" cy="13.5" r="4" className="show-ctrl-cam-lens" />
-      {/* Lens center */}
-      <circle cx="12" cy="13.5" r="2.5" fill={mode === 'generated' ? 'url(#it-g)' : 'currentColor'} />
-      {/* Flash dot */}
-      <circle cx="18" cy="8.5" r="1" className="show-ctrl-cam-lens" />
-    </svg>
-  )
-}
-
-/** Density icon — 10 hand-tuned dot grids, one per density step.
- *  Each stepIdx maps to a distinct NxN grid that gets progressively denser.
- *  stepIdx 0 = 1 large dot, stepIdx 9 = 8×8 tiny dots. */
+/** Density — dynamic dot grid, scales with step */
 const DENSITY_GRIDS = [1, 2, 2, 3, 3, 4, 5, 6, 7, 8] as const
 
 const DensityIcon = ({ stepIdx }: { stepIdx: number }) => {
   const n = DENSITY_GRIDS[Math.min(stepIdx, DENSITY_GRIDS.length - 1)] ?? 4
-  const pad = 1.5
-  const size = 16
-  const area = size - pad * 2
+  const pad = 4
+  const area = 24 - pad * 2
   const step = area / n
-  const r = Math.max(step * 0.34, 0.45)
+  const r = Math.max(step * 0.32, 0.6)
 
   const dots: React.ReactNode[] = []
   for (let row = 0; row < n; row++) {
@@ -126,12 +104,15 @@ const DensityIcon = ({ stepIdx }: { stepIdx: number }) => {
     }
   }
 
-  return (
-    <svg width="16" height="16" viewBox={`0 0 ${size} ${size}`}>
-      {dots}
-    </svg>
-  )
+  return <svg className={ICON} viewBox="0 0 24 24">{dots}</svg>
 }
+
+/** Heart — always filled for visual weight, color changes on love */
+const HeartIcon = () => (
+  <svg className={ICON} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
+  </svg>
+)
 
 /* ===== Component ===== */
 
@@ -238,8 +219,17 @@ export function ShowControls({ controls, state, config, callbacks, compact }: Sh
 
 
   const densityValue = config.validDensities[state.densityStepIdx] ?? 0
-  const activeColor = state.activeColorIdx >= 0 && config.colorBuckets[state.activeColorIdx]
-    ? config.colorBuckets[state.activeColorIdx].color
+
+  /* Next color — preview what clicking will activate */
+  const buckets = config.colorBuckets
+  const nextColorIdx = buckets.length > 0
+    ? (state.activeColorIdx + 1 >= buckets.length ? -1 : state.activeColorIdx + 1)
+    : -1
+  const nextColor = nextColorIdx >= 0 && buckets[nextColorIdx]
+    ? buckets[nextColorIdx].color
+    : undefined
+  const activeColor = state.activeColorIdx >= 0 && buckets[state.activeColorIdx]
+    ? buckets[state.activeColorIdx].color
     : undefined
 
   /* Active color tints the bar border */
@@ -247,9 +237,9 @@ export function ShowControls({ controls, state, config, callbacks, compact }: Sh
     ? { borderColor: activeColor + '40' } // 25% opacity
     : undefined
 
-  /* Determine if we need a divider (filters on left, actions on right) */
-  const hasFilters = controls.some(c => ['color', 'displayType', 'density', 'imageType'].includes(c))
-  const hasActions = controls.some(c => ['genie', 'heart'].includes(c))
+  /* Determine if we need a divider (grid controls on left, personal on right) */
+  const hasFilters = controls.some(c => ['displayType', 'density', 'imageType'].includes(c))
+  const hasActions = controls.some(c => ['color', 'genie', 'heart'].includes(c))
   const needsDivider = hasFilters && hasActions
 
   return (
@@ -268,14 +258,14 @@ export function ShowControls({ controls, state, config, callbacks, compact }: Sh
         </div>
       )}
 
-      {/* 1. Color */}
+      {/* 1. Color — shows next color preview */}
       {controls.includes('color') && (
         <button
           ref={colorBtnRef}
-          className={`show-ctrl-color${state.activeColorIdx >= 0 ? ' active' : ''}${
-            activeColor && state.activeColorIdx >= 0 && config.colorBuckets[state.activeColorIdx]?.hueStart === -1 ? ' color-gray' : ''
+          className={`show-ctrl-color${nextColor ? ' show-next' : ''}${
+            nextColor && nextColorIdx >= 0 && buckets[nextColorIdx]?.hueStart === -1 ? ' color-gray' : ''
           }`}
-          style={activeColor ? { '--show-ctrl-color-glow': activeColor } as React.CSSProperties : undefined}
+          style={nextColor ? { '--show-ctrl-color-glow': nextColor } as React.CSSProperties : undefined}
           onPointerDown={handleColorDown}
           onPointerUp={handleColorUp}
           onPointerLeave={() => {
@@ -294,7 +284,7 @@ export function ShowControls({ controls, state, config, callbacks, compact }: Sh
           aria-label={state.displayMode === 'bento' ? 'Switch to uniform grid' : 'Switch to bento'}
           title={state.displayMode === 'bento' ? 'Uniform grid' : 'Bento layout'}
         >
-          {state.displayMode === 'bento' ? '\uD83C\uDF71' : '\uD83E\uDDC7'}
+          {state.displayMode === 'bento' ? <BentoIcon /> : <GridIcon />}
         </button>
       )}
 
@@ -311,15 +301,26 @@ export function ShowControls({ controls, state, config, callbacks, compact }: Sh
         </button>
       )}
 
-      {/* 4. Image Type */}
-      {controls.includes('imageType') && config.hasVariants && (
+      {/* 4. Image Type — photo disc */}
+      {controls.includes('imageType') && config.hasVariants && config.samplePhoto && (
         <button
-          className={`show-ctrl-btn show-ctrl-imgtype${state.imageTypeFilter !== 'mixed' ? ' active' : ''}`}
+          className="show-ctrl-imgdisc"
           onClick={handleImageTypeCycle}
           aria-label={`Image type: ${state.imageTypeFilter}`}
           title={`Showing: ${state.imageTypeFilter}`}
         >
-          <CameraIcon mode={state.imageTypeFilter} />
+          {state.imageTypeFilter === 'mixed' ? (
+            <>
+              <img className="show-ctrl-imgdisc-half left" src={config.samplePhoto} alt="" />
+              <img className="show-ctrl-imgdisc-half right" src={config.sampleVariant || config.samplePhoto} alt="" />
+            </>
+          ) : (
+            <img
+              className="show-ctrl-imgdisc-full"
+              src={state.imageTypeFilter === 'photo' ? config.samplePhoto : (config.sampleVariant || config.samplePhoto)}
+              alt=""
+            />
+          )}
         </button>
       )}
 
@@ -334,11 +335,11 @@ export function ShowControls({ controls, state, config, callbacks, compact }: Sh
           aria-label="Love this composition"
           title="Love this composition"
         >
-          {state.loved ? '\u2764\uFE0F' : '\uD83E\uDD0D'}
+          <HeartIcon />
         </button>
       )}
 
-      {/* 6. Genie — always rightmost, never dimmed */}
+      {/* 6. Genie — emoji, always rightmost, never dimmed */}
       {controls.includes('genie') && (
         <button
           className={`show-ctrl-btn show-ctrl-genie${geniePulsing ? ' pulsing' : ''}`}

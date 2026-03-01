@@ -38,6 +38,54 @@
   border-bottom: none;
 }
 
+/* Nav heart — left of logo */
+.nav-heart {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  background: none;
+  border-radius: 8px;
+  cursor: pointer;
+  color: rgba(0, 0, 0, 0.25);
+  transition: color 0.2s ease, transform 0.15s var(--ease-out-quart);
+  flex-shrink: 0;
+}
+:root.dark .nav-heart {
+  color: rgba(255, 255, 255, 0.25);
+}
+.nav-heart.loved {
+  color: #ef4444;
+}
+:root.dark .nav-heart.loved {
+  color: #f87171;
+}
+.nav-heart.bounce {
+  animation: nav-heart-bounce 0.35s var(--ease-spring);
+}
+@keyframes nav-heart-bounce {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+@media (hover: hover) and (pointer: fine) {
+  .nav-heart:hover {
+    color: rgba(0, 0, 0, 0.5);
+  }
+  :root.dark .nav-heart:hover {
+    color: rgba(255, 255, 255, 0.5);
+  }
+  .nav-heart.loved:hover {
+    color: #dc2626;
+  }
+  :root.dark .nav-heart.loved:hover {
+    color: #f87171;
+  }
+}
+
 /* Menu button - contains logo + chevron */
 .menu-btn {
   display: flex;
@@ -58,20 +106,18 @@
 .menu-icon {
   display: none; /* Hide hamburger on desktop, show chevron instead */
 }
-.menu-chevron {
+.menu-hamburger {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
-  color: rgba(0, 0, 0, 0.5);
+  width: 14px;
+  height: 14px;
+  color: rgba(0, 0, 0, 0.3);
   flex-shrink: 0;
-  transform: rotate(-90deg); /* Point left when collapsed (default) */
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity 0.2s ease;
 }
-/* Chevron points down when menu is open */
-.menu-btn.menu-open .menu-chevron {
-  transform: rotate(0deg); /* Point down when expanded */
+.menu-btn.menu-open .menu-hamburger {
+  opacity: 0.6;
 }
 .menu-btn-label {
   display: none; /* Still hidden on desktop */
@@ -99,25 +145,11 @@
   font-weight: 400;
 }
 
-.nav-exp-label {
-  display: inline-block;
-  font-family:
-    -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
-  font-size: 15px;
-  font-weight: 900;
-  letter-spacing: -0.06em;
-  color: rgba(0, 0, 0, 0.5);
-  margin-left: auto;
-  margin-right: 8px;
-  padding-left: 10px;
-  border-left: 1px solid rgba(0, 0, 0, 0.12);
-}
-
 
 /* ── Mobile nav — compact, closer to edge ── */
 @media (max-width: 768px) {
   .nav-container {
-    top: max(12px, env(safe-area-inset-top, 0px));
+    top: max(18px, env(safe-area-inset-top, 0px));
     left: max(12px, env(safe-area-inset-left, 0px));
     min-width: unset;
   }
@@ -125,26 +157,9 @@
     padding: 8px 12px;
     gap: 0;
   }
-  /* Hide the separated label on right, show inline label instead */
-  .nav-exp-label {
-    display: none;
-  }
-  .menu-btn-label {
-    display: inline-block;
-    order: 1;
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: -0.03em;
-    color: rgba(0, 0, 0, 0.4);
-    margin-left: 6px;
-  }
-  /* Chevron moves to end (after label) */
-  .menu-chevron {
-    order: 2;
-    width: 16px;
-    height: 16px;
-    margin-left: 2px;
+  .menu-hamburger {
+    width: 12px;
+    height: 12px;
   }
   .logo {
     font-size: 13px;
@@ -692,7 +707,7 @@
   .floating-nav,
   .side-menu,
   .side-menu-backdrop,
-  .menu-chevron {
+  .menu-hamburger {
     transition-duration: 0.01ms !important;
   }
   .view.active {
