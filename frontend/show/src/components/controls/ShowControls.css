@@ -6,26 +6,38 @@
 .show-controls {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
   width: fit-content;
   max-width: 100%;
-  padding: 6px 8px;
+  padding: 6px 10px;
   background: rgba(255, 255, 255, 0.12);
-  border: 0.5px solid rgba(255, 255, 255, 0.3);
+  border: none;
   border-radius: 22px;
   backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.06),
+    0 4px 16px rgba(0, 0, 0, 0.08),
+    0 8px 32px rgba(0, 0, 0, 0.04);
   user-select: none;
   -webkit-user-select: none;
   position: relative;
-  transition: border-color 0.4s ease;
+}
+
+/* Groups sit on either side of the centered genie */
+.show-ctrl-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
 :root.dark .show-controls {
   background: rgba(0, 0, 0, 0.3);
-  border-color: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.2),
+    0 4px 16px rgba(0, 0, 0, 0.25),
+    0 8px 32px rgba(0, 0, 0, 0.15);
 }
 
 /* ===== Shared icon class — single source of truth for icon size ===== */
@@ -79,18 +91,18 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
-/* ===== Divider ===== */
+/* (divider removed) */
 
-.show-ctrl-divider {
-  width: 1px;
-  height: 22px;
-  margin: 0 4px;
-  background: rgba(0, 0, 0, 0.1);
-  flex-shrink: 0;
+/* Fallback text when no sample images available */
+.show-ctrl-imgdisc-fallback {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.4);
+  font-family: 'SF Mono', monospace;
 }
 
-:root.dark .show-ctrl-divider {
-  background: rgba(255, 255, 255, 0.1);
+:root.dark .show-ctrl-imgdisc-fallback {
+  color: rgba(255, 255, 255, 0.4);
 }
 
 /* ===== Color dot — visual 28px circle inside 44px touch target ===== */
@@ -180,13 +192,22 @@
 }
 
 .show-ctrl-imgdisc-inner {
-  width: 28px;
-  height: 28px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   overflow: hidden;
   position: relative;
-  background: #333;
+  background: transparent;
   flex-shrink: 0;
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.15),
+    0 4px 12px rgba(0, 0, 0, 0.10);
+}
+
+:root.dark .show-ctrl-imgdisc-inner {
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.35),
+    0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 .show-ctrl-imgdisc-full {
@@ -197,28 +218,43 @@
   border-radius: 50%;
 }
 
-/* Half-half: left photo, right variant */
-.show-ctrl-imgdisc-half {
+/* Glass marble overlay — specular highlight for depth */
+.show-ctrl-imgdisc-glass {
   position: absolute;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 2;
+  background:
+    radial-gradient(ellipse 60% 50% at 35% 25%,
+      rgba(255, 255, 255, 0.38) 0%,
+      rgba(255, 255, 255, 0.08) 40%,
+      transparent 70%),
+    radial-gradient(ellipse 80% 40% at 65% 80%,
+      rgba(255, 255, 255, 0.06) 0%,
+      transparent 60%);
 }
 
-.show-ctrl-imgdisc-half.left {
-  clip-path: inset(0 50% 0 0);
-  left: 0;
+:root.dark .show-ctrl-imgdisc-glass {
+  background:
+    radial-gradient(ellipse 60% 50% at 35% 25%,
+      rgba(255, 255, 255, 0.25) 0%,
+      rgba(255, 255, 255, 0.05) 40%,
+      transparent 70%),
+    radial-gradient(ellipse 80% 40% at 65% 80%,
+      rgba(255, 255, 255, 0.04) 0%,
+      transparent 60%);
 }
 
-.show-ctrl-imgdisc-half.right {
-  clip-path: inset(0 0 0 50%);
-  right: 0;
-}
+/* ===== Heart — always red, dimmed until loved, scaled to match disc ===== */
 
-/* ===== Heart — always red, dimmed until loved ===== */
+.show-ctrl-heart .show-ctrl-icon {
+  width: 28px;
+  height: 28px;
+}
 
 .show-ctrl-heart {
+  margin-left: 8px;
   color: rgba(239, 68, 68, 0.35);
 }
 
@@ -247,7 +283,7 @@
 /* ===== Genie — emoji, bigger than SVGs, never dimmed ===== */
 
 .show-ctrl-genie {
-  font-size: 22px;
+  font-size: 30px;
   line-height: 1;
   color: inherit;
   opacity: 1;
@@ -336,47 +372,63 @@
   }
 }
 
-/* ===== Compact (mobile) — 44px touch targets (Apple HIG minimum) ===== */
+/* ===== Compact (mobile) — generous touch targets, breathing room ===== */
 
 .show-controls.compact {
-  padding: 4px;
-  gap: 0;
-  border-radius: 22px;
+  padding: 6px 12px;
+  gap: 6px;
+  border-radius: 26px;
+}
+
+.show-controls.compact .show-ctrl-group {
+  gap: 2px;
 }
 
 .show-controls.compact .show-ctrl-btn {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
 }
 
 .show-controls.compact .show-ctrl-icon {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
+}
+
+.show-controls.compact .show-ctrl-color {
+  width: 48px;
+  height: 48px;
 }
 
 .show-controls.compact .show-ctrl-color::after {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
+}
+
+.show-controls.compact .show-ctrl-imgdisc {
+  width: 48px;
+  height: 48px;
 }
 
 .show-controls.compact .show-ctrl-imgdisc-inner {
-  width: 26px;
-  height: 26px;
-}
-
-.show-controls.compact .show-ctrl-divider {
-  height: 20px;
-  margin: 0 2px;
+  width: 40px;
+  height: 40px;
 }
 
 .show-controls.compact .show-ctrl-genie {
-  font-size: 22px;
+  font-size: 34px;
+  width: 52px;
+  height: 52px;
+}
+
+.show-controls.compact .show-ctrl-heart .show-ctrl-icon {
+  width: 30px;
+  height: 30px;
 }
 
 .show-controls.compact .show-ctrl-color-swatch {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
 }
 
 /* ===== Tier B — no backdrop-filter ===== */

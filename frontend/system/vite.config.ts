@@ -14,6 +14,7 @@ export default defineConfig(({ mode }) => ({
       '/rendered': `http://localhost:${apiPort}`,
       '/ai_variants': `http://localhost:${apiPort}`,
       '/generated': `http://localhost:${apiPort}`,
+      '/images': `http://localhost:${apiPort}`,
     },
   },
 }))

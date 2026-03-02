@@ -677,41 +677,74 @@ def _fill_bento(all_photos, layout):
 # 4a. Bento compositions
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def _filter_by_image_type(photos: list[dict], image_type: str) -> list[dict]:
+    """Filter photos by image type — matches frontend filterByImageType()."""
+    if image_type == "mixed":
+        return photos
+    if image_type == "photo":
+        return [p for p in photos if not p.get("parent")]
+    # "generated" — only AI variants
+    return [p for p in photos if p.get("parent")]
+
+
 def _build_bentos(picks: list[dict], count: int = 80) -> list[dict]:
-    """Generate bento compositions for both desktop and mobile."""
+    """Generate bento compositions for each (device, image_type) combo.
+
+    Produces ~30 compositions per combo × 6 combos = ~180 total.
+    For "generated" the pool is small (~270), so curators often fail —
+    fillBentoDefault handles these gracefully.
+    """
     compositions = []
-    used_global: set[str] = set()
+    image_types = ["photo", "generated", "mixed"]
+    devices = ["desktop", "mobile"]
 
-    for _ in range(count):
-        device = random.choice(["desktop", "mobile"])
-        layouts = DESKTOP_LAYOUTS if device == "desktop" else MOBILE_LAYOUTS
-        # Only mixed-size layouts
-        mixed = [l for l in layouts if _has_mixed_sizes(l)]
-        if not mixed:
-            continue
-        layout = _random_from(mixed)
-        photos, curator = _fill_bento(picks, layout)
-        if not photos:
+    # Distribute count across combos — give "generated" fewer since pool is small
+    per_combo = max(10, count // len(devices))
+
+    for image_type in image_types:
+        pool = _filter_by_image_type(picks, image_type)
+        usable = [p for p in pool if p.get("thumb") and p.get("display")]
+        if len(usable) < 3:
             continue
 
-        hero_id = None
-        hero_vi = float("-inf")
-        cell_assignments = {}
-        for i, p in enumerate(photos):
-            pid = _pid(p)
-            cell_assignments[str(i)] = pid
-            vi = visual_impact(p)
-            if vi > hero_vi:
-                hero_vi = vi
-                hero_id = pid
+        for device in devices:
+            layouts = DESKTOP_LAYOUTS if device == "desktop" else MOBILE_LAYOUTS
+            mixed = [l for l in layouts if _has_mixed_sizes(l)]
+            if not mixed:
+                continue
 
-        compositions.append({
-            "layout_id": layout["id"],
-            "device": device,
-            "curator": curator,
-            "cells": cell_assignments,
-            "hero": hero_id,
-        })
+            # Fewer attempts for small pools (generated ~270)
+            target = per_combo if len(usable) >= 100 else min(per_combo, 20)
+            built = 0
+
+            for _ in range(target * 2):  # overshoot attempts, curators may fail
+                if built >= target:
+                    break
+                layout = _random_from(mixed)
+                photos, curator = _fill_bento(pool, layout)
+                if not photos:
+                    continue
+
+                hero_id = None
+                hero_vi = float("-inf")
+                cell_assignments = {}
+                for i, p in enumerate(photos):
+                    pid = _pid(p)
+                    cell_assignments[str(i)] = pid
+                    vi = visual_impact(p)
+                    if vi > hero_vi:
+                        hero_vi = vi
+                        hero_id = pid
+
+                compositions.append({
+                    "layout_id": layout["id"],
+                    "device": device,
+                    "image_type": image_type,
+                    "curator": curator,
+                    "cells": cell_assignments,
+                    "hero": hero_id,
+                })
+                built += 1
 
     return compositions
 
@@ -1732,10 +1765,16 @@ def run(picks: list[dict], all_photos: list[dict], dry: bool = False) -> None:
         except Exception:
             print(f"  Warning: could not load drift_neighbors.json")
 
-    # 4a. Bento compositions
+    # 4a. Bento compositions (per device × image_type)
     print(f"\n  Building bento compositions...")
     bentos = _build_bentos(picks, count=80)
     print(f"  Generated {len(bentos)} bento compositions")
+    # Breakdown by (device, image_type)
+    combo_counts: dict[str, int] = defaultdict(int)
+    for b in bentos:
+        combo_counts[f"{b['device']}/{b.get('image_type', 'mixed')}"] += 1
+    for combo, cnt in sorted(combo_counts.items()):
+        print(f"    {combo}: {cnt}")
     curator_counts: dict[str, int] = defaultdict(int)
     for b in bentos:
         curator_counts[b["curator"]] += 1

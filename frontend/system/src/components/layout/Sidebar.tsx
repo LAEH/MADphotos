@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom'
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { ThemeToggle } from './ThemeToggle'
 
 interface NavItem {
@@ -31,24 +31,11 @@ const curation: NavItem[] = [
 
 export function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [collapsed, setCollapsed] = useState(() =>
-    localStorage.getItem('mad-sidebar') === 'collapsed'
-  )
   const location = useLocation()
-
-  const toggleCollapse = useCallback(() => {
-    setCollapsed(c => {
-      const next = !c
-      localStorage.setItem('mad-sidebar', next ? 'collapsed' : 'expanded')
-      return next
-    })
-  }, [])
 
   useEffect(() => {
     setMobileOpen(false)
   }, [location.pathname])
-
-  // Removed sidebar-rail collapse effect - we only collapse vertically now
 
   const renderLink = (item: NavItem) => (
     <NavLink
@@ -62,19 +49,12 @@ export function Sidebar() {
   )
 
   return (
-    <nav className={`sidebar${mobileOpen ? ' open' : ''}${collapsed ? ' collapsed' : ''}`} id="sidebar">
+    <nav className={`sidebar${mobileOpen ? ' open' : ''}`} id="sidebar">
       <div className="sb-title">
         <span>
           <span className="brand-mad">MAD</span>
           <span className="brand-sub">photos</span>
         </span>
-        <button
-          className="sb-collapse-btn"
-          onClick={toggleCollapse}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {collapsed ? '\u25C0' : '\u25BC'}
-        </button>
       </div>
       <button
         className="sb-hamburger"

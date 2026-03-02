@@ -994,6 +994,14 @@ function BentoTile({ photo, cell, cellIndex, index, revealed, hasVariant, splitt
 
   const imgRef = useCallback((el: HTMLImageElement | null) => {
     if (!el) return
+    // After a crossfade swap, the tile DOM element has a data-swapped flag.
+    // Skip loadProgressive — the image is already showing the correct source.
+    // Without this, React re-render triggers micro→blur→decode→reveal jitter.
+    if (el.parentElement?.dataset.swapped) {
+      delete el.parentElement.dataset.swapped
+      el.style.objectPosition = getObjectPosition(photo, cell, gridCols, gridRows, containerRatio)
+      return
+    }
     loadProgressive(el, photo, 'display', '(max-width: 768px) 50vw, 33vw')
     el.style.objectPosition = getObjectPosition(photo, cell, gridCols, gridRows, containerRatio)
   }, [photo, cell, gridCols, gridRows, containerRatio])
@@ -1086,7 +1094,7 @@ export function BentoView() {
   const [photos, setPhotos] = useState<Photo[]>([])
   const [colorBuckets, setColorBuckets] = useState<BentoColorBucket[]>([])
   const [activeColorIdx, setActiveColorIdx] = useState(-1) // set to random after buckets build
-  const [imageTypeFilter, setImageTypeFilter] = useState<ImageTypeFilter>('mixed')
+  const [imageTypeFilter, setImageTypeFilter] = useState<ImageTypeFilter>('generated')
   const [loved, setLoved] = useState(false)
   const [activeCurator, setActiveCurator] = useState('')
   /* Track which cell indices were just split (for animation) */
@@ -1094,6 +1102,9 @@ export function BentoView() {
 
   /* Variant map: parentId → variant Photo (prefer smart_style > style_transfer) */
   const variantMap = useRef(new Map<string, Photo>())
+  const [hasVariants, setHasVariants] = useState(false)
+  const samplePhotoRef = useRef<string | undefined>(undefined)
+  const sampleVariantRef = useRef<string | undefined>(undefined)
   /* Track which tile indices are currently showing their variant */
   const revealedRef = useRef(new Set<number>())
   const [revealedSet, setRevealedSet] = useState(new Set<number>())
@@ -1124,6 +1135,14 @@ export function BentoView() {
       }
     }
     variantMap.current = map
+    setHasVariants(map.size > 0)
+    if (!samplePhotoRef.current) {
+      samplePhotoRef.current = data.photos.find(p => !p.parent && p.thumb)?.thumb
+    }
+    if (!sampleVariantRef.current) {
+      const variant = [...map.values()].find(v => v.thumb)
+      if (variant) sampleVariantRef.current = variant.thumb
+    }
   }, [data])
 
   /* Build color buckets — pick a random starting color with enough photos */
@@ -1251,11 +1270,25 @@ export function BentoView() {
       const hasVariant = selected.some(p => p.parent)
       if (!hasVariant) {
         // Try to swap one selected photo that has a variant available
+        let injected = false
         for (let i = 0; i < selected.length; i++) {
           const v = variantMap.current.get(selected[i].id)
           if (v && (v.display || v.thumb) && !recentlyShownRef.current.has(v.id)) {
             selected[i] = v
+            injected = true
             break
+          }
+        }
+        // Fallback: if no selected photo had a variant, pick any random variant
+        if (!injected) {
+          const allVariants = [...variantMap.current.values()].filter(
+            v => (v.display || v.thumb) && !recentlyShownRef.current.has(v.id)
+          )
+          if (allVariants.length > 0) {
+            const pick = allVariants[Math.floor(Math.random() * allVariants.length)]
+            // Swap into a random slot
+            const slot = Math.floor(Math.random() * selected.length)
+            selected[slot] = pick
           }
         }
       }
@@ -1427,7 +1460,11 @@ export function BentoView() {
         // Transfer to main image
         mainImg.src = target
         if (objPos) mainImg.style.objectPosition = objPos
-        mainImg.classList.remove('img-loading', 'img-loaded')
+        mainImg.classList.remove('img-loading', 'img-loaded', 'img-blur-up')
+        mainImg.style.filter = ''
+        mainImg.style.transform = ''
+        // Flag: tell imgRef to skip loadProgressive on the React re-render
+        tileEl.dataset.swapped = ''
         tileEl.dataset.id = captured.id
         if (captured.parent) tileEl.dataset.variant = ''
         else delete tileEl.dataset.variant
@@ -1541,17 +1578,17 @@ export function BentoView() {
 
     // Filter out recently shown photos for freshness
     const recent = recentlyShownRef.current
-    let freshPhotos = data.photos.filter(p => !recent.has(p.id))
+    let freshPhotos = filterByImageType(data.photos, imageTypeFilter).filter(p => !recent.has(p.id))
     // Only fall back to all photos if fresh pool is truly exhausted
     if (freshPhotos.filter(p => p.thumb && p.display).length < count * 2) {
-      freshPhotos = data.photos
+      freshPhotos = filterByImageType(data.photos, imageTypeFilter)
     }
 
     // ~1 in 3 taps: pick a random color bucket for a chromatic set
     let colorIdx = -1
     if (colorBuckets.length > 0 && Math.random() < 0.35) {
       const rich = colorBuckets
-        .map((b, i) => ({ i, photos: b.photos.filter(p => !recent.has(p.id) && p.thumb && p.display) }))
+        .map((b, i) => ({ i, photos: filterByImageType(b.photos, imageTypeFilter).filter(p => !recent.has(p.id) && p.thumb && p.display) }))
         .filter(x => x.photos.length >= count)
       if (rich.length > 0) {
         const pick = rich[Math.floor(Math.random() * rich.length)]
@@ -1583,16 +1620,31 @@ export function BentoView() {
       bestCurator = 'default'
     }
 
-    // At most 1 variant as accent — only if it naturally fits
-    if (imageTypeFilter !== 'photo' && variantMap.current.size > 0) {
+    // At most 1 variant as accent — skip when color filtered (variants break coherence)
+    if (imageTypeFilter !== 'photo' && variantMap.current.size > 0 && colorIdx < 0) {
       const hasVariant = bestResult.some(p => p.parent)
       if (!hasVariant) {
         // Try to swap one photo that has a variant, preferring smaller tiles
+        let injected = false
         for (let i = bestResult.length - 1; i >= 0; i--) {
           const v = variantMap.current.get(bestResult[i].id)
           if (v && (v.display || v.thumb) && !recent.has(v.id)) {
             bestResult[i] = v
+            injected = true
             break
+          }
+        }
+        // Fallback: if no selected photo had a variant, pick any random variant
+        if (!injected) {
+          const allVariants = [...variantMap.current.values()].filter(
+            v => (v.display || v.thumb) && !recent.has(v.id)
+          )
+          if (allVariants.length > 0) {
+            const pick = allVariants[Math.floor(Math.random() * allVariants.length)]
+            // Inject into second half (smaller tiles)
+            const half = Math.floor(bestResult.length / 2)
+            const slot = half + Math.floor(Math.random() * (bestResult.length - half))
+            bestResult[slot] = pick
           }
         }
       }
@@ -1722,11 +1774,9 @@ export function BentoView() {
           config={{
             validDensities: [],
             colorBuckets: colorBuckets.map(b => ({ color: b.color, hueStart: b.hueStart })),
-            hasVariants: variantMap.current.size > 0,
-            samplePhoto: data?.photos.find(p => p.id === '001a5d8a-64bc-5ff7-a53f-9a8040e25f78')?.thumb
-              || data?.photos.find(p => !p.parent && p.thumb)?.thumb,
-            sampleVariant: data?.photos.find(p => p.id === '001a5d8a-64bc-5ff7-a53f-9a8040e25f78_gonzo')?.thumb
-              || [...variantMap.current.values()].find(v => v.thumb)?.thumb,
+            hasVariants,
+            samplePhoto: samplePhotoRef.current,
+            sampleVariant: sampleVariantRef.current,
           }}
           callbacks={{
             onColorChange: handleColorChange,

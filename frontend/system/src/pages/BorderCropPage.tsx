@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type CSSProperties } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 interface CropEntry {
   uuid: string
@@ -13,18 +13,19 @@ interface CropEntry {
 export function BorderCropPage() {
   const [crops, setCrops] = useState<CropEntry[]>([])
   const [loading, setLoading] = useState(true)
-  const [skipped, setSkipped] = useState<Set<string>>(new Set())
+  const [idx, setIdx] = useState(0)
+  const [choices, setChoices] = useState<Map<string, 'original' | 'cropped'>>(new Map())
   const [applying, setApplying] = useState(false)
-  const [result, setResult] = useState<{ total: number; errors: string[] } | null>(null)
+  const [done, setDone] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Take over the layout — full viewport, no padding
+  // Take over layout
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
     const scroll = el.closest('.main-scroll') as HTMLElement | null
     const content = el.closest('.main-content') as HTMLElement | null
-    if (scroll) { scroll.style.overflow = 'auto'; scroll.style.height = '100vh' }
+    if (scroll) { scroll.style.overflow = 'hidden'; scroll.style.height = '100vh' }
     if (content) { content.style.padding = '0'; content.style.maxWidth = 'none'; content.style.height = '100%' }
     return () => {
       if (scroll) { scroll.style.overflow = ''; scroll.style.height = '' }
@@ -39,265 +40,179 @@ export function BorderCropPage() {
       .catch(() => setLoading(false))
   }, [])
 
-  const toggleSkip = (uuid: string) => {
-    setSkipped(prev => {
-      const next = new Set(prev)
-      if (next.has(uuid)) next.delete(uuid); else next.add(uuid)
-      return next
-    })
-  }
+  const current = crops[idx] as CropEntry | undefined
+
+  const advance = useCallback(() => {
+    if (idx < crops.length - 1) setIdx(i => i + 1)
+    else setDone(true)
+  }, [idx, crops.length])
+
+  const pickOriginal = useCallback(() => {
+    if (!current) return
+    setChoices(prev => new Map(prev).set(current.uuid, 'original'))
+    advance()
+  }, [current, advance])
+
+  const pickCropped = useCallback(() => {
+    if (!current) return
+    setChoices(prev => new Map(prev).set(current.uuid, 'cropped'))
+    advance()
+  }, [current, advance])
+
+  // Keyboard: left = original, right = cropped, up = go back
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft' || e.key === 'o' || e.key === 'O') pickOriginal()
+      else if (e.key === 'ArrowRight' || e.key === 'c' || e.key === 'C') pickCropped()
+      else if (e.key === 'ArrowUp' && idx > 0) { setIdx(i => i - 1); setDone(false) }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [pickOriginal, pickCropped, idx])
 
   const applyCrops = async () => {
-    const approved = crops.filter(c => !skipped.has(c.uuid))
-    if (!approved.length) return
+    const toCrop = crops.filter(c => choices.get(c.uuid) === 'cropped')
+    if (!toCrop.length) return
     setApplying(true)
-    setResult(null)
     try {
       const res = await fetch('/api/border-crops/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          crops: approved.map(c => ({
+          crops: toCrop.map(c => ({
             uuid: c.uuid, left: c.left, right: c.right,
             top: c.top, bottom: c.bottom, w: c.w, h: c.h,
           })),
         }),
       })
       const data = await res.json()
-      setResult({ total: data.total_cropped || 0, errors: data.errors || [] })
+      alert(`Cropped ${data.total_cropped || 0} files` +
+        (data.errors?.length ? ` (${data.errors.length} errors)` : ''))
     } catch (e) {
-      setResult({ total: 0, errors: [String(e)] })
+      alert(`Error: ${e}`)
     }
     setApplying(false)
   }
 
   if (loading) {
-    return (
-      <div ref={containerRef} style={{ color: '#888', padding: '80px', textAlign: 'center', background: '#0a0a0a', minHeight: '100vh' }}>
-        Loading...
-      </div>
-    )
+    return <div ref={containerRef} style={wrap}><span style={{ color: '#888', fontSize: 13 }}>Loading...</span></div>
+  }
+  if (crops.length === 0) {
+    return <div ref={containerRef} style={wrap}><span style={{ color: '#888', fontSize: 13 }}>No borders detected.</span></div>
   }
 
-  const approvedCount = crops.length - skipped.size
-  const skippedCount = skipped.size
+  const clipInset = current
+    ? `inset(${(current.top / current.h) * 100}% ${(current.right / current.w) * 100}% ${(current.bottom / current.h) * 100}% ${(current.left / current.w) * 100}%)`
+    : undefined
+
+  const croppedCount = [...choices.values()].filter(v => v === 'cropped').length
 
   return (
-    <div ref={containerRef} style={wrapStyle}>
-      {/* Header */}
-      <div style={headerStyle}>
-        <span style={titleStyle}>Border Crops</span>
-        <span style={countStyle}>{crops.length} variants detected</span>
-        <span style={{ ...countStyle, color: '#30D158' }}>{approvedCount} to crop</span>
-        {skippedCount > 0 && <span style={{ ...countStyle, color: '#FF453A' }}>{skippedCount} skipped</span>}
+    <div ref={containerRef} style={wrap}>
+      {/* Counter */}
+      <div style={counter}>
+        <span style={counterNum}>{idx + 1}</span>
+        <span style={counterSlash}>/</span>
+        <span style={counterTotal}>{crops.length}</span>
+        {croppedCount > 0 && <span style={{ ...counterTag, color: '#30D158' }}>{croppedCount} crop</span>}
       </div>
 
-      {/* Grid */}
-      <div style={gridStyle}>
-        {crops.map(c => {
-          const isSkipped = skipped.has(c.uuid)
-          const borderParts: string[] = []
-          if (c.left > 0) borderParts.push(`L:${c.left}px`)
-          if (c.right > 0) borderParts.push(`R:${c.right}px`)
-          if (c.top > 0) borderParts.push(`T:${c.top}px`)
-          if (c.bottom > 0) borderParts.push(`B:${c.bottom}px`)
-          const borderLabel = borderParts.join(' ')
+      {/* Side by side */}
+      {current && !done && (
+        <div style={pair}>
+          <button style={card} onClick={pickOriginal} title="Keep original (O / Left)">
+            <img
+              key={current.uuid + '_orig'}
+              src={`/rendered/variants/display/jpeg/${current.uuid}.jpg`}
+              alt="Original"
+              style={cardImg}
+            />
+            <span style={label}>Original</span>
+          </button>
 
-          // Calculate overlay percentages for the red border highlight
-          const leftPct = (c.left / c.w) * 100
-          const rightPct = (c.right / c.w) * 100
-          const topPct = (c.top / c.h) * 100
-          const bottomPct = (c.bottom / c.h) * 100
+          <button style={card} onClick={pickCropped} title="Use cropped (C / Right)">
+            <img
+              key={current.uuid + '_crop'}
+              src={`/rendered/variants/display/jpeg/${current.uuid}.jpg`}
+              alt="Cropped"
+              style={{ ...cardImg, clipPath: clipInset }}
+            />
+            <span style={label}>Cropped</span>
+          </button>
+        </div>
+      )}
 
-          return (
-            <div key={c.uuid} style={{
-              ...cardStyle,
-              opacity: isSkipped ? 0.35 : 1,
-              border: isSkipped ? '2px solid #333' : '2px solid #30D158',
-            }}>
-              {/* Image container with overlay */}
-              <div style={imgContainerStyle}>
-                <img
-                  src={`/rendered/variants/display/jpeg/${c.uuid}.jpg`}
-                  alt={c.uuid}
-                  style={imgStyle}
-                  loading="lazy"
-                />
-                {/* Red overlay strips for each border edge */}
-                {!isSkipped && (
-                  <>
-                    {c.left > 0 && (
-                      <div style={{
-                        ...overlayStrip,
-                        left: 0, top: 0, bottom: 0,
-                        width: `${leftPct}%`,
-                      }} />
-                    )}
-                    {c.right > 0 && (
-                      <div style={{
-                        ...overlayStrip,
-                        right: 0, top: 0, bottom: 0,
-                        width: `${rightPct}%`,
-                      }} />
-                    )}
-                    {c.top > 0 && (
-                      <div style={{
-                        ...overlayStrip,
-                        top: 0, left: 0, right: 0,
-                        height: `${topPct}%`,
-                      }} />
-                    )}
-                    {c.bottom > 0 && (
-                      <div style={{
-                        ...overlayStrip,
-                        bottom: 0, left: 0, right: 0,
-                        height: `${bottomPct}%`,
-                      }} />
-                    )}
-                  </>
-                )}
-              </div>
-
-              {/* Info bar */}
-              <div style={infoBarStyle}>
-                <span style={dimLabel}>{c.w}x{c.h}</span>
-                <span style={cropLabel}>{borderLabel}</span>
-                <button
-                  style={{
-                    ...toggleBtn,
-                    background: isSkipped ? '#FF453A' : '#30D158',
-                    color: '#fff',
-                  }}
-                  onClick={() => toggleSkip(c.uuid)}
-                >
-                  {isSkipped ? 'Skip' : 'Crop'}
-                </button>
-              </div>
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Footer */}
-      <div style={footerStyle}>
-        {result && (
-          <span style={{
-            fontSize: '12px',
-            color: result.errors.length ? '#FF9F0A' : '#30D158',
-            marginRight: '12px',
-          }}>
-            {result.errors.length
-              ? `Done with ${result.errors.length} error(s) -- ${result.total} files cropped`
-              : `Done -- ${result.total} files cropped`}
+      {/* Done */}
+      {done && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+          <span style={{ color: '#e0e0e0', fontSize: 14 }}>
+            {croppedCount} to crop, {choices.size - croppedCount} kept original
           </span>
-        )}
-        <span style={stat}>{approvedCount} of {crops.length} will be cropped</span>
-        <button
-          style={{
-            ...applyBtn,
-            opacity: applying || approvedCount === 0 ? 0.3 : 1,
-            cursor: applying || approvedCount === 0 ? 'default' : 'pointer',
-          }}
-          onClick={applyCrops}
-          disabled={applying || approvedCount === 0}
-        >
-          {applying ? 'Applying...' : `Apply Crops (${approvedCount})`}
-        </button>
-      </div>
+          {croppedCount > 0 && (
+            <button style={applyBtn} onClick={applyCrops} disabled={applying}>
+              {applying ? 'Applying...' : `Apply ${croppedCount} Crops`}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }
 
-// ── Styles ──
-
-const wrapStyle: CSSProperties = {
-  width: '100%', minHeight: '100vh',
+const wrap: React.CSSProperties = {
+  width: '100%', height: '100vh',
   display: 'flex', flexDirection: 'column',
-  background: '#0a0a0a',
+  alignItems: 'center', justifyContent: 'center',
+  background: '#888',
+  gap: 20,
+  userSelect: 'none',
 }
 
-const headerStyle: CSSProperties = {
-  display: 'flex', alignItems: 'center', gap: '16px',
-  padding: '12px 16px', borderBottom: '1px solid #1a1a1a',
-  flexShrink: 0,
+const counter: React.CSSProperties = {
+  display: 'flex', alignItems: 'baseline', gap: 4,
+  position: 'absolute', top: 16, right: 24,
+}
+const counterNum: React.CSSProperties = {
+  fontSize: 14, fontWeight: 600, color: '#fff',
+  fontFamily: 'SF Mono, monospace', fontVariantNumeric: 'tabular-nums',
+}
+const counterSlash: React.CSSProperties = { fontSize: 12, color: '#666', fontFamily: 'SF Mono, monospace' }
+const counterTotal: React.CSSProperties = {
+  fontSize: 12, color: '#555', fontFamily: 'SF Mono, monospace', fontVariantNumeric: 'tabular-nums',
+}
+const counterTag: React.CSSProperties = {
+  fontSize: 11, fontWeight: 600, fontFamily: 'SF Mono, monospace',
+  fontVariantNumeric: 'tabular-nums', marginLeft: 12,
 }
 
-const titleStyle: CSSProperties = {
-  fontSize: '14px', fontWeight: 600, color: '#e0e0e0',
-  letterSpacing: '0.02em',
+const pair: React.CSSProperties = {
+  display: 'flex', gap: 32,
+  alignItems: 'center', justifyContent: 'center',
+  maxWidth: '90vw',
 }
 
-const countStyle: CSSProperties = {
-  fontSize: '12px', color: '#666',
-  fontVariantNumeric: 'tabular-nums',
+const card: React.CSSProperties = {
+  background: 'none', border: 'none', padding: 0,
+  cursor: 'pointer',
+  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+  transition: 'transform 0.15s ease-out',
+  outline: 'none',
 }
 
-const gridStyle: CSSProperties = {
-  flex: 1, display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-  gap: '8px', padding: '12px',
+const cardImg: React.CSSProperties = {
+  maxWidth: '42vw', maxHeight: '65vh',
+  objectFit: 'contain',
+  borderRadius: 4,
+  display: 'block',
 }
 
-const cardStyle: CSSProperties = {
-  borderRadius: '8px', overflow: 'hidden',
-  background: '#141414',
-  transition: 'opacity 0.15s, border-color 0.15s',
+const label: React.CSSProperties = {
+  fontSize: 11, color: '#333', fontWeight: 500,
+  letterSpacing: '0.03em',
 }
 
-const imgContainerStyle: CSSProperties = {
-  position: 'relative', width: '100%',
-  overflow: 'hidden', background: '#000',
-}
-
-const imgStyle: CSSProperties = {
-  width: '100%', display: 'block',
-}
-
-const overlayStrip: CSSProperties = {
-  position: 'absolute',
-  background: 'rgba(255, 69, 58, 0.40)',
-  pointerEvents: 'none',
-}
-
-const infoBarStyle: CSSProperties = {
-  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-  padding: '6px 10px', gap: '8px',
-}
-
-const dimLabel: CSSProperties = {
-  fontSize: '10px', color: '#555',
-  fontFamily: 'SF Mono, monospace',
-  fontVariantNumeric: 'tabular-nums',
-}
-
-const cropLabel: CSSProperties = {
-  fontSize: '11px', color: '#aaa',
-  fontFamily: 'SF Mono, monospace',
-  fontVariantNumeric: 'tabular-nums',
-  flex: 1,
-}
-
-const toggleBtn: CSSProperties = {
-  padding: '3px 10px', border: 'none', borderRadius: '4px',
-  fontSize: '11px', fontWeight: 600, cursor: 'pointer',
-  transition: 'background 0.15s',
-}
-
-const footerStyle: CSSProperties = {
-  display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
-  padding: '8px 16px', borderTop: '1px solid #1a1a1a',
-  flexShrink: 0, gap: '12px',
-  position: 'sticky', bottom: 0,
-  background: '#0a0a0a',
-}
-
-const stat: CSSProperties = {
-  fontSize: '12px', color: '#555',
-  fontVariantNumeric: 'tabular-nums',
-}
-
-const applyBtn: CSSProperties = {
-  padding: '8px 20px', background: '#30D158', color: '#000',
-  border: 'none', borderRadius: '8px',
-  fontSize: '13px', fontWeight: 600,
+const applyBtn: React.CSSProperties = {
+  padding: '10px 28px', background: '#30D158', color: '#000',
+  border: 'none', borderRadius: 8,
+  fontSize: 13, fontWeight: 600, cursor: 'pointer',
 }

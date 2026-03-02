@@ -1,9 +1,10 @@
 """Generated (smart_style) variants API + stub endpoints."""
 from __future__ import annotations
 
+import json
 import sqlite3
 
-from ._common import DB_PATH, GENERATED_DIR
+from ._common import DB_PATH, GENERATED_DIR, PROJECT_ROOT, RENDERED_DIR
 
 _UUID_NS = None
 
@@ -66,10 +67,15 @@ def get_generated_data():
             for vf in uuid_dir.glob("imagen_smart_*.jpg"):
                 style_key = vf.stem.replace("imagen_smart_", "")
                 if _variant_id_for(uid, style_key) == vid:
+                    orig_file = GENERATED_DIR / run / uid / "original.jpg"
+                    if orig_file.exists():
+                        orig_path = f"/generated/{run}/{uid}/original.jpg"
+                    else:
+                        orig_path = f"/images/display/{uid}.jpg"
                     pairs.append({
                         "variant_id": vid,
                         "uuid": uid,
-                        "original_path": f"/generated/{run}/{uid}/original.jpg",
+                        "original_path": orig_path,
                         "variant_path": f"/generated/{run}/{uid}/{vf.name}",
                         "style_name": style_key,
                         "style_prompt": row["prompt"] or "",
@@ -153,9 +159,13 @@ def get_variant_review_data():
 
         runs = uuid_to_runs.get(uid, [])
         for run_name, files in runs:
-            # Find original
+            # Find original — check on disk, fall back to rendered display tier
             if "original.jpg" in files:
                 original_path = f"/generated/{run_name}/{uid}/original.jpg"
+            elif not original_path:
+                display_file = RENDERED_DIR / "display" / "jpeg" / f"{uid}.jpg"
+                if display_file.exists():
+                    original_path = f"/images/display/{uid}.jpg"
 
             # Find variant file matching style
             if vtype == "nst":
@@ -219,8 +229,78 @@ def get_unpicked_data():
 
 
 def get_location_tagger_data(camera=None, obj=None):
-    """Return location tagger data."""
-    return {"images": [], "locations": []}
+    """Return picks that have no location tag, with filter options."""
+    picks_path = PROJECT_ROOT / "frontend" / "show" / "data" / "picks.json"
+    if not picks_path.exists():
+        return {"photos": [], "locations": [], "tagged_count": 0, "total_count": 0, "cameras": [], "objects": []}
+
+    picks_data = json.loads(picks_path.read_text())
+    pick_uuids = set()
+    for o in ("landscape", "portrait"):
+        pick_uuids.update(picks_data.get(o, []))
+
+    conn = sqlite3.connect(str(DB_PATH), timeout=5)
+    conn.row_factory = sqlite3.Row
+
+    # Already-tagged UUIDs
+    tagged = set(r[0] for r in conn.execute(
+        "SELECT image_uuid FROM image_locations WHERE location_name IS NOT NULL AND location_name != ''"
+    ).fetchall())
+
+    # Distinct location names for chips
+    locations = sorted(set(r[0] for r in conn.execute(
+        "SELECT DISTINCT location_name FROM image_locations WHERE location_name IS NOT NULL AND location_name != ''"
+    ).fetchall()))
+
+    # Camera list from EXIF
+    cameras = sorted(set(r[0] for r in conn.execute(
+        "SELECT DISTINCT model FROM exif_metadata WHERE model IS NOT NULL AND model != ''"
+    ).fetchall()))
+
+    # Top object labels
+    obj_rows = conn.execute(
+        "SELECT label, COUNT(*) as cnt FROM object_detections GROUP BY label ORDER BY cnt DESC LIMIT 30"
+    ).fetchall()
+    objects = [{"label": r["label"], "count": r["cnt"]} for r in obj_rows]
+
+    # Build set of UUIDs matching filters
+    filter_uuids = None
+    if camera:
+        filter_uuids = set(r[0] for r in conn.execute(
+            "SELECT image_uuid FROM exif_metadata WHERE model = ?", (camera,)
+        ).fetchall())
+    if obj:
+        obj_uuids = set(r[0] for r in conn.execute(
+            "SELECT DISTINCT image_uuid FROM object_detections WHERE label = ?", (obj,)
+        ).fetchall())
+        filter_uuids = obj_uuids if filter_uuids is None else filter_uuids & obj_uuids
+
+    # Untagged picks (optionally filtered)
+    untagged = pick_uuids - tagged
+    if filter_uuids is not None:
+        untagged = untagged & filter_uuids
+
+    # Build photo list with category + thumb URL
+    photos = []
+    for uid in sorted(untagged):
+        row = conn.execute("SELECT category FROM images WHERE uuid = ?", (uid,)).fetchone()
+        cat = row["category"] if row else "unknown"
+        photos.append({
+            "uuid": uid,
+            "category": cat,
+            "thumb_url": f"/rendered/thumb/jpeg/{uid}.jpg",
+            "predicted": None,
+        })
+
+    conn.close()
+    return {
+        "photos": photos,
+        "locations": locations,
+        "tagged_count": len(tagged & pick_uuids),
+        "total_count": len(pick_uuids),
+        "cameras": cameras,
+        "objects": objects,
+    }
 
 
 def do_pick(uuids):

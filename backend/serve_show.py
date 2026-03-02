@@ -147,6 +147,11 @@ class GalleryHandler(SimpleHTTPRequestHandler):
             self._serve_static(GENERATED_DIR, self.path[len("/generated/"):])
             return
 
+        if self.path.startswith("/images/display/"):
+            # Serve rendered display tier: /images/display/{uuid}.jpg → images/rendered/display/jpeg/{uuid}.jpg
+            self._serve_static(RENDERED_DIR / "display" / "jpeg", self.path[len("/images/display/"):])
+            return
+
         if self.path.startswith("/system"):
             self._serve_system()
             return

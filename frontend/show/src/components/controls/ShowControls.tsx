@@ -5,6 +5,15 @@
  *
  * All icons are 20×20 SVGs in a 24×24 viewBox for uniform optical weight.
  * Genie stays emoji — user designs it.
+ *
+ * ## Image Type Disc
+ * The circular disc button cycles between photo / mixed / generated modes.
+ * Uses 6 hand-crafted static assets at `/disc/` (120px WebP, 3x retina):
+ *   - type=photography-{a,b}.webp — original photo, clean circle
+ *   - type=mix-{a,b}.webp         — left half photo, right half variant
+ *   - type=variants-{a,b}.webp    — full variant (rainbow gradient / vivid)
+ * "a" variant = subtle (used in light theme), "b" variant = vivid (dark theme).
+ * Glass overlay via CSS pseudo-element adds specular highlight for depth.
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react'
@@ -228,22 +237,9 @@ export function ShowControls({ controls, state, config, callbacks, compact }: Sh
   const nextColor = nextColorIdx >= 0 && buckets[nextColorIdx]
     ? buckets[nextColorIdx].color
     : undefined
-  const activeColor = state.activeColorIdx >= 0 && buckets[state.activeColorIdx]
-    ? buckets[state.activeColorIdx].color
-    : undefined
-
-  /* Active color tints the bar border */
-  const barStyle: React.CSSProperties | undefined = activeColor
-    ? { borderColor: activeColor + '40' } // 25% opacity
-    : undefined
-
-  /* Determine if we need a divider (grid controls on left, personal on right) */
-  const hasFilters = controls.some(c => ['displayType', 'density', 'imageType'].includes(c))
-  const hasActions = controls.some(c => ['color', 'genie', 'heart'].includes(c))
-  const needsDivider = hasFilters && hasActions
 
   return (
-    <div className={`show-controls${compact ? ' compact' : ''}`} style={barStyle}>
+    <div className={`show-controls${compact ? ' compact' : ''}`}>
       {/* Color picker popover */}
       {pickerOpen && controls.includes('color') && (
         <div className="show-ctrl-color-picker" ref={pickerRef}>
@@ -258,78 +254,27 @@ export function ShowControls({ controls, state, config, callbacks, compact }: Sh
         </div>
       )}
 
-      {/* 1. Color — shows next color preview */}
-      {controls.includes('color') && (
-        <button
-          ref={colorBtnRef}
-          className={`show-ctrl-color${nextColor ? ' show-next' : ''}${
-            nextColor && nextColorIdx >= 0 && buckets[nextColorIdx]?.hueStart === -1 ? ' color-gray' : ''
-          }`}
-          style={nextColor ? { '--show-ctrl-color-glow': nextColor } as React.CSSProperties : undefined}
-          onPointerDown={handleColorDown}
-          onPointerUp={handleColorUp}
-          onPointerLeave={() => {
-            if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null }
-          }}
-          aria-label="Color filter"
-          title="Color filter (long-press for picker)"
-        />
-      )}
+      {/* Image Type — static disc assets (hand-crafted PNGs → 120px WebP)
+           Cycles: photo → mixed → generated. Glass overlay via CSS. */}
+      {controls.includes('imageType') && config.hasVariants && (() => {
+        const key = state.imageTypeFilter === 'generated' ? 'variants'
+          : state.imageTypeFilter === 'mixed' ? 'mix' : 'photography'
+        return (
+          <button
+            className="show-ctrl-imgdisc"
+            onClick={handleImageTypeCycle}
+            aria-label={`Image type: ${state.imageTypeFilter}`}
+            title={`Showing: ${state.imageTypeFilter}`}
+          >
+            <span className="show-ctrl-imgdisc-inner">
+              <img className="show-ctrl-imgdisc-full" src={`/disc/type=${key}-c.webp`} alt="" />
+              <span className="show-ctrl-imgdisc-glass" />
+            </span>
+          </button>
+        )
+      })()}
 
-      {/* 2. Display Type */}
-      {controls.includes('displayType') && (
-        <button
-          className="show-ctrl-btn show-ctrl-display"
-          onClick={handleDisplayToggle}
-          aria-label={state.displayMode === 'bento' ? 'Switch to uniform grid' : 'Switch to bento'}
-          title={state.displayMode === 'bento' ? 'Uniform grid' : 'Bento layout'}
-        >
-          {state.displayMode === 'bento' ? <BentoIcon /> : <GridIcon />}
-        </button>
-      )}
-
-      {/* 3. Density */}
-      {controls.includes('density') && (
-        <button
-          className={`show-ctrl-btn show-ctrl-density${densitySlide ? ' morphing' : ''}`}
-          onClick={handleDensityClick}
-          onContextMenu={handleDensityContext}
-          aria-label={`Density: ${densityValue}`}
-          title="Density (right-click to go back)"
-        >
-          <DensityIcon stepIdx={state.densityStepIdx} />
-        </button>
-      )}
-
-      {/* 4. Image Type — photo disc (28px visual inside 44px touch target) */}
-      {controls.includes('imageType') && config.hasVariants && config.samplePhoto && (
-        <button
-          className="show-ctrl-imgdisc"
-          onClick={handleImageTypeCycle}
-          aria-label={`Image type: ${state.imageTypeFilter}`}
-          title={`Showing: ${state.imageTypeFilter}`}
-        >
-          <span className="show-ctrl-imgdisc-inner">
-            {state.imageTypeFilter === 'mixed' ? (
-              <>
-                <img className="show-ctrl-imgdisc-half left" src={config.samplePhoto} alt="" />
-                <img className="show-ctrl-imgdisc-half right" src={config.sampleVariant || config.samplePhoto} alt="" />
-              </>
-            ) : (
-              <img
-                className="show-ctrl-imgdisc-full"
-                src={state.imageTypeFilter === 'photo' ? config.samplePhoto : (config.sampleVariant || config.samplePhoto)}
-                alt=""
-              />
-            )}
-          </span>
-        </button>
-      )}
-
-      {/* Divider between filters and actions */}
-      {needsDivider && <div className="show-ctrl-divider" />}
-
-      {/* 5. Heart */}
+      {/* Heart */}
       {controls.includes('heart') && (
         <button
           className={`show-ctrl-btn show-ctrl-heart${state.loved ? ' active' : ''}${state.loved && heartBounce ? ' loved' : ''}`}
@@ -341,7 +286,7 @@ export function ShowControls({ controls, state, config, callbacks, compact }: Sh
         </button>
       )}
 
-      {/* 6. Genie — emoji, always rightmost, never dimmed */}
+      {/* Center — Genie */}
       {controls.includes('genie') && (
         <button
           className={`show-ctrl-btn show-ctrl-genie${geniePulsing ? ' pulsing' : ''}`}
@@ -352,6 +297,52 @@ export function ShowControls({ controls, state, config, callbacks, compact }: Sh
           &#x1F9DE;&#x200D;&#x2642;&#xFE0F;
         </button>
       )}
+
+      {/* Right group — layout controls */}
+      <div className="show-ctrl-group">
+        {/* Display Type */}
+        {controls.includes('displayType') && (
+          <button
+            className="show-ctrl-btn show-ctrl-display"
+            onClick={handleDisplayToggle}
+            aria-label={state.displayMode === 'bento' ? 'Switch to uniform grid' : 'Switch to bento'}
+            title={state.displayMode === 'bento' ? 'Uniform grid' : 'Bento layout'}
+          >
+            {state.displayMode === 'bento' ? <BentoIcon /> : <GridIcon />}
+          </button>
+        )}
+
+        {/* Density */}
+        {controls.includes('density') && (
+          <button
+            className={`show-ctrl-btn show-ctrl-density${densitySlide ? ' morphing' : ''}`}
+            onClick={handleDensityClick}
+            onContextMenu={handleDensityContext}
+            aria-label={`Density: ${densityValue}`}
+            title="Density (right-click to go back)"
+          >
+            <DensityIcon stepIdx={state.densityStepIdx} />
+          </button>
+        )}
+
+        {/* Color */}
+        {controls.includes('color') && (
+          <button
+            ref={colorBtnRef}
+            className={`show-ctrl-color${nextColor ? ' show-next' : ''}${
+              nextColor && nextColorIdx >= 0 && buckets[nextColorIdx]?.hueStart === -1 ? ' color-gray' : ''
+            }`}
+            style={nextColor ? { '--show-ctrl-color-glow': nextColor } as React.CSSProperties : undefined}
+            onPointerDown={handleColorDown}
+            onPointerUp={handleColorUp}
+            onPointerLeave={() => {
+              if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null }
+            }}
+            aria-label="Color filter"
+            title="Color filter (long-press for picker)"
+          />
+        )}
+      </div>
     </div>
   )
 }

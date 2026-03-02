@@ -4,6 +4,42 @@
 
 ---
 
+## 2026-03-02
+
+**Bento: the curation engine gets serious.** Five commits in one day refining how Bento selects and presents photos. The genie tap (random regeneration) was producing mediocre sets — it tried 8 random curators and picked the best, but "best of 8 random" isn't great when you have 25 curators. Changed to randomize curator per tap instead, so users see the full range of curation strategies (temperature harmony, depth journey, face gallery, energy flow, etc.) rather than always converging on the highest-scoring one.
+
+**Eliminated photo repeats across taps.** `recentlyShownRef` tracks up to 2,000 recently shown IDs. Each genie tap filters them out. Only falls back to allowing repeats when the fresh pool drops below 2× the needed count. With 2,681 picks this means ~4-5 completely unique taps before any repeats.
+
+**Variant injection reined in.** AI variants (style transfers, cartoons) were dominating bentos — 40-50% of tiles. Reduced to max 1 variant per bento as an accent. Variants break color coherence so they're skipped entirely when a color filter is active.
+
+**Color button removed.** Instead of a dedicated color filter button, genie now randomly applies color filtering ~1 in 3 taps. Less UI, more surprise.
+
+**Touch targets.** All mobile controls expanded to 44px Apple HIG minimum. Color dots and image discs stay 28px visually but sit inside 44×44 touch areas. Hover scales the `::after` pseudo-element, not the button itself.
+
+**Split grid lines removed on hover.** The visual seam between split tiles on hover was distracting. Removed.
+
+---
+
+## 2026-03-01
+
+**Bento geometry overhaul: finite-ratio grid system.** The old grid had arbitrary cell ratios that didn't map cleanly to Gemma's crop recommendations (1:1, 2:3, 3:2, 16:9). Built a new system with square grid units and only 7 allowed ratios (1/2, 2/3, 3/4, 1, 4/3, 3/2, 2/1). Desktop: 5×3 grid (15 units). Mobile: 3×6 grid (18 units). All 37 layouts validated — no gaps, no overlaps, only allowed ratios. New `layoutRegistry.ts` as single source of truth.
+
+**Crop accuracy fix — the 33% error.** `getObjectPosition` was computing crop keys from mathematical cell ratios without accounting for container distortion. Desktop unit cells actually render at 0.9:1, mobile at 1.33:1 — so crop keys were off by up to 33% on mobile. Built `renderedCellRatio()` that threads actual container dimensions through the entire chain: BentoTile, LovedTile, swap, crossfade. `cropFitness` scoring now uses the true rendered ratio too.
+
+**Refined animations.** Removed the 20-second auto-crossfade timer — tiles only change on user interaction now. Entrance animation changed from a bouncy `scale(0.3)` spring to a subtle `scale(0.92)` expo-out. Click-to-swap uses smooth overlay crossfade (preload → fade in → cleanup). Stagger tightened to 40ms.
+
+**Blob corruption in quality_scores.** Signal Inspector was crashing on one UUID (31af7ade) — `technical_score` and `combined_score` were stored as raw C float blobs instead of real SQLite values. Decoded the 4-byte IEEE 754 floats and stored as proper values. Regenerated signal_inspector_picks.json.
+
+**Parent-child dedup in Bento.** A photo and its AI variant could appear in the same bento. Added parent-child blocking in `fillCells`: if a variant is selected, its parent is blocked (and vice versa). Extras fill also respects this.
+
+---
+
+## 2026-02-22
+
+**Gemma signal cleanup and deploy maintenance.** Cleaned up Gemma signal data, excluded `.build` directory from deploy, updated system data. Multiple auto-deploy cycles through Feb 22-28 keeping production data fresh.
+
+---
+
 ## 2026-02-20
 
 **Gemma absorbs Gemini's structured labels.** Compared Gemini Flash and Gemma 27B outputs side by side. Gemini provides structured categorical labels (setting, time_of_day, weather, grading_style, exposure_label, sharpness_label, vibes, faces_count, semantic_pops). Gemma provides richer creative text (stories, composition analysis, crop recommendations). Decision: add all Gemini's structured labels to Gemma's prompt so Gemma produces both — creative text AND structured labels in one pass. "Gemma is free, I would prefer to use that." Updated `Modelfile.madphotos` with 9 new fields, rebuilt `madphotos-critic` model, migrated schema with ALTER TABLE, updated parser and INSERT SQL. Increased `num_predict` from 1500 to 2000 for the longer response. Test on 1 image confirmed all new fields populate correctly. 2,454 picks queued for reprocessing with 3 workers (~34 hours).
