@@ -112,7 +112,7 @@ function revealImg(img: HTMLImageElement): void {
   setTimeout(() => {
     img.classList.remove('img-loaded')
     img.classList.remove('img-loading')
-  }, 800)
+  }, 450)
 }
 
 /* ===== Progressive Image Loading ===== */

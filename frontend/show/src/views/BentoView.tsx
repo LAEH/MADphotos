@@ -1199,10 +1199,15 @@ export function BentoView() {
       if (!bufLIds.has(pick.id)) { buf.L.push(pick); bufLIds.add(pick.id) }
     }
 
-    // Warm browser cache
+    // Warm browser cache + decode so swaps are instant
     for (const p of [...buf.P, ...buf.L]) {
       const src = p.display || p.thumb
-      if (src) { const img = new Image(); img.decoding = 'async'; img.src = src }
+      if (src) {
+        const img = new Image()
+        img.decoding = 'async'
+        img.src = src
+        if (typeof img.decode === 'function') img.decode().catch(() => {})
+      }
     }
   }, [data])
 
@@ -1486,7 +1491,7 @@ export function BentoView() {
       }
 
       overlay.addEventListener('transitionend', cleanup)
-      setTimeout(cleanup, 600)
+      setTimeout(cleanup, 400)
     }
 
     preload.onload = doSwap

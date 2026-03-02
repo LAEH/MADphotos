@@ -122,9 +122,9 @@
   --transition: var(--duration-normal) var(--ease-out-quart);
 
   /* ── Image appear — single tokenized animation for all views ── */
-  --img-appear-duration: var(--duration-reveal);
+  --img-appear-duration: 0.3s;
   --img-appear-ease: var(--ease-out-quart);
-  --img-appear-scale-from: 1.04;
+  --img-appear-scale-from: 1.02;
   --img-appear-scale-to: 1;
 
   /* ── rem-based Sizing System (1rem = 16px) ── */
@@ -319,8 +319,8 @@
    Uses only compositor properties (opacity + transform).
    The blur is a static filter — no transition on filter. */
 .img-blur-up {
-  filter: blur(8px);
-  transform: scale(1.05);
+  filter: blur(6px);
+  transform: scale(1.02);
 }
 
 /* ===== Base ===== */
