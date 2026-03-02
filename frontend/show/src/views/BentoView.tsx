@@ -1099,7 +1099,7 @@ export function BentoView() {
   const [revealedSet, setRevealedSet] = useState(new Set<number>())
   /* Recently shown photo IDs — prevent repeats across consecutive generations */
   const recentlyShownRef = useRef(new Set<string>())
-  const RECENTLY_SHOWN_CAP = 60
+  const RECENTLY_SHOWN_CAP = 2000
 
   /* Refs for mutable state used by intervals/callbacks */
   const photosRef = useRef<Photo[]>([])
@@ -1200,6 +1200,14 @@ export function BentoView() {
     // Apply image type filter
     photoPool = filterByImageType(photoPool, imageTypeFilter)
 
+    // Exclude recently shown photos for freshness across taps
+    const recent = recentlyShownRef.current
+    const freshPool = photoPool.filter(p => !recent.has(p.id))
+    // Only use fresh pool if it has enough candidates; otherwise allow repeats
+    if (freshPool.filter(p => p.thumb && p.display).length >= newLayout.count * 2) {
+      photoPool = freshPool
+    }
+
     // Fall back to all photos if color/type filter too restrictive
     const availableCount = photoPool.filter(p => p.thumb && p.display).length
     if (availableCount < 3) {
@@ -1254,9 +1262,7 @@ export function BentoView() {
     }
 
     // Track recently shown to avoid repeats across taps
-    const recent = recentlyShownRef.current
     for (const p of selected) recent.add(p.id)
-    // Cap the set so it doesn't grow forever
     if (recent.size > RECENTLY_SHOWN_CAP) {
       const arr = [...recent]
       recentlyShownRef.current = new Set(arr.slice(arr.length - RECENTLY_SHOWN_CAP))
@@ -1536,8 +1542,9 @@ export function BentoView() {
     // Filter out recently shown photos for freshness
     const recent = recentlyShownRef.current
     const freshPhotos = data.photos.filter(p => !recent.has(p.id))
-    // Fall back to all photos if too many excluded
-    const allPhotos = freshPhotos.length >= count * 3 ? freshPhotos : data.photos
+    // Only fall back to all photos if fresh pool is truly exhausted
+    const allPhotos = freshPhotos.filter(p => p.thumb && p.display).length >= count * 2
+      ? freshPhotos : data.photos
 
     // Set unit ratio for cropFitness
     const containerRatio = newLayout.device === 'mobile' ? (2 / 3) : (3 / 2)
