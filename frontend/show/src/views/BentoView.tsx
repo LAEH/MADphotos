@@ -1742,7 +1742,7 @@ export function BentoView() {
           const canSplit = isSplittable(cell)
           return (
             <BentoTile
-              key={`${photo.id}-${cell.r}-${cell.c}`}
+              key={`${cell.r}-${cell.c}`}
               photo={photo}
               cell={cell}
               cellIndex={i}
