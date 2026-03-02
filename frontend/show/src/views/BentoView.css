@@ -232,25 +232,6 @@
   }
 }
 
-/* Desktop hover: faint dividing line overlay on splittable tiles */
-@media (hover: hover) and (pointer: fine) {
-  .bento-tile-splittable::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    z-index: 1;
-    opacity: 0;
-    transition: opacity 0.2s var(--ease-out-quart);
-    background:
-      linear-gradient(to right, transparent calc(50% - 0.5px), rgba(255,255,255,0.25) calc(50% - 0.5px), rgba(255,255,255,0.25) calc(50% + 0.5px), transparent calc(50% + 0.5px)),
-      linear-gradient(to bottom, transparent calc(50% - 0.5px), rgba(255,255,255,0.25) calc(50% - 0.5px), rgba(255,255,255,0.25) calc(50% + 0.5px), transparent calc(50% + 0.5px));
-  }
-
-  .bento-tile-splittable:hover::after {
-    opacity: 1;
-  }
-}
 
 /* Variant reveal — subtle glow when showing a generated variant */
 .bento-tile-revealed {
