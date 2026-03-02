@@ -14,6 +14,7 @@ import { LocationPage } from './pages/LocationPage'
 import { GeneratedPage } from './pages/GeneratedPage'
 import { VariantReviewPage } from './pages/VariantReviewPage'
 import { BentoExplainerPage } from './pages/BentoExplainerPage'
+import { BorderCropPage } from './pages/BorderCropPage'
 
 export default function App() {
   const themeCtx = useThemeProvider()
@@ -35,6 +36,7 @@ export default function App() {
           <Route path="curation/location" element={<LocationPage />} />
           <Route path="experiments/generated" element={<GeneratedPage />} />
           <Route path="review/variants" element={<VariantReviewPage />} />
+          <Route path="review/borders" element={<BorderCropPage />} />
           <Route path="docs/bento" element={<BentoExplainerPage />} />
         </Route>
       </Routes>

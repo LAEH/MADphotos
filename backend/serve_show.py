@@ -123,6 +123,8 @@ class GalleryHandler(SimpleHTTPRequestHandler):
             self._post_enhance_generate()
         elif self.path == "/api/bento/render":
             self._post_bento_render()
+        elif self.path == "/api/border-crops/apply":
+            self._post_border_crops_apply()
         else:
             self.send_error(404)
 
@@ -193,6 +195,8 @@ class GalleryHandler(SimpleHTTPRequestHandler):
             self._json_response(fn["get_location_tagger_data"](camera=camera, obj=obj))
         elif path == "/api/bento/loved":
             self._handle_bento_loved()
+        elif path == "/api/border-crops":
+            self._handle_border_crops()
         elif path == "/api/enhance/batch":
             self._handle_enhance_batch()
         elif path == "/api/enhance/stats":
@@ -467,6 +471,124 @@ echo "Done."
             except Exception:
                 continue
         self._json_response({"bentos": items})
+
+    # ── Border crop helpers ──
+
+    def _handle_border_crops(self):
+        crops_file = Path("/tmp/variant_border_crops.json")
+        if not crops_file.exists():
+            return self._json_response({"crops": []})
+        try:
+            data = json.loads(crops_file.read_text())
+            return self._json_response({"crops": data})
+        except Exception as e:
+            return self._error_response(500, str(e))
+
+    def _post_border_crops_apply(self):
+        body = self._read_json_body()
+        if body is None:
+            return self._error_response(400, "Invalid JSON")
+        crops = body.get("crops", [])
+        if not isinstance(crops, list) or not crops:
+            return self._error_response(400, "crops must be a non-empty array")
+
+        from PIL import Image
+        import sqlite3
+
+        variants_dir = RENDERED_DIR / "variants"
+        tiers = ["display", "thumb", "micro", "mobile"]
+        formats = ["jpeg", "webp"]
+        results = []
+        errors = []
+
+        for crop in crops:
+            uuid = crop.get("uuid")
+            left = crop.get("left", 0)
+            right = crop.get("right", 0)
+            top = crop.get("top", 0)
+            bottom = crop.get("bottom", 0)
+            if not uuid:
+                continue
+
+            cropped_files = 0
+            for tier in tiers:
+                for fmt in formats:
+                    ext = "jpg" if fmt == "jpeg" else "webp"
+                    file_path = variants_dir / tier / fmt / f"{uuid}.{ext}"
+                    if not file_path.exists():
+                        continue
+                    try:
+                        img = Image.open(file_path)
+                        w, h = img.size
+                        # Scale crop values proportionally from display tier to this tier
+                        # The crop JSON has values for the display tier dimensions
+                        display_path = variants_dir / "display" / "jpeg" / f"{uuid}.jpg"
+                        if display_path.exists() and tier != "display":
+                            disp = Image.open(display_path)
+                            dw, dh = disp.size
+                            disp.close()
+                            sx = w / dw if dw else 1
+                            sy = h / dh if dh else 1
+                        elif tier != "display":
+                            # Fallback: use raw crop JSON w/h
+                            dw = crop.get("w", w)
+                            dh = crop.get("h", h)
+                            sx = w / dw if dw else 1
+                            sy = h / dh if dh else 1
+                        else:
+                            sx, sy = 1.0, 1.0
+
+                        cl = int(round(left * sx))
+                        cr = int(round(right * sx))
+                        ct = int(round(top * sy))
+                        cb = int(round(bottom * sy))
+
+                        new_left = cl
+                        new_top = ct
+                        new_right = w - cr
+                        new_bottom = h - cb
+
+                        if new_right <= new_left or new_bottom <= new_top:
+                            continue
+
+                        cropped = img.crop((new_left, new_top, new_right, new_bottom))
+                        if fmt == "jpeg":
+                            cropped.save(str(file_path), "JPEG", quality=92)
+                        else:
+                            cropped.save(str(file_path), "WEBP", quality=88)
+                        img.close()
+                        cropped.close()
+                        cropped_files += 1
+                    except Exception as e:
+                        errors.append(f"{uuid}/{tier}/{fmt}: {e}")
+
+            results.append({"uuid": uuid, "files_cropped": cropped_files})
+
+        # Update DB
+        db_path = PROJECT_ROOT / "images" / "mad_photos.db"
+        try:
+            conn = sqlite3.connect(str(db_path))
+            for crop in crops:
+                uuid = crop.get("uuid")
+                if not uuid:
+                    continue
+                conn.execute(
+                    "UPDATE ai_variants SET border_left=?, border_right=?, "
+                    "border_top=?, border_bottom=?, trimmed=1 WHERE variant_id=?",
+                    (crop.get("left", 0), crop.get("right", 0),
+                     crop.get("top", 0), crop.get("bottom", 0), uuid),
+                )
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            errors.append(f"DB update: {e}")
+
+        self._json_response({
+            "ok": True,
+            "results": results,
+            "errors": errors,
+            "total_cropped": sum(r["files_cropped"] for r in results),
+        })
 
     # ── Enhance GET helpers ──
 

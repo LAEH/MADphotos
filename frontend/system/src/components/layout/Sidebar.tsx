@@ -25,7 +25,7 @@ const curation: NavItem[] = [
   { to: '/curation/location', label: 'Location' },
   { to: '/experiments/generated', label: 'Generated' },
   { to: '/review/variants', label: 'Variant Disks' },
-
+  { to: '/review/borders', label: 'Border Crops' },
   { to: '/experiments/enhanced', label: 'Enhanced' },
 ]
 

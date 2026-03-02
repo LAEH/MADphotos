@@ -1,86 +1,51 @@
 # MADphotos — Agent Team
 
-Six agents form the pipeline: extract intelligence, curate material, prepare experiences, and ship to screens.
+Six agents form the pipeline: extract intelligence from every image, curate the best material, prepare experiences, and ship to screens.
 
 ---
 
 ## image_signals — The Intelligence Layer
 
-Extract 24+ signals from every image using local models + cloud APIs.
+Runs 24+ models against every photograph — local open-source models for vision tasks (faces, objects, depth, aesthetics, style, scenes, OCR, captions, colors) plus Gemini API for high-level semantic analysis and Gemma 27B via Ollama for compositional signals. Every signal feeds downstream experiences.
 
-```bash
-python3 -m backend.image_signals.completions              # run full pipeline
-python3 -m backend.image_signals.completions --check      # check coverage gaps
-```
-
-**Key modules:** `signals_advanced.py` (v1), `signals_v2.py` (v2), `gemini.py` (cloud), `run_gemma_analysis.py` (Ollama 27B)
+**Say:** `signals`
 
 ---
 
 ## suggest_image_enhancement — The Improver
 
-Propose non-destructive exposure/color corrections. Human votes accept or reject.
+Analyzes every image for non-destructive improvements — exposure correction, color balance, shadow recovery. Proposes changes without touching originals. Human votes accept or reject each suggestion.
 
-```bash
-python3 -m backend.suggest_image_enhancement.propose       # propose enhancements
-```
+**Say:** `enhance`
 
 ---
 
 ## suggest_image_variant — The Artist
 
-Generate AI art variants (neural style transfer, Imagen 3, mflux) with learned style selection.
+Generates AI art variants from photographs using neural style transfer (Van Gogh, Klimt, Seurat, Monet, Munch), Imagen 3 cartoons, and mflux stylization. Learns which styles work best for different image types.
 
-```bash
-python3 -m backend.suggest_image_variant.run               # generate variants
-```
-
-**Styles:** Van Gogh, Klimt, Seurat, Monet, Munch + Imagen 3 cartoons
+**Say:** `variants`
 
 ---
 
 ## prepare_show — The Curator
 
-Pre-compute everything Show needs: bento compositions, boom sets, game pairs, scores, and lookup indices.
+Pre-computes everything the Show app needs to run. Bento compositions with chromatic harmony, boom photo sets, game pairs for the guessing experience, visual scores combining 24+ signals, and lookup indices. Turns raw data into curated experiences.
 
-```bash
-python3 -m backend.prepare_show.run                        # full pipeline
-python3 -m backend.prepare_show.run --audit                # signal coverage report
-python3 -m backend.prepare_show.run --score                # visual scores only
-python3 -m backend.prepare_show.run --curate               # compositions + pairs only
-python3 -m backend.prepare_show.run --dry                  # preview without writing
-python3 -m backend.prepare_show.run --force                # regenerate even if fresh
-```
-
-**Outputs:** `show_scores.json`, `show_index.json`, `show_bentos.json`, `show_boom.json`, `show_pairs.json`
+**Say:** `prepare`
 
 ---
 
 ## update_and_deploy — The Shipper
 
-10-phase verified deployment: preflight, inspect, docs, sync, export, data, build, deploy, verify, postflight.
+10-phase verified deployment pipeline. Preflight safety checks, Firestore sync, gallery export, data regeneration, Vite production builds, Firebase deploy, URL health verification, and postflight cleanup. Nothing ships unless every check passes.
 
-```bash
-python3 -m backend.update_and_deploy.run                   # full pipeline
-python3 -m backend.update_and_deploy.run --dry             # dry run
-python3 -m backend.update_and_deploy.run --preflight       # safety check only
-python3 -m backend.update_and_deploy.run --build           # Vite builds only
-python3 -m backend.update_and_deploy.run --deploy          # Firebase deploy only
-```
-
-**Modifiers:** `--wait`, `--force`, `--no-git`, `--full`
+**Say:** `deploy`
 
 ---
 
 ## MADphotos_ignition — The Launcher
 
-Dev environment startup: pre-checks, server launch, health verification, ready URLs.
+Dev environment startup. Checks git state, port availability, dependencies, database health, and Ollama status. Launches all three servers (serve_show, Show vite, System vite), verifies health, and prints ready URLs.
 
-```bash
-python3 -m backend.MADphotos_ignition.run                  # full startup
-python3 -m backend.MADphotos_ignition.run --shutdown       # stop all servers
-python3 -m backend.MADphotos_ignition.run --status         # health check
-python3 -m backend.MADphotos_ignition.run --prechecks      # pre-checks only
-```
-
-**Flags:** `--health`, `--monitor`, `--see`, `--dry`, `--force`, `--tags`
+**Say:** `ignition` | **Stop everything:** `shutdown` | **Health check:** `status`
