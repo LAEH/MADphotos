@@ -1550,20 +1550,16 @@ export function BentoView() {
     const containerRatio = newLayout.device === 'mobile' ? (2 / 3) : (3 / 2)
     _activeUnitRatio = containerRatio * newLayout.rows / newLayout.cols
 
-    // Try ALL curators — pick the highest scoring result
+    // Shuffle curators — try until one succeeds (each tap gets a different curation style)
+    const shuffled = [...CURATORS].sort(() => Math.random() - 0.5)
     let bestResult: Photo[] = []
-    let bestScore = -Infinity
     let bestCurator = ''
-    for (const curator of CURATORS) {
+    for (const curator of shuffled) {
       const result = curator(allPhotos, newLayout.cells)
       if (result.length >= newLayout.cells.length) {
-        const score = result.slice(0, newLayout.cells.length)
-          .reduce((s, p) => s + visualImpact(p), 0) / newLayout.cells.length
-        if (score > bestScore) {
-          bestScore = score
-          bestResult = result.slice(0, newLayout.cells.length)
-          bestCurator = curator.name
-        }
+        bestResult = result.slice(0, newLayout.cells.length)
+        bestCurator = curator.name
+        break
       }
     }
     if (bestResult.length === 0) {
