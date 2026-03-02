@@ -355,19 +355,20 @@ body {
   background: var(--bg);
 }
 .splash-logo {
-  font-family: var(--font-display);
-  font-size: clamp(28px, 5vw, 42px);
-  letter-spacing: -0.02em;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: var(--text);
   animation: splash-breathe 2.4s cubic-bezier(0.45, 0, 0.15, 1) infinite;
   will-change: opacity;
 }
 .splash-mad {
   font-weight: 900;
-  color: var(--text);
+  letter-spacing: -0.06em;
 }
 .splash-sub {
-  font-weight: 300;
-  color: var(--text-dim);
+  font-weight: 400;
 }
 @keyframes splash-breathe {
   0%, 100% { opacity: 0.3; }
