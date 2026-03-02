@@ -37,7 +37,7 @@
   overflow: hidden;
   contain: layout style paint;
   cursor: pointer;
-  transition: opacity 800ms var(--ease-out-quart), transform 0.2s var(--ease-out-quart);
+  transition: transform 0.25s var(--ease-out-quart), box-shadow 0.25s var(--ease-out-quart);
   min-width: 0;
   min-height: 0;
   width: 100%;
@@ -47,14 +47,14 @@
     0 1px 3px rgba(0, 0, 0, 0.08),
     0 2px 8px rgba(0, 0, 0, 0.06),
     0 4px 16px rgba(0, 0, 0, 0.04);
-  animation: bento-burst 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-  animation-delay: calc(var(--i, 0) * 60ms);
+  animation: bento-enter 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 40ms);
 }
 
-@keyframes bento-burst {
+@keyframes bento-enter {
   from {
     opacity: 0;
-    transform: scale(0.3);
+    transform: scale(0.92);
   }
   to {
     opacity: 1;
@@ -78,6 +78,19 @@
   object-fit: cover;
   /* object-position set dynamically via getObjectPosition() */
   display: block;
+}
+
+/* Crossfade overlay for smooth tile swaps */
+.bento-tile-next {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  z-index: 1;
+  transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
 }
 
 /* Variant indicator — unicorn disc on hover */
@@ -205,13 +218,13 @@
 
 /* Split animation — faster burst for newly split tiles */
 .bento-tile-split {
-  animation: bento-split-burst 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: bento-split-enter 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
-@keyframes bento-split-burst {
+@keyframes bento-split-enter {
   from {
     opacity: 0;
-    transform: scale(0.4);
+    transform: scale(0.88);
   }
   to {
     opacity: 1;

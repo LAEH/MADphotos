@@ -17,8 +17,6 @@ import './BentoView.css'
 
 /* Layouts, density steps, and grid generators are in layoutRegistry.ts */
 
-const CROSSFADE_INTERVAL = 20_000
-
 /** Rendered unit cell w/h ratio — set by fillBento before curators run.
  *  Desktop (5×3, container 3/2): 0.9. Mobile (3×6, container 2/3): 1.333. */
 let _activeUnitRatio = 1
@@ -1354,95 +1352,119 @@ export function BentoView() {
     requestAnimationFrame(() => refillPreloadBuffer(new Set(updatedPhotos.map(p => p.id))))
   }, [data, refillPreloadBuffer])
 
-  /* Swap a single tile — pull a new photo from preload buffer */
+  /* Swap a single tile — crossfade to a new photo from preload buffer */
   const swapTile = useCallback((tileEl: HTMLDivElement) => {
     if (!data) return
     const oldId = tileEl.dataset.id
     const orient = tileEl.dataset.orient as 'P' | 'L' | undefined
     const cellIdx = parseInt(tileEl.dataset.cellIdx || '0', 10)
 
+    // Remove any in-flight crossfade overlay
+    tileEl.querySelectorAll('.bento-tile-next').forEach(el => el.remove())
+
+    let newPhoto: Photo | undefined
+
     // If current photo is a variant, first click reveals the original
     const currentPhoto = photosRef.current.find(p => p.id === oldId)
     if (currentPhoto?.parent) {
       const original = data.photos.find(p => p.id === currentPhoto.parent)
       if (original && (original.display || original.thumb)) {
-        const target = original.display || original.thumb!
-        const img = tileEl.querySelector('img:not(.bento-tile-original)') as HTMLImageElement
-        if (img) {
-          img.src = target
-          tileEl.dataset.id = original.id
-          delete tileEl.dataset.variant
-          const wCells = workingCellsRef.current
-          const ly = layoutRef.current
-          if (wCells[cellIdx]) {
-            img.style.objectPosition = ly
-              ? getObjectPosition(original, wCells[cellIdx], ly.cols, ly.rows, ly.device === 'mobile' ? 2/3 : 3/2)
-              : getObjectPosition(original, wCells[cellIdx])
-          }
-          setPhotos(prev => {
-            const next = [...prev]
-            const bIdx = next.findIndex(p => p.id === oldId)
-            if (bIdx >= 0) next[bIdx] = original
-            return next
-          })
-        }
-        return
+        newPhoto = original
       }
     }
 
-    const currentIds = new Set(photosRef.current.map(p => p.id))
-    const buf = preloadBufferRef.current
-    const bufPool = orient === 'P' ? buf.P : buf.L
-
-    let newPhoto: Photo | undefined
-    const bufReady = bufPool.filter(p => !currentIds.has(p.id))
-    if (bufReady.length > 0) {
-      const idx = Math.floor(Math.random() * bufReady.length)
-      newPhoto = bufReady[idx]
-      const bIdx = orient === 'P'
-        ? buf.P.findIndex(p => p.id === newPhoto!.id)
-        : buf.L.findIndex(p => p.id === newPhoto!.id)
-      if (bIdx >= 0) (orient === 'P' ? buf.P : buf.L).splice(bIdx, 1)
-    } else {
-      let pool = photoPoolRef.current.filter(p => p.thumb && p.display && p.aesthetic && !currentIds.has(p.id))
-      if (orient === 'P') pool = pool.filter(p => p.orientation === 'portrait')
-      else pool = pool.filter(p => p.orientation === 'landscape' || p.orientation === 'square')
-      if (pool.length === 0) return
-      newPhoto = randomFrom(pool)
+    // Normal swap: pull from preload buffer or pool
+    if (!newPhoto) {
+      const currentIds = new Set(photosRef.current.map(p => p.id))
+      const buf = preloadBufferRef.current
+      const bufPool = orient === 'P' ? buf.P : buf.L
+      const bufReady = bufPool.filter(p => !currentIds.has(p.id))
+      if (bufReady.length > 0) {
+        const idx = Math.floor(Math.random() * bufReady.length)
+        newPhoto = bufReady[idx]
+        const bIdx = orient === 'P'
+          ? buf.P.findIndex(p => p.id === newPhoto!.id)
+          : buf.L.findIndex(p => p.id === newPhoto!.id)
+        if (bIdx >= 0) (orient === 'P' ? buf.P : buf.L).splice(bIdx, 1)
+      } else {
+        let pool = photoPoolRef.current.filter(p => p.thumb && p.display && p.aesthetic && !currentIds.has(p.id))
+        if (orient === 'P') pool = pool.filter(p => p.orientation === 'portrait')
+        else pool = pool.filter(p => p.orientation === 'landscape' || p.orientation === 'square')
+        if (pool.length === 0) return
+        newPhoto = randomFrom(pool)
+      }
     }
 
     const target = newPhoto.display || newPhoto.thumb
     if (!target) return
 
-    const img = tileEl.querySelector('img:not(.bento-tile-original)') as HTMLImageElement
-    if (!img) return
+    const mainImg = tileEl.querySelector('img:not(.bento-tile-next)') as HTMLImageElement
+    if (!mainImg) return
 
-    img.src = target
-    img.classList.remove('img-loading', 'img-loaded')
-    tileEl.dataset.id = newPhoto.id
-    if (newPhoto.parent) tileEl.dataset.variant = ''; else delete tileEl.dataset.variant
-    const dominant = newPhoto.palette?.[0]
-    if (dominant) tileEl.style.backgroundColor = dominant + '99'
-
+    // Compute object-position for new photo
     const wCells = workingCellsRef.current
     const ly = layoutRef.current
+    let objPos = ''
     if (wCells[cellIdx]) {
-      img.style.objectPosition = ly
+      objPos = ly
         ? getObjectPosition(newPhoto, wCells[cellIdx], ly.cols, ly.rows, ly.device === 'mobile' ? 2/3 : 3/2)
         : getObjectPosition(newPhoto, wCells[cellIdx])
     }
 
-    setPhotos(prev => {
-      const next = [...prev]
-      const bIdx = next.findIndex(p => p.id === oldId)
-      if (bIdx >= 0) next[bIdx] = newPhoto!
-      return next
-    })
+    // Preload new image, then crossfade overlay
+    const captured = newPhoto
+    const preload = new Image()
+    preload.decoding = 'async'
 
-    const nextIds = new Set(photosRef.current.map(p => p.id))
-    nextIds.delete(oldId!)
-    nextIds.add(newPhoto.id)
-    refillPreloadBuffer(nextIds)
+    const doSwap = () => {
+      const overlay = document.createElement('img')
+      overlay.className = 'bento-tile-next'
+      overlay.src = target
+      overlay.alt = ''
+      if (objPos) overlay.style.objectPosition = objPos
+      tileEl.appendChild(overlay)
+
+      // Double-rAF: ensure browser paints opacity:0 before transitioning
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => { overlay.style.opacity = '1' })
+      })
+
+      let cleaned = false
+      const cleanup = () => {
+        if (cleaned) return
+        cleaned = true
+        overlay.removeEventListener('transitionend', cleanup)
+        // Transfer to main image
+        mainImg.src = target
+        if (objPos) mainImg.style.objectPosition = objPos
+        mainImg.classList.remove('img-loading', 'img-loaded')
+        tileEl.dataset.id = captured.id
+        if (captured.parent) tileEl.dataset.variant = ''
+        else delete tileEl.dataset.variant
+        const dominant = captured.palette?.[0]
+        if (dominant) tileEl.style.backgroundColor = dominant + '99'
+        overlay.remove()
+
+        setPhotos(prev => {
+          const next = [...prev]
+          const idx = next.findIndex(p => p.id === oldId)
+          if (idx >= 0) next[idx] = captured
+          return next
+        })
+
+        const nextIds = new Set(photosRef.current.map(p => p.id))
+        nextIds.delete(oldId!)
+        nextIds.add(captured.id)
+        refillPreloadBuffer(nextIds)
+      }
+
+      overlay.addEventListener('transitionend', cleanup)
+      setTimeout(cleanup, 600)
+    }
+
+    preload.onload = doSwap
+    preload.onerror = doSwap
+    preload.src = target
   }, [data, refillPreloadBuffer])
 
   /* Cycle layouts with arrow keys — just regenerate */
@@ -1450,111 +1472,10 @@ export function BentoView() {
     generate()
   }, [generate])
 
-  /* Auto crossfade one random tile every CROSSFADE_INTERVAL — uses preload buffer */
-  const crossfadeOneTile = useCallback(() => {
-    if (!data) return
-    const tiles = document.querySelectorAll<HTMLDivElement>('.bento-tile')
-    if (tiles.length === 0) return
-
-    const tileIdx = Math.floor(Math.random() * tiles.length)
-    const tile = tiles[tileIdx]
-    const oldId = tile.dataset.id
-    const orient = tile.dataset.orient as 'P' | 'L' | undefined
-    const cellIdx = parseInt(tile.dataset.cellIdx || '0', 10)
-
-    const currentIds = new Set(photosRef.current.map(p => p.id))
-    const buf = preloadBufferRef.current
-    const bufPool = orient === 'P' ? buf.P : buf.L
-
-    let newPhoto: Photo | undefined
-    const bufReady = bufPool.filter(p => !currentIds.has(p.id))
-    if (bufReady.length > 0) {
-      const idx = Math.floor(Math.random() * bufReady.length)
-      newPhoto = bufReady[idx]
-      const bIdx = orient === 'P'
-        ? buf.P.findIndex(p => p.id === newPhoto!.id)
-        : buf.L.findIndex(p => p.id === newPhoto!.id)
-      if (bIdx >= 0) (orient === 'P' ? buf.P : buf.L).splice(bIdx, 1)
-    } else {
-      let pool = photoPoolRef.current.filter(p => p.thumb && p.display && p.aesthetic && !currentIds.has(p.id))
-      if (orient === 'P') pool = pool.filter(p => p.orientation === 'portrait')
-      else pool = pool.filter(p => p.orientation === 'landscape' || p.orientation === 'square')
-      if (pool.length === 0) return
-      newPhoto = randomFrom(pool)
-    }
-
-    const target = newPhoto.display || newPhoto.thumb
-    if (!target) return
-
-    let imageReady = false
-    let fadeOutDone = false
-    const preload = new Image()
-    preload.decoding = 'async'
-
-    const applySwap = () => {
-      const img = tile.querySelector('img:not(.bento-tile-original)') as HTMLImageElement
-      if (!img) return
-
-      img.src = target
-      img.classList.remove('img-loading', 'img-loaded')
-      img.alt = ''
-      tile.dataset.id = newPhoto!.id
-      if (newPhoto!.parent) tile.dataset.variant = ''; else delete tile.dataset.variant
-      const dominant = newPhoto!.palette?.[0]
-      if (dominant) tile.style.backgroundColor = dominant + '99'
-
-      const wCells = workingCellsRef.current
-      const ly = layoutRef.current
-      if (wCells[cellIdx]) {
-        img.style.objectPosition = ly
-          ? getObjectPosition(newPhoto!, wCells[cellIdx], ly.cols, ly.rows, ly.device === 'mobile' ? 2/3 : 3/2)
-          : getObjectPosition(newPhoto!, wCells[cellIdx])
-      }
-
-      setPhotos(prev => {
-        const next = [...prev]
-        const bIdx = next.findIndex(p => p.id === oldId)
-        if (bIdx >= 0) next[bIdx] = newPhoto!
-        return next
-      })
-
-      requestAnimationFrame(() => { tile.style.opacity = '1' })
-
-      const nextIds = new Set(photosRef.current.map(p => p.id))
-      nextIds.delete(oldId!)
-      nextIds.add(newPhoto!.id)
-      refillPreloadBuffer(nextIds)
-    }
-
-    const tryApply = () => {
-      if (imageReady && fadeOutDone) applySwap()
-    }
-
-    preload.onload = () => { imageReady = true; tryApply() }
-    preload.onerror = () => { imageReady = true; tryApply() }
-    preload.src = target
-
-    tile.style.opacity = '0'
-
-    const onFadeOut = () => {
-      tile.removeEventListener('transitionend', onFadeOut)
-      fadeOutDone = true
-      tryApply()
-    }
-    tile.addEventListener('transitionend', onFadeOut)
-    setTimeout(() => { if (!fadeOutDone) { fadeOutDone = true; tile.removeEventListener('transitionend', onFadeOut); tryApply() } }, 900)
-  }, [data, refillPreloadBuffer])
-
   /* Init: generate on mount */
   useEffect(() => {
     if (data) generate()
   }, [data]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  /* Crossfade timer */
-  useEffect(() => {
-    const id = window.setInterval(crossfadeOneTile, CROSSFADE_INTERVAL)
-    return () => clearInterval(id)
-  }, [crossfadeOneTile])
 
   /* Keyboard handler */
   useEffect(() => {
