@@ -7,7 +7,7 @@
   inset: 0;
   contain: layout style;
   display: grid;
-  grid-template-rows: var(--bento-top) 68dvh auto;
+  grid-template-rows: var(--bento-top) 1fr auto;
   grid-template-columns: 1fr;
   justify-items: center;
   padding: 0 var(--bento-edge) 30px;
