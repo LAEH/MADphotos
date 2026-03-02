@@ -8,6 +8,7 @@ export function Lightbox() {
   const lightboxOpen = useAppStore(s => s.lightboxOpen)
   const lightboxPhotos = useAppStore(s => s.lightboxPhotos)
   const lightboxIndex = useAppStore(s => s.lightboxIndex)
+  const lightboxMinimal = useAppStore(s => s.lightboxMinimal)
   const closeLightbox = useAppStore(s => s.closeLightbox)
   const navigateLightbox = useAppStore(s => s.navigateLightbox)
 
@@ -94,7 +95,7 @@ export function Lightbox() {
 
   return (
     <div
-      className={'lightbox' + (lightboxOpen ? '' : ' hidden')}
+      className={'lightbox' + (lightboxOpen ? '' : ' hidden') + (lightboxMinimal ? ' lightbox-minimal' : '')}
       id="lightbox"
     >
       <div className="lightbox-backdrop" onClick={closeLightbox} />
@@ -103,57 +104,66 @@ export function Lightbox() {
         ref={contentRef}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
+        onClick={lightboxMinimal ? closeLightbox : undefined}
       >
-        <button
-          className="lightbox-close"
-          onClick={closeLightbox}
-          aria-label="Close lightbox"
-        >
-          &times;
-        </button>
+        {!lightboxMinimal && (
+          <button
+            className="lightbox-close"
+            onClick={closeLightbox}
+            aria-label="Close lightbox"
+          >
+            &times;
+          </button>
+        )}
         <img
           ref={imgRef}
           className="lightbox-img"
           alt=""
         />
-        <div className="lightbox-meta" style={{ display: photo ? 'block' : 'none' }}>
-          <div className="lightbox-alt">
-            {photo
-              ? photo.best_caption || photo.caption || photo.alt || ''
-              : ''}
+        {!lightboxMinimal && (
+          <div className="lightbox-meta" style={{ display: photo ? 'block' : 'none' }}>
+            <div className="lightbox-alt">
+              {photo
+                ? photo.best_caption || photo.caption || photo.alt || ''
+                : ''}
+            </div>
+            <div className="lightbox-tags">
+              {tags.map((t, i) => (
+                <GlassTag key={`${t.category}-${t.text}-${i}`} text={t.text} category={t.category} />
+              ))}
+            </div>
+            <div className="lightbox-palette">
+              <PaletteDots palette={photo?.palette} size={20} />
+            </div>
           </div>
-          <div className="lightbox-tags">
-            {tags.map((t, i) => (
-              <GlassTag key={`${t.category}-${t.text}-${i}`} text={t.text} category={t.category} />
-            ))}
-          </div>
-          <div className="lightbox-palette">
-            <PaletteDots palette={photo?.palette} size={20} />
-          </div>
-        </div>
+        )}
 
-        <button
-          className="lightbox-nav lightbox-prev"
-          hidden={!showPrev}
-          onClick={e => {
-            e.stopPropagation()
-            navigateLightbox(-1)
-          }}
-          aria-label="Previous photo"
-        >
-          &#8249;
-        </button>
-        <button
-          className="lightbox-nav lightbox-next"
-          hidden={!showNext}
-          onClick={e => {
-            e.stopPropagation()
-            navigateLightbox(1)
-          }}
-          aria-label="Next photo"
-        >
-          &#8250;
-        </button>
+        {!lightboxMinimal && (
+          <button
+            className="lightbox-nav lightbox-prev"
+            hidden={!showPrev}
+            onClick={e => {
+              e.stopPropagation()
+              navigateLightbox(-1)
+            }}
+            aria-label="Previous photo"
+          >
+            &#8249;
+          </button>
+        )}
+        {!lightboxMinimal && (
+          <button
+            className="lightbox-nav lightbox-next"
+            hidden={!showNext}
+            onClick={e => {
+              e.stopPropagation()
+              navigateLightbox(1)
+            }}
+            aria-label="Next photo"
+          >
+            &#8250;
+          </button>
+        )}
       </div>
     </div>
   )

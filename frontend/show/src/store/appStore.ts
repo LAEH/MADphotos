@@ -16,12 +16,13 @@ interface AppState {
   lightboxOpen: boolean
   lightboxPhotos: Photo[]
   lightboxIndex: number
+  lightboxMinimal: boolean
 
   /* Actions */
   loadData: () => Promise<PhotosData>
   loadDriftNeighbors: () => Promise<Record<string, DriftNeighbor[]>>
   loadGemma: () => Promise<Record<string, GemmaData>>
-  openLightbox: (photo: Photo, photoList?: Photo[]) => void
+  openLightbox: (photo: Photo, photoList?: Photo[], minimal?: boolean) => void
   closeLightbox: () => void
   navigateLightbox: (dir: number) => void
 }
@@ -53,6 +54,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   lightboxOpen: false,
   lightboxPhotos: [],
   lightboxIndex: -1,
+  lightboxMinimal: false,
 
   async loadData() {
     const existing = get().data
@@ -174,18 +176,18 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
-  openLightbox(photo, photoList) {
+  openLightbox(photo, photoList, minimal) {
     if (photoList && photoList.length > 0) {
       let index = photoList.findIndex(p => p.id === photo.id)
       if (index < 0) index = 0
-      set({ lightboxOpen: true, lightboxPhotos: photoList, lightboxIndex: index })
+      set({ lightboxOpen: true, lightboxPhotos: photoList, lightboxIndex: index, lightboxMinimal: !!minimal })
     } else {
-      set({ lightboxOpen: true, lightboxPhotos: [photo], lightboxIndex: 0 })
+      set({ lightboxOpen: true, lightboxPhotos: [photo], lightboxIndex: 0, lightboxMinimal: !!minimal })
     }
   },
 
   closeLightbox() {
-    set({ lightboxOpen: false, lightboxPhotos: [], lightboxIndex: -1 })
+    set({ lightboxOpen: false, lightboxPhotos: [], lightboxIndex: -1, lightboxMinimal: false })
   },
 
   navigateLightbox(dir) {

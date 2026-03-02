@@ -1562,9 +1562,9 @@ export function BentoView() {
     }
   }, [cycle])
 
-  /* Fullscreen handler */
+  /* Fullscreen handler — minimal mode: image only, no chrome */
   const handleFullscreen = useCallback((photo: Photo) => {
-    openLightbox(photo, photosRef.current)
+    openLightbox(photo, photosRef.current, true)
   }, [openLightbox])
 
   /* ShowControls callbacks */
