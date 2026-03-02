@@ -64,8 +64,11 @@ export function App() {
 
   if (!loaded) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'var(--text-muted)' }}>
-        Curating your photographs
+      <div className="splash-loader">
+        <span className="splash-logo">
+          <span className="splash-mad">MAD</span>
+          <span className="splash-sub">photos</span>
+        </span>
       </div>
     )
   }
