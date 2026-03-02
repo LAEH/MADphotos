@@ -1530,8 +1530,8 @@ export function BentoView() {
   const handleImageTypeChange = useCallback((filter: ImageTypeFilter) => setImageTypeFilter(filter), [])
 
   /* Best bento — curated exhibition, not a variant showcase.
-   * Tries ALL curators, picks the one with highest visual impact.
-   * 6-12 tiles (never too few), max 1 variant accent, avoids recently shown. */
+   * Shuffles curators for variety. ~1 in 3 taps applies a random color filter.
+   * 6-12 tiles, max 1 variant accent, avoids recently shown. */
   const showBestBento = useCallback(() => {
     if (!data) return
     const device = isDesktop() ? 'desktop' as const : 'mobile' as const
@@ -1541,10 +1541,26 @@ export function BentoView() {
 
     // Filter out recently shown photos for freshness
     const recent = recentlyShownRef.current
-    const freshPhotos = data.photos.filter(p => !recent.has(p.id))
+    let freshPhotos = data.photos.filter(p => !recent.has(p.id))
     // Only fall back to all photos if fresh pool is truly exhausted
-    const allPhotos = freshPhotos.filter(p => p.thumb && p.display).length >= count * 2
-      ? freshPhotos : data.photos
+    if (freshPhotos.filter(p => p.thumb && p.display).length < count * 2) {
+      freshPhotos = data.photos
+    }
+
+    // ~1 in 3 taps: pick a random color bucket for a chromatic set
+    let colorIdx = -1
+    if (colorBuckets.length > 0 && Math.random() < 0.35) {
+      const rich = colorBuckets
+        .map((b, i) => ({ i, photos: b.photos.filter(p => !recent.has(p.id) && p.thumb && p.display) }))
+        .filter(x => x.photos.length >= count)
+      if (rich.length > 0) {
+        const pick = rich[Math.floor(Math.random() * rich.length)]
+        colorIdx = pick.i
+        freshPhotos = pick.photos
+      }
+    }
+
+    const allPhotos = freshPhotos
 
     // Set unit ratio for cropFitness
     const containerRatio = newLayout.device === 'mobile' ? (2 / 3) : (3 / 2)
@@ -1590,7 +1606,7 @@ export function BentoView() {
     }
 
     setActiveCurator(bestCurator)
-    setActiveColorIdx(-1)
+    setActiveColorIdx(colorIdx)
     setLayout(newLayout)
     setWorkingCells([...newLayout.cells])
     setPhotos(bestResult)
@@ -1598,7 +1614,7 @@ export function BentoView() {
     setRevealedSet(new Set())
     setSplitIndices(new Set())
     requestAnimationFrame(() => refillPreloadBuffer(new Set(bestResult.map(p => p.id))))
-  }, [data, imageTypeFilter, refillPreloadBuffer])
+  }, [data, colorBuckets, imageTypeFilter, refillPreloadBuffer])
 
   /* Regenerate when color or image type changes */
   useEffect(() => {
@@ -1695,7 +1711,7 @@ export function BentoView() {
       </div>
       <div className="view-bottom">
         <ShowControls
-          controls={['imageType', 'color', 'heart', 'genie']}
+          controls={['imageType', 'heart', 'genie']}
           state={{
             activeColorIdx,
             densityStepIdx: 0,
