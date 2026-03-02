@@ -301,7 +301,7 @@ export function ShowControls({ controls, state, config, callbacks, compact }: Sh
         </button>
       )}
 
-      {/* 4. Image Type — photo disc */}
+      {/* 4. Image Type — photo disc (28px visual inside 44px touch target) */}
       {controls.includes('imageType') && config.hasVariants && config.samplePhoto && (
         <button
           className="show-ctrl-imgdisc"
@@ -309,18 +309,20 @@ export function ShowControls({ controls, state, config, callbacks, compact }: Sh
           aria-label={`Image type: ${state.imageTypeFilter}`}
           title={`Showing: ${state.imageTypeFilter}`}
         >
-          {state.imageTypeFilter === 'mixed' ? (
-            <>
-              <img className="show-ctrl-imgdisc-half left" src={config.samplePhoto} alt="" />
-              <img className="show-ctrl-imgdisc-half right" src={config.sampleVariant || config.samplePhoto} alt="" />
-            </>
-          ) : (
-            <img
-              className="show-ctrl-imgdisc-full"
-              src={state.imageTypeFilter === 'photo' ? config.samplePhoto : (config.sampleVariant || config.samplePhoto)}
-              alt=""
-            />
-          )}
+          <span className="show-ctrl-imgdisc-inner">
+            {state.imageTypeFilter === 'mixed' ? (
+              <>
+                <img className="show-ctrl-imgdisc-half left" src={config.samplePhoto} alt="" />
+                <img className="show-ctrl-imgdisc-half right" src={config.sampleVariant || config.samplePhoto} alt="" />
+              </>
+            ) : (
+              <img
+                className="show-ctrl-imgdisc-full"
+                src={state.imageTypeFilter === 'photo' ? config.samplePhoto : (config.sampleVariant || config.samplePhoto)}
+                alt=""
+              />
+            )}
+          </span>
         </button>
       )}
 

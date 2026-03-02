@@ -93,41 +93,56 @@
   background: rgba(255, 255, 255, 0.1);
 }
 
-/* ===== Color dot ===== */
+/* ===== Color dot — visual 28px circle inside 44px touch target ===== */
 
 .show-ctrl-color {
-  width: 28px;
-  height: 28px;
-  margin: 0 4px;
+  width: 44px;
+  height: 44px;
+  margin: 0;
   border: none;
-  border-radius: 50%;
+  border-radius: 12px;
   cursor: pointer;
   flex-shrink: 0;
-  transition: transform 0.15s var(--ease-out-quart), box-shadow 0.3s ease;
+  transition: transform 0.15s var(--ease-out-quart);
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 0;
+}
+
+.show-ctrl-color::after {
+  content: '';
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  flex-shrink: 0;
   background: conic-gradient(
     hsl(0, 50%, 65%), hsl(60, 45%, 60%), hsl(120, 40%, 55%),
     hsl(180, 45%, 55%), hsl(240, 50%, 60%), hsl(300, 45%, 60%), hsl(360, 50%, 65%)
   );
   opacity: 0.55;
+  transition: opacity 0.15s ease, box-shadow 0.3s ease, transform 0.15s var(--ease-out-quart);
 }
 
-:root.dark .show-ctrl-color {
+:root.dark .show-ctrl-color::after {
   opacity: 0.5;
 }
 
-.show-ctrl-color.active {
+.show-ctrl-color.active::after {
   opacity: 1;
   background: var(--show-ctrl-color-glow, hsl(0, 70%, 60%));
   box-shadow: 0 0 12px var(--show-ctrl-color-glow, rgba(100, 100, 255, 0.3));
 }
 
 /* Next color preview — shows the upcoming color at reduced opacity */
-.show-ctrl-color.show-next {
+.show-ctrl-color.show-next::after {
   opacity: 0.85;
   background: var(--show-ctrl-color-glow, hsl(0, 70%, 60%));
 }
 
-.show-ctrl-color.color-gray {
+.show-ctrl-color.color-gray::after {
   background: radial-gradient(circle, #aaa, #777);
 }
 
@@ -142,24 +157,36 @@
   100% { transform: scale(1); opacity: 1; }
 }
 
-/* ===== Image type disc — real photo thumbnail ===== */
+/* ===== Image type disc — 28px visual inside 44px touch target ===== */
 
 .show-ctrl-imgdisc {
-  width: 28px;
-  height: 28px;
-  margin: 0 4px;
+  width: 44px;
+  height: 44px;
+  margin: 0;
   border: none;
-  border-radius: 50%;
+  border-radius: 12px;
   cursor: pointer;
   flex-shrink: 0;
-  overflow: hidden;
   position: relative;
   padding: 0;
-  background: #333;
+  background: transparent;
   outline: none;
   -webkit-appearance: none;
   -webkit-tap-highlight-color: transparent;
   transition: transform 0.15s var(--ease-out-quart), box-shadow 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.show-ctrl-imgdisc-inner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  overflow: hidden;
+  position: relative;
+  background: #333;
+  flex-shrink: 0;
 }
 
 .show-ctrl-imgdisc-full {
@@ -300,7 +327,7 @@
     background: rgba(255, 255, 255, 0.07);
   }
 
-  .show-ctrl-color:hover {
+  .show-ctrl-color:hover::after {
     transform: scale(1.08);
   }
 
@@ -309,42 +336,47 @@
   }
 }
 
-/* ===== Compact (mobile) — 40px buttons, 18px icons ===== */
+/* ===== Compact (mobile) — 44px touch targets (Apple HIG minimum) ===== */
 
 .show-controls.compact {
-  padding: 5px 6px;
-  gap: 2px;
-  border-radius: 20px;
+  padding: 4px;
+  gap: 0;
+  border-radius: 22px;
 }
 
 .show-controls.compact .show-ctrl-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
 }
 
 .show-controls.compact .show-ctrl-icon {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
 }
 
-.show-controls.compact .show-ctrl-color {
+.show-controls.compact .show-ctrl-color::after {
+  width: 26px;
+  height: 26px;
+}
+
+.show-controls.compact .show-ctrl-imgdisc-inner {
   width: 26px;
   height: 26px;
 }
 
 .show-controls.compact .show-ctrl-divider {
-  height: 18px;
-  margin: 0 3px;
+  height: 20px;
+  margin: 0 2px;
 }
 
 .show-controls.compact .show-ctrl-genie {
-  font-size: 20px;
+  font-size: 22px;
 }
 
 .show-controls.compact .show-ctrl-color-swatch {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
 }
 
 /* ===== Tier B — no backdrop-filter ===== */
