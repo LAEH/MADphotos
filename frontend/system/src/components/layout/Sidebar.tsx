@@ -5,11 +5,14 @@ import { ThemeToggle } from './ThemeToggle'
 interface NavItem {
   to: string
   label: string
+  localOnly?: boolean
 }
+
+const isProd = import.meta.env.PROD
 
 const navItems: NavItem[] = [
   { to: '/status', label: 'Status' },
-  { to: '/journal', label: 'Journal' },
+  { to: '/journal', label: 'Journal', localOnly: true },
   { to: '/instructions', label: 'Instructions' },
   { to: '/docs/bento', label: 'Bento Algorithm' },
 ]
@@ -21,12 +24,12 @@ const signals: NavItem[] = [
 ]
 
 const curation: NavItem[] = [
-  { to: '/review/unpicked', label: 'Unpicked' },
-  { to: '/curation/location', label: 'Location' },
-  { to: '/experiments/generated', label: 'Generated' },
-  { to: '/review/variants', label: 'Variant Disks' },
-  { to: '/review/borders', label: 'Border Crops' },
-  { to: '/experiments/enhanced', label: 'Enhanced' },
+  { to: '/review/unpicked', label: 'Unpicked', localOnly: true },
+  { to: '/curation/location', label: 'Location', localOnly: true },
+  { to: '/experiments/generated', label: 'Generated', localOnly: true },
+  { to: '/review/variants', label: 'Variant Disks', localOnly: true },
+  { to: '/review/borders', label: 'Border Crops', localOnly: true },
+  { to: '/experiments/enhanced', label: 'Enhanced', localOnly: true },
 ]
 
 export function Sidebar() {
@@ -37,16 +40,26 @@ export function Sidebar() {
     setMobileOpen(false)
   }, [location.pathname])
 
-  const renderLink = (item: NavItem) => (
-    <NavLink
-      key={item.to}
-      to={item.to}
-      className={({ isActive }) => isActive ? 'active' : ''}
-      onClick={() => setMobileOpen(false)}
-    >
-      {item.label}
-    </NavLink>
-  )
+  const renderLink = (item: NavItem) => {
+    const disabled = isProd && item.localOnly
+    if (disabled) {
+      return (
+        <span key={item.to} className="sb-disabled">
+          {item.label}
+        </span>
+      )
+    }
+    return (
+      <NavLink
+        key={item.to}
+        to={item.to}
+        className={({ isActive }) => isActive ? 'active' : ''}
+        onClick={() => setMobileOpen(false)}
+      >
+        {item.label}
+      </NavLink>
+    )
+  }
 
   return (
     <nav className={`sidebar${mobileOpen ? ' open' : ''}`} id="sidebar">

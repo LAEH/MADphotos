@@ -425,6 +425,20 @@
   transition: background 0.15s, color 0.15s;
 }
 .sidebar a:hover { background: rgba(128,128,128,0.08); color: var(--text); text-decoration: none; }
+.sidebar .sb-disabled {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  margin: 1px 8px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.2;
+  color: var(--text-3);
+  opacity: 0.4;
+  cursor: default;
+  pointer-events: none;
+}
 .sidebar a.active {
   color: var(--accent);
   font-weight: 600;
