@@ -1097,6 +1097,9 @@ export function BentoView() {
   /* Track which tile indices are currently showing their variant */
   const revealedRef = useRef(new Set<number>())
   const [revealedSet, setRevealedSet] = useState(new Set<number>())
+  /* Recently shown photo IDs — prevent repeats across consecutive generations */
+  const recentlyShownRef = useRef(new Set<string>())
+  const RECENTLY_SHOWN_CAP = 60
 
   /* Refs for mutable state used by intervals/callbacks */
   const photosRef = useRef<Photo[]>([])
@@ -1234,48 +1237,29 @@ export function BentoView() {
       }
     }
 
-    // Inject AI variants when imageType is 'mixed' and variants exist
+    // Inject at most 1 AI variant as an accent — never dominate
     // Skip when color filtered — variants break color coherence
     if (imageTypeFilter === 'mixed' && variantMap.current.size > 0 && !isColorFiltered) {
-      const usedIds = new Set(selected.map(p => p.id))
-      // First pass: swap any selected photo that has a variant
-      for (let i = 0; i < selected.length; i++) {
-        const v = variantMap.current.get(selected[i].id)
-        if (v && (v.display || v.thumb)) {
-          selected[i] = v
-        }
-      }
-      // Second pass: if still below target, pull random variants from pool
-      const currentVariantCount = selected.filter(p => p.parent).length
-      const targetVariants = Math.max(1, Math.ceil(selected.length * 0.4))
-      const slotsToFill = targetVariants - currentVariantCount
-      if (slotsToFill > 0) {
-        const parentPhotos = photoPool
-          .filter(p => variantMap.current.has(p.id) && !usedIds.has(p.id) && p.thumb && p.display && !p.parent)
-        for (let i = parentPhotos.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [parentPhotos[i], parentPhotos[j]] = [parentPhotos[j], parentPhotos[i]]
-        }
-        let replaced = 0
-        for (let i = 0; i < selected.length && replaced < slotsToFill && replaced < parentPhotos.length; i++) {
-          if (selected[i].parent) continue
-          const parent = parentPhotos[replaced]
-          const v = variantMap.current.get(parent.id)
-          if (v && (v.display || v.thumb)) {
+      const hasVariant = selected.some(p => p.parent)
+      if (!hasVariant) {
+        // Try to swap one selected photo that has a variant available
+        for (let i = 0; i < selected.length; i++) {
+          const v = variantMap.current.get(selected[i].id)
+          if (v && (v.display || v.thumb) && !recentlyShownRef.current.has(v.id)) {
             selected[i] = v
-            replaced++
+            break
           }
         }
       }
-      // Guarantee: if still zero variants, force one by replacing a random tile
-      if (selected.filter(p => p.parent).length === 0) {
-        const allVariants = [...variantMap.current.values()].filter(v => v.display || v.thumb)
-        if (allVariants.length > 0) {
-          const rv = allVariants[Math.floor(Math.random() * allVariants.length)]
-          const slot = Math.floor(Math.random() * selected.length)
-          selected[slot] = rv
-        }
-      }
+    }
+
+    // Track recently shown to avoid repeats across taps
+    const recent = recentlyShownRef.current
+    for (const p of selected) recent.add(p.id)
+    // Cap the set so it doesn't grow forever
+    if (recent.size > RECENTLY_SHOWN_CAP) {
+      const arr = [...recent]
+      recentlyShownRef.current = new Set(arr.slice(arr.length - RECENTLY_SHOWN_CAP))
     }
 
     setLayout(newLayout)
@@ -1539,58 +1523,70 @@ export function BentoView() {
   const handleColorChange = useCallback((idx: number) => setActiveColorIdx(idx), [])
   const handleImageTypeChange = useCallback((filter: ImageTypeFilter) => setImageTypeFilter(filter), [])
 
-  /* 🧞‍♂️ Best bento — pick a random count (2–16), use the best curator, best layout.
-   * In unicorn mode: guarantee at least half the tiles show generated variants. */
+  /* Best bento — curated exhibition, not a variant showcase.
+   * Tries ALL curators, picks the one with highest visual impact.
+   * 6-12 tiles (never too few), max 1 variant accent, avoids recently shown. */
   const showBestBento = useCallback(() => {
     if (!data) return
     const device = isDesktop() ? 'desktop' as const : 'mobile' as const
-    const count = 2 + Math.floor(Math.random() * 15)
+    // 6-12 tiles — always a meaningful composition
+    const count = 6 + Math.floor(Math.random() * 7)
     const newLayout = pickLayoutForCount(count, device)
-    const allPhotos = data.photos
 
+    // Filter out recently shown photos for freshness
+    const recent = recentlyShownRef.current
+    const freshPhotos = data.photos.filter(p => !recent.has(p.id))
+    // Fall back to all photos if too many excluded
+    const allPhotos = freshPhotos.length >= count * 3 ? freshPhotos : data.photos
+
+    // Set unit ratio for cropFitness
+    const containerRatio = newLayout.device === 'mobile' ? (2 / 3) : (3 / 2)
+    _activeUnitRatio = containerRatio * newLayout.rows / newLayout.cols
+
+    // Try ALL curators — pick the highest scoring result
     let bestResult: Photo[] = []
     let bestScore = -Infinity
-    const shuffled = [...CURATORS].sort(() => Math.random() - 0.5)
-    for (let i = 0; i < Math.min(8, shuffled.length); i++) {
-      const result = shuffled[i](allPhotos, newLayout.cells)
-      if (result.length >= Math.min(newLayout.cells.length, 2)) {
-        const score = result.reduce((s, p) => s + visualImpact(p), 0) / result.length
-        if (score > bestScore) { bestScore = score; bestResult = result.slice(0, newLayout.cells.length) }
+    let bestCurator = ''
+    for (const curator of CURATORS) {
+      const result = curator(allPhotos, newLayout.cells)
+      if (result.length >= newLayout.cells.length) {
+        const score = result.slice(0, newLayout.cells.length)
+          .reduce((s, p) => s + visualImpact(p), 0) / newLayout.cells.length
+        if (score > bestScore) {
+          bestScore = score
+          bestResult = result.slice(0, newLayout.cells.length)
+          bestCurator = curator.name
+        }
       }
     }
     if (bestResult.length === 0) {
       bestResult = fillBentoDefault(allPhotos, newLayout.cells)
+      bestCurator = 'default'
     }
 
-    // In mixed mode: swap roughly half to variants, keep rest as originals
+    // At most 1 variant as accent — only if it naturally fits
     if (imageTypeFilter !== 'photo' && variantMap.current.size > 0) {
-      const variantParentIds = new Set(variantMap.current.keys())
-
-      // Try to get photos that have variants into the mix
-      const withVariant = allPhotos.filter(p => variantParentIds.has(p.id) && p.thumb && p.display && !p.parent)
-      const usedIds = new Set(bestResult.map(p => p.id))
-      for (let i = 0; i < bestResult.length && withVariant.length > 0; i++) {
-        if (!variantParentIds.has(bestResult[i].id)) {
-          const pick = withVariant.find(p => !usedIds.has(p.id))
-          if (pick) {
-            usedIds.delete(bestResult[i].id)
-            bestResult[i] = pick
-            usedIds.add(pick.id)
+      const hasVariant = bestResult.some(p => p.parent)
+      if (!hasVariant) {
+        // Try to swap one photo that has a variant, preferring smaller tiles
+        for (let i = bestResult.length - 1; i >= 0; i--) {
+          const v = variantMap.current.get(bestResult[i].id)
+          if (v && (v.display || v.thumb) && !recent.has(v.id)) {
+            bestResult[i] = v
+            break
           }
         }
       }
-
-      // Swap roughly half to variant versions, keep at least 1 original
-      const swappable = bestResult
-        .map((p, i) => ({ i, variant: variantMap.current.get(p.id) }))
-        .filter(x => x.variant && (x.variant.display || x.variant.thumb))
-      const maxSwap = Math.min(swappable.length, Math.max(1, Math.ceil(bestResult.length / 2)))
-      const toSwap = [...swappable].sort(() => Math.random() - 0.5).slice(0, maxSwap)
-      for (const { i, variant } of toSwap) {
-        bestResult[i] = variant!
-      }
     }
 
+    // Track recently shown
+    for (const p of bestResult) recent.add(p.id)
+    if (recent.size > RECENTLY_SHOWN_CAP) {
+      const arr = [...recent]
+      recentlyShownRef.current = new Set(arr.slice(arr.length - RECENTLY_SHOWN_CAP))
+    }
+
+    setActiveCurator(bestCurator)
     setActiveColorIdx(-1)
     setLayout(newLayout)
     setWorkingCells([...newLayout.cells])
