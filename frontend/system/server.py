@@ -630,6 +630,7 @@ read -n 1
                                    get_all_cartoon_data, review_cartoon,
                                    similarity_search, drift_search,
                                    get_gemma_data, get_gemma_progress,
+                                   get_qwen_data,
                                    get_unpicked_data,
                                    get_signal_inspector_picks_data,
                                    get_location_tagger_data,
@@ -643,6 +644,7 @@ read -n 1
                                    get_all_cartoon_data, review_cartoon,
                                    similarity_search, drift_search,
                                    get_gemma_data, get_gemma_progress,
+                                   get_qwen_data,
                                    get_unpicked_data,
                                    get_signal_inspector_picks_data,
                                    get_location_tagger_data,
@@ -689,6 +691,8 @@ read -n 1
             self._json_response({"pairs": get_gemma_cartoon_data()})
         elif self.path == "/api/gemma/progress":
             self._json_response(get_gemma_progress())
+        elif self.path == "/api/qwen":
+            self._json_response(get_qwen_data())
         elif self.path == "/api/gemma":
             self._json_response(get_gemma_data())
         elif self.path.startswith("/api/similarity/"):

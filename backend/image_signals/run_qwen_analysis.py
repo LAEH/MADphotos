@@ -2,8 +2,8 @@
 """Qwen 2.5 VL 7B image analysis — spatial precision & structured inventory.
 
 Complementary VLM to Gemma (narrative) and Gemini (technical). Focused on
-spatial precision, object inventory, relationship reasoning, and quantified
-technical assessment.
+spatial precision, object inventory, relationship reasoning, quantified
+technical assessment, crop coordinates, and variant generation prompts.
 
 Usage:
     python3 backend/image_signals/run_qwen_analysis.py              # all pending picks
@@ -36,39 +36,66 @@ MODEL_DEFAULT = "qwen2.5vl:7b"
 FLUSH_SIZE = 5
 
 PROMPT = (
-    "You are an expert image analyst. Analyze this photograph with precision. "
-    "Respond ONLY with valid JSON, no markdown, no backticks:\n"
-    "{\n"
-    '  "alt_text": "concise 1-sentence accessibility description",\n'
+    "You are an expert image analyst and creative director. "
+    "Analyze this photograph with precision. "
+    "Respond ONLY with valid JSON, no markdown, no extra text.\n\n"
+    '{\n'
+    '  "alt_text": "concise 1-sentence accessibility description of this image",\n'
     '  "people_count": 0,\n'
-    '  "objects_inventory": [{"object": "name", "count": 1, "prominence": "high|medium|low"}],\n'
-    '  "focal_point": {"x": 0, "y": 0, "strength": 1, "what": "description of focal element"},\n'
-    '  "spatial_layers": {"foreground": "what is here", "midground": "what is here", "background": "what is here"},\n'
-    '  "relationships": [{"subject": "A", "relation": "verb/preposition", "object": "B"}],\n'
+    '  "objects_inventory": [{"object": "name", "count": 1, "prominence": "high"}],\n'
+    '  "focal_point": {"x": 50, "y": 50, "strength": 8, "what": "the main focal element"},\n'
+    '  "spatial_layers": {"foreground": "description", "midground": "description", "background": "description"},\n'
+    '  "relationships": [{"subject": "A", "relation": "verb/prep", "object": "B"}],\n'
     '  "text_present": false,\n'
     '  "text_content": "",\n'
-    '  "text_type": "sign|graffiti|label|handwriting|tattoo|none",\n'
-    '  "bokeh_quality": "creamy|busy|absent|na",\n'
-    '  "focus_description": "what is sharp, what is soft",\n'
-    '  "motion_blur": "none|intentional|camera_shake",\n'
-    '  "noise_grain": "clean|film_grain|sensor_noise|intentional",\n'
-    '  "symmetry": {"type": "none|bilateral|radial", "strength": 1},\n'
+    '  "text_type": "none",\n'
+    '  "bokeh_quality": "absent",\n'
+    '  "focus_description": "what is sharp and what is soft",\n'
+    '  "motion_blur": "none",\n'
+    '  "noise_grain": "clean",\n'
+    '  "symmetry": {"type": "none", "strength": 3},\n'
     '  "leading_lines": false,\n'
     '  "repetition_pattern": false,\n'
     '  "environmental_order": 5,\n'
-    '  "era_feeling": "modern|vintage|timeless|retro|futuristic",\n'
-    '  "narrative_tension": "1-sentence description of story tension"\n'
-    "}\n\n"
-    "Rules:\n"
-    "- people_count: exact integer count of visible people (0 if none)\n"
-    "- objects_inventory: list every distinct object, with count and prominence\n"
-    "- focal_point: x,y as percentage 0-100 from top-left, strength 1-10\n"
-    "- spatial_layers: describe what occupies each depth layer\n"
-    "- relationships: subject-relation-object triples describing spatial/action relationships\n"
-    "- text_present: true only if readable text is visible in the image\n"
-    "- symmetry strength: 1-10 (1=asymmetric, 10=perfect symmetry)\n"
-    "- environmental_order: 1=chaotic, 10=orderly\n"
-    "- narrative_tension: what unresolved story exists in this single frame"
+    '  "era_feeling": "modern",\n'
+    '  "narrative_tension": "1-sentence: what unresolved story exists in this frame",\n'
+    '  "variant_prompts": [\n'
+    '    {"style": "style name", "prompt": "2-3 sentence image generation prompt", "mood": "target mood", "color_palette": "3-4 dominant colors"},\n'
+    '    {"style": "style name", "prompt": "2-3 sentence prompt", "mood": "mood", "color_palette": "colors"},\n'
+    '    {"style": "style name", "prompt": "2-3 sentence prompt", "mood": "mood", "color_palette": "colors"},\n'
+    '    {"style": "style name", "prompt": "2-3 sentence prompt", "mood": "mood", "color_palette": "colors"},\n'
+    '    {"style": "style name", "prompt": "2-3 sentence prompt", "mood": "mood", "color_palette": "colors"}\n'
+    '  ]\n'
+    '}\n\n'
+    "FIELD RULES:\n"
+    "- alt_text: 1 sentence, for screen readers\n"
+    "- people_count: exact integer, 0 if none\n"
+    "- objects_inventory: every distinct object with count and prominence (high/medium/low)\n"
+    "- focal_point: x,y as 0-100 percentage from top-left corner, strength 1-10\n"
+    "- spatial_layers: what occupies foreground, midground, background\n"
+    "- relationships: 2-5 subject-relation-object triples\n"
+    "- text_type: pick ONE of sign/graffiti/label/handwriting/tattoo/none\n"
+    "- bokeh_quality: pick ONE of creamy/busy/absent/na\n"
+    "- motion_blur: pick ONE of none/intentional/camera_shake\n"
+    "- noise_grain: pick ONE of clean/film_grain/sensor_noise/intentional\n"
+    "- symmetry type: pick ONE of none/bilateral/radial, strength 1-10\n"
+    "- environmental_order: 1=chaotic, 10=perfectly orderly\n"
+    "- era_feeling: pick ONE of modern/vintage/timeless/retro/futuristic\n"
+    "- variant_prompts: 5 WILDLY DIFFERENT creative image generation prompts. "
+    "This is the most important field. Dream big. Each prompt must:\n"
+    "  1. Describe a COMPLETE visual transformation of this photograph\n"
+    "  2. Be 2-3 detailed sentences specifying colors, textures, lighting, and technique\n"
+    "  3. CRITICAL: The layout, composition, and position of every subject MUST stay IDENTICAL. "
+    "If there is a cat in the center, the cat stays in the center. Eyes, legs, pose — all in the exact same place. "
+    "Only the visual STYLE changes (colors, textures, medium, rendering). The image structure is sacred.\n"
+    "  4. Include a color_palette field with 3-4 dominant colors of the dreamed variant\n"
+    "  5. Cover DIVERSE styles across the 5 prompts. Pick from:\n"
+    "     oil painting, watercolor, cyberpunk neon, film noir, anime cel-shaded, ukiyo-e woodblock,\n"
+    "     art deco gold leaf, impressionist, infrared photography, double exposure,\n"
+    "     paper cutout collage, stained glass, pixel art, vaporwave, gothic illustration,\n"
+    "     soviet propaganda poster, 1970s kodachrome, daguerreotype, risograph print,\n"
+    "     botanical illustration, blueprint/technical drawing, embroidery textile,\n"
+    "     cave painting, pop art screenprint, isometric 3D render"
 )
 
 
@@ -96,10 +123,19 @@ def init_table(conn: sqlite3.Connection) -> None:
             environmental_order INTEGER,
             era_feeling         TEXT,
             narrative_tension   TEXT,
+            crops               TEXT,
+            variant_prompts     TEXT,
             model               TEXT,
             processed_at        TEXT NOT NULL
         );
     """)
+    # Add new columns to existing table if needed
+    for col, ctype in [("crops", "TEXT"), ("variant_prompts", "TEXT")]:
+        try:
+            conn.execute(f"SELECT {col} FROM qwen_analysis LIMIT 0")
+        except sqlite3.OperationalError:
+            conn.execute(f"ALTER TABLE qwen_analysis ADD COLUMN {col} {ctype}")
+            conn.commit()
 
 
 def load_pick_uuids() -> list[str]:
@@ -137,15 +173,38 @@ def get_mobile_paths(conn: sqlite3.Connection, uuids: list[str]) -> dict[str, st
 def get_pending_uuids(
     conn: sqlite3.Connection, all_uuids: list[str], rerun: bool,
 ) -> list[str]:
-    """Determine which UUIDs need processing."""
+    """Determine which UUIDs need processing.
+    Prioritizes: 1) never processed, 2) processed but missing good variants.
+    """
     if rerun:
         return all_uuids
     try:
-        rows = conn.execute("SELECT uuid FROM qwen_analysis").fetchall()
+        rows = conn.execute("SELECT uuid, variant_prompts FROM qwen_analysis").fetchall()
     except sqlite3.OperationalError:
         return all_uuids
-    done = {r[0] for r in rows}
-    return [u for u in all_uuids if u not in done]
+
+    # Split into: has good variants vs missing/bad variants
+    good = set()
+    needs_rerun = set()
+    for uuid, vp in rows:
+        ok = False
+        if vp:
+            try:
+                data = json.loads(vp)
+                if isinstance(data, list) and len(data) >= 3:
+                    if any(v.get("prompt", "") for v in data if isinstance(v, dict)):
+                        ok = True
+            except (json.JSONDecodeError, TypeError):
+                pass
+        if ok:
+            good.add(uuid)
+        else:
+            needs_rerun.add(uuid)
+
+    # Priority order: never processed first, then bad variants, skip good ones
+    never = [u for u in all_uuids if u not in good and u not in needs_rerun]
+    retry = [u for u in all_uuids if u in needs_rerun]
+    return retry + never
 
 
 def query_qwen(img_path: str, model: str = MODEL_DEFAULT,
@@ -161,7 +220,7 @@ def query_qwen(img_path: str, model: str = MODEL_DEFAULT,
         "format": "json",
         "stream": False,
         "keep_alive": "24h",
-        "options": {"temperature": 0.3, "num_predict": 2000},
+        "options": {"temperature": 0.4, "num_predict": 3000},
     }).encode()
 
     for attempt in range(retries):
@@ -170,7 +229,7 @@ def query_qwen(img_path: str, model: str = MODEL_DEFAULT,
                 OLLAMA_URL, data=payload,
                 headers={"Content-Type": "application/json"},
             )
-            resp = urllib.request.urlopen(req, timeout=180)
+            resp = urllib.request.urlopen(req, timeout=300)
             result = json.loads(resp.read())
             text = result.get("response", "").strip()
 
@@ -262,6 +321,8 @@ def _parse_row(parsed: dict) -> dict:
         "environmental_order": _to_int(parsed.get("environmental_order")),
         "era_feeling": _to_str(parsed.get("era_feeling", "")),
         "narrative_tension": _to_str(parsed.get("narrative_tension", "")),
+        "crops": _to_json(parsed.get("crops")),
+        "variant_prompts": _to_json(parsed.get("variant_prompts")),
     }
 
 
@@ -272,7 +333,7 @@ _INSERT_SQL = """
         text_present, text_content, text_type,
         bokeh_quality, focus_description, motion_blur, noise_grain,
         symmetry, leading_lines, repetition_pattern, environmental_order,
-        era_feeling, narrative_tension,
+        era_feeling, narrative_tension, crops, variant_prompts,
         model, processed_at
     ) VALUES (
         ?, ?, ?, ?,
@@ -280,7 +341,7 @@ _INSERT_SQL = """
         ?, ?, ?,
         ?, ?, ?, ?,
         ?, ?, ?, ?,
-        ?, ?,
+        ?, ?, ?, ?,
         ?, ?
     )
     ON CONFLICT(uuid) DO UPDATE SET
@@ -304,6 +365,8 @@ _INSERT_SQL = """
         environmental_order = excluded.environmental_order,
         era_feeling = excluded.era_feeling,
         narrative_tension = excluded.narrative_tension,
+        crops = excluded.crops,
+        variant_prompts = excluded.variant_prompts,
         model = excluded.model,
         processed_at = excluded.processed_at
 """
@@ -333,6 +396,8 @@ def _insert_row(conn: sqlite3.Connection, uuid: str, fields: dict,
         fields["environmental_order"],
         fields["era_feeling"],
         fields["narrative_tension"],
+        fields["crops"],
+        fields["variant_prompts"],
         model,
         now,
     ))
@@ -361,6 +426,28 @@ def process_one(uuid: str, img_path: str, model: str) -> dict:
 
 # ── Main ────────────────────────────────────────────────────────────────────
 
+def import_results(conn: sqlite3.Connection, results_file: Path,
+                   model: str) -> int:
+    """Bulk-import results from JSONL file into DB. Returns count imported."""
+    now = datetime.now(timezone.utc).isoformat()
+    count = 0
+    with open(results_file) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            row = json.loads(line)
+            if "error" in row:
+                continue
+            fields = _parse_row(row["parsed"])
+            _insert_row(conn, row["uuid"], fields, model, now)
+            count += 1
+            if count % 50 == 0:
+                conn.commit()
+    conn.commit()
+    return count
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Qwen 2.5 VL 7B analysis for picked photos")
@@ -371,12 +458,27 @@ def main():
     parser.add_argument("--limit", type=int, help="Process first N pending")
     parser.add_argument("--rerun", action="store_true",
                         help="Reprocess all picks")
+    parser.add_argument("--import-only", type=str, default=None,
+                        help="Import results from JSONL file (skip inference)")
     args = parser.parse_args()
 
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = sqlite3.connect(str(DB_PATH), timeout=30)
     conn.execute("PRAGMA journal_mode = WAL")
 
     init_table(conn)
+
+    # Import-only mode: read JSONL → DB, no inference
+    if args.import_only:
+        results_file = Path(args.import_only)
+        if not results_file.exists():
+            print(f"File not found: {results_file}")
+            conn.close()
+            return
+        print(f"Importing from {results_file}...")
+        count = import_results(conn, results_file, args.model)
+        print(f"Imported {count} rows.")
+        conn.close()
+        return
 
     # Load target UUIDs
     all_uuids = load_pick_uuids()
@@ -396,78 +498,76 @@ def main():
         conn.close()
         return
 
+    # Close DB — all inference writes go to JSONL file, not DB
+    conn.close()
+
     model = args.model
     workers = max(1, args.workers)
+
+    # Results file: JSONL, one JSON object per line
+    results_file = PROJECT_ROOT / "backend" / "image_signals" / "qwen_results.jsonl"
     print(f"Processing {len(pending_uuids)} images with {model} "
           f"({workers} worker{'s' if workers > 1 else ''})...")
+    print(f"Results → {results_file}")
     t0 = time.time()
     errors = 0
     error_msgs = []
-    batch = []
-    db_lock = threading.Lock()
+    results_lock = threading.Lock()
 
     bar = tqdm(total=len(pending_uuids), desc="qwen-analysis")
 
-    def flush_locked(b):
-        with db_lock:
-            flush_batch(conn, b, model)
+    with open(results_file, "a") as rf:
+        def write_result(result):
+            with results_lock:
+                rf.write(json.dumps(result, ensure_ascii=False) + "\n")
+                rf.flush()
 
-    with ThreadPoolExecutor(max_workers=workers) as pool:
-        active: dict = {}
-        pending_iter = iter(pending_uuids)
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            active: dict = {}
+            pending_iter = iter(pending_uuids)
 
-        def submit_next():
-            try:
-                uuid = next(pending_iter)
-                f = pool.submit(process_one, uuid, paths[uuid], model)
-                active[f] = uuid
-            except StopIteration:
-                pass
-
-        # Prime the pool
-        for _ in range(min(workers, len(pending_uuids))):
-            submit_next()
-
-        while active:
-            done_futures = []
-            for f in list(active):
-                if f.done():
-                    done_futures.append(f)
-            if not done_futures:
-                time.sleep(0.1)
-                continue
-            for future in done_futures:
-                uuid = active.pop(future)
+            def submit_next():
                 try:
-                    result = future.result()
-                except Exception as e:
-                    result = {"uuid": uuid, "error": str(e)}
-                bar.update(1)
+                    uuid = next(pending_iter)
+                    f = pool.submit(process_one, uuid, paths[uuid], model)
+                    active[f] = uuid
+                except StopIteration:
+                    pass
 
-                if "error" in result:
-                    errors += 1
-                    if len(error_msgs) < 10:
-                        error_msgs.append(f"{result.get('uuid', '?')}: {result.get('error', '?')}")
-                else:
-                    batch.append(result)
-                    if len(batch) >= FLUSH_SIZE:
-                        flush_locked(list(batch))
-                        batch.clear()
-
+            # Prime the pool
+            for _ in range(min(workers, len(pending_uuids))):
                 submit_next()
 
-    bar.close()
+            while active:
+                done_futures = []
+                for f in list(active):
+                    if f.done():
+                        done_futures.append(f)
+                if not done_futures:
+                    time.sleep(0.1)
+                    continue
+                for future in done_futures:
+                    uuid = active.pop(future)
+                    try:
+                        result = future.result()
+                    except Exception as e:
+                        result = {"uuid": uuid, "error": str(e)}
+                    bar.update(1)
 
-    if batch:
-        flush_batch(conn, batch, model)
+                    if "error" in result:
+                        errors += 1
+                        if len(error_msgs) < 10:
+                            error_msgs.append(f"{result.get('uuid', '?')}: {result.get('error', '?')}")
+                    write_result(result)
+                    submit_next()
+
+    bar.close()
 
     elapsed = time.time() - t0
     processed = len(pending_uuids) - errors
 
-    conn.close()
-
     # Summary
-    print(f"\nDone in {elapsed:.0f}s ({elapsed / 60:.1f} min)")
+    print(f"\nInference done in {elapsed:.0f}s ({elapsed / 60:.1f} min)")
     print(f"  Processed: {processed:,}")
     print(f"  Errors:    {errors:,}")
     if processed > 0:
@@ -477,6 +577,14 @@ def main():
         print(f"\nFirst {len(error_msgs)} errors:")
         for msg in error_msgs:
             print(f"  {msg}")
+
+    # Bulk import to DB
+    print(f"\nImporting {processed} results to DB...")
+    conn = sqlite3.connect(str(DB_PATH), timeout=30)
+    conn.execute("PRAGMA journal_mode = WAL")
+    count = import_results(conn, results_file, model)
+    conn.close()
+    print(f"Imported {count} rows to qwen_analysis.")
 
 
 if __name__ == "__main__":

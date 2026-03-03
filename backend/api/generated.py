@@ -22,21 +22,28 @@ def _variant_id_for(image_uuid: str, style_key: str) -> str:
     return str(_u.uuid5(_uuid_ns(), f"{image_uuid}:smart_{style_key}"))
 
 
+def _qwen_variant_id_for(image_uuid: str, style_key: str) -> str:
+    import uuid as _u
+    return str(_u.uuid5(_uuid_ns(), f"{image_uuid}:{style_key}"))
+
+
 def get_generated_data():
-    """Return unreviewed smart_style variants for the review UI."""
+    """Return unreviewed smart_style and qwen_variant variants for the review UI."""
     try:
         conn = sqlite3.connect(str(DB_PATH), timeout=5)
         conn.row_factory = sqlite3.Row
-        # Get unreviewed successful variants from DB
+        # Get unreviewed successful variants from DB (smart_style + qwen_variant)
         unreviewed = conn.execute(
-            "SELECT variant_id, image_uuid, prompt FROM ai_variants "
-            "WHERE variant_type='smart_style' AND generation_status='success' "
+            "SELECT variant_id, image_uuid, prompt, variant_type FROM ai_variants "
+            "WHERE variant_type IN ('smart_style', 'qwen_variant') "
+            "AND generation_status='success' "
             "AND review_status IS NULL"
         ).fetchall()
         # Get counts
         counts = conn.execute(
             "SELECT review_status, COUNT(*) as cnt FROM ai_variants "
-            "WHERE variant_type='smart_style' AND generation_status='success' "
+            "WHERE variant_type IN ('smart_style', 'qwen_variant') "
+            "AND generation_status='success' "
             "GROUP BY review_status"
         ).fetchall()
         conn.close()
@@ -60,13 +67,24 @@ def get_generated_data():
     for row in unreviewed:
         uid = row["image_uuid"]
         vid = row["variant_id"]
+        vtype = row["variant_type"]
         runs = uuid_to_runs.get(uid, [])
         found = False
+
+        # Determine file glob pattern based on variant type
+        if vtype == "qwen_variant":
+            glob_pattern = "qwen_*.jpg"
+            prefix = "qwen_"
+        else:
+            glob_pattern = "imagen_smart_*.jpg"
+            prefix = "imagen_smart_"
+
         for run in runs:
             uuid_dir = GENERATED_DIR / run / uid
-            for vf in uuid_dir.glob("imagen_smart_*.jpg"):
-                style_key = vf.stem.replace("imagen_smart_", "")
-                if _variant_id_for(uid, style_key) == vid:
+            for vf in uuid_dir.glob(glob_pattern):
+                style_key = vf.stem.replace(prefix, "", 1)
+                check_id = _qwen_variant_id_for(uid, style_key) if vtype == "qwen_variant" else _variant_id_for(uid, style_key)
+                if check_id == vid:
                     orig_file = GENERATED_DIR / run / uid / "original.jpg"
                     if orig_file.exists():
                         orig_path = f"/generated/{run}/{uid}/original.jpg"
@@ -83,7 +101,7 @@ def get_generated_data():
                         "why": "",
                         "rotation": 0,
                         "review": None,
-                        "variant_type": "smart_style",
+                        "variant_type": vtype,
                     })
                     found = True
                     break
@@ -174,6 +192,10 @@ def get_variant_review_data():
                     variant_path = f"/generated/{run_name}/{uid}/{fname}"
             elif vtype == "smart_style":
                 fname = f"imagen_smart_{style}.jpg"
+                if fname in files:
+                    variant_path = f"/generated/{run_name}/{uid}/{fname}"
+            elif vtype == "qwen_variant":
+                fname = f"qwen_{style}.jpg"
                 if fname in files:
                     variant_path = f"/generated/{run_name}/{uid}/{fname}"
             elif vtype in ("style_transfer", "cartoon", "gemma_cartoon"):
@@ -333,3 +355,95 @@ def untag_location(uuid):
 def register_location(name):
     """Register a new location name for tagging."""
     return {"ok": True, "name": name}
+
+
+def get_show_photography():
+    """Return all picked photos for the Show Content / Photography page."""
+    picks_path = PROJECT_ROOT / "frontend" / "show" / "data" / "picks.json"
+    if not picks_path.exists():
+        return {"photos": [], "portrait": 0, "landscape": 0}
+
+    picks_data = json.loads(picks_path.read_text())
+    portrait_ids = picks_data.get("portrait", [])
+    landscape_ids = picks_data.get("landscape", [])
+    all_ids = portrait_ids + landscape_ids
+    portrait_set = set(portrait_ids)
+
+    if not all_ids:
+        return {"photos": [], "portrait": 0, "landscape": 0}
+
+    conn = sqlite3.connect(str(DB_PATH), timeout=5)
+    conn.row_factory = sqlite3.Row
+
+    placeholders = ",".join("?" * len(all_ids))
+    rows = conn.execute(f"""
+        SELECT i.uuid, i.category, i.subcategory, i.width, i.height,
+               e.make AS camera_make, e.model AS camera_model,
+               qs.combined_score AS quality
+        FROM images i
+        LEFT JOIN exif_metadata e ON e.image_uuid = i.uuid
+        LEFT JOIN quality_scores qs ON qs.image_uuid = i.uuid
+        WHERE i.uuid IN ({placeholders})
+    """, all_ids).fetchall()
+    conn.close()
+
+    cameras = {}
+    photos = []
+    for r in rows:
+        uuid = r["uuid"]
+        cam = r["camera_model"] or r["camera_make"] or "Unknown"
+        cameras[cam] = cameras.get(cam, 0) + 1
+        photos.append({
+            "uuid": uuid,
+            "category": r["category"],
+            "orientation": "portrait" if uuid in portrait_set else "landscape",
+            "w": r["width"],
+            "h": r["height"],
+            "camera": cam,
+            "quality": round(r["quality"], 1) if r["quality"] else None,
+        })
+
+    return {
+        "photos": photos,
+        "portrait": len(portrait_ids),
+        "landscape": len(landscape_ids),
+        "cameras": cameras,
+    }
+
+
+def get_show_variants():
+    """Return all deployed variants for the Show Content / Variants page."""
+    conn = sqlite3.connect(str(DB_PATH), timeout=5)
+    conn.row_factory = sqlite3.Row
+
+    rows = conn.execute("""
+        SELECT v.variant_id, v.image_uuid, v.variant_type, v.style_key, v.prompt,
+               v.review_status, v.exported_at, v.created_at,
+               i.category, i.subcategory
+        FROM ai_variants v
+        LEFT JOIN images i ON i.uuid = v.image_uuid
+        WHERE v.review_status = 'accepted'
+          AND v.exported_at IS NOT NULL
+          AND v.generation_status = 'success'
+        ORDER BY v.exported_at DESC
+    """).fetchall()
+    conn.close()
+
+    styles = {}
+    photos = []
+    for r in rows:
+        style = r["style_key"] or "unknown"
+        styles[style] = styles.get(style, 0) + 1
+        photos.append({
+            "variant_id": r["variant_id"],
+            "parent": r["image_uuid"],
+            "style": style,
+            "category": r["category"],
+            "exported_at": r["exported_at"],
+        })
+
+    return {
+        "variants": photos,
+        "total": len(photos),
+        "styles": styles,
+    }

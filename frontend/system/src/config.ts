@@ -17,6 +17,11 @@ export function imageUrl(path: string): string {
   if (path.startsWith('/rendered/mosaics/')) {
     return `${GCS_BASE}/v/mosaics/${path.split('/').pop()}`
   }
+  if (path.startsWith('/rendered/variants/')) {
+    // /rendered/variants/display/webp/xxx.webp → v/variants/display/webp/xxx.webp
+    const rel = path.slice('/rendered/'.length)
+    return `${GCS_BASE}/v/${rel}`
+  }
   if (path.startsWith('/rendered/')) {
     // /rendered/display/jpeg/xxx.jpg → v/original/display/jpeg/xxx.jpg
     const rel = path.slice('/rendered/'.length)
@@ -48,6 +53,7 @@ export function dataUrl(apiPath: string): string {
     '/api/cartoons': 'data/cartoons.json',
     '/api/unpicked': 'data/unpicked.json',
     '/api/signal-inspector': 'data/signal_inspector_picks.json',
+    '/api/qwen': 'data/qwen.json',
   }
   const staticPath = map[apiPath]
   if (staticPath) return `${import.meta.env.BASE_URL}${staticPath}`

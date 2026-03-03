@@ -31,6 +31,7 @@ def generate_all(dry: bool = False) -> dict:
         get_gemma_cartoon_data,
         get_all_cartoon_data,
         get_signal_inspector_picks_data,
+        get_qwen_data,
     )
 
     SYSTEM_DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -45,6 +46,7 @@ def generate_all(dry: bool = False) -> dict:
         ("gemma_cartoon.json", lambda: {"pairs": get_gemma_cartoon_data()}),
         ("cartoons.json", lambda: get_all_cartoon_data()),
         ("signal_inspector_picks.json", lambda: get_signal_inspector_picks_data()),
+        ("qwen.json", lambda: get_qwen_data()),
     ]
 
     results = []

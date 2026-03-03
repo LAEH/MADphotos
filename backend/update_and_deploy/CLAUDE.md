@@ -15,7 +15,7 @@ Preflight → Inspect → Docs → Sync → Export → Data → Build → Deploy
 3. **Docs** — Check journal freshness, CLAUDE.md presence across agent folders, README health. (`docs.py`)
 4. **Sync** — Pull latest Firestore vote collections into SQLite, regenerate picks.json + voted.json. (`deploy.py` → `firestore_sync`)
 5. **Export** — Fingerprint-gated gallery export — only regenerates photos.json if DB counts changed. (`build.py` → `export_gallery`)
-6. **Data** — Regenerate all System static JSON files (9 files: stats, journal, instructions, mosaics, cartoon, gemma, gemma_cartoon, cartoons, signal_inspector_picks). (`data.py`)
+6. **Data** — Regenerate all System static JSON files (10 files: stats, journal, instructions, mosaics, cartoon, gemma, gemma_cartoon, cartoons, signal_inspector_picks, qwen). (`data.py`)
 7. **Build** — Vite build Show + System, copy System dist into Show dist. (`build.py`)
 8. **Deploy** — `firebase deploy --only hosting:madphotos`. (`deploy.py`)
 9. **Verify** — HTTP HEAD checks on live URLs (madphotos.laeh.ai, /system, /data/photos.json). (`deploy.py`)

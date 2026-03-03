@@ -251,7 +251,7 @@ export function GeneratedPage() {
   const review = current ? getReview(current) : null
   // Count accepts done this session that haven't been exported yet
   const newAccepts = Object.entries(reviews).filter(
-    ([, v]) => v === 'accepted' && !exportedIds.has(v)
+    ([id, v]) => v === 'accepted' && !exportedIds.has(id)
   ).length
   const exportReady = newAccepts > 0
 

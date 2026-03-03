@@ -19,6 +19,8 @@ __all__ = [
     "get_cartoon_data", "get_gemma_cartoon_data", "get_all_cartoon_data", "review_cartoon",
     # gemma
     "get_gemma_data", "get_gemma_progress",
+    # qwen
+    "get_qwen_data",
     # inspectors
     "generate_signal_inspector_data", "get_signal_inspector_picks_data",
     "generate_embedding_audit_data", "generate_collection_coverage_data", "generate_schema_data",
@@ -26,6 +28,7 @@ __all__ = [
     "get_generated_data", "review_generated", "get_variant_review_data", "batch_reject_variants",
     "get_unpicked_data", "get_location_tagger_data",
     "do_pick", "tag_location", "untag_location", "register_location",
+    "get_show_photography", "get_show_variants",
     # pages
     "PAGE_HTML", "page_shell", "serve", "generate_static", "_static_links",
     "render_readme", "render_instructions", "render_mosaics", "render_journal",
@@ -40,6 +43,7 @@ from .cartoons import (  # noqa: F401
     get_all_cartoon_data, review_cartoon,
 )
 from .gemma import get_gemma_data, get_gemma_progress  # noqa: F401
+from .qwen import get_qwen_data  # noqa: F401
 from .inspectors import (  # noqa: F401
     generate_signal_inspector_data,
     get_signal_inspector_picks_data,
@@ -51,6 +55,7 @@ from .generated import (  # noqa: F401
     get_generated_data, review_generated, get_variant_review_data, batch_reject_variants,
     get_unpicked_data, get_location_tagger_data,
     do_pick, tag_location, untag_location, register_location,
+    get_show_photography, get_show_variants,
 )
 from .pages import (  # noqa: F401
     PAGE_HTML, page_shell, serve, generate_static, _static_links,

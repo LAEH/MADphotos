@@ -39,11 +39,12 @@ def _import_dashboard():
         get_stats, get_journal_html, get_instructions_html, get_mosaics_data,
         get_cartoon_data, get_gemma_cartoon_data, get_all_cartoon_data,
         review_cartoon, similarity_search, drift_search, _get_lance,
-        get_gemma_data, get_gemma_progress,
+        get_gemma_data, get_gemma_progress, get_qwen_data,
         get_generated_data, review_generated, get_variant_review_data, batch_reject_variants,
         get_unpicked_data, get_signal_inspector_picks_data,
         get_location_tagger_data,
         do_pick, tag_location, untag_location, register_location,
+        get_show_photography, get_show_variants,
     )
     return locals()
 
@@ -181,6 +182,8 @@ class GalleryHandler(SimpleHTTPRequestHandler):
             self._json_response(fn["get_all_cartoon_data"]())
         elif path == "/api/gemma/progress":
             self._json_response(fn["get_gemma_progress"]())
+        elif path == "/api/qwen":
+            self._json_response(fn["get_qwen_data"]())
         elif path == "/api/gemma":
             self._json_response(fn["get_gemma_data"]())
         elif path == "/api/generated":
@@ -208,6 +211,10 @@ class GalleryHandler(SimpleHTTPRequestHandler):
             self._handle_enhance_stats()
         elif path == "/api/enhance/accepted":
             self._handle_enhance_accepted()
+        elif path == "/api/show/photography":
+            self._json_response(fn["get_show_photography"]())
+        elif path == "/api/show/variants":
+            self._json_response(fn["get_show_variants"]())
         elif self.path.startswith("/api/similarity/"):
             uuid_part = self.path[16:]
             self._handle_vector_search(uuid_part, fn["similarity_search"], fn["_get_lance"])

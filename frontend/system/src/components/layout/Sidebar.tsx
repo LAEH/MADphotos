@@ -20,7 +20,13 @@ const navItems: NavItem[] = [
 const signals: NavItem[] = [
   { to: '/experiments/signals', label: 'All' },
   { to: '/experiments/gemma', label: 'Gemma' },
+  { to: '/experiments/qwen', label: 'Qwen' },
   { to: '/experiments/mosaics', label: 'Mosaics' },
+]
+
+const showContent: NavItem[] = [
+  { to: '/show/photography', label: 'Photography', localOnly: true },
+  { to: '/show/variants', label: 'Variants', localOnly: true },
 ]
 
 const curation: NavItem[] = [
@@ -83,6 +89,10 @@ export function Sidebar() {
         <div className="sb-sep" />
         <div className="sb-group">Signals</div>
         {signals.map(renderLink)}
+
+        <div className="sb-sep" />
+        <div className="sb-group">Show Content</div>
+        {showContent.map(renderLink)}
 
         <div className="sb-sep" />
         <div className="sb-group">Curation</div>
