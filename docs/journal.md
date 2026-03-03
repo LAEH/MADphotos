@@ -4,6 +4,18 @@
 
 ---
 
+## 2026-03-03
+
+**Qwen variants couldn't export — three scripts blind to the new type.** 18 accepted qwen variants sat in DB with `exported_at IS NULL` while the Export button did nothing. Root cause: every script in the export pipeline was written for `smart_style` only — hardcoded SQL filters (`WHERE variant_type = 'smart_style'`) and file scanners that only matched `imagen_smart_*.jpg`. Adding `qwen_variant` required changes in 2 dimensions across 3 files:
+
+- **`deploy.py`**: SQL filter `'smart_style'` → `IN ('smart_style', 'qwen_variant')`. File scanner got `qwen_re = re.compile(r"^qwen_(.+)\.jpg$")` with variant ID `uuid5(NS, f"{image_uuid}:{style_key}")` matching `generate_qwen_variants.py`.
+- **`export_gallery.py`**: Added `'qwen_variant'` to both `sync_variants_to_gcs()` and `build_variant_photos()` IN lists. Added qwen regex to `_scan_variant_files()` and style name extraction. Also fixed a GCS timeout crash — `gcloud storage ls` had a 30s timeout that killed the entire export; now 120s with try/except (uploads are idempotent so missing the ls just means re-uploading).
+- **`extract_variant_colors.py`**: Added `qwen_variant_id_for()` helper and qwen regex to `scan_variant_files()`.
+
+Lesson: every new variant type touches 3+ files. The SQL filters, file regex patterns, and variant ID derivation must all agree.
+
+---
+
 ## 2026-03-02
 
 **Bento: the curation engine gets serious.** Five commits in one day refining how Bento selects and presents photos. The genie tap (random regeneration) was producing mediocre sets — it tried 8 random curators and picked the best, but "best of 8 random" isn't great when you have 25 curators. Changed to randomize curator per tap instead, so users see the full range of curation strategies (temperature harmony, depth journey, face gallery, energy flow, etc.) rather than always converging on the highest-scoring one.

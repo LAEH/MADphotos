@@ -73,6 +73,11 @@ def smart_variant_id_for(image_uuid: str, style_key: str) -> str:
     return str(uuid.uuid5(UUID_NAMESPACE, f"{image_uuid}:smart_{style_key}"))
 
 
+def qwen_variant_id_for(image_uuid: str, style_key: str) -> str:
+    """Deterministic qwen variant ID — must match generate_qwen_variants.py."""
+    return str(uuid.uuid5(UUID_NAMESPACE, f"{image_uuid}:{style_key}"))
+
+
 def scan_variant_files() -> Dict[str, Path]:
     """Scan suggest_image_variant/output/ to build variant_id → file_path mapping.
 
@@ -81,6 +86,7 @@ def scan_variant_files() -> Dict[str, Path]:
     mapping: Dict[str, Path] = {}
     style_re = re.compile(r"^imagen_(\d+)_(.+)\.jpg$")
     smart_re = re.compile(r"^imagen_smart_(.+)\.jpg$")
+    qwen_re = re.compile(r"^qwen_(.+)\.jpg$")
 
     # Sort run dirs by name (timestamp order) so later ones override earlier
     run_dirs = sorted(d for d in GENERATED_DIR.iterdir() if d.is_dir())
@@ -99,6 +105,14 @@ def scan_variant_files() -> Dict[str, Path]:
                 if ms:
                     style_key = ms.group(1)
                     vid = smart_variant_id_for(image_uuid, style_key)
+                    mapping[vid] = img_file
+                    continue
+
+                # Qwen variants: qwen_{style_key}.jpg
+                mq = qwen_re.match(img_file.name)
+                if mq:
+                    style_key = mq.group(1)
+                    vid = qwen_variant_id_for(image_uuid, style_key)
                     mapping[vid] = img_file
                     continue
 

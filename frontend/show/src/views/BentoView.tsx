@@ -940,6 +940,8 @@ const CURATORS = [
 
 function fillBento(allPhotos: Photo[], layout: BentoLayout, colorFiltered: boolean = false): { photos: Photo[], curator: string } {
   const { cells } = layout
+  // Exclude photos with baked-in borders (film scans etc.)
+  const photos = allPhotos.filter(p => !p.has_border)
   // Set the rendered unit ratio so cropFitness uses the true on-screen ratio
   const containerRatio = layout.device === 'mobile' ? (2 / 3) : (3 / 2)
   _activeUnitRatio = containerRatio * layout.rows / layout.cols
@@ -948,14 +950,14 @@ function fillBento(allPhotos: Photo[], layout: BentoLayout, colorFiltered: boole
     // Try up to 3 random curators before falling back
     const shuffled = [...CURATORS].sort(() => Math.random() - 0.5)
     for (let i = 0; i < Math.min(3, shuffled.length); i++) {
-      const result = shuffled[i](allPhotos, cells)
+      const result = shuffled[i](photos, cells)
       if (result.length >= cells.length) {
         return { photos: result.slice(0, cells.length), curator: shuffled[i].name }
       }
     }
   }
 
-  return { photos: fillBentoDefault(allPhotos, cells), curator: 'default' }
+  return { photos: fillBentoDefault(photos, cells), curator: 'default' }
 }
 
 /* ===== Split icon ===== */
@@ -977,7 +979,6 @@ interface BentoTileProps {
   cellIndex: number
   index: number
   revealed: boolean
-  hasVariant: boolean
   splittable: boolean
   isSplit?: boolean
   gridCols: number
@@ -988,7 +989,7 @@ interface BentoTileProps {
   onFullscreen: (photo: Photo) => void
 }
 
-function BentoTile({ photo, cell, cellIndex, index, revealed, hasVariant, splittable, isSplit, gridCols, gridRows, containerRatio, onSwap, onSplit, onFullscreen }: BentoTileProps) {
+function BentoTile({ photo, cell, cellIndex, index, revealed, splittable, isSplit, gridCols, gridRows, containerRatio, onSwap, onSplit, onFullscreen }: BentoTileProps) {
   const tileRef = useRef<HTMLDivElement>(null)
   const touchRef = useRef({ x: 0, y: 0, moved: false })
 
@@ -1066,11 +1067,6 @@ function BentoTile({ photo, cell, cellIndex, index, revealed, hasVariant, splitt
       onTouchEnd={handleTouchEnd}
     >
       <img ref={imgRef} alt="" />
-      {hasVariant && (
-        <span className="bento-tile-variant" aria-label="AI variant available">
-          &#x1F984;
-        </span>
-      )}
       <button className="bento-tile-fs" onClick={handleFullscreen}>
         <FullscreenIcon />
       </button>
@@ -1117,6 +1113,7 @@ export function BentoView() {
   const workingCellsRef = useRef<BentoCell[]>([])
   const layoutRef = useRef<BentoLayout | null>(null)
   const gridRef = useRef<HTMLDivElement>(null)
+  const imageTypeFilterRef = useRef<ImageTypeFilter>(imageTypeFilter)
 
   /* Preload buffer: ready-to-swap photos per orientation, already in browser cache */
   const preloadBufferRef = useRef<{ P: Photo[]; L: Photo[] }>({ P: [], L: [] })
@@ -1174,6 +1171,27 @@ export function BentoView() {
   useEffect(() => { photosRef.current = photos }, [photos])
   useEffect(() => { workingCellsRef.current = workingCells }, [workingCells])
   useEffect(() => { layoutRef.current = layout }, [layout])
+  useEffect(() => { imageTypeFilterRef.current = imageTypeFilter }, [imageTypeFilter])
+
+  /**
+   * Build a swap pool respecting imageTypeFilter:
+   * - 'photo': originals only
+   * - 'mixed' or 'generated': 50/50 originals and variants
+   */
+  const buildSwapPool = useCallback((allPhotos: Photo[], exclude: Set<string>) => {
+    const filter = imageTypeFilterRef.current
+    const eligible = allPhotos.filter(p => p.thumb && p.display && p.aesthetic && !p.has_border && !exclude.has(p.id))
+    if (filter === 'photo') return eligible.filter(p => !p.parent)
+    // mixed or generated: build 50/50 pool
+    const originals = eligible.filter(p => !p.parent)
+    const variants = eligible.filter(p => !!p.parent)
+    if (variants.length === 0) return originals
+    if (originals.length === 0) return variants
+    // Take equal amounts from each, capped by the smaller set
+    const halfSize = Math.max(Math.min(originals.length, variants.length), 1)
+    const shuffled = (arr: Photo[]) => arr.sort(() => Math.random() - 0.5)
+    return [...shuffled(originals).slice(0, halfSize), ...shuffled(variants).slice(0, halfSize)]
+  }, [])
 
   /* Fill preload buffer with candidates not currently displayed, and warm browser cache */
   const refillPreloadBuffer = useCallback((currentIds: Set<string>) => {
@@ -1183,7 +1201,7 @@ export function BentoView() {
     buf.P = buf.P.filter(p => !currentIds.has(p.id))
     buf.L = buf.L.filter(p => !currentIds.has(p.id))
 
-    const allPool = data.photos.filter(p => p.thumb && p.display && p.aesthetic && !currentIds.has(p.id))
+    const allPool = buildSwapPool(data.photos, currentIds)
     const pPool = allPool.filter(p => p.orientation === 'portrait')
     const lPool = allPool.filter(p => p.orientation === 'landscape' || p.orientation === 'square')
 
@@ -1209,7 +1227,7 @@ export function BentoView() {
         if (typeof img.decode === 'function') img.decode().catch(() => {})
       }
     }
-  }, [data])
+  }, [data, buildSwapPool])
 
   /* Generate a fresh bento — always picks from starter layouts (low density, big splittable tiles) */
   const generate = useCallback(() => {
@@ -1347,10 +1365,9 @@ export function BentoView() {
         if (bIdx >= 0) buf.L.splice(bIdx, 1)
         else { bIdx = buf.P.findIndex(p => p.id === pick!.id); if (bIdx >= 0) buf.P.splice(bIdx, 1) }
       } else {
-        // Fall back to random pool
-        const pool = (data.photos).filter(p =>
-          p.thumb && p.display && !currentIds.has(p.id) && !newPhotos.some(np => np.id === p.id)
-        )
+        // Fall back to swap pool (respects imageTypeFilter)
+        const excludeIds = new Set([...currentIds, ...newPhotos.map(p => p.id)])
+        const pool = buildSwapPool(data.photos, excludeIds)
         if (pool.length > 0) pick = randomFrom(pool)
       }
 
@@ -1378,7 +1395,7 @@ export function BentoView() {
 
     // Refill preload buffer
     requestAnimationFrame(() => refillPreloadBuffer(new Set(updatedPhotos.map(p => p.id))))
-  }, [data, refillPreloadBuffer])
+  }, [data, refillPreloadBuffer, buildSwapPool])
 
   /* Swap a single tile — crossfade to a new photo from preload buffer */
   const swapTile = useCallback((tileEl: HTMLDivElement) => {
@@ -1401,7 +1418,7 @@ export function BentoView() {
       }
     }
 
-    // Normal swap: pull from preload buffer or pool
+    // Normal swap: pull from preload buffer or swap pool (respects imageTypeFilter)
     if (!newPhoto) {
       const currentIds = new Set(photosRef.current.map(p => p.id))
       const buf = preloadBufferRef.current
@@ -1415,7 +1432,7 @@ export function BentoView() {
           : buf.L.findIndex(p => p.id === newPhoto!.id)
         if (bIdx >= 0) (orient === 'P' ? buf.P : buf.L).splice(bIdx, 1)
       } else {
-        let pool = photoPoolRef.current.filter(p => p.thumb && p.display && p.aesthetic && !currentIds.has(p.id))
+        let pool = buildSwapPool(data.photos, currentIds)
         if (orient === 'P') pool = pool.filter(p => p.orientation === 'portrait')
         else pool = pool.filter(p => p.orientation === 'landscape' || p.orientation === 'square')
         if (pool.length === 0) return
@@ -1497,7 +1514,7 @@ export function BentoView() {
     preload.onload = doSwap
     preload.onerror = doSwap
     preload.src = target
-  }, [data, refillPreloadBuffer])
+  }, [data, refillPreloadBuffer, buildSwapPool])
 
   /* Cycle layouts with arrow keys — just regenerate */
   const cycle = useCallback((_dir: number) => {
@@ -1718,6 +1735,28 @@ export function BentoView() {
     fireAndForget('bento-loves', payload)
   }, [layout, photos, workingCells, activeColorIdx, loved, activeCurator])
 
+  /* Genie cursor — follows mouse over grid */
+  const genieCursorRef = useRef<HTMLDivElement>(null)
+  const genieVisible = useRef(false)
+
+  const handleGridMouseMove = useCallback((e: React.MouseEvent) => {
+    const el = genieCursorRef.current
+    if (!el) return
+    el.style.left = `${e.clientX}px`
+    el.style.top = `${e.clientY}px`
+    if (!genieVisible.current) {
+      genieVisible.current = true
+      el.style.opacity = '1'
+    }
+  }, [])
+
+  const handleGridMouseLeave = useCallback(() => {
+    const el = genieCursorRef.current
+    if (!el) return
+    genieVisible.current = false
+    el.style.opacity = '0'
+  }, [])
+
   if (!layout || photos.length === 0) {
     return <div className="bento-wrap" />
   }
@@ -1740,6 +1779,8 @@ export function BentoView() {
           '--bento-rows': layout.rows,
           aspectRatio: containerRatio,
         } as React.CSSProperties}
+        onMouseMove={handleGridMouseMove}
+        onMouseLeave={handleGridMouseLeave}
       >
         {photos.map((photo, i) => {
           const cell = workingCells[i]
@@ -1753,7 +1794,6 @@ export function BentoView() {
               cellIndex={i}
               index={i}
               revealed={revealedSet.has(i)}
-              hasVariant={!photo.parent && variantMap.current.has(photo.id)}
               splittable={canSplit}
               isSplit={splitIndices.has(i)}
               gridCols={layout.cols}
@@ -1765,6 +1805,10 @@ export function BentoView() {
             />
           )
         })}
+      </div>
+      {/* Genie cursor — Apple glass pill */}
+      <div ref={genieCursorRef} className="bento-genie-cursor" aria-hidden>
+        <span className="bento-genie-emoji">&#x1F9DE;&#x200D;&#x2642;&#xFE0F;</span>
       </div>
       <div className="view-bottom">
         <ShowControls

@@ -152,6 +152,7 @@ def _scan_variant_files() -> Dict[str, Path]:
 
     UUID_NAMESPACE = uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
     smart_re = re.compile(r"^imagen_smart_(.+)\.jpg$")
+    qwen_re = re.compile(r"^qwen_(.+)\.jpg$")
     mapping: Dict[str, Path] = {}
 
     if not GENERATED_DIR.exists():
@@ -170,6 +171,12 @@ def _scan_variant_files() -> Dict[str, Path]:
                 if ms:
                     style_key = ms.group(1)
                     vid = str(uuid.uuid5(UUID_NAMESPACE, f"{image_uuid}:smart_{style_key}"))
+                    mapping[vid] = img_file
+                    continue
+                mq = qwen_re.match(img_file.name)
+                if mq:
+                    style_key = mq.group(1)
+                    vid = str(uuid.uuid5(UUID_NAMESPACE, f"{image_uuid}:{style_key}"))
                     mapping[vid] = img_file
 
     return mapping
@@ -292,18 +299,18 @@ def deploy_accepted(skip_gcs: bool = False) -> dict:
     rows = conn.execute("""
         SELECT variant_id, image_uuid, variant_type, prompt
         FROM ai_variants
-        WHERE variant_type = 'smart_style'
+        WHERE variant_type IN ('smart_style', 'qwen_variant')
           AND review_status = 'accepted'
           AND exported_at IS NULL
           AND generation_status = 'success'
     """).fetchall()
 
     if not rows:
-        print("No accepted smart_style variants to deploy.")
+        print("No accepted variants to deploy.")
         conn.close()
         return {"deployed": 0}
 
-    print(f"Deploying {len(rows)} accepted smart_style variants...")
+    print(f"Deploying {len(rows)} accepted variants...")
 
     # Build file map
     file_map = _scan_variant_files()

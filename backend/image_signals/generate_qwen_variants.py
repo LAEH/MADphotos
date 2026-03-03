@@ -165,16 +165,55 @@ def generate_imagen(client: genai.Client, prompt: str, source_path: str,
 
 # ── candidate selection ──────────────────────────────────────────────
 
+def _get_style_preferences(conn: sqlite3.Connection) -> dict[str, float]:
+    """Learn style acceptance rates from past reviews. Returns {style: rate}."""
+    rows = conn.execute("""
+        SELECT style_key, review_status, COUNT(*) as cnt
+        FROM ai_variants
+        WHERE variant_type = 'qwen_variant' AND review_status IS NOT NULL
+        GROUP BY style_key, review_status
+    """).fetchall()
+    stats: dict[str, dict[str, int]] = {}
+    for sk, rs, cnt in rows:
+        if sk not in stats:
+            stats[sk] = {"accepted": 0, "rejected": 0}
+        if rs == "accepted":
+            stats[sk]["accepted"] = cnt
+        elif rs == "rejected":
+            stats[sk]["rejected"] = cnt
+
+    prefs: dict[str, float] = {}
+    blocked: list[str] = []
+    for sk, counts in stats.items():
+        total = counts["accepted"] + counts["rejected"]
+        if total >= 3 and counts["accepted"] == 0:
+            blocked.append(sk)
+            prefs[sk] = -1.0  # sentinel: never generate
+        elif total > 0:
+            prefs[sk] = counts["accepted"] / total
+    if blocked:
+        # Normalize style keys for display
+        print(f"  Auto-skip (0% accept): {', '.join(s.replace('qwen_', '') for s in blocked)}")
+    return prefs
+
+
 def get_candidates(conn: sqlite3.Connection, count: int | None,
                    styles_per_image: int) -> list[dict]:
+    style_prefs = _get_style_preferences(conn)
+
+    # Prioritize images with NO existing variants at all, then by prompt richness
     rows = conn.execute("""
-        SELECT q.uuid, q.variant_prompts
+        SELECT q.uuid, q.variant_prompts,
+               CASE WHEN EXISTS (
+                   SELECT 1 FROM ai_variants a
+                   WHERE a.image_uuid = q.uuid AND a.generation_status = 'success'
+               ) THEN 1 ELSE 0 END AS has_variants
         FROM qwen_analysis q
         WHERE q.variant_prompts IS NOT NULL
           AND length(q.variant_prompts) > 200
-          AND json_array_length(q.variant_prompts) >= ?
-        ORDER BY length(q.variant_prompts) DESC
-    """, (styles_per_image,)).fetchall()
+          AND json_array_length(q.variant_prompts) >= 1
+        ORDER BY has_variants ASC, length(q.variant_prompts) DESC
+    """).fetchall()
 
     existing = set()
     for row in conn.execute("""
@@ -185,20 +224,28 @@ def get_candidates(conn: sqlite3.Connection, count: int | None,
         existing.add((row[0], row[1]))
 
     candidates = []
-    for uuid_val, vp_json in rows:
+    for uuid_val, vp_json, _has_variants in rows:
         try:
             prompts = json.loads(vp_json)
         except (json.JSONDecodeError, TypeError):
             continue
         if not isinstance(prompts, list):
             continue
-        pending_prompts = []
-        for i, vp in enumerate(prompts[:styles_per_image]):
+        # Score and filter prompts
+        scored_prompts = []
+        for i, vp in enumerate(prompts):
             if not isinstance(vp, dict) or not vp.get("prompt"):
                 continue
             style_key = f"qwen_{vp.get('style', f'style_{i}').lower().replace(' ', '_')}"
-            if (uuid_val, style_key) not in existing:
-                pending_prompts.append((i, style_key, vp))
+            if (uuid_val, style_key) in existing:
+                continue
+            rate = style_prefs.get(style_key, 0.5)  # unknown styles get 0.5
+            if rate < 0:
+                continue  # auto-skip blocked styles
+            scored_prompts.append((rate, i, style_key, vp))
+        # Sort by acceptance rate (highest first), take top N
+        scored_prompts.sort(key=lambda x: -x[0])
+        pending_prompts = [(i, sk, vp) for _, i, sk, vp in scored_prompts[:styles_per_image]]
         if pending_prompts:
             candidates.append({"uuid": uuid_val, "prompts": pending_prompts})
         if count and len(candidates) >= count:
@@ -334,19 +381,30 @@ def main():
         conn.close()
         return
 
-    # Create run directory
+    # Resolve source paths before closing DB
+    source_paths = {}
+    for c in candidates:
+        sp = get_source_path(conn, c["uuid"])
+        if sp:
+            source_paths[c["uuid"]] = sp
+    conn.close()
+
+    # Create run directory + results JSONL
     run_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     run_dir = OUTPUT_DIR / f"qwen_{run_ts}"
     run_dir.mkdir(parents=True, exist_ok=True)
+    results_file = run_dir / "results.jsonl"
     print(f"  Output: {run_dir}")
+    print(f"  Results → {results_file} (DB import at end)")
     print()
 
     client = genai.Client(vertexai=True, project=GCP_PROJECT, location=GCP_LOCATION)
     tracker = BudgetTracker(args.budget)
+    results = []
 
     for img_idx, candidate in enumerate(candidates, 1):
         image_uuid = candidate["uuid"]
-        source_path = get_source_path(conn, image_uuid)
+        source_path = source_paths.get(image_uuid)
         if not source_path:
             print(f"[{img_idx}/{len(candidates)}] {image_uuid[:12]}... SKIP (no mobile tier)")
             continue
@@ -375,21 +433,31 @@ def main():
             success, error = generate_imagen(client, prompt, source_path, out_path)
             elapsed_ms = int((time.time() - t0) * 1000)
 
+            record = {
+                "variant_id": vid, "image_uuid": image_uuid,
+                "style_key": style_key, "prompt": prompt,
+                "elapsed_ms": elapsed_ms,
+            }
+
             if success:
                 tracker.record_success()
-                db_upsert(conn, vid, image_uuid, style_key, prompt,
-                          "success", elapsed_ms)
+                record["status"] = "success"
                 print(f"OK ({elapsed_ms/1000:.1f}s)")
             elif error == "safety_filter":
                 tracker.record_filtered()
-                db_upsert(conn, vid, image_uuid, style_key, prompt,
-                          "filtered", elapsed_ms, rai_reason="safety")
+                record["status"] = "filtered"
+                record["rai_reason"] = "safety"
                 print(f"FILTERED ({elapsed_ms/1000:.1f}s)")
             else:
                 tracker.record_failed()
-                db_upsert(conn, vid, image_uuid, style_key, prompt,
-                          "failed", elapsed_ms, error=str(error)[:200])
+                record["status"] = "failed"
+                record["error"] = str(error)[:200]
                 print(f"FAILED: {str(error)[:60]}")
+
+            results.append(record)
+            # Append to JSONL as we go (crash-safe)
+            with open(results_file, "a") as rf:
+                rf.write(json.dumps(record) + "\n")
 
             wait = max(0, DELAY_BETWEEN_CALLS - (time.time() - t0))
             if wait > 0 and tracker.can_continue:
@@ -403,17 +471,18 @@ def main():
     print(f"DONE: {tracker.summary()}")
     print(f"Output: {run_dir}")
 
-    successes = conn.execute("""
-        SELECT image_uuid, style_key FROM ai_variants
-        WHERE variant_type = 'qwen_variant' AND generation_status = 'success'
-        ORDER BY created_at DESC LIMIT 20
-    """).fetchall()
-    if successes:
-        print(f"\nGenerated variants:")
-        for iu, sk in successes:
-            print(f"  {iu[:12]}... -> {sk}")
-
+    # Bulk import to DB
+    print(f"\nImporting {len(results)} results to DB...")
+    conn = sqlite3.connect(str(DB_PATH), timeout=30)
+    conn.execute("PRAGMA journal_mode=WAL")
+    imported = 0
+    for r in results:
+        db_upsert(conn, r["variant_id"], r["image_uuid"], r["style_key"],
+                  r["prompt"], r["status"], r.get("elapsed_ms", 0),
+                  rai_reason=r.get("rai_reason"), error=r.get("error"))
+        imported += 1
     conn.close()
+    print(f"Imported {imported} rows to ai_variants.")
 
 
 if __name__ == "__main__":

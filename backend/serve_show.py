@@ -27,6 +27,9 @@ RENDERED_DIR = PROJECT_ROOT / "images" / "rendered"
 AI_VARIANTS_DIR = PROJECT_ROOT / "images" / "ai_variants"
 GENERATED_DIR = PROJECT_ROOT / "backend" / "suggest_image_variant" / "output"
 
+# Background process tracking (generate / export)
+_bg_processes: dict = {}  # key -> {'proc': Popen, 'log_path': Path}
+
 # Ensure backend is importable
 import sys as _sys
 _sys.path.insert(0, str(PROJECT_ROOT))
@@ -98,7 +101,9 @@ class GalleryHandler(SimpleHTTPRequestHandler):
     # ── POST ──
 
     def do_POST(self):
-        if self.path == "/api/generated/review":
+        if self.path == "/api/gcp-auth":
+            self._post_gcp_auth()
+        elif self.path == "/api/generated/review":
             self._post_generated_review()
         elif self.path == "/api/generated/generate":
             self._post_generated_generate()
@@ -166,7 +171,11 @@ class GalleryHandler(SimpleHTTPRequestHandler):
         path = self.path.split("?")[0]  # strip query string
         from urllib.parse import urlparse, parse_qs
 
-        if path == "/api/stats":
+        if path == "/api/gcp-auth":
+            return self._get_gcp_auth()
+        elif path == "/api/db-status":
+            return self._get_db_status()
+        elif path == "/api/stats":
             self._json_response(fn["get_stats"]())
         elif path == "/api/journal":
             self._json_response({"html": fn["get_journal_html"]()})
@@ -190,6 +199,8 @@ class GalleryHandler(SimpleHTTPRequestHandler):
             self._json_response(fn["get_generated_data"]())
         elif path == "/api/generated/progress":
             self._handle_generated_progress()
+        elif path == "/api/generated/export/progress":
+            self._handle_export_progress()
         elif path == "/api/variant-review":
             self._json_response(fn["get_variant_review_data"]())
         elif path == "/api/signal-inspector":
@@ -239,6 +250,102 @@ class GalleryHandler(SimpleHTTPRequestHandler):
             result = search_fn(uuid_part)
             self._json_response(result or {"error": "not found"})
 
+    # ── Pre-launch checks (auth + DB) ──
+
+    def _get_gcp_auth(self):
+        from backend.update_and_deploy.preflight import check_gcp_auth
+        ok, msg = check_gcp_auth()
+        self._json_response({"authenticated": ok, "message": msg})
+
+    def _post_gcp_auth(self):
+        subprocess.Popen(
+            ["gcloud", "auth", "application-default", "login"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+        self._json_response({"ok": True})
+
+    def _get_db_status(self):
+        """Check if the DB is locked by another writer."""
+        import sqlite3
+        db_path = PROJECT_ROOT / "images" / "mad_photos.db"
+        locked = False
+        holder = ""
+        try:
+            conn = sqlite3.connect(str(db_path), timeout=1)
+            conn.execute("BEGIN IMMEDIATE")
+            conn.rollback()
+            conn.close()
+        except sqlite3.OperationalError:
+            locked = True
+            # Find the process holding the lock
+            try:
+                out = subprocess.check_output(
+                    ["lsof", str(db_path)], text=True, timeout=5, stderr=subprocess.DEVNULL,
+                )
+                for line in out.strip().split("\n")[1:]:
+                    parts = line.split(None, 10)
+                    if len(parts) >= 2:
+                        cmd = parts[0]
+                        pid = parts[1]
+                        # Get full command line
+                        try:
+                            cmdline = subprocess.check_output(
+                                ["ps", "-p", pid, "-o", "args="], text=True, timeout=3,
+                            ).strip()
+                            # Extract the module/script name
+                            if "backend." in cmdline:
+                                module = cmdline.split("backend.")[-1].split()[0]
+                                holder = f"backend.{module} (pid {pid})"
+                            elif ".py" in cmdline:
+                                script = cmdline.split("/")[-1].split()[0]
+                                holder = f"{script} (pid {pid})"
+                            else:
+                                holder = f"{cmd} (pid {pid})"
+                        except Exception:
+                            holder = f"{cmd} (pid {pid})"
+                        break
+            except Exception:
+                pass
+        self._json_response({"locked": locked, "holder": holder})
+
+    @staticmethod
+    def _check_db_locked() -> tuple[bool, str]:
+        """Returns (locked, holder_description)."""
+        import sqlite3
+        db_path = PROJECT_ROOT / "images" / "mad_photos.db"
+        try:
+            conn = sqlite3.connect(str(db_path), timeout=1)
+            conn.execute("BEGIN IMMEDIATE")
+            conn.rollback()
+            conn.close()
+            return False, ""
+        except sqlite3.OperationalError:
+            # Find holder
+            try:
+                out = subprocess.check_output(
+                    ["lsof", str(db_path)], text=True, timeout=5, stderr=subprocess.DEVNULL,
+                )
+                for line in out.strip().split("\n")[1:]:
+                    parts = line.split(None, 10)
+                    if len(parts) >= 2:
+                        pid = parts[1]
+                        try:
+                            cmdline = subprocess.check_output(
+                                ["ps", "-p", pid, "-o", "args="], text=True, timeout=3,
+                            ).strip()
+                            if "backend." in cmdline:
+                                module = cmdline.split("backend.")[-1].split()[0]
+                                return True, f"backend.{module} (pid {pid})"
+                            elif ".py" in cmdline:
+                                script = cmdline.split("/")[-1].split()[0]
+                                return True, f"{script} (pid {pid})"
+                            return True, f"{parts[0]} (pid {pid})"
+                        except Exception:
+                            return True, f"{parts[0]} (pid {pid})"
+            except Exception:
+                pass
+            return True, ""
+
     # ── POST handlers ──
 
     def _post_generated_review(self):
@@ -262,6 +369,22 @@ class GalleryHandler(SimpleHTTPRequestHandler):
         self._json_response(self._db()["batch_reject_variants"](ids))
 
     def _post_generated_generate(self):
+        # Block if already running
+        info = _bg_processes.get('generate')
+        if info and info['proc'].poll() is None:
+            return self._json_response({"ok": False, "error": "Generation already running"})
+
+        # Check GCP auth before launching
+        from backend.update_and_deploy.preflight import check_gcp_auth
+        gcp_ok, _ = check_gcp_auth()
+        if not gcp_ok:
+            return self._json_response({"ok": False, "auth_required": True})
+
+        # Check DB lock
+        locked, holder = self._check_db_locked()
+        if locked:
+            return self._json_response({"ok": False, "db_locked": True, "holder": holder})
+
         count = 20
         try:
             body = self._read_json_body() or {}
@@ -275,32 +398,45 @@ class GalleryHandler(SimpleHTTPRequestHandler):
 cd {PROJECT_ROOT}
 echo "=== Style Transfer — Generate {count} ==="
 echo ""
-if ! gcloud auth application-default print-access-token &>/dev/null; then
-    echo "Re-authenticating with Google Cloud..."
-    gcloud auth application-default login 2>&1
-    echo ""
-fi
 .venv-gen/bin/python3 -u -m backend.suggest_image_variant.run --count {count}
 echo ""
 echo "=== Generation complete ==="
-echo "Done."
 """
-        script_path = Path("/tmp/generated-generate.sh")
+        script_path = Path("/tmp/generated-generate.command")
         script_path.write_text(script)
         script_path.chmod(0o755)
-        subprocess.Popen([
-            "osascript", "-e", 'tell app "Terminal" to activate',
-            "-e", f'tell app "Terminal" to do script "bash {script_path}"',
-        ])
+        log_path = Path("/tmp/generated-generate.log")
+        log_file = open(log_path, 'w')
+        proc = subprocess.Popen(
+            ["/bin/bash", str(script_path)],
+            stdout=log_file, stderr=subprocess.STDOUT,
+        )
+        _bg_processes['generate'] = {'proc': proc, 'log_path': log_path, 'log_file': log_file}
         self._json_response({"ok": True, "count": count})
 
     def _post_generated_export(self):
+        # Block if already running
+        info = _bg_processes.get('export')
+        if info and info['proc'].poll() is None:
+            return self._json_response({"ok": False, "error": "Export already running"})
+
+        # Check GCP auth before launching
+        from backend.update_and_deploy.preflight import check_gcp_auth
+        gcp_ok, _ = check_gcp_auth()
+        if not gcp_ok:
+            return self._json_response({"ok": False, "auth_required": True})
+
+        # Check DB lock
+        locked, holder = self._check_db_locked()
+        if locked:
+            return self._json_response({"ok": False, "db_locked": True, "holder": holder})
+
         import sqlite3
         db_path = PROJECT_ROOT / "images" / "mad_photos.db"
         try:
             conn = sqlite3.connect(str(db_path))
             count = conn.execute(
-                "SELECT COUNT(*) FROM ai_variants WHERE variant_type = 'smart_style'"
+                "SELECT COUNT(*) FROM ai_variants WHERE variant_type IN ('smart_style', 'qwen_variant')"
                 " AND review_status = 'accepted' AND exported_at IS NULL"
                 " AND generation_status = 'success'"
             ).fetchone()[0]
@@ -311,7 +447,7 @@ echo "Done."
             return self._error_response(400, "No new accepted variants to export")
         script = f"""#!/bin/bash
 cd {PROJECT_ROOT}
-echo "=== Style Transfer — Export {count} accepted variants ==="
+echo "=== Export {count} accepted variants ==="
 echo ""
 echo "Step 1/4 — Extract colors"
 .venv-gen/bin/python3 -u backend/extract_variant_colors.py
@@ -326,15 +462,17 @@ echo "Step 4/4 — Regenerate System data"
 python3 -u backend/dashboard.py
 echo ""
 echo "=== Export complete ==="
-echo "Done."
 """
-        script_path = Path("/tmp/generated-export.sh")
+        script_path = Path("/tmp/generated-export.command")
         script_path.write_text(script)
         script_path.chmod(0o755)
-        subprocess.Popen([
-            "osascript", "-e", 'tell app "Terminal" to activate',
-            "-e", f'tell app "Terminal" to do script "bash {script_path}"',
-        ])
+        log_path = Path("/tmp/generated-export.log")
+        log_file = open(log_path, 'w')
+        proc = subprocess.Popen(
+            ["/bin/bash", str(script_path)],
+            stdout=log_file, stderr=subprocess.STDOUT,
+        )
+        _bg_processes['export'] = {'proc': proc, 'log_path': log_path, 'log_file': log_file}
         self._json_response({"ok": True, "count": count})
 
     def _post_cartoon_review(self):
@@ -664,29 +802,28 @@ echo "Done."
                 expected = int(p.read_text().strip())
         except Exception:
             pass
+
+        # Check bg process first, fall back to pgrep
+        info = _bg_processes.get('generate')
+        if info and info['proc'].poll() is None:
+            process_running = True
+        else:
+            py_proc = subprocess.run(["pgrep", "-f", "suggest_image_variant.run|generate_qwen_variants"], capture_output=True)
+            process_running = py_proc.returncode == 0
+
+        # Count completed variants in latest output dir
         latest = None
         if GENERATED_DIR.exists():
             dirs = sorted([d for d in GENERATED_DIR.iterdir() if d.is_dir()], reverse=True)
             if dirs:
                 latest = dirs[0]
-        if not latest:
-            # Still respect grace period (process may be authenticating before creating output dir)
-            start_time = 0
-            try:
-                st = Path("/tmp/generated-start-time")
-                if st.exists():
-                    start_time = int(st.read_text().strip())
-            except Exception:
-                pass
-            in_grace = (time.time() - start_time) < 30 if start_time else False
-            return self._json_response({"completed": 0, "expected": expected, "done": not in_grace})
-        completed = sum(1 for d in latest.iterdir()
-                        if d.is_dir() and not d.name.startswith(".")
-                        and any(d.glob("imagen_smart_*.jpg")))
-        # Check only the Python generation process (not the bash wrapper which idles at "press any key")
-        py_proc = subprocess.run(["pgrep", "-f", "suggest_image_variant.run"], capture_output=True)
-        process_running = py_proc.returncode == 0
-        # Grace period: don't report done within 30s of launch (auth may be in progress)
+        completed = 0
+        if latest:
+            completed = sum(1 for d in latest.iterdir()
+                            if d.is_dir() and not d.name.startswith(".")
+                            and (any(d.glob("imagen_smart_*.jpg")) or any(d.glob("qwen_*.jpg"))))
+
+        # Grace period: don't report done within 30s of launch
         start_time = 0
         try:
             st = Path("/tmp/generated-start-time")
@@ -696,10 +833,51 @@ echo "Done."
             pass
         in_grace = (time.time() - start_time) < 30 if start_time else False
         done = not process_running and not in_grace
+
+        # Read log output
+        log = ''
+        log_path = Path("/tmp/generated-generate.log")
+        try:
+            if log_path.exists():
+                log = log_path.read_text()
+        except Exception:
+            pass
+
+        # Detect error (process exited with non-zero)
+        status = 'running'
+        if done and completed == 0 and log and 'ERROR' in log:
+            status = 'error'
+        elif done:
+            status = 'done'
+
         self._json_response({
             "completed": completed, "expected": expected,
-            "done": done, "run_dir": latest.name,
+            "done": done, "run_dir": latest.name if latest else None,
+            "log": log, "status": status,
         })
+
+    def _handle_export_progress(self):
+        info = _bg_processes.get('export')
+        log = ''
+        log_path = Path("/tmp/generated-export.log")
+        try:
+            if log_path.exists():
+                log = log_path.read_text()
+        except Exception:
+            pass
+
+        if not info:
+            return self._json_response({'status': 'idle', 'log': ''})
+
+        poll = info['proc'].poll()
+        if poll is None:
+            status = 'running'
+        elif poll == 0:
+            status = 'done'
+        else:
+            status = 'error'
+
+        self._json_response({'status': status, 'log': log})
 
     # ── Deploy helper ──
 
@@ -723,10 +901,7 @@ echo "Done."
         script_path = Path("/tmp/enhance-auto-deploy.sh")
         script_path.write_text(script)
         script_path.chmod(0o755)
-        subprocess.Popen([
-            "osascript", "-e", 'tell app "Terminal" to activate',
-            "-e", f'tell app "Terminal" to do script "bash {script_path}"',
-        ])
+        subprocess.Popen(["open", str(script_path)])
 
     # ── File serving ──
 

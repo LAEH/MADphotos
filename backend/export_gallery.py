@@ -1356,6 +1356,11 @@ def _smart_variant_id(image_uuid: str, style_key: str) -> str:
     return str(uuid.uuid5(UUID_NAMESPACE, f"{image_uuid}:smart_{style_key}"))
 
 
+def _qwen_variant_id(image_uuid: str, style_key: str) -> str:
+    """Deterministic qwen variant ID — must match generate_qwen_variants.py."""
+    return str(uuid.uuid5(UUID_NAMESPACE, f"{image_uuid}:{style_key}"))
+
+
 GCS_VARIANTS_PREFIX = "gs://myproject-public-assets/art/MADphotos/v/variants"
 
 
@@ -1370,7 +1375,7 @@ def sync_variants_to_gcs() -> int:
     rows = conn.execute("""
         SELECT variant_id FROM ai_variants
         WHERE generation_status = 'success' AND review_status = 'accepted'
-          AND variant_type IN ('style_transfer', 'cartoon', 'gemma_cartoon', 'smart_style')
+          AND variant_type IN ('style_transfer', 'cartoon', 'gemma_cartoon', 'smart_style', 'qwen_variant')
     """).fetchall()
     accepted_ids = {r["variant_id"] for r in rows}
     conn.close()
@@ -1383,17 +1388,22 @@ def sync_variants_to_gcs() -> int:
     file_map = _scan_variant_files()
 
     # Check what's already on GCS
-    result = subprocess.run(
-        ["gcloud", "storage", "ls", f"{GCS_VARIANTS_PREFIX}/"],
-        capture_output=True, text=True, timeout=30,
-    )
     existing = set()
-    if result.returncode == 0:
-        for line in result.stdout.strip().split("\n"):
-            if line.strip():
-                name = line.strip().rsplit("/", 1)[-1]
-                if name.endswith(".jpg"):
-                    existing.add(name.replace(".jpg", ""))
+    try:
+        result = subprocess.run(
+            ["gcloud", "storage", "ls", f"{GCS_VARIANTS_PREFIX}/"],
+            capture_output=True, text=True, timeout=120,
+        )
+        if result.returncode == 0:
+            for line in result.stdout.strip().split("\n"):
+                if line.strip():
+                    name = line.strip().rsplit("/", 1)[-1]
+                    if name.endswith(".jpg"):
+                        existing.add(name.replace(".jpg", ""))
+    except subprocess.TimeoutExpired:
+        print("  WARNING: GCS ls timed out — will re-upload all (idempotent)")
+    except Exception as e:
+        print(f"  WARNING: GCS ls failed ({e}) — will re-upload all (idempotent)")
 
     # Upload missing
     uploaded = 0
@@ -1423,6 +1433,7 @@ def _scan_variant_files() -> Dict[str, Tuple[str, Path]]:
     mapping: Dict[str, Tuple[str, Path]] = {}
     style_re = re.compile(r"^imagen_(\d+)_(.+)\.jpg$")
     smart_re = re.compile(r"^imagen_smart_(.+)\.jpg$")
+    qwen_re = re.compile(r"^qwen_(.+)\.jpg$")
 
     if GENERATED_DIR.exists():
         run_dirs = sorted(d for d in GENERATED_DIR.iterdir() if d.is_dir())
@@ -1442,6 +1453,14 @@ def _scan_variant_files() -> Dict[str, Tuple[str, Path]]:
                     if ms:
                         style_key = ms.group(1)
                         vid = _smart_variant_id(image_uuid, style_key)
+                        mapping[vid] = (rel_url, img_file)
+                        continue
+
+                    # Qwen variants: qwen_{style_key}.jpg
+                    mq = qwen_re.match(img_file.name)
+                    if mq:
+                        style_key = mq.group(1)
+                        vid = _qwen_variant_id(image_uuid, style_key)
                         mapping[vid] = (rel_url, img_file)
                         continue
 
@@ -1488,7 +1507,7 @@ def build_variant_photos(
         FROM ai_variants v
         WHERE v.generation_status = 'success'
           AND v.review_status = 'accepted'
-          AND v.variant_type IN ('style_transfer', 'cartoon', 'gemma_cartoon', 'smart_style')
+          AND v.variant_type IN ('style_transfer', 'cartoon', 'gemma_cartoon', 'smart_style', 'qwen_variant')
         ORDER BY v.image_uuid, v.variant_id
     """).fetchall()
 
@@ -1502,6 +1521,7 @@ def build_variant_photos(
     # Parse style name from filename patterns
     filename_re = re.compile(r"imagen_\d+_(.+)\.jpg$")
     smart_re = re.compile(r"imagen_smart_(.+)\.jpg$")
+    qwen_re = re.compile(r"qwen_(.+)\.jpg$")
 
     variant_photos = []
     portrait_ids = []
@@ -1529,9 +1549,12 @@ def build_variant_photos(
 
         # Extract style name from filename
         ms = smart_re.search(file_path.name)
+        mq = qwen_re.search(file_path.name)
         m = filename_re.search(file_path.name)
         if ms:
             style_name = ms.group(1)
+        elif mq:
+            style_name = mq.group(1)
         elif m:
             style_name = m.group(1)
         elif vtype in ("cartoon", "gemma_cartoon"):

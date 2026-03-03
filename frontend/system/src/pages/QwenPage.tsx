@@ -378,9 +378,10 @@ Ollama settings: temperature 0.4, num_predict 3000, format json`
 
 export function QwenPage() {
   const { data, loading, error } = useFetch<QwenData>('/api/qwen')
+  const [visible, setVisible] = useState(60)
 
-  if (loading) return <div style={{ color: 'var(--muted)', padding: 'var(--space-10)' }}>Loading Qwen analysis...</div>
-  if (error) return <div style={{ color: 'var(--system-red)', padding: 'var(--space-10)' }}>Error: {error}</div>
+  if (loading) return <PageShell title="Qwen" subtitle="Loading..."><div style={{ color: 'var(--muted)', padding: '40px', textAlign: 'center' }}>Loading Qwen analysis...</div></PageShell>
+  if (error) return <PageShell title="Qwen" subtitle="Error"><div style={{ color: 'var(--system-red)', padding: '40px' }}>Error: {error}</div></PageShell>
   if (!data) return null
 
   const sorted = [...data.results].sort((a, b) =>
@@ -393,6 +394,8 @@ export function QwenPage() {
   const avgPeople = sorted.length > 0
     ? (sorted.reduce((sum, r) => sum + (r.qwen.people_count || 0), 0) / sorted.length).toFixed(1)
     : '0'
+
+  const shown = sorted.slice(0, visible)
 
   return (
     <PageShell title="Qwen" subtitle="qwen2.5vl:7b via Ollama — spatial + inventory + variants">
@@ -423,16 +426,28 @@ export function QwenPage() {
 
       {/* Cards */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        {sorted.map(r => (
+        {shown.map(r => (
           <QwenCard key={r.uuid} result={r} />
         ))}
       </div>
 
-      {sorted.length === 0 && (
+      {visible < sorted.length ? (
+        <button
+          onClick={() => setVisible(v => v + 60)}
+          style={{
+            display: 'block', margin: '24px auto', padding: '10px 32px',
+            background: 'var(--surface)', border: '1px solid var(--border)',
+            borderRadius: '8px', color: 'var(--fg)', cursor: 'pointer',
+            fontSize: 'var(--text-sm)', fontFamily: 'var(--font-mono)',
+          }}
+        >
+          Load more ({sorted.length - visible} remaining)
+        </button>
+      ) : sorted.length === 0 ? (
         <p style={{ color: 'var(--muted)', textAlign: 'center', padding: '60px 20px' }}>
           No Qwen results yet. Run: python3 backend/image_signals/run_qwen_analysis.py --limit 100 --workers 4
         </p>
-      )}
+      ) : null}
     </PageShell>
   )
 }

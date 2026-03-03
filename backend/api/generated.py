@@ -22,9 +22,21 @@ def _variant_id_for(image_uuid: str, style_key: str) -> str:
     return str(_u.uuid5(_uuid_ns(), f"{image_uuid}:smart_{style_key}"))
 
 
+def _variant_id_v2_for(image_uuid: str, style_key: str) -> str:
+    import uuid as _u
+    return str(_u.uuid5(_uuid_ns(), f"{image_uuid}:v2_{style_key}"))
+
+
 def _qwen_variant_id_for(image_uuid: str, style_key: str) -> str:
     import uuid as _u
     return str(_u.uuid5(_uuid_ns(), f"{image_uuid}:{style_key}"))
+
+
+# smart_style file patterns: (glob, prefix_to_strip, id_fn)
+_SMART_STYLE_PATTERNS = [
+    ("imagen_smart_*.jpg", "imagen_smart_", _variant_id_for),
+    ("imagen_v2_*.jpg", "imagen_v2_", _variant_id_v2_for),
+]
 
 
 def get_generated_data():
@@ -46,9 +58,16 @@ def get_generated_data():
             "AND generation_status='success' "
             "GROUP BY review_status"
         ).fetchall()
+        # Count accepted but not yet exported
+        unexported = conn.execute(
+            "SELECT COUNT(*) FROM ai_variants "
+            "WHERE variant_type IN ('smart_style', 'qwen_variant') "
+            "AND generation_status='success' "
+            "AND review_status='accepted' AND exported_at IS NULL"
+        ).fetchone()[0]
         conn.close()
     except Exception:
-        return {"pairs": [], "run_dir": None, "accepted": 0, "rejected": 0}
+        return {"pairs": [], "run_dir": None, "accepted": 0, "rejected": 0, "unexported": 0}
 
     accepted = sum(r["cnt"] for r in counts if r["review_status"] == "accepted")
     rejected = sum(r["cnt"] for r in counts if r["review_status"] == "rejected")
@@ -71,39 +90,39 @@ def get_generated_data():
         runs = uuid_to_runs.get(uid, [])
         found = False
 
-        # Determine file glob pattern based on variant type
+        # Determine file patterns based on variant type
         if vtype == "qwen_variant":
-            glob_pattern = "qwen_*.jpg"
-            prefix = "qwen_"
+            patterns = [("qwen_*.jpg", "qwen_", _qwen_variant_id_for)]
         else:
-            glob_pattern = "imagen_smart_*.jpg"
-            prefix = "imagen_smart_"
+            patterns = _SMART_STYLE_PATTERNS
 
         for run in runs:
             uuid_dir = GENERATED_DIR / run / uid
-            for vf in uuid_dir.glob(glob_pattern):
-                style_key = vf.stem.replace(prefix, "", 1)
-                check_id = _qwen_variant_id_for(uid, style_key) if vtype == "qwen_variant" else _variant_id_for(uid, style_key)
-                if check_id == vid:
-                    orig_file = GENERATED_DIR / run / uid / "original.jpg"
-                    if orig_file.exists():
-                        orig_path = f"/generated/{run}/{uid}/original.jpg"
-                    else:
-                        orig_path = f"/images/display/{uid}.jpg"
-                    pairs.append({
-                        "variant_id": vid,
-                        "uuid": uid,
-                        "original_path": orig_path,
-                        "variant_path": f"/generated/{run}/{uid}/{vf.name}",
-                        "style_name": style_key,
-                        "style_prompt": row["prompt"] or "",
-                        "strength": 0,
-                        "why": "",
-                        "rotation": 0,
-                        "review": None,
-                        "variant_type": vtype,
-                    })
-                    found = True
+            for glob_pattern, prefix, id_fn in patterns:
+                for vf in uuid_dir.glob(glob_pattern):
+                    style_key = vf.stem.replace(prefix, "", 1)
+                    if id_fn(uid, style_key) == vid:
+                        orig_file = GENERATED_DIR / run / uid / "original.jpg"
+                        if orig_file.exists():
+                            orig_path = f"/generated/{run}/{uid}/original.jpg"
+                        else:
+                            orig_path = f"/images/display/{uid}.jpg"
+                        pairs.append({
+                            "variant_id": vid,
+                            "uuid": uid,
+                            "original_path": orig_path,
+                            "variant_path": f"/generated/{run}/{uid}/{vf.name}",
+                            "style_name": style_key,
+                            "style_prompt": row["prompt"] or "",
+                            "strength": 0,
+                            "why": "",
+                            "rotation": 0,
+                            "review": None,
+                            "variant_type": vtype,
+                        })
+                        found = True
+                        break
+                if found:
                     break
             if found:
                 break
@@ -113,6 +132,7 @@ def get_generated_data():
         "run_dir": None,
         "accepted": accepted,
         "rejected": rejected,
+        "unexported": unexported,
     }
 
 
