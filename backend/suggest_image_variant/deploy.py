@@ -246,41 +246,57 @@ def _render_tiers(variant_id: str, file_path: Path) -> List[Path]:
     return created
 
 
+_GCS_BUCKET = "myproject-public-assets"
+_GCS_BASE = "art/MADphotos/v"
+_GCS_CACHE = "public, max-age=31536000, immutable"
+_gcs_client = None
+
+
+def _get_gcs_bucket():
+    """Lazy-init GCS client using application-default credentials."""
+    global _gcs_client
+    if _gcs_client is None:
+        from google.cloud import storage as gcs
+        _gcs_client = gcs.Client()
+    return _gcs_client.bucket(_GCS_BUCKET)
+
+
 def _upload_source_to_gcs(variant_id: str, file_path: Path) -> bool:
     """Upload the source JPEG to GCS. Returns True on success."""
-    dst = f"{GCS_VARIANTS_PREFIX}/{variant_id}.jpg"
-    result = subprocess.run(
-        ["gcloud", "storage", "cp", str(file_path), dst,
-         "--cache-control=public, max-age=31536000, immutable", "--quiet"],
-        capture_output=True, text=True, timeout=60,
-    )
-    if result.returncode != 0:
-        print(f"  GCS error for {variant_id}: {result.stderr.strip()}")
+    try:
+        bucket = _get_gcs_bucket()
+        blob = bucket.blob(f"{_GCS_BASE}/variants/{variant_id}.jpg")
+        blob.cache_control = _GCS_CACHE
+        blob.upload_from_filename(str(file_path), content_type="image/jpeg")
+        return True
+    except Exception as e:
+        print(f"  GCS error for {variant_id}: {e}")
         return False
-    return True
 
 
 def _upload_tiers_to_gcs(variant_id: str, tier_files: List[Path]) -> int:
     """Upload rendered tier files to GCS. Returns number of successful uploads."""
     uploaded = 0
+    try:
+        bucket = _get_gcs_bucket()
+    except Exception as e:
+        print(f"  GCS init error: {e}")
+        return 0
     for f in tier_files:
         parts = f.parts
         try:
             idx = parts.index("variants")
         except ValueError:
             continue
-        rel = "/".join(parts[idx + 1:])
-        gcs_path = f"gs://myproject-public-assets/art/MADphotos/v/{'/'.join(parts[idx:])}"
-
-        result = subprocess.run(
-            ["gcloud", "storage", "cp", str(f), gcs_path,
-             "--cache-control=public, max-age=31536000, immutable", "--quiet"],
-            capture_output=True, text=True, timeout=60,
-        )
-        if result.returncode == 0:
+        gcs_key = f"{_GCS_BASE}/{'/'.join(parts[idx:])}"
+        content_type = "image/webp" if f.suffix == ".webp" else "image/jpeg"
+        try:
+            blob = bucket.blob(gcs_key)
+            blob.cache_control = _GCS_CACHE
+            blob.upload_from_filename(str(f), content_type=content_type)
             uploaded += 1
-        else:
-            print(f"  GCS tier error for {f.name}: {result.stderr.strip()}")
+        except Exception as e:
+            print(f"  GCS tier error for {f.name}: {e}")
     return uploaded
 
 

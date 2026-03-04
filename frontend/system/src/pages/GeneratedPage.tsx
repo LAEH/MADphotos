@@ -503,9 +503,16 @@ export function GeneratedPage() {
               </div>
               <div style={{
                 fontSize: '12px', color: '#888', lineHeight: '1.6',
-                marginBottom: '20px',
+                marginBottom: '12px',
               }}>
-                Complete the OAuth flow in your browser to continue.
+                Run in terminal:
+              </div>
+              <div style={{
+                padding: '8px 12px', background: '#0a0a0a', borderRadius: '6px',
+                fontFamily: 'var(--font-mono, monospace)', fontSize: '12px',
+                color: '#ccc', marginBottom: '16px', userSelect: 'all',
+              }}>
+                gcloud auth login && gcloud auth application-default login
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <div style={{
@@ -516,7 +523,7 @@ export function GeneratedPage() {
                   animation: 'spin 0.8s linear infinite',
                 }} />
                 <span style={{ fontSize: '12px', color: '#666' }}>
-                  Waiting for authentication...
+                  Polling until authenticated...
                 </span>
               </div>
             </div>

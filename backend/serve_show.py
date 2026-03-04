@@ -252,14 +252,25 @@ class GalleryHandler(SimpleHTTPRequestHandler):
 
     # ── Pre-launch checks (auth + DB) ──
 
-    def _get_gcp_auth(self):
+    @staticmethod
+    def _check_all_gcp_auth() -> tuple[bool, str]:
+        """Check GCP application-default credentials (used by all pipelines)."""
         from backend.update_and_deploy.preflight import check_gcp_auth
-        ok, msg = check_gcp_auth()
+        return check_gcp_auth()
+
+    def _get_gcp_auth(self):
+        ok, msg = self._check_all_gcp_auth()
         self._json_response({"authenticated": ok, "message": msg})
 
     def _post_gcp_auth(self):
+        # application-default login can run headless (opens browser)
         subprocess.Popen(
             ["gcloud", "auth", "application-default", "login"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+        # Regular gcloud auth login also opens browser
+        subprocess.Popen(
+            ["gcloud", "auth", "login", "--quiet"],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
         self._json_response({"ok": True})
@@ -374,9 +385,8 @@ class GalleryHandler(SimpleHTTPRequestHandler):
         if info and info['proc'].poll() is None:
             return self._json_response({"ok": False, "error": "Generation already running"})
 
-        # Check GCP auth before launching
-        from backend.update_and_deploy.preflight import check_gcp_auth
-        gcp_ok, _ = check_gcp_auth()
+        # Check GCP auth before launching (both application-default + gcloud CLI)
+        gcp_ok, _ = self._check_all_gcp_auth()
         if not gcp_ok:
             return self._json_response({"ok": False, "auth_required": True})
 
@@ -420,9 +430,8 @@ echo "=== Generation complete ==="
         if info and info['proc'].poll() is None:
             return self._json_response({"ok": False, "error": "Export already running"})
 
-        # Check GCP auth before launching
-        from backend.update_and_deploy.preflight import check_gcp_auth
-        gcp_ok, _ = check_gcp_auth()
+        # Check GCP auth before launching (both application-default + gcloud CLI)
+        gcp_ok, _ = self._check_all_gcp_auth()
         if not gcp_ok:
             return self._json_response({"ok": False, "auth_required": True})
 
