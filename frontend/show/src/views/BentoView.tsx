@@ -1407,6 +1407,10 @@ export function BentoView() {
     // Remove any in-flight crossfade overlay
     tileEl.querySelectorAll('.bento-tile-next').forEach(el => el.remove())
 
+    // Lock tile transform — prevent hover jitter during crossfade (Safari)
+    tileEl.style.transition = 'none'
+    tileEl.style.transform = getComputedStyle(tileEl).transform
+
     let newPhoto: Photo | undefined
 
     // If current photo is a variant, first click reveals the original
@@ -1493,6 +1497,12 @@ export function BentoView() {
         const dominant = captured.palette?.[0]
         if (dominant) tileEl.style.backgroundColor = dominant + '99'
         overlay.remove()
+
+        // Release tile transform lock — restore CSS hover control
+        requestAnimationFrame(() => {
+          tileEl.style.transform = ''
+          requestAnimationFrame(() => { tileEl.style.transition = '' })
+        })
 
         setPhotos(prev => {
           const next = [...prev]
