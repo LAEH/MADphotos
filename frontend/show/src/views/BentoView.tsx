@@ -1407,10 +1407,6 @@ export function BentoView() {
     // Remove any in-flight crossfade overlay
     tileEl.querySelectorAll('.bento-tile-next').forEach(el => el.remove())
 
-    // Lock tile transform — prevent hover jitter during crossfade (Safari)
-    tileEl.style.transition = 'none'
-    tileEl.style.transform = getComputedStyle(tileEl).transform
-
     let newPhoto: Photo | undefined
 
     // If current photo is a variant, first click reveals the original
@@ -1466,6 +1462,12 @@ export function BentoView() {
     preload.decoding = 'async'
 
     const doSwap = () => {
+      // Lock tile transform — prevent hover jitter during crossfade (Safari)
+      const swapGen = (parseInt(tileEl.dataset.swapGen || '0') + 1).toString()
+      tileEl.dataset.swapGen = swapGen
+      tileEl.style.transition = 'none'
+      tileEl.style.transform = getComputedStyle(tileEl).transform
+
       const overlay = document.createElement('img')
       overlay.className = 'bento-tile-next'
       overlay.src = target
@@ -1499,9 +1501,14 @@ export function BentoView() {
         overlay.remove()
 
         // Release tile transform lock — restore CSS hover control
+        // Guard with generation counter so stale cleanups from rapid clicks don't interfere
         requestAnimationFrame(() => {
+          if (tileEl.dataset.swapGen !== swapGen) return
           tileEl.style.transform = ''
-          requestAnimationFrame(() => { tileEl.style.transition = '' })
+          requestAnimationFrame(() => {
+            if (tileEl.dataset.swapGen !== swapGen) return
+            tileEl.style.transition = ''
+          })
         })
 
         setPhotos(prev => {
