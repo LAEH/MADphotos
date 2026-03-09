@@ -122,6 +122,26 @@ export const DESKTOP_LAYOUTS: BentoLayout[] = [
       L(1, 1, 3, 4), P(1, 5, 2, 1), L(3, 5, 1, 1),
     ],
   },
+  /* D11: Diptych — big hero + portrait sidebar — 2 tiles, MIXED */
+  {
+    id: 'D11', cols: 4, rows: 2, count: 2, device: 'desktop',
+    cells: [L(1, 1, 2, 3), P(1, 4, 2, 1)],
+  },
+  /* D12: Diptych reversed — portrait + hero — 2 tiles, MIXED */
+  {
+    id: 'D12', cols: 4, rows: 2, count: 2, device: 'desktop',
+    cells: [P(1, 1, 2, 1), L(1, 2, 2, 3)],
+  },
+  /* D13: Asymmetric quad — hero + 3 smalls — 4 tiles, MIXED */
+  {
+    id: 'D13', cols: 4, rows: 2, count: 4, device: 'desktop',
+    cells: [L(1, 1, 2, 2), L(1, 3, 1, 1), L(1, 4, 1, 1), L(2, 3, 1, 2)],
+  },
+  /* D14: Feature quad — portrait + wide + 2 squares — 4 tiles, MIXED */
+  {
+    id: 'D14', cols: 4, rows: 2, count: 4, device: 'desktop',
+    cells: [P(1, 1, 2, 1), L(1, 2, 2, 2), L(1, 4, 1, 1), L(2, 4, 1, 1)],
+  },
   /* DS1: Solo */
   { id: 'DS1', cols: 1, rows: 1, count: 1, device: 'desktop', cells: [L(1,1,1,1)] },
   /* DS2: Pair */
@@ -209,6 +229,31 @@ export const MOBILE_LAYOUTS: BentoLayout[] = [
       L(3, 1, 2, 2), P(3, 3, 2, 1),
       P(5, 1, 2, 1), L(5, 2, 2, 2),
     ],
+  },
+  /* M8: Diptych — full-width hero + portrait pair — 2 tiles, MIXED */
+  {
+    id: 'M8', cols: 3, rows: 4, count: 2, device: 'mobile',
+    cells: [L(1, 1, 2, 3), P(3, 1, 2, 3)],
+  },
+  /* M9: Triptych — full-width hero + two squares — 3 tiles, MIXED */
+  {
+    id: 'M9', cols: 2, rows: 4, count: 3, device: 'mobile',
+    cells: [L(1, 1, 2, 2), L(3, 1, 2, 1), L(3, 2, 2, 1)],
+  },
+  /* M10: Portrait + landscape pair — 3 tiles, MIXED */
+  {
+    id: 'M10', cols: 3, rows: 4, count: 3, device: 'mobile',
+    cells: [P(1, 1, 2, 1), L(1, 2, 2, 2), L(3, 1, 2, 3)],
+  },
+  /* M11: Asymmetric quad — big hero + 3 smalls — 4 tiles, MIXED */
+  {
+    id: 'M11', cols: 3, rows: 4, count: 4, device: 'mobile',
+    cells: [L(1, 1, 2, 3), P(3, 1, 2, 1), L(3, 2, 1, 2), L(4, 2, 1, 2)],
+  },
+  /* M12: Feature quad — portrait left + 3 right — 4 tiles, MIXED */
+  {
+    id: 'M12', cols: 3, rows: 4, count: 4, device: 'mobile',
+    cells: [P(1, 1, 4, 1), L(1, 2, 2, 2), L(3, 2, 1, 2), L(4, 2, 1, 2)],
   },
   /* MS1: Solo */
   { id: 'MS1', cols: 1, rows: 1, count: 1, device: 'mobile', cells: [L(1,1,1,1)] },

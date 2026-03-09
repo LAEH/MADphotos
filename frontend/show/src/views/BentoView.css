@@ -16,8 +16,10 @@
   overflow: clip;
   overscroll-behavior: none;
 }
-.bento-wrap::before { content: ''; grid-row: 1; }
-
+.bento-wrap::before {
+  content: "";
+  grid-row: 1;
+}
 
 .bento-grid {
   grid-row: 2;
@@ -31,7 +33,6 @@
   overflow: hidden;
   contain: layout style;
 }
-
 
 .bento-tile {
   position: relative;
@@ -51,6 +52,9 @@
     0 4px 16px rgba(0, 0, 0, 0.04);
   animation: bento-enter 0.35s cubic-bezier(0.16, 1, 0.3, 1) backwards;
   animation-delay: calc(var(--i, 0) * 30ms);
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  transform: translateZ(0); /* forces hardware acceleration */
 }
 
 @keyframes bento-enter {
@@ -68,7 +72,7 @@
   box-shadow:
     0 1px 3px rgba(0, 0, 0, 0.15),
     0 2px 8px rgba(0, 0, 0, 0.12),
-    0 4px 16px rgba(0, 0, 0, 0.10);
+    0 4px 16px rgba(0, 0, 0, 0.1);
 }
 
 .bento-tile img {
@@ -82,7 +86,26 @@
   display: block;
 }
 
-/* Crossfade overlay for smooth tile swaps — fast, crisp, no scale */
+/* 
+ * Disable the standard image scaling (.img-loaded/.img-loading) inside tiles.
+ * The bento tile parent handles the scale-in animation. Double-scaling causes
+ * severe jitter and visual popping on mobile devices.
+ */
+.bento-tile img.img-loading,
+.bento-tile img.img-loaded {
+  transform: none !important;
+}
+.bento-tile img.img-loaded {
+  transition: opacity var(--img-appear-duration) var(--img-appear-ease) !important;
+}
+
+/* Tap press — brief scale-down for tactile feedback */
+.bento-tile-press {
+  transform: scale(0.96) !important;
+  transition: transform 0.1s cubic-bezier(0.25, 1, 0.5, 1) !important;
+}
+
+/* Crossfade overlay for smooth tile swaps */
 .bento-tile-next {
   position: absolute;
   inset: 0;
@@ -91,7 +114,7 @@
   object-fit: cover;
   opacity: 0;
   z-index: 1;
-  transition: opacity 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+  transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
   pointer-events: none;
   will-change: opacity;
 }
@@ -151,16 +174,27 @@
 }
 
 @keyframes genie-bob {
-  0%, 100% { transform: translateY(1px); }
-  50%      { transform: translateY(-3px); }
+  0%,
+  100% {
+    transform: translateY(1px);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
 }
 
 /* Touch devices — restore pointer cursor (no genie cursor on touch) */
 @media (hover: none) {
-  .bento-grid { cursor: auto; }
-  .bento-tile { cursor: pointer; }
+  .bento-grid {
+    cursor: auto;
+  }
+  .bento-tile {
+    cursor: pointer;
+  }
   .bento-tile-fs,
-  .bento-tile-split-btn { cursor: pointer; }
+  .bento-tile-split-btn {
+    cursor: pointer;
+  }
 }
 
 /* Hover action buttons — shared style for fullscreen + split */
@@ -217,7 +251,11 @@
 /* Mobile layout (class-based, set by device detection) */
 .bento-mobile {
   --bento-top: 72px;
-  --bento-edge: max(12px, env(safe-area-inset-left), env(safe-area-inset-right));
+  --bento-edge: max(
+    12px,
+    env(safe-area-inset-left),
+    env(safe-area-inset-right)
+  );
   padding-left: var(--bento-edge);
   padding-right: var(--bento-edge);
 }
@@ -237,7 +275,11 @@
 /* Tablet / Phone fallback */
 @media (max-width: 768px) {
   .bento-wrap:not(.bento-mobile) {
-    --bento-edge: max(16px, env(safe-area-inset-left), env(safe-area-inset-right));
+    --bento-edge: max(
+      16px,
+      env(safe-area-inset-left),
+      env(safe-area-inset-right)
+    );
     padding-left: var(--bento-edge);
     padding-right: var(--bento-edge);
   }
@@ -258,7 +300,6 @@
     transform: scale(1);
   }
 }
-
 
 /* Variant reveal — subtle glow when showing a generated variant */
 .bento-tile-revealed {

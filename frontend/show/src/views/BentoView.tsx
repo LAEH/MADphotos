@@ -1,11 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useAppStore } from '../store/appStore'
-import { loadProgressive } from '../lib/imageLoading'
+import { loadProgressive, clearDecodeQueue } from '../lib/imageLoading'
 import { getObjectPosition } from '../lib/cropUtils'
 import { randomFrom } from '../lib/utils'
 import { fireAndForget } from '../lib/firebase'
 import {
-  DESKTOP_STARTER_LAYOUTS, MOBILE_STARTER_LAYOUTS,
   uniformBentoGrid, pickLayoutForCount,
   filterByImageType, isSplittable, splitCell,
   type BentoLayout, type ImageTypeFilter,
@@ -536,7 +535,7 @@ function curateCameraStory(allPhotos: Photo[], cells: BentoCell[]): Photo[] {
   const usedIds = new Set<string>()
   return fillCells(cells, pools, usedIds, (p) => {
     let s = visualImpact(p)
-    // Reward hue diversity — photos far from average hue add visual interest
+    // Reward hue diversity — photos far from average hue
     s += hueDist(p.hue || 0, avgHue) / 20
     return s + Math.random() * 8
   })
@@ -989,7 +988,7 @@ interface BentoTileProps {
   onFullscreen: (photo: Photo) => void
 }
 
-function BentoTile({ photo, cell, cellIndex, index, revealed, splittable, isSplit, gridCols, gridRows, containerRatio, onSwap, onSplit, onFullscreen }: BentoTileProps) {
+const BentoTile = React.memo(function BentoTile({ photo, cell, cellIndex, index, revealed, splittable, isSplit, gridCols, gridRows, containerRatio, onSwap, onSplit, onFullscreen }: BentoTileProps) {
   const tileRef = useRef<HTMLDivElement>(null)
   const touchRef = useRef({ x: 0, y: 0, moved: false })
 
@@ -998,7 +997,7 @@ function BentoTile({ photo, cell, cellIndex, index, revealed, splittable, isSpli
     // After a crossfade swap, the tile DOM element has a data-swapped flag.
     // Skip loadProgressive — the image is already showing the correct source.
     // Without this, React re-render triggers micro→blur→decode→reveal jitter.
-    if (el.parentElement?.dataset.swapped) {
+    if (el.parentElement && 'swapped' in el.parentElement.dataset) {
       delete el.parentElement.dataset.swapped
       el.style.objectPosition = getObjectPosition(photo, cell, gridCols, gridRows, containerRatio)
       return
@@ -1066,7 +1065,7 @@ function BentoTile({ photo, cell, cellIndex, index, revealed, splittable, isSpli
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      <img ref={imgRef} alt="" />
+      <img ref={imgRef} alt="" fetchPriority={cell.rs * cell.cs >= 4 ? "high" : "auto"} />
       <button className="bento-tile-fs" onClick={handleFullscreen}>
         <FullscreenIcon />
       </button>
@@ -1077,7 +1076,7 @@ function BentoTile({ photo, cell, cellIndex, index, revealed, splittable, isSpli
       )}
     </div>
   )
-}
+})
 
 /* ===== BentoView component ===== */
 
@@ -1086,6 +1085,7 @@ export function BentoView() {
   const openLightbox = useAppStore(s => s.openLightbox)
 
   const [layout, setLayout] = useState<BentoLayout | null>(null)
+  const [layoutGen, setLayoutGen] = useState(0)
   const [workingCells, setWorkingCells] = useState<BentoCell[]>([])
   const [photos, setPhotos] = useState<Photo[]>([])
   const [colorBuckets, setColorBuckets] = useState<BentoColorBucket[]>([])
@@ -1232,9 +1232,16 @@ export function BentoView() {
   /* Generate a fresh bento — always picks from starter layouts (low density, big splittable tiles) */
   const generate = useCallback(() => {
     if (!data) return
+    clearDecodeQueue()
     const device = isDesktop() ? 'desktop' as const : 'mobile' as const
-    const starterLayouts = device === 'desktop' ? DESKTOP_STARTER_LAYOUTS : MOBILE_STARTER_LAYOUTS
-    const newLayout = randomFrom(starterLayouts)
+
+    // Pick a random tile count — full range for real variety
+    // Weight: dramatic (2-3) and dense (9+) less frequent, sweet spot (4-8) more common
+    const countPool = device === 'desktop'
+      ? [2, 3, 3, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 8, 8, 9, 10, 11]
+      : [2, 3, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 8]
+    const targetCount = randomFrom(countPool)
+    const newLayout = pickLayoutForCount(targetCount, device, true)
 
     const isColorFiltered = activeColorIdx >= 0 && colorBuckets[activeColorIdx]
     let photoPool = isColorFiltered ? colorBuckets[activeColorIdx].photos : data.photos
@@ -1325,6 +1332,7 @@ export function BentoView() {
     }
 
     setLayout(newLayout)
+    setLayoutGen(g => g + 1)
     setWorkingCells([...newLayout.cells])
     setPhotos(selected)
     revealedRef.current = new Set()
@@ -1461,12 +1469,13 @@ export function BentoView() {
     const preload = new Image()
     preload.decoding = 'async'
 
+    // Tactile press feedback — scale down briefly before crossfade
+    tileEl.classList.add('bento-tile-press')
+
     const doSwap = () => {
       // Lock tile transform — prevent hover jitter during crossfade (Safari)
       const swapGen = (parseInt(tileEl.dataset.swapGen || '0') + 1).toString()
       tileEl.dataset.swapGen = swapGen
-      tileEl.style.transition = 'none'
-      tileEl.style.transform = getComputedStyle(tileEl).transform
 
       const overlay = document.createElement('img')
       overlay.className = 'bento-tile-next'
@@ -1475,8 +1484,11 @@ export function BentoView() {
       if (objPos) overlay.style.objectPosition = objPos
       tileEl.appendChild(overlay)
 
-      // Double-rAF: ensure browser paints opacity:0 before transitioning
+      // Release press → spring back to 1.0, then start crossfade
       requestAnimationFrame(() => {
+        tileEl.classList.remove('bento-tile-press')
+        tileEl.style.transition = 'none'
+        tileEl.style.transform = getComputedStyle(tileEl).transform
         requestAnimationFrame(() => { overlay.style.opacity = '1' })
       })
 
@@ -1485,7 +1497,8 @@ export function BentoView() {
         if (cleaned) return
         cleaned = true
         overlay.removeEventListener('transitionend', cleanup)
-        // Transfer to main image
+        tileEl.classList.remove('bento-tile-press')
+        // Transfer source to main image (still hidden behind overlay)
         mainImg.src = target
         if (objPos) mainImg.style.objectPosition = objPos
         mainImg.classList.remove('img-loading', 'img-loaded', 'img-blur-up')
@@ -1498,30 +1511,42 @@ export function BentoView() {
         else delete tileEl.dataset.variant
         const dominant = captured.palette?.[0]
         if (dominant) tileEl.style.backgroundColor = dominant + '99'
-        overlay.remove()
 
-        // Release tile transform lock — restore CSS hover control
-        // Guard with generation counter so stale cleanups from rapid clicks don't interfere
-        requestAnimationFrame(() => {
-          if (tileEl.dataset.swapGen !== swapGen) return
-          tileEl.style.transform = ''
+        // Wait for mainImg to decode before removing overlay — prevents
+        // flash/jitter on Safari iOS where cached images still need a frame to decode
+        const finishSwap = () => {
+          overlay.remove()
+
+          // Release tile transform lock — restore CSS hover control
+          // Guard with generation counter so stale cleanups from rapid clicks don't interfere
           requestAnimationFrame(() => {
             if (tileEl.dataset.swapGen !== swapGen) return
-            tileEl.style.transition = ''
+            tileEl.style.transform = ''
+            requestAnimationFrame(() => {
+              if (tileEl.dataset.swapGen !== swapGen) return
+              tileEl.style.transition = ''
+            })
           })
-        })
 
-        setPhotos(prev => {
-          const next = [...prev]
-          const idx = next.findIndex(p => p.id === oldId)
-          if (idx >= 0) next[idx] = captured
-          return next
-        })
+          setPhotos(prev => {
+            const next = [...prev]
+            const idx = next.findIndex(p => p.id === oldId)
+            if (idx >= 0) next[idx] = captured
+            return next
+          })
 
-        const nextIds = new Set(photosRef.current.map(p => p.id))
-        nextIds.delete(oldId!)
-        nextIds.add(captured.id)
-        refillPreloadBuffer(nextIds)
+          const nextIds = new Set(photosRef.current.map(p => p.id))
+          nextIds.delete(oldId!)
+          nextIds.add(captured.id)
+          refillPreloadBuffer(nextIds)
+        }
+
+        // decode() ensures the image is ready to paint before we reveal it
+        if (typeof mainImg.decode === 'function') {
+          mainImg.decode().then(finishSwap, finishSwap)
+        } else {
+          finishSwap()
+        }
       }
 
       overlay.addEventListener('transitionend', cleanup)
@@ -1610,10 +1635,14 @@ export function BentoView() {
    * 6-12 tiles, max 1 variant accent, avoids recently shown. */
   const showBestBento = useCallback(() => {
     if (!data) return
+    clearDecodeQueue()
     const device = isDesktop() ? 'desktop' as const : 'mobile' as const
-    // 6-12 tiles — always a meaningful composition
-    const count = 6 + Math.floor(Math.random() * 7)
-    const newLayout = pickLayoutForCount(count, device)
+    // Varied tile count — from dramatic diptychs to dense mosaics
+    const countPool = device === 'desktop'
+      ? [2, 3, 3, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 8, 8, 9, 10, 11]
+      : [2, 3, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 8]
+    const count = randomFrom(countPool)
+    const newLayout = pickLayoutForCount(count, device, true)
 
     // Filter out recently shown photos for freshness
     const recent = recentlyShownRef.current
@@ -1699,6 +1728,7 @@ export function BentoView() {
     setActiveCurator(bestCurator)
     setActiveColorIdx(colorIdx)
     setLayout(newLayout)
+    setLayoutGen(g => g + 1)
     setWorkingCells([...newLayout.cells])
     setPhotos(bestResult)
     revealedRef.current = new Set()
@@ -1805,7 +1835,7 @@ export function BentoView() {
           const canSplit = isSplittable(cell)
           return (
             <BentoTile
-              key={`${cell.r}-${cell.c}`}
+              key={`L${layoutGen}-${cell.r}-${cell.c}`}
               photo={photo}
               cell={cell}
               cellIndex={i}

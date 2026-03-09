@@ -49,6 +49,10 @@ const DECODE_QUEUE = {
       this._drain()
     })
   },
+  clear() {
+    for (const p of this.pending) p.resolve() // skip decoding
+    this.pending = []
+  },
   _drain() {
     while (this.active < this.max && this.pending.length) {
       this.active++
@@ -58,6 +62,10 @@ const DECODE_QUEUE = {
         .finally(() => { this.active--; this._drain() })
     }
   }
+}
+
+export function clearDecodeQueue() {
+  DECODE_QUEUE.clear()
 }
 
 /* ===== Image Tier Selection ===== */

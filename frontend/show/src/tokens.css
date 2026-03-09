@@ -316,11 +316,19 @@
 }
 
 /* Blur-up placeholder: micro image scaled up, crossfades to target.
-   Uses only compositor properties (opacity + transform).
-   The blur is a static filter — no transition on filter. */
+   Hardware accelerated to prevent composite jitter. */
 .img-blur-up {
-  filter: blur(6px);
-  transform: scale(1.02);
+  transform: scale(1.05) translateZ(0);
+  backface-visibility: hidden;
+  will-change: transform, opacity;
+  filter: blur(4px);
+}
+
+/* Disable blur entirely on mobile/low-power devices to save compositor threads */
+@media (max-width: 768px) {
+  .img-blur-up {
+    filter: blur(2px);
+  }
 }
 
 /* ===== Base ===== */
