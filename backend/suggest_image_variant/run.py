@@ -82,16 +82,18 @@ def cmd_dry(candidates: List[Dict], assignments: List[Tuple[Dict, List[str]]]) -
     print(f"\nEstimated cost: ${est_cost:.2f}")
     print(f"Estimated time: ~{est_time:.0f} min")
 
+    style_header = " → ".join(f"{'Style ' + str(i+1):<20}" for i in range(STYLES_PER_PHOTO))
     print(f"\n{'UUID':<38} {'Score':>5} {'Mono':>4} {'Faces':>5} {'Setting':<12} "
-          f"{'Mood':<20} → {'Style 1':<20} {'Style 2'}")
+          f"{'Mood':<20} → {style_header}")
     print("-" * 145)
     for photo, styles in assignments[:40]:
         mood = (photo.get("gemma_mood") or "")[:18]
         setting = (photo.get("setting") or "")[:10]
         mono = "yes" if photo.get("is_monochrome") else ""
+        style_names = " → ".join(f"{STYLES[s]['name']:<20}" for s in styles)
         print(f"{photo['uuid']:<38} {photo['_quality_score']:>5.0f} {mono:>4} "
               f"{photo.get('faces_count') or 0:>5} {setting:<12} "
-              f"{mood:<20} → {STYLES[styles[0]]['name']:<20} {STYLES[styles[1]]['name']}")
+              f"{mood:<20} → {style_names}")
     if len(assignments) > 40:
         print(f"  ... and {len(assignments) - 40} more")
 

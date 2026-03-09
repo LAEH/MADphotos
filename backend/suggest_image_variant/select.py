@@ -26,6 +26,7 @@ from .config import (
     STRUGGLING_PENALTY,
     STRUGGLING_THRESHOLD,
     STYLES,
+    STYLES_PER_PHOTO,
 )
 
 # Module-level cache for style rates (loaded once per run)
@@ -332,11 +333,11 @@ def score_style(style_key: str, photo: Dict,
 
 def pick_styles(photo: Dict,
                 rates: Optional[Dict[str, Dict]] = None) -> List[str]:
-    """Pick the 2 best-suited styles for a photo.
+    """Pick the best-suited style(s) for a photo.
 
+    Returns STYLES_PER_PHOTO styles (default 1).
     Slot 1: always the best-scoring style.
-    Slot 2: 80% exploit (next-best from different family),
-            20% explore (random undertested style from different family).
+    Slot 2+ (if needed): exploit from different family, or explore undertested.
 
     Dead styles (rate < DEAD_THRESHOLD with enough reviews) are auto-excluded
     via score_style returning -999.
@@ -347,35 +348,42 @@ def pick_styles(photo: Dict,
     # Filter out dead styles
     scores = [(k, s) for k, s in scores if s > -900]
     if not scores:
-        # Fallback: all styles dead — just use top 2 by affinity alone
+        # Fallback: all styles dead — just use top N by affinity alone
         scores = [(key, score_style(key, photo)) for key in STYLES]
         scores.sort(key=lambda x: -x[1])
 
     picked = [scores[0][0]]
-    first_family = FAMILIES.get(picked[0])
 
-    # Slot 2: explore/exploit
-    if rates and random.random() < EXPLORE_RATE:
-        # Explore: pick an undertested style from a different family.
-        # Skip styles that already proved they don't work (0% with ≥3 reviews).
-        undertested = [
-            k for k, _ in scores[1:]
-            if FAMILIES.get(k) != first_family
-            and rates.get(k, {}).get("total", 0) < EXPLORE_MAX_REVIEWS
-            and not (rates.get(k, {}).get("total", 0) >= EXPLORE_MIN_RATE_REVIEWS
-                     and rates.get(k, {}).get("rate", 1.0) <= EXPLORE_MIN_RATE)
-        ]
-        if undertested:
-            picked.append(random.choice(undertested))
+    # Fill remaining slots if STYLES_PER_PHOTO > 1
+    while len(picked) < STYLES_PER_PHOTO and len(scores) > len(picked):
+        used_families = {FAMILIES.get(k) for k in picked}
 
-    if len(picked) < 2:
-        # Exploit: next-best from different family
-        for key, sc in scores[1:]:
-            if FAMILIES.get(key) != first_family:
+        # Explore: 20% chance to pick an undertested style from a different family
+        if rates and random.random() < EXPLORE_RATE:
+            undertested = [
+                k for k, _ in scores
+                if k not in picked
+                and FAMILIES.get(k) not in used_families
+                and rates.get(k, {}).get("total", 0) < EXPLORE_MAX_REVIEWS
+                and not (rates.get(k, {}).get("total", 0) >= EXPLORE_MIN_RATE_REVIEWS
+                         and rates.get(k, {}).get("rate", 1.0) <= EXPLORE_MIN_RATE)
+            ]
+            if undertested:
+                picked.append(random.choice(undertested))
+                continue
+
+        # Exploit: next-best from a different family
+        found = False
+        for key, sc in scores:
+            if key not in picked and FAMILIES.get(key) not in used_families:
                 picked.append(key)
+                found = True
                 break
+        if not found:
+            # No different family available — just take next best
+            for key, sc in scores:
+                if key not in picked:
+                    picked.append(key)
+                    break
 
-    if len(picked) < 2 and len(scores) > 1:
-        picked.append(scores[1][0])
-
-    return picked[:2]
+    return picked[:STYLES_PER_PHOTO]

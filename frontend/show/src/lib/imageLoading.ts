@@ -154,7 +154,8 @@ export function loadProgressive(
     img.parentElement.style.backgroundColor = photo.palette[0] + '55'
   }
 
-  {
+  // Skip DOM read if caller already set objectPosition (e.g. BentoView imgRef)
+  if (!img.style.objectPosition) {
     const parent = img.parentElement
     const pw = parent?.clientWidth
     const ph = parent?.clientHeight

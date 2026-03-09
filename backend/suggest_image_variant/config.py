@@ -21,7 +21,7 @@ BASE_BACKOFF = 10
 # Budget
 COST_PER_IMAGE = 0.04  # Imagen 3 edit_image cost estimate
 DEFAULT_BUDGET = 10.00
-STYLES_PER_PHOTO = 2
+STYLES_PER_PHOTO = 1
 
 # Performance tracking thresholds
 DEAD_THRESHOLD = 0.10       # <10% acceptance rate = dead style

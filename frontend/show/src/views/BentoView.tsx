@@ -1474,9 +1474,6 @@ export function BentoView() {
 
     const doSwap = () => {
       // Lock tile transform — prevent hover jitter during crossfade (Safari)
-      const swapGen = (parseInt(tileEl.dataset.swapGen || '0') + 1).toString()
-      tileEl.dataset.swapGen = swapGen
-
       const overlay = document.createElement('img')
       overlay.className = 'bento-tile-next'
       overlay.src = target
@@ -1484,11 +1481,10 @@ export function BentoView() {
       if (objPos) overlay.style.objectPosition = objPos
       tileEl.appendChild(overlay)
 
-      // Release press → spring back to 1.0, then start crossfade
+      // Release press → spring back while crossfade starts
+      // Overlay covers tile at z-index:1, so spring-back is invisible — no need to freeze transform
       requestAnimationFrame(() => {
         tileEl.classList.remove('bento-tile-press')
-        tileEl.style.transition = 'none'
-        tileEl.style.transform = getComputedStyle(tileEl).transform
         requestAnimationFrame(() => { overlay.style.opacity = '1' })
       })
 
@@ -1516,17 +1512,6 @@ export function BentoView() {
         // flash/jitter on Safari iOS where cached images still need a frame to decode
         const finishSwap = () => {
           overlay.remove()
-
-          // Release tile transform lock — restore CSS hover control
-          // Guard with generation counter so stale cleanups from rapid clicks don't interfere
-          requestAnimationFrame(() => {
-            if (tileEl.dataset.swapGen !== swapGen) return
-            tileEl.style.transform = ''
-            requestAnimationFrame(() => {
-              if (tileEl.dataset.swapGen !== swapGen) return
-              tileEl.style.transition = ''
-            })
-          })
 
           setPhotos(prev => {
             const next = [...prev]
@@ -1794,6 +1779,7 @@ export function BentoView() {
     if (!genieVisible.current) {
       genieVisible.current = true
       el.style.opacity = '1'
+      el.style.animationPlayState = 'running'
     }
   }, [])
 
@@ -1802,6 +1788,7 @@ export function BentoView() {
     if (!el) return
     genieVisible.current = false
     el.style.opacity = '0'
+    el.style.animationPlayState = 'paused'
   }, [])
 
   if (!layout || photos.length === 0) {
