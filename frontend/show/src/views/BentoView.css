@@ -124,26 +124,24 @@
   left: 0;
   width: 44px;
   height: 44px;
-  margin-left: -22px;
-  margin-top: -22px;
   border-radius: 50%;
   pointer-events: none;
   z-index: 100;
   opacity: 0;
+  will-change: transform, opacity;
   background: linear-gradient(
     135deg,
     rgba(255, 255, 255, 0.35) 0%,
     rgba(255, 255, 255, 0.12) 50%,
     rgba(255, 255, 255, 0.2) 100%
   );
-  backdrop-filter: blur(16px) saturate(180%) brightness(1.05);
-  -webkit-backdrop-filter: blur(16px) saturate(180%) brightness(1.05);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
   border: 0.5px solid rgba(255, 255, 255, 0.4);
   box-shadow:
     0 0.5px 0 rgba(255, 255, 255, 0.5) inset,
     0 2px 8px rgba(0, 0, 0, 0.06),
     0 6px 24px rgba(0, 0, 0, 0.04);
-  animation: genie-bob 2s ease-in-out infinite paused;
 }
 
 :root.dark .bento-genie-cursor {
@@ -160,7 +158,8 @@
     0 6px 24px rgba(0, 0, 0, 0.1);
 }
 
-/* Emoji — sits above the glass */
+/* Emoji — sits above the glass, bob animation lives here (not on
+   cursor parent) so translate3d positioning doesn't conflict */
 .bento-genie-emoji {
   display: flex;
   align-items: center;
@@ -169,6 +168,7 @@
   height: 100%;
   font-size: 30px;
   line-height: 1;
+  animation: genie-bob 2s ease-in-out infinite;
 }
 
 @keyframes genie-bob {
