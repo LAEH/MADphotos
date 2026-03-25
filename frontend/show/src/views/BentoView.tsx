@@ -1002,10 +1002,8 @@ const BentoTile = React.memo(function BentoTile({ photo, cell, cellIndex, index,
       el.style.objectPosition = getObjectPosition(photo, cell, gridCols, gridRows, containerRatio)
       return
     }
-    // Set objectPosition BEFORE loadProgressive so it skips the
-    // clientWidth/clientHeight read inside — avoids forced layout per tile.
-    el.style.objectPosition = getObjectPosition(photo, cell, gridCols, gridRows, containerRatio)
     loadProgressive(el, photo, 'display', '(max-width: 768px) 50vw, 33vw')
+    el.style.objectPosition = getObjectPosition(photo, cell, gridCols, gridRows, containerRatio)
   }, [photo, cell, gridCols, gridRows, containerRatio])
 
   const dominant = photo.palette?.[0]
@@ -1483,12 +1481,11 @@ export function BentoView() {
       if (objPos) overlay.style.objectPosition = objPos
       tileEl.appendChild(overlay)
 
-      // Release press + start crossfade in the same frame — both are
-      // compositor-only (transform + opacity) so no layout thrash.
-      // Overlay at z-index:1 covers tile, so spring-back is invisible.
+      // Release press → spring back while crossfade starts
+      // Overlay covers tile at z-index:1, so spring-back is invisible — no need to freeze transform
       requestAnimationFrame(() => {
         tileEl.classList.remove('bento-tile-press')
-        overlay.style.opacity = '1'
+        requestAnimationFrame(() => { overlay.style.opacity = '1' })
       })
 
       let cleaned = false
@@ -1777,11 +1774,12 @@ export function BentoView() {
   const handleGridMouseMove = useCallback((e: React.MouseEvent) => {
     const el = genieCursorRef.current
     if (!el) return
-    // translate3d is compositor-only — no layout recalc per mousemove
-    el.style.transform = `translate3d(${e.clientX - 22}px, ${e.clientY - 22}px, 0)`
+    el.style.left = `${e.clientX}px`
+    el.style.top = `${e.clientY}px`
     if (!genieVisible.current) {
       genieVisible.current = true
       el.style.opacity = '1'
+      el.style.animationPlayState = 'running'
     }
   }, [])
 
@@ -1790,6 +1788,7 @@ export function BentoView() {
     if (!el) return
     genieVisible.current = false
     el.style.opacity = '0'
+    el.style.animationPlayState = 'paused'
   }, [])
 
   if (!layout || photos.length === 0) {
