@@ -2,6 +2,105 @@
 
 Per-image AI photography pipeline. 9,011 photographs analyzed by 13 ML models, enhanced by camera-aware algorithms, styled by Imagen 3. Every signal stored in SQLite. Every image searchable by meaning.
 
+## Starting on a new machine
+
+**Read this first if you just cloned the repo.** MADphotos has ~65 GB of state that doesn't live in git — it lives in GCS and gets pulled with `sync-down.sh`. These steps take the repo from "fresh clone" to "can build + deploy + run the full pipeline".
+
+### What's in git vs what's in GCS vs what you recreate locally
+
+| Thing | Where | How it gets here |
+|---|---|---|
+| Source code (frontend, backend, scripts, Modelfile) | git | `git clone` |
+| `requirements-gen.lock.txt`, `requirements-mflux.lock.txt` | git | `git clone` |
+| `images/mad_photos.db` (~3.2 GB) | **GCS** `sync/mad_photos.db` | `sync-down.sh` |
+| `frontend/show/public/data/*` (JSON + mosaic mp4s) | **GCS** `sync/data/` | `sync-down.sh` |
+| `images/vectors.lance/` (~170 MB, LanceDB) | **GCS** `sync/vectors.lance/` | `sync-down.sh` |
+| `backend/suggest_image_variant/output/` (~1.7 GB, irreplaceable Imagen outputs) | **GCS** `sync/variants/` | `sync-down.sh` |
+| `images/rendered/` (~59 GB, 6-tier pyramids) | **GCS** `sync/rendered/` | `sync-down.sh` (big — use `--skip-rendered` to defer) |
+| `images/originals/` (~105 GB, 9,017 source photos) | **GCS** `madphotos/originals/` | pulled on demand by the render pipeline |
+| `.venv-gen/` (Python 3.13, torch/transformers/lancedb/etc, ~11 GB) | NOT synced | recreate from `requirements-gen.lock.txt` |
+| `.venv-mflux/` (Python 3.9, legacy mflux 0.2.1) | NOT synced | recreate from `requirements-mflux.lock.txt` (only if you need the legacy path) |
+| Ollama `madphotos-critic` model (~17 GB) | NOT synced | recreate with `ollama create -f backend/Modelfile.madphotos` |
+| HuggingFace cache (Flux ~62 GB, VGG19 ~550 MB) | NOT synced | re-downloads automatically on first use |
+
+### Step-by-step
+
+```bash
+# 1. Clone
+git clone git@github.com:LAEH/MADphotos.git ~/Github/MADphotos
+cd ~/Github/MADphotos
+
+# 2. gcloud auth — required for sync-down (GCS), Firebase deploy, and Vertex AI (Gemini/Imagen)
+gcloud auth login
+gcloud auth application-default login
+gcloud config set project laeh380to760
+
+# 3. Pull state from GCS.
+#    Full pull (~65 GB, takes a while because of the rendered/ tier pyramids):
+./sync-down.sh
+#
+#    OR — frontend-only fast path (~5 GB, skips rendered/ so you can build Show/System immediately):
+./sync-down.sh --skip-rendered
+#    …then later, when you need the tier pyramids for pipeline work:
+./sync-down.sh --only-rendered
+
+# 4. Python env — primary (.venv-gen, Python 3.13)
+python3.13 -m venv .venv-gen
+.venv-gen/bin/pip install --upgrade pip
+.venv-gen/bin/pip install -r requirements-gen.lock.txt
+#    Sanity check:
+.venv-gen/bin/python3 -c "import torch, lancedb, transformers, google.genai; print('venv-gen OK')"
+
+# 5. Ollama (for madphotos-critic, the Gemma 27B photo analyst)
+brew install ollama   # or download from ollama.com
+ollama serve &         # background daemon
+ollama pull gemma3:27b
+ollama create madphotos-critic -f backend/Modelfile.madphotos
+ollama list | grep madphotos-critic
+
+# 6. Frontend deps
+npm install --prefix frontend/show
+npm install --prefix frontend/system
+
+# 7. Firebase login (for deploy)
+npx firebase login
+
+# 8. Verify everything is wired up
+python3 -m backend.MADphotos_ignition.run --status
+#    Starts a health check across servers, DB, Ollama, and disk.
+
+# 9. Launch dev servers and deploy when ready
+python3 -m backend.MADphotos_ignition.run     # ignition: serve_show + Show vite + System vite
+python3 -m backend.update_and_deploy.run      # full 10-phase deploy to Firebase
+```
+
+### Multi-machine workflow — avoid DB drift
+
+`mad_photos.db` is the ground truth. Only one machine should be writing it at a time, otherwise you'll silently clobber edits. Discipline:
+
+1. **Before you start working on a machine** → run `./sync-down.sh --force` to refresh local DB from GCS. (Use `--force` to override the "same size, skip" shortcut — WAL state can be identical size but different content.)
+2. **After any signal extraction / deploy / pipeline run** → run `./sync-up.sh` to push the updated DB + data + vectors + variants back up.
+3. **If in doubt** → `gcloud storage ls -l gs://myproject-public-assets/madphotos/sync/mad_photos.db` shows the upload timestamp. Compare against `stat -f "%Sm" images/mad_photos.db` locally. If GCS is fresher, your local is stale — `sync-down --force` before touching anything.
+
+`sync-up.sh` uses `rsync --checksums-only` for the directories (safe, incremental) and a direct `cp` for the DB file (always overwrites remote). It does **not** use `--delete-unmatched-destination`, so neither side ever deletes the other's files — missing-on-one-side just won't sync.
+
+### Optional: `.venv-mflux` (only if you need the legacy mflux 0.2.1 path)
+
+The modern mflux lives in `.venv-gen` (version 0.16.3). The legacy `.venv-mflux` environment was pinned to Python 3.9 + mflux 0.2.1 — only rebuild it if you have code that specifically imports from there.
+
+```bash
+python3.9 -m venv .venv-mflux
+.venv-mflux/bin/pip install -r requirements-mflux.lock.txt
+```
+
+### Troubleshooting
+
+- **`sync-down.sh` hangs on rendered/** → it's doing a 6M-file checksum-only rsync across 59 GB. First run takes 1-2 hours on fast internet. Use `--skip-rendered` if you don't need it right now.
+- **`ollama create madphotos-critic` fails** → run `ollama serve` first and verify `curl http://localhost:11434/api/version` returns a JSON response.
+- **`firebase deploy` fails with auth error** → `gcloud auth login` is NOT the same as `firebase login`. Run both.
+- **`.venv-gen/bin/pip install` fails on torch** → make sure you're on Apple Silicon with Python 3.13; the lock file has MPS builds.
+- **Vertex AI Imagen/Gemini calls fail** → `gcloud auth application-default login` (step 2 above) is the one that matters for server-side SDKs, not the plain `gcloud auth login`.
+
 ## Architecture
 
 ```

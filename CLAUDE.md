@@ -2,6 +2,12 @@
 
 Photo archive of 9,011 photographs. The backend is organized as **five agent folders** that form a pipeline: extract signals from every image, curate the best material with human input, and ship it to screens. See `backend/README.md` for the full agent architecture.
 
+## New machine? Read this first
+
+If this is a fresh clone on a machine that has never run MADphotos before, the canonical onboarding checklist lives in **`README.md` → "Starting on a new machine"**. Follow it top to bottom. It covers: `gcloud auth`, `sync-down.sh` (pulls ~65 GB of DB + tier pyramids + vectors + variant outputs from GCS), `.venv-gen` recreation from `requirements-gen.lock.txt`, Ollama `madphotos-critic` creation from `backend/Modelfile.madphotos`, Firebase login, and the ignition/deploy commands.
+
+**Multi-machine DB discipline:** `mad_photos.db` is the ground truth and only one machine should be writing it at a time. Before touching anything on a new session, run `./sync-down.sh --force` to refresh the DB from GCS. After any pipeline or deploy run, run `./sync-up.sh` to push it back.
+
 ## Welcome
 
 When the user starts a new session (first message, greeting, or says "hello", "hi", "start", etc.), display this welcome:
