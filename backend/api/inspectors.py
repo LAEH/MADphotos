@@ -97,7 +97,7 @@ def generate_signal_inspector_data():
             rec["sharpness"] = g["sharpness"] or ""
             try:
                 rec["vibes"] = json.loads(g["vibe"]) if g["vibe"] else []
-            except:
+            except (json.JSONDecodeError, KeyError):
                 rec["vibes"] = []
         else:
             rec.update({"caption": "", "alt": "", "style": "", "grading": "",
@@ -565,7 +565,7 @@ def generate_embedding_audit_data():
         if g and g["vibe"]:
             try:
                 anchor["vibes"] = json.loads(g["vibe"])
-            except:
+            except (json.JSONDecodeError, KeyError):
                 pass
 
         # Per-model neighbor search
@@ -663,7 +663,7 @@ def generate_collection_coverage_data():
             photos = json.loads(photos_path.read_text())
             if isinstance(photos, dict):
                 photos = photos.get("photos", photos.get("images", []))
-        except:
+        except (json.JSONDecodeError, OSError):
             pass
 
     # Define experience pools (approximate server-side)
@@ -916,7 +916,7 @@ def generate_schema_data():
                         sample_vals.append(val)
                     if sample_vals:
                         samples[col["name"]] = sample_vals
-            except:
+            except Exception:
                 pass
 
         tables.append({

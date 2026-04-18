@@ -148,24 +148,24 @@ def gemma_rate(c):
         for r in rows:
             if r[0]:
                 try: ts.append(datetime.fromisoformat(r[0].replace("Z","+00:00")).timestamp())
-                except: pass
+                except Exception: pass
         if len(ts) >= 2:
             span = ts[0] - ts[-1]
             if span > 0: return (len(ts)-1) / span
-    except: pass
+    except Exception: pass
     return 0.0
 
 def gemma_latest(c):
     try: return c.execute("SELECT subject, mood FROM gemma_analysis ORDER BY processed_at DESC LIMIT 1").fetchone()
-    except: return None
+    except Exception: return None
 
 def db_stats(c):
     s = {}
     for t, k in [("images","imgs"),("gemma_analysis","gemma"),("gemini_analysis","gemini")]:
         try: s[k] = c.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
-        except: s[k] = 0
+        except Exception: s[k] = 0
     try: s["vars"] = c.execute("SELECT COUNT(*) FROM ai_variants WHERE generation_status='success'").fetchone()[0]
-    except: s["vars"] = 0
+    except Exception: s["vars"] = 0
     return s
 
 
@@ -177,7 +177,7 @@ def monitor():
         conn = sqlite3.connect(str(DB), timeout=5)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA query_only=ON")
-    except: conn = None
+    except Exception: conn = None
 
     hist = deque(maxlen=120)
     s0 = gemma_done(conn) if conn else 0

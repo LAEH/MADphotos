@@ -36,11 +36,11 @@ def load_picks():
         return len(list(dict.fromkeys(
             [u for u in d["portrait"] if "_" not in u]+
             [u for u in d["landscape"] if "_" not in u])))
-    except: return 0
+    except Exception: return 0
 
 def nd(c):
     try: return c.execute(f"SELECT COUNT(*) FROM gemma_analysis WHERE {_wd()}").fetchone()[0]
-    except: return 0
+    except Exception: return 0
 
 def dbrate(c):
     try:
@@ -51,11 +51,11 @@ def dbrate(c):
         for r in rows:
             if r[0]:
                 try: ts.append(datetime.fromisoformat(r[0].replace("Z","+00:00")).timestamp())
-                except: pass
+                except Exception: pass
         if len(ts)>=2:
             span = ts[0]-ts[-1]
             if span>0: return (len(ts)-1)/span
-    except: pass
+    except Exception: pass
     return 0.0
 
 def get_latest(c):
@@ -64,14 +64,14 @@ def get_latest(c):
             "SELECT subject, mood, description, tags, processed_at "
             "FROM gemma_analysis ORDER BY processed_at DESC LIMIT 1").fetchone()
         return r if r else None
-    except: return None
+    except Exception: return None
 
 def get_recent(c):
     try:
         return c.execute(
             "SELECT subject, mood, processed_at "
             "FROM gemma_analysis ORDER BY processed_at DESC LIMIT 4 OFFSET 1").fetchall()
-    except: return []
+    except Exception: return []
 
 def pb(pct,w):
     f=int(w*pct/100); n=len(BG)
@@ -90,7 +90,7 @@ def fa(iso):
         t=datetime.fromisoformat(iso.replace("Z","+00:00"))
         d=max(0,(datetime.now(timezone.utc)-t).total_seconds())
         return f"{int(d)}s" if d<60 else (f"{int(d/60)}m" if d<3600 else f"{int(d/3600)}h")
-    except: return ""
+    except Exception: return ""
 
 def T(s,n): return s[:n-1]+"…" if len(s)>n else s
 

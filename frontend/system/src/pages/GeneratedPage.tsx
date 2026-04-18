@@ -236,7 +236,7 @@ export function GeneratedPage() {
     pendingAction.current = pending
     setGcpAuth('unauthenticated')
     setAuthWaiting(true)
-    fetch('/api/gcp-auth', { method: 'POST' }).catch(() => {})
+    fetch('/api/gcp-auth', { method: 'POST' }).catch(err => console.warn('GCP auth failed:', err))
   }, [])
 
   const launchGenerate = useCallback(async (count: number) => {

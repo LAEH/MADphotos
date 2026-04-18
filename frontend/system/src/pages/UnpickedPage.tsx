@@ -127,8 +127,8 @@ export function UnpickedPage() {
       setSelected(new Set())
       setToast(`Picked ${count} image${count > 1 ? 's' : ''}`)
       setTimeout(() => setToast(null), 3000)
-    } catch (e: any) {
-      setToast(`Error: ${e.message}`)
+    } catch (e: unknown) {
+      setToast(`Error: ${e instanceof Error ? e.message : String(e)}`)
       setTimeout(() => setToast(null), 4000)
     } finally {
       setPicking(false)
