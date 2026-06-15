@@ -96,6 +96,9 @@
 .bento-tile img.img-loaded {
   transition: opacity var(--img-appear-duration) var(--img-appear-ease) !important;
 }
+/* .img-sharpen is intentionally NOT overridden here: its scale(1.08)→1
+   settle keeps the blur's edge fuzz pushed outside the tile clip while
+   the focus-pull dissolve runs. Both properties are compositor-only. */
 
 /* Tap press — brief scale-down for tactile feedback */
 .bento-tile-press {

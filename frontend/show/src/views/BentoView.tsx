@@ -1497,7 +1497,7 @@ export function BentoView() {
         // Transfer source to main image (still hidden behind overlay)
         mainImg.src = target
         if (objPos) mainImg.style.objectPosition = objPos
-        mainImg.classList.remove('img-loading', 'img-loaded', 'img-blur-up')
+        mainImg.classList.remove('img-loading', 'img-loaded', 'img-blur-up', 'img-sharpen')
         mainImg.style.filter = ''
         mainImg.style.transform = ''
         // Flag: tell imgRef to skip loadProgressive on the React re-render

@@ -123,6 +123,27 @@ function revealImg(img: HTMLImageElement): void {
   }, 450)
 }
 
+/* Focus-pull reveal for the blur-up path: swap blur class for the sharpen
+   class in the same frame, so the (already decoded) sharp image starts
+   blurred and dissolves into focus. */
+function sharpenImg(img: HTMLImageElement): void {
+  img.classList.remove('img-blur-up')
+  img.classList.add('img-sharpen')
+
+  function onEnd(e: TransitionEvent) {
+    if (e.propertyName === 'filter') {
+      img.removeEventListener('transitionend', onEnd)
+      img.classList.remove('img-sharpen')
+    }
+  }
+  img.addEventListener('transitionend', onEnd)
+
+  setTimeout(() => {
+    img.removeEventListener('transitionend', onEnd)
+    img.classList.remove('img-sharpen')
+  }, 650)
+}
+
 /* ===== Progressive Image Loading ===== */
 
 /*
@@ -177,26 +198,30 @@ export function loadProgressive(
   if (photo.micro) {
     img.src = photo.micro
     img.classList.add('img-blur-up')
-    img.classList.remove('img-loading', 'img-loaded')
+    img.classList.remove('img-loading', 'img-loaded', 'img-sharpen')
   } else {
     img.classList.add('img-loading')
-    img.classList.remove('img-loaded', 'img-blur-up')
+    img.classList.remove('img-loaded', 'img-blur-up', 'img-sharpen')
   }
 
   const pre = new Image()
   pre.decoding = 'async'
   const swap = () => {
     if (_imgGen.get(img) !== gen) return /* stale — newer call superseded us */
+    const wasBlurUp = img.classList.contains('img-blur-up')
     img.src = target
     /* Apply srcset so browser can pick optimal resolution on resize/DPR */
     if (srcset) {
       img.srcset = srcset
       img.sizes = imgSizes
     }
-    img.classList.remove('img-blur-up')
     img.style.filter = ''
     img.style.transform = ''
-    revealImg(img)
+    if (wasBlurUp) {
+      sharpenImg(img)
+    } else {
+      revealImg(img)
+    }
   }
   const doLoad = () => {
     if (_imgGen.get(img) !== gen) return
@@ -206,9 +231,12 @@ export function loadProgressive(
   pre.onerror = () => {
     if (_imgGen.get(img) !== gen) return
     if (photo.micro && target !== photo.micro) {
+      /* Stuck on the micro fallback — keep it blurred rather than
+         exposing raw stretched pixels */
       img.src = photo.micro
+    } else {
+      img.classList.remove('img-blur-up')
     }
-    img.classList.remove('img-blur-up')
     revealImg(img)
   }
   pre.src = target

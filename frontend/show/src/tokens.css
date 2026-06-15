@@ -126,6 +126,7 @@
   --img-appear-ease: var(--ease-out-quart);
   --img-appear-scale-from: 1.02;
   --img-appear-scale-to: 1;
+  --img-sharpen-duration: 0.5s;
 
   /* ── rem-based Sizing System (1rem = 16px) ── */
   --size-xs: 0.5rem;    /* 8px */
@@ -315,11 +316,43 @@
     transform var(--img-appear-duration) var(--img-appear-ease) !important;
 }
 
-/* Blur-up placeholder: micro image at low opacity, crossfades to target.
-   Compositor-only (opacity + transform) — no filter: blur which forces paint. */
+/* Blur-up placeholder: the micro image is genuinely blurred so it reads
+   as a soft color field instead of raw stretched pixels. The blur is
+   static while loading (rasterized once on a promoted layer — translateZ),
+   so it does not cost per-frame paint. scale(1.08) hides the soft edge
+   bleed inside overflow-hidden tiles. */
 .img-blur-up {
+  filter: blur(18px) saturate(1.15);
+  transform: scale(1.08) translateZ(0);
+  opacity: 1;
+}
+
+/* Focus-pull: added by loadProgressive the moment the full image is
+   swapped in (already decoded), so the sharp image dissolves into focus
+   instead of popping. Removed in JS after the transition ends. */
+.img-sharpen {
+  filter: blur(0) saturate(1);
+  transform: scale(1) translateZ(0);
+  transition:
+    filter var(--img-sharpen-duration) var(--img-appear-ease),
+    transform var(--img-sharpen-duration) var(--img-appear-ease);
+}
+
+/* Tier C — keep the old cheap placeholder (no filter at all) */
+:root.tier-c .img-blur-up {
+  filter: none;
   transform: scale(1.05) translateZ(0);
   opacity: 0.6;
+}
+:root.tier-c .img-sharpen {
+  filter: none;
+  transition: opacity var(--img-appear-duration) var(--img-appear-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .img-sharpen {
+    transition: none;
+  }
 }
 
 /* ===== Base ===== */
