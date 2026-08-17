@@ -17,6 +17,14 @@
 set -e
 cd /Users/laeh/Github/MADphotos
 
+# Shared heavy-job guard (persistent queue + RAM budget + runtime watchdog).
+# Phase 1 loads Ollama Qwen 7B + 4 workers — peak ~10 GB. Phase 2 is API-only,
+# trivially small. Use phase-1 budget.
+source "$HOME/.claude/laeh-heavy-guard.sh"
+LAEH_BUDGET_GB="${LAEH_BUDGET_GB:-10}"
+trap 'laeh_heavy_release $?' EXIT
+laeh_heavy_acquire "madphotos-overnight-qwen" "MADphotos overnight Qwen pipeline" "$LAEH_BUDGET_GB" || exit $?
+
 PHASE1=true
 PHASE2=true
 BUDGET=20.0
